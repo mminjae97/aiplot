@@ -1,0 +1,25 @@
+{
+  "type": "main_story",
+  "name": "귀환",
+  "data": {
+    "theme": "상실과 회복",
+    "premise": "죽은 줄 알았던 가족의 흔적을 좇는다",
+    "ending": "가족 대신 새 동료를 얻는다",
+    "milestones": [
+      {
+        "id": "ms_1",
+        "order": 1,
+        "text": "흔적 발견"
+      },
+      {
+        "id": "ms_2",
+        "order": 2,
+        "text": "진실 대면"
+      }
+    ]
+  },
+  "evidence": {
+    "theme": [0]
+  },
+  "ai_guess": []
+}

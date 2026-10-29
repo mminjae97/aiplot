@@ -71,7 +71,7 @@ type CardOutput = Annotated[
     | PartCardOutput
     | EpisodeCardOutput,
     Field(
-        description="`card` role output (§13) for the requested type. Evidence indexes refer to the [n]-numbered note sentences in the prompt; the server drops out-of-range indexes and restores pinned fields.",
+        description="`card` role output (§13). The server constrains and validates with the variant for the requested type. Evidence indexes are the 0-based [n] numbers of the server-split note sentences in the prompt; the server drops out-of-range indexes and unknown field paths, and restores pinned fields.",
         discriminator="type",
         title="CardOutput",
     ),

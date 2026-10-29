@@ -29,7 +29,7 @@ export type StoryStructure = FourStageStructure | FiveStageStructure
 export type ForeshadowingId = string
 export type WorldlineId = string
 /**
- * `card` role output (§13) for the requested type. Evidence indexes refer to the [n]-numbered note sentences in the prompt; the server drops out-of-range indexes and restores pinned fields.
+ * `card` role output (§13). The server constrains and validates with the variant for the requested type. Evidence indexes are the 0-based [n] numbers of the server-split note sentences in the prompt; the server drops out-of-range indexes and unknown field paths, and restores pinned fields.
  */
 export type CardOutput =
   CharacterCardOutput | RegionCardOutput | MainStoryCardOutput | PartCardOutput | EpisodeCardOutput
@@ -82,7 +82,7 @@ export interface CharacterRelation {
   relation: string
 }
 /**
- * Field path (e.g. personality.traits) -> indexes of supporting source-note sentences.
+ * Field path (e.g. personality.traits) -> 0-based indexes of supporting source-note sentences (server split).
  */
 export interface CardEvidence {
   [k: string]: number[] | undefined
@@ -326,7 +326,7 @@ export interface EpisodeCardOutput {
  */
 export interface SourceOutput {
   /**
-   * Full rewritten source notes; reversals resolved.
+   * Full rewritten source notes; reversals resolved. Server rejects an empty result when previous notes were non-empty.
    */
   notes: string
   /**
@@ -336,11 +336,15 @@ export interface SourceOutput {
    */
   questions: string[]
   /**
-   * Names in the notes that may be an existing card spelled differently (레오/래오).
+   * Pairs of names that may be one entity spelled differently (레오/래오), within the notes or against existing cards.
    */
   similar_names: SimilarName[]
 }
 export interface SimilarName {
   mentioned: string
-  card_id: CardId
+  similar_to: string
+  /**
+   * Existing card named similar_to, or null if it is only in the notes.
+   */
+  card_id: CardId | null
 }

@@ -7,7 +7,7 @@
   "required": ["notes", "questions", "similar_names"],
   "properties": {
     "notes": {
-      "description": "Full rewritten source notes; reversals resolved.",
+      "description": "Full rewritten source notes; reversals resolved. Server rejects an empty result when previous notes were non-empty.",
       "type": "string"
     },
     "questions": {
@@ -19,19 +19,32 @@
       "maxItems": 3
     },
     "similar_names": {
-      "description": "Names in the notes that may be an existing card spelled differently (레오/래오).",
+      "description": "Pairs of names that may be one entity spelled differently (레오/래오), within the notes or against existing cards.",
       "type": "array",
       "items": {
         "title": "SimilarName",
         "type": "object",
         "additionalProperties": false,
-        "required": ["mentioned", "card_id"],
+        "required": ["mentioned", "similar_to", "card_id"],
         "properties": {
           "mentioned": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
+          },
+          "similar_to": {
+            "type": "string",
+            "minLength": 1
           },
           "card_id": {
-            "$ref": "../common/card-id.json"
+            "description": "Existing card named similar_to, or null if it is only in the notes.",
+            "anyOf": [
+              {
+                "$ref": "../common/card-id.json"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       }
