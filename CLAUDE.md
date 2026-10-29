@@ -10,7 +10,7 @@ Local Windows desktop app (NVIDIA 8GB VRAM) for writing Korean web novels. All m
 - Starting a stage locks earlier stages (read-only).
 
 ## 2 Stack
-Electron + React + TS (Vite); Zustand (UI state) + TanStack Query (server state); TipTap (manuscript); React Flow + d3-force (timeline/map/curves). Python 3.12 FastAPI local server; HTTP + SSE on 127.0.0.1. SQLite + FTS5 (names). llama.cpp server Windows CUDA build, LoRA hot-swap via `/lora`. Base: Qwen3-8B uncensored (Heretic) Q4_K_M, LoRAs F16. Optional images: ComfyUI portable + SDXL semi-realistic, fixed workflow JSON. Packaging: PyInstaller + electron-builder. Tests: Vitest, pytest, Playwright (Electron). Lint: ESLint+Prettier+tsc; Ruff+mypy. npm (app, schemas), uv (server, training). Node 22, Python 3.12. CI: GitHub Actions (Windows runner builds installer).
+Electron + React + TS (Vite); Zustand (UI state) + TanStack Query (server state); TipTap (manuscript); React Flow + d3-force (timeline/map/curves). Python 3.12 FastAPI local server; HTTP + SSE on 127.0.0.1. SQLite + FTS5 (names); stdlib sqlite3, no ORM; migrations `db/migrations/NNN_name.sql` tracked by `PRAGMA user_version`. Codegen: json-schema-to-typescript (TS), datamodel-code-generator (Pydantic, run via server uv env). llama.cpp server Windows CUDA build (pinned version+hash, downloaded at first run, not in installer), LoRA hot-swap via `/lora`. Base: Qwen3-8B uncensored (Heretic) Q4_K_M, LoRAs F16. Optional images: ComfyUI portable + SDXL semi-realistic, fixed workflow JSON. Packaging: PyInstaller + electron-builder. Tests: Vitest, pytest, Playwright (Electron). Lint: ESLint+Prettier+tsc; Ruff+mypy. npm (app, schemas), uv (server, training). Node 22, Python 3.12. CI: GitHub Actions (Windows runner builds installer).
 
 ## 3 Layout
 ```
@@ -22,7 +22,7 @@ server/{prompts/{role}/v{n}.md, config/{roles.yaml,profiles/*.yaml}, data/techni
 schemas/ (JSON Schema source of truth) + codegen/
 training/{seeds,generate,filter,notebooks,eval} — not shipped
 ```
-Runtime data: `%LOCALAPPDATA%\Aiplot\{data\aiplot.db, images, snapshots, models, lora, comfyui, logs}`.
+Runtime data: `%LOCALAPPDATA%\Aiplot\{data\aiplot.db, images, snapshots, models, lora, llama, comfyui, logs}`.
 
 ## 4 Commands
 Not created yet; create with these exact names in dev step 1, then keep accurate.
@@ -81,7 +81,7 @@ Card drawer (all types): ~70% width, background dimmed; left chat (top) + source
 - Type section: character speech preview; episode 4/5 picker with recommendation; part milestone assignment.
 - After save: close, highlight card 0.3s. Locked: add/edit disabled, drawer won't open.
 
-Dex (S1-1): grid + translucent "+" card. Front image+name (fallback first-letter image). Back (flip 0.3s): all fields; bottom row "원문 수정" left, red "삭제" right. Delete: confirm listing referencing cards, delete card+relation rows, "되돌리기" toast. Locked: read-only; image generation still allowed. Images (step 10): `image_prompt` → ComfyUI 2–4 candidates 896×1152, web-novel-cover semi-realistic, realistic proportions → user picks; store prompt+seed.
+Dex (S1-1): grid + translucent "+" card. Front image+name (fallback first-letter image). Back (flip 0.3s): all fields; bottom row "원문 수정" left, red "삭제" right. Delete: confirm listing referencing cards, "되돌리기" toast ~5s (client delays DELETE until it expires), then delete card+relation rows. Locked: read-only; image generation still allowed. Images (step 10): `image_prompt` → ComfyUI 2–4 candidates 896×1152, web-novel-cover semi-realistic, realistic proportions → user picks; store prompt+seed.
 
 Region map (S1-2): node per region; lines labeled travel time; parents as dashed areas (double-click zoom). d3-force layout, length ~ travel time, respect direction. Drag changes map_x/y only. Click flips (appearance, environment, mood, adjacent; same bottom row). Badge = episode count, hover lists. New node placed next to linked region. Wheel zoom, drag pan.
 
@@ -116,7 +116,7 @@ S3-1 screen: left chapters (done/generating/waiting), center TipTap manuscript, 
 
 ## 12 Screens
 S0 Library: books on shelf, recent first + highlight; translucent "+" book last ("새로 만들기" title only → contents, or import). Cover: title, stage, chapters. Hover: main theme, modified, chapters. Right-click "제목 바꾸기/백업 생성/삭제" (delete shows counts, type title). Progress band while generating. Empty: "첫 작품을 시작해 보세요".
-S0-1 First run: capabilities/limits, download base (~5GB, resumable, hash) or set path.
+S0-1 First run: capabilities/limits, download llama.cpp + base (~5GB, resumable, hash) or set path.
 S1 Contents: opened book. Left: title, main theme, stage, card count, modified, "원고 내보내기", "백업 생성", "이어서 작업". Right: items by stage (캐릭터, 지역, 스토리 | 연출 | 집필, 소설 읽기) with dotted leader + status; last item highlighted; future dim (click explains); past locked read-only + "다시 열기". Top-bar title → contents; "← 서재".
 S1-1/2/3 §8; S2 §9; S3-1 §10.
 S3-2 Chapter list: read chapters bold, sort newest/oldest (remembered), toggle read, "이어 읽기". S3-3 Reader: read-only, prev/next, font size, line height; end of chapter marks read.
@@ -150,17 +150,17 @@ JSON roles low temp.
 - direction_plan(id,episode_id,status,plan JSON); technique_pick(id,plan_id,scene,technique_id,rank,reason,chosen)
 - chapter(id,plan_id,work_id,number,target_chars,read,progress_summary,summary_long,summary_short); beat(id,chapter_id,order,source_stage,technique_id,pov,mode,tension,feedback); beat_version(id,beat_id,version,text,chars,origin generated|edited,created_at) latest = current
 - state_record(id,beat_id,card_id,key,value); warning(id,version_id,card_id,kind,status,reason); snapshot(id,work_id,stage,path,created_at)
-No conversation table. FTS5 on card names. Save copies data refs into relation tables; card delete lists then deletes relation rows.
+card.status: complete|incomplete (required fields empty). Each table is created by the migration of the dev step that first uses it. No conversation table. FTS5 on card names. Save copies data refs into relation tables; card delete lists then deletes relation rows.
 
 ## 15 Schemas
-Card: `{id, work_id, type, name, status, source_notes, data, evidence{field:[sentence idx]}, ai_guess[field], pinned[field], schema_version}` (pinned → column pinned_fields).
+Card: `{id, work_id, type, name, status complete|incomplete, source_notes, data, evidence{field:[sentence idx]}, ai_guess[field], pinned[field], schema_version}` (pinned → column pinned_fields).
 data: character{theme, personality{traits[],behaviors[{situation,action}]}, speech{description,examples[3..5]}, appearance{summary,details}, relations[{target_id,relation}], origin_region_id}; region{parent_id, links[{target_id,travel{value,unit,mode},direction?}], appearance, environment{natural,social}, sensory{smell,sound,mood}}; main_story{theme,premise,ending,milestones[{id,order,text}]}; part{order,title,theme,fulfills[],start,end,structure?}; episode{part_id,order,theme,relation_to_main,fulfills[],characters[],locations{main,others[]},links{prev,next,causes[]},foreshadowing{plants[],payoffs[]},worldline_id,structure{type 4|5,stages[{name,summary,tension}]},synopsis}.
 Also: plan (§9), state values (§7), each JSON role output.
 
 ## 16 API
 Base `http://127.0.0.1:{port}/api/v1`, `Authorization: Bearer {token}`. JSON, ISO 8601, chars incl. spaces. Error `{code,message,hint}`; each code maps to a UI state. Jobs return `202 {jobId}`. Locked → 423 STAGE_LOCKED.
 - works: GET/POST /works; GET/PATCH/DELETE /works/{workId}; POST /works/{workId}/stage/advance; GET .../stage/reopen-preview?stage=; POST .../stage/reopen (title confirm if manuscript)
-- cards: GET /works/{workId}/cards?type=&q=; GET /cards/{cardId}; GET /cards/{cardId}/references; DELETE /cards/{cardId}; GET /works/{workId}/completeness; POST /cards/{cardId}/images (job); PUT /cards/{cardId}/image
+- cards: GET /works/{workId}/cards?type=&q=; GET /cards/{cardId}; PATCH /cards/{cardId}/position {map_x,map_y} (region only); GET /cards/{cardId}/references; DELETE /cards/{cardId}; GET /works/{workId}/completeness; POST /cards/{cardId}/images (job); PUT /cards/{cardId}/image
 - drafts: POST /works/{workId}/drafts; POST /drafts/{draftId}/messages (SSE reply, notes change, questions, name checks); PUT .../source; POST .../generate; POST .../save; DELETE /drafts/{draftId}
 - direction: POST/GET /episodes/{episodeId}/plans (POST = job); POST /plans/{planId}/scenes/{scene}/pick; PATCH /plans/{planId} (order, cuts → recheck); POST /plans/{planId}/choose; POST /beats/{beatId}/feedback; GET /techniques?q=
 - writing: GET /works/{workId}/chapters; POST /chapters/{chapterId}/generate (job); POST /beats/{beatId}/regenerate (job); PUT /beats/{beatId}/text; GET /beats/{beatId}/versions; POST /beats/{beatId}/versions/{version}/restore; GET /chapters/{chapterId}/warnings; PATCH /warnings/{warningId}; PATCH /chapters/{chapterId} (read, position)
@@ -181,7 +181,7 @@ error {code}
 ```
 
 ## 17 Runtime
-VRAM: base ~5GB + KV 8k ~1.1GB + buffers ~1GB; peak ≤7.5GB; need more ctx → 8-bit KV. Evaluate LoRAs on Q4 + F16 LoRA. Models downloaded in first run; ComfyUI on first image. Updates: GitHub Releases notify only; DB via migrations. Logs per process, daily rotation, failures + VRAM, never sent.
+VRAM: base ~5GB + KV 8k ~1.1GB + buffers ~1GB; peak ≤7.5GB; need more ctx → 8-bit KV. Evaluate LoRAs on Q4 + F16 LoRA. llama.cpp + models downloaded in first run; ComfyUI on first image. Updates: GitHub Releases notify only; DB via migrations. Logs per process, daily rotation, failures + VRAM, never sent.
 
 ## 18 Training (training/ only)
 Teacher LLM APIs allowed here; verify terms permit training on outputs.
@@ -193,7 +193,7 @@ Teacher LLM APIs allowed here; verify terms permit training on outputs.
 Fake LLM fixtures only. Must cover: locks + 423; no direct card field edits; snapshot before reopen; relation sync on save/delete; drafts/conversations not persisted; char count incl. spaces; SSE order; backup round-trip. E2E: library → contents → save card → generate. Model quality via training/eval scripts. CI: lint, typecheck, unit tests per push; Windows installer build.
 
 ## 20 Dev order (pass criteria; draft, blind human evals)
-1. Monorepo, Electron↔server↔llama.cpp, model download, CI, schemas, SQLite, drawer, dex, map, story — card field match ≥85% (30 notes, 6/type); unsupported fills ≤5%; JSON valid 100% w/ 1 retry; name check ≥90% found, ≤10% false; chat first char ≤2s, card ≤10s; measure real token counts.
+1. Monorepo, Electron↔server↔llama.cpp, model download, CI, schemas, SQLite, drawer, dex, map, story; minimal library/contents (create/open; full in 9); stage advance + 423 (reopen + snapshot in 9); eval notes in training/eval (Claude drafts, user reviews) — card field match ≥85% (30 notes, 6/type); unsupported fills ≤5%; JSON valid 100% w/ 1 retry; name check ≥90% found, ≤10% false; chat first char ≤2s, card ≤10s; measure real token counts.
 2. Technique cards — ≥30, all fields; right technique within picks ≥80% of 20 scenes (single pick must be right).
 3. Direction baseline, fix plan format — schema pass ≥95%.
 4. Eval set — 20 bundles; rubric 1–5: tension placement, chapter cut, reveal timing, POV consistency, technique fit; no training overlap.
@@ -205,10 +205,12 @@ Fake LLM fixtures only. Must cover: locks + 423; no direct card field edits; sna
 10. Images (optional).
 11. Integration + installer — one episode (3–5 chapters) end to end; resume after forced quit; peak VRAM ≤7.5GB.
 Defer if tight: images, hwp, node drag.
-**Current step: 1 (not started).** Update when a step passes.
+Step 1 units: 0 env/git · 1 skeleton+CI · 2 schemas · 3 server core+DB · 4 LLM layer · 5 real-model measurement · 6 jobs/SSE, llama process, download · 7 Electron+React shell, S0-1, min library · 8 works/cards API · 9 drafts API · 10 drawer · 11 dex · 12 map · 13 story · 14 E2E + installer CI · 15 eval.
+**Current step: 1, unit 1.** Update when a unit/step passes. Open: base GGUF repo/file/hash (user to choose).
 
 ## 21 Working rules
 - Build only the current step unless asked. Small units; run checks before finishing.
+- Every change via branch → PR to main (never push main); one topic per PR, Conventional Commit title. Review the PR; issues → fix and re-review until clean. Squash-merge only when review is clean and CI green.
 - Unspecified decision → propose one option + short reason, ask first.
 - Draft numbers must be measured; report and update this file.
 - Design change → update this file in the same change; keep sections consistent.
