@@ -6,7 +6,7 @@ import type { Plugin } from 'vite'
 const root = import.meta.dirname
 
 const csp =
-  "default-src 'self'; connect-src 'self' http://127.0.0.1:*; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
+  "default-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; connect-src 'self' http://127.0.0.1:*; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
 
 // Injected only into production builds: the dev server needs an inline React refresh preamble.
 function cspPlugin(): Plugin {
@@ -31,8 +31,12 @@ export default defineConfig({
     build: { rolldownOptions: { input: { index: resolve(root, 'electron/preload.ts') } } },
   },
   renderer: {
-    root,
-    build: { rolldownOptions: { input: { index: resolve(root, 'index.html') } } },
+    root: resolve(root, 'src'),
+    server: { fs: { allow: [resolve(root, 'src'), resolve(root, 'node_modules')] } },
+    build: {
+      outDir: resolve(root, 'out/renderer'),
+      rolldownOptions: { input: { index: resolve(root, 'src/index.html') } },
+    },
     plugins: [react(), cspPlugin()],
   },
 })

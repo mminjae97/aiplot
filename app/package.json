@@ -5,7 +5,7 @@
   "description": "Aiplot desktop app",
   "main": "out/main/index.js",
   "engines": {
-    "node": ">=22.12 <23"
+    "node": ">=22.13 <23"
   },
   "scripts": {
     "dev": "electron-vite dev",
@@ -22,7 +22,6 @@
     "zustand": "^5.0.16"
   },
   "devDependencies": {
-    "@eslint/compat": "^2.1.1",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.64.1",
     "@testing-library/react": "^16.3.3",
