@@ -1,0 +1,17 @@
+{
+  "type": "part",
+  "name": "1부",
+  "data": {
+    "order": 1,
+    "title": "1부 항구",
+    "theme": "출발",
+    "fulfills": ["ms_1"],
+    "start": "테오가 항구로 돌아온다",
+    "end": "수도로 떠난다",
+    "structure": null
+  },
+  "evidence": {
+    "theme": [0]
+  },
+  "ai_guess": []
+}

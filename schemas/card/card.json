@@ -39,7 +39,7 @@
     },
     "evidence": {
       "title": "CardEvidence",
-      "description": "Field path (e.g. personality.traits) -> indexes of supporting source-note sentences.",
+      "description": "Field path (e.g. personality.traits) -> 0-based indexes of supporting source-note sentences (server split).",
       "type": "object",
       "additionalProperties": {
         "type": "array",

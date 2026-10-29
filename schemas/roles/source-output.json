@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SourceOutput",
+  "description": "`source` role output (§13). Changed sentences are computed by the server (sentence diff), not by the model.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["notes", "questions", "similar_names"],
+  "properties": {
+    "notes": {
+      "description": "Full rewritten source notes; reversals resolved. Server rejects an empty result when previous notes were non-empty.",
+      "type": "string"
+    },
+    "questions": {
+      "description": "Follow-up questions for missing or ambiguous information.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "maxItems": 3
+    },
+    "similar_names": {
+      "description": "Pairs of names that may be one entity spelled differently (레오/래오), within the notes or against existing cards.",
+      "type": "array",
+      "items": {
+        "title": "SimilarName",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["mentioned", "similar_to", "card_id"],
+        "properties": {
+          "mentioned": {
+            "type": "string",
+            "minLength": 1
+          },
+          "similar_to": {
+            "type": "string",
+            "minLength": 1
+          },
+          "card_id": {
+            "description": "Existing card named similar_to, or null if it is only in the notes.",
+            "anyOf": [
+              {
+                "$ref": "../common/card-id.json"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

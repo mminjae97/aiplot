@@ -1,0 +1,11 @@
+{
+  "notes": "테오는 북부 항구 출신이다. 말수가 적다.\n소꿉친구 미라와 함께 수도로 떠난다.",
+  "questions": ["1?", "2?", "3?", "4?"],
+  "similar_names": [
+    {
+      "mentioned": "래오",
+      "similar_to": "레오",
+      "card_id": "c_leo"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "type": "region",
+  "name": "북부 항구",
+  "data": {
+    "parent_id": null,
+    "links": [
+      {
+        "target_id": "c_capital",
+        "travel": {
+          "value": 3,
+          "unit": "day",
+          "mode": "말"
+        },
+        "direction": "남"
+      },
+      {
+        "target_id": "c_isle",
+        "travel": null,
+        "direction": null
+      }
+    ],
+    "appearance": "안개 낀 석조 부두",
+    "environment": {
+      "natural": "한랭한 해안",
+      "social": "밀수꾼이 많다"
+    },
+    "sensory": {
+      "smell": "소금과 생선",
+      "sound": "갈매기",
+      "mood": "음울함"
+    }
+  },
+  "evidence": {
+    "appearance": [0]
+  },
+  "ai_guess": []
+}

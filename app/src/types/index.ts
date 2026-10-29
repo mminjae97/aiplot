@@ -28,6 +28,11 @@ export type MilestoneId = string
 export type StoryStructure = FourStageStructure | FiveStageStructure
 export type ForeshadowingId = string
 export type WorldlineId = string
+/**
+ * `card` role output (§13). The server constrains and validates with the variant for the requested type. Evidence indexes are the 0-based [n] numbers of the server-split note sentences in the prompt. The server then drops out-of-range indexes, unknown field paths and unknown card ids, assigns ms_/fs_ ids, sets placement fields from context and restores pinned fields (§13).
+ */
+export type CardOutput =
+  CharacterCardOutput | RegionCardOutput | MainStoryCardOutput | PartCardOutput | EpisodeCardOutput
 
 export interface CharacterCard {
   id: CardId
@@ -77,7 +82,7 @@ export interface CharacterRelation {
   relation: string
 }
 /**
- * Field path (e.g. personality.traits) -> indexes of supporting source-note sentences.
+ * Field path (e.g. personality.traits) -> 0-based indexes of supporting source-note sentences (server split).
  */
 export interface CardEvidence {
   [k: string]: number[] | undefined
@@ -280,4 +285,66 @@ export interface ApiError {
  */
 export interface HealthResponse {
   status: 'ok'
+}
+export interface CharacterCardOutput {
+  type: 'character'
+  name: CardName
+  data: CharacterData
+  evidence: CardEvidence
+  ai_guess: AiGuessFields
+}
+export interface RegionCardOutput {
+  type: 'region'
+  name: CardName
+  data: RegionData
+  evidence: CardEvidence
+  ai_guess: AiGuessFields
+}
+export interface MainStoryCardOutput {
+  type: 'main_story'
+  name: CardName
+  data: MainStoryData
+  evidence: CardEvidence
+  ai_guess: AiGuessFields
+}
+export interface PartCardOutput {
+  type: 'part'
+  name: CardName
+  data: PartData
+  evidence: CardEvidence
+  ai_guess: AiGuessFields
+}
+export interface EpisodeCardOutput {
+  type: 'episode'
+  name: CardName
+  data: EpisodeData
+  evidence: CardEvidence
+  ai_guess: AiGuessFields
+}
+/**
+ * `source` role output (§13). Changed sentences are computed by the server (sentence diff), not by the model.
+ */
+export interface SourceOutput {
+  /**
+   * Full rewritten source notes; reversals resolved. Server rejects an empty result when previous notes were non-empty.
+   */
+  notes: string
+  /**
+   * Follow-up questions for missing or ambiguous information.
+   *
+   * @maxItems 3
+   */
+  questions: string[]
+  /**
+   * Pairs of names that may be one entity spelled differently (레오/래오), within the notes or against existing cards.
+   */
+  similar_names: SimilarName[]
+}
+export interface SimilarName {
+  mentioned: string
+  similar_to: string
+  /**
+   * Existing card named similar_to, or null if it is only in the notes.
+   */
+  card_id: CardId | null
 }
