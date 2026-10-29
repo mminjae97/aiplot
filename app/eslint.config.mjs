@@ -25,12 +25,13 @@ export default tseslint.config(
   },
   {
     files: ['src/**/*.{ts,tsx}', 'tests/**/*.{ts,tsx}'],
+    ignores: ['tests/e2e/**'],
     plugins: { 'react-hooks': reactHooks },
     languageOptions: { globals: globals.browser },
     rules: reactHooks.configs.recommended.rules,
   },
   {
-    files: ['electron/**/*.ts', '*.config.ts'],
+    files: ['electron/**/*.ts', 'tests/e2e/**/*.ts', '*.config.ts'],
     languageOptions: { globals: globals.node },
   },
   { files: ['*.mjs'], ...tseslint.configs.disableTypeChecked },
