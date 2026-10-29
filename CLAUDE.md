@@ -25,7 +25,7 @@ training/{seeds,generate,filter,notebooks,eval} — not shipped
 Runtime data: `%LOCALAPPDATA%\Aiplot\{data\aiplot.db, images, snapshots, models, lora, llama, comfyui, logs, electron (Chromium profile)}`.
 
 ## 4 Commands
-Keep exact names accurate. Not yet: schemas codegen (unit 2), pyinstaller spec + installer build (unit 14). Node via fnm (`.node-version`).
+Keep exact names accurate. Not yet: schemas codegen (unit 2), pyinstaller spec + installer build (unit 14). Node version: `.node-version`.
 ```
 cd schemas && npm i && npm run codegen        # → app/src/types, server/aiplot/generated
 cd server && uv sync

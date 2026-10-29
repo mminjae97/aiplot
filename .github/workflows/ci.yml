@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -30,11 +31,11 @@ jobs:
           node-version-file: .node-version
           cache: npm
           cache-dependency-path: app/package-lock.json
-      - uses: actions/cache@v5
+      - run: npm ci
+      - uses: actions/cache@v6
         with:
           path: ~\AppData\Local\electron\Cache
-          key: electron-${{ runner.os }}-${{ hashFiles('app/package-lock.json') }}
-      - run: npm ci
+          key: electron-${{ runner.os }}-${{ hashFiles('app/node_modules/electron/package.json') }}
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
@@ -50,6 +51,7 @@ jobs:
         working-directory: server
     steps:
       - uses: actions/checkout@v7
+      # setup-uv publishes no floating major tag.
       - uses: astral-sh/setup-uv@v10.3.3
         with:
           working-directory: server
