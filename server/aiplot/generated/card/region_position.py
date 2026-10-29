@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, StrictFloat
 
 
 class RegionPosition(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    map_x: float
-    map_y: float
+    map_x: StrictFloat
+    map_y: StrictFloat

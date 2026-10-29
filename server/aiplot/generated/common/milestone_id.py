@@ -4,6 +4,6 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import Field
+from pydantic import Field, StrictStr
 
-type MilestoneId = Annotated[str, Field(pattern="^ms_[0-9A-Za-z]+$", title="MilestoneId")]
+type MilestoneId = Annotated[StrictStr, Field(pattern="^ms_[0-9A-Za-z]+$", title="MilestoneId")]

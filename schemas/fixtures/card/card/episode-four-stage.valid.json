@@ -25,7 +25,7 @@
       "plants": [],
       "payoffs": ["fs_scar"]
     },
-    "worldline_id": "wr_main",
+    "worldline_id": "wl_main",
     "structure": {
       "type": 4,
       "stages": [

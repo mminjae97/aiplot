@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 
 from ..common import card_id
 
@@ -13,15 +13,15 @@ class CharacterBehavior(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    situation: str
-    action: str
+    situation: StrictStr
+    action: StrictStr
 
 
 class CharacterPersonality(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    traits: list[str]
+    traits: list[StrictStr]
     behaviors: list[CharacterBehavior]
 
 
@@ -29,31 +29,31 @@ class CharacterSpeech(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    description: str | None
-    examples: Annotated[list[str], Field(max_length=5)]
+    description: StrictStr | None
+    examples: Annotated[list[StrictStr], Field(max_length=5)]
 
 
 class CharacterAppearance(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    summary: str | None
-    details: str | None
+    summary: StrictStr | None
+    details: StrictStr | None
 
 
 class CharacterRelation(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    target_id: Annotated[str, Field(pattern="^c_[0-9A-Za-z]+$", title="CardId")]
-    relation: str
+    target_id: card_id.CardId
+    relation: StrictStr
 
 
 class CharacterData(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    theme: str | None
+    theme: StrictStr | None
     personality: Annotated[CharacterPersonality, Field(title="CharacterPersonality")]
     speech: Annotated[CharacterSpeech, Field(title="CharacterSpeech")]
     appearance: Annotated[CharacterAppearance, Field(title="CharacterAppearance")]

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 
 from ..common import (
     card_id,
@@ -38,8 +38,8 @@ class ForeshadowingPlant(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    id: Annotated[str, Field(pattern="^fs_[0-9A-Za-z]+$", title="ForeshadowingId")]
-    text: str
+    id: foreshadowing_id.ForeshadowingId
+    text: StrictStr
 
 
 class EpisodeForeshadowing(BaseModel):
@@ -58,14 +58,14 @@ class EpisodeData(BaseModel):
         extra="forbid",
     )
     part_id: card_id.CardId | None
-    order: Annotated[int | None, Field(ge=1)]
-    theme: str | None
-    relation_to_main: str | None
+    order: Annotated[StrictInt | None, Field(ge=1)]
+    theme: StrictStr | None
+    relation_to_main: StrictStr | None
     fulfills: list[milestone_id.MilestoneId]
     characters: list[card_id.CardId]
     locations: Annotated[EpisodeLocations, Field(title="EpisodeLocations")]
     links: Annotated[EpisodeLinks, Field(title="EpisodeLinks")]
     foreshadowing: Annotated[EpisodeForeshadowing, Field(title="EpisodeForeshadowing")]
     worldline_id: worldline_id_1.WorldlineId | None
-    structure: structure_1.FourStageStructure | structure_1.FiveStageStructure | None
-    synopsis: str | None
+    structure: structure_1.StoryStructure | None
+    synopsis: StrictStr | None

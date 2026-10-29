@@ -4,23 +4,25 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
+
+from ..common import milestone_id
 
 
 class Milestone(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    id: Annotated[str, Field(pattern="^ms_[0-9A-Za-z]+$", title="MilestoneId")]
-    order: Annotated[int, Field(ge=1)]
-    text: str
+    id: milestone_id.MilestoneId
+    order: Annotated[StrictInt, Field(ge=1)]
+    text: StrictStr
 
 
 class MainStoryData(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    theme: str | None
-    premise: str | None
-    ending: str | None
+    theme: StrictStr | None
+    premise: StrictStr | None
+    ending: StrictStr | None
     milestones: list[Milestone]

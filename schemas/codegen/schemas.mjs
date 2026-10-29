@@ -145,10 +145,12 @@ export function listFixtures() {
   return found.sort()
 }
 
+/** Returns error messages and how many fixtures were checked. */
 export function validateFixtures(schemas, ajv) {
   const errors = []
   const known = new Set(schemas.map(({ rel }) => rel))
-  for (const rel of listFixtures()) {
+  const fixtures = listFixtures()
+  for (const rel of fixtures) {
     const match = /^(.+)\/[^/]+\.(valid|invalid)\.json$/.exec(rel)
     const schemaRel = match ? `${match[1]}.json` : null
     if (!match || !schemaRel || !known.has(schemaRel)) {
@@ -174,7 +176,7 @@ export function validateFixtures(schemas, ajv) {
       errors.push(`fixtures/${rel}: should be invalid but passed`)
     }
   }
-  return errors
+  return { errors, count: fixtures.length }
 }
 
 /** Shared entry for validate and codegen: load, validate, and require at least one schema. */
