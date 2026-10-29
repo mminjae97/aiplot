@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field, StrictStr
 
 from ..common import card_id as card_id_1
 
+type Question = Annotated[StrictStr, Field(min_length=1)]
+
 
 class SimilarName(BaseModel):
     model_config = ConfigDict(
@@ -32,7 +34,7 @@ class SourceOutput(BaseModel):
         ),
     ]
     questions: Annotated[
-        list[StrictStr],
+        list[Question],
         Field(
             description="Follow-up questions for missing or ambiguous information.",
             max_length=3,

@@ -8,12 +8,13 @@ generated module for that schema path.
 import importlib
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from aiplot.generated.card.card import Card, CharacterCard, EpisodeCard, RegionCard
+from aiplot.generated.roles.card_output import CardOutput
 
 SCHEMAS = Path(__file__).resolve().parents[2] / "schemas"
 FIXTURES = SCHEMAS / "fixtures"
@@ -68,3 +69,12 @@ def test_nested_ids_are_plain_strings() -> None:
     assert "c_teo" in card.data.characters
     assert card.data.part_id == "c_part1"
     assert {"c_teo", "c_mira"} == set(card.data.characters)
+
+
+def test_card_output_covers_every_card_type() -> None:
+    def type_literals(union: object) -> set[str]:
+        members = get_args(get_args(union.__value__)[0])  # type: ignore[attr-defined]
+        return {get_args(m.model_fields["type"].annotation)[0] for m in members}
+
+    assert type_literals(Card) == type_literals(CardOutput)
+    assert type_literals(Card) == {"character", "region", "main_story", "part", "episode"}

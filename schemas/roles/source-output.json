@@ -14,7 +14,8 @@
       "description": "Follow-up questions for missing or ambiguous information.",
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1
       },
       "maxItems": 3
     },
