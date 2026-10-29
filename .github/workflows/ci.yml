@@ -18,6 +18,36 @@ env:
   AIPLOT_FAKE_LLM: '1'
 
 jobs:
+  schemas:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: schemas
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: schemas/package-lock.json
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          working-directory: server
+      - run: npm ci
+      - run: npm test
+      - run: npm run codegen
+      # Committed generated files must match the schemas exactly.
+      - name: Check generated files are up to date
+        shell: bash
+        run: |
+          changes=$(git status --porcelain -- ../app/src/types ../server/aiplot/generated)
+          if [ -n "$changes" ]; then
+            echo "$changes"
+            echo "::error::Generated files are stale. Run 'npm run codegen' in schemas/ and commit."
+            exit 1
+          fi
+
   app:
     runs-on: windows-latest
     timeout-minutes: 20

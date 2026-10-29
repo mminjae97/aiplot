@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ApiError",
+  "description": "Error body for every non-2xx API response; each code maps to a UI state (§16).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["code", "message", "hint"],
+  "properties": {
+    "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+    "message": { "type": "string" },
+    "hint": { "type": ["string", "null"] }
+  }
+}

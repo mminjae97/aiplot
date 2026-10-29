@@ -2,3 +2,5 @@
 *.png binary
 *.jpg binary
 *.ico binary
+app/src/types/** linguist-generated=true
+server/aiplot/generated/** linguist-generated=true
