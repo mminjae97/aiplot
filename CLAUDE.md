@@ -25,12 +25,12 @@ training/{seeds,generate,filter,notebooks,eval} — not shipped
 Runtime data: `%LOCALAPPDATA%\Aiplot\{data\aiplot.db, images, snapshots, models, lora, llama, comfyui, logs, electron (Chromium profile)}`.
 
 ## 4 Commands
-Not created yet; create with these exact names in dev step 1, then keep accurate.
+Keep exact names accurate. Not yet: schemas codegen (unit 2), pyinstaller spec + installer build (unit 14). Node version: `.node-version`.
 ```
 cd schemas && npm i && npm run codegen        # → app/src/types, server/aiplot/generated
 cd server && uv sync
 uv run python -m aiplot.main --dev            # port 8765, token AIPLOT_TOKEN
-uv run pytest | uv run ruff check . && uv run ruff format --check . | uv run mypy aiplot
+uv run pytest | uv run ruff check . && uv run ruff format --check . | uv run mypy aiplot tests
 uv run pyinstaller aiplot-server.spec
 cd app && npm i
 npm run dev | test | lint | typecheck | e2e | build
@@ -191,7 +191,7 @@ Teacher LLM APIs allowed here; verify terms permit training on outputs.
 - Filter repetition/AI clichés; balance coverage. Pilot 2–3 seeds manually → automate → train Kaggle/Colab T4 QLoRA or paid fp16 on uncensored base fp16 → GGUF → eval on Q4 + LoRA → ship only if passing. Version seeds, scripts, samples on private HF Hub. Add app beat feedback to later rounds.
 
 ## 19 Tests
-Fake LLM fixtures only. Must cover: locks + 423 (incl. region position); PATCH /cards rejects non-region types and fields other than map_x/map_y; delete restore; no direct card field edits; snapshot before reopen; relation sync on save/delete; drafts/conversations not persisted; char count incl. spaces; SSE order; backup round-trip. E2E: library → contents → save card → generate. Model quality via training/eval scripts. CI: lint, typecheck, unit tests per push; Windows installer build.
+Fake LLM fixtures only. Must cover: locks + 423 (incl. region position); PATCH /cards rejects non-region types and fields other than map_x/map_y; delete restore; no direct card field edits; snapshot before reopen; relation sync on save/delete; drafts/conversations not persisted; char count incl. spaces; SSE order; backup round-trip. E2E: library → contents → save card → generate. Model quality via training/eval scripts. CI: lint, typecheck, unit tests, e2e per PR and main push; Windows installer build (from unit 14).
 
 ## 20 Dev order (pass criteria; draft, blind human evals)
 1. Monorepo, Electron↔server↔llama.cpp, model download, CI, schemas, SQLite, drawer, dex, map, story; minimal library/contents (create/open; full in 9); stage advance API + 423 (advance UI "연출 구성 시작" with reopen + snapshot in 3); eval notes in training/eval (Claude drafts, user reviews) — card field match ≥85% (30 notes, 6/type); unsupported fills ≤5%; JSON valid 100% w/ 1 retry; name check ≥90% found, ≤10% false; chat first char ≤2s, card ≤10s; measure real token counts.
@@ -207,7 +207,7 @@ Fake LLM fixtures only. Must cover: locks + 423 (incl. region position); PATCH /
 11. Integration + installer — one episode (3–5 chapters) end to end; resume after forced quit; peak VRAM ≤7.5GB.
 Defer if tight: images, hwp, node drag.
 Step 1 units: 0 env/git · 1 skeleton+CI · 2 schemas · 3 server core+DB · 4 LLM layer · 5 real-model measurement (manually started llama-server via unit 4 client) · 6 jobs/SSE, llama process, download · 7 Electron+React shell, S0-1, min library · 8 works/cards API · 9 drafts API · 10 drawer · 11 dex · 12 map · 13 story · 14 E2E + installer CI · 15 eval.
-**Current step: 1, unit 1.** Update when a unit/step passes. Open: base GGUF repo/file/hash (user to choose).
+**Current step: 1, unit 2.** Update when a unit/step passes. Open: base GGUF repo/file/hash (user to choose).
 
 ## 21 Working rules
 - Build only the current step unless asked. Small units; run checks before finishing.
