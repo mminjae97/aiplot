@@ -18,7 +18,7 @@ app/electron/{main.ts (server lifecycle, OS dialogs, snapshots), preload.ts (por
 app/src/{screens,components,api (REST+SSE),stores,strings (Korean UI text),types (GENERATED)}
 app/tests/ (+ e2e/)
 server/aiplot/{main.py,api/ (thin routers),services/,llm/ (router, profiles, LoRA registry, llama/comfy/fake clients),jobs/,db/ (+migrations/),generated/ (GENERATED)}
-server/{prompts/{role}/v{n}.md, config/{roles.yaml,profiles/*.yaml}, data/techniques/, workflows/, tests/ (+fixtures/)}
+server/{prompts/{role}/v{n}.md, config/{roles.yaml,profiles/*.yaml}, data/techniques/, data/style/{id}-v{n}.md (style framework), workflows/, tests/ (+fixtures/)}
 schemas/ (JSON Schema source of truth) + codegen/
 training/{seeds,generate,filter,notebooks,eval} — not shipped
 ```
@@ -104,7 +104,7 @@ S2 screen: left episodes; center dual timeline (top story order, bottom narratio
 
 ## 10 Stage 3
 Beat loop: build context → `write` (stream by sentence) → count chars → `check` (state + warnings) → `summary` (progress) → adjust next target from remaining.
-Write context (~5600/8k tokens, measure in step 1): instructions + style spec summary ~1000; beat instruction ~300; summaries ≤2000 chars ~1500; previous ~1000 chars ~800; appearing characters + speech examples ~1000; latest state ~200; output ~800.
+Write context (~5600/8k tokens, measure in step 1): instructions + style framework ~1000 (role, summary, rules, dialogue, format and plain banned phrases every beat; examples and by_mode/by_pov/by_tension matching the beat (by_pov heading = substring of beat pov, e.g. 1인칭); empty sections omitted; its format rules override the basic format below; banned phrase or /regex/ (no multiline: ^ = beat start; regex only checked, never shown) in a beat → regenerate that beat up to 3×, then keep last + warning; style id+version stored with output); beat instruction ~300; summaries ≤2000 chars ~1500; previous ~1000 chars ~800; appearing characters + speech examples ~1000; latest state ~200; output ~800.
 Summaries: chapter.progress_summary 300–500 (after each beat; covers current chapter before last 1000 chars); summary_long ~1000 (chapter end; previous chapter only); summary_short ~200 (chapter end; earlier chapters of episode); episode.summary ~300 (episode end; recent episodes). Cap 2000 chars, drop oldest episode summaries first. Edit or regenerate → redo chapter summaries + state.
 Checks: out-of-character actions, appearance mismatch, impossible travel, state contradictions. Warning: kind, sentence position, evidence card, reason. Group same type; ignore reasons feed later checks; sensitivity setting.
 Format: short paragraphs, frequent breaks, dialogue own line; end at cut_after with hook. Length 5500 ±10%.
@@ -136,7 +136,7 @@ Roles (thinking, model):
 - card: [0]-based numbered note sentences, refs, pinned → JSON type + name + data + evidence (sentence indexes) + ai_guess, constrained by the requested type's variant. Server then drops out-of-range indexes, unknown paths and unknown card ids; assigns ms_/fs_ ids (keeps ids of items whose text is unchanged); sets placement (episode part_id/order/links.prev,next/worldline_id, part order) from context; restores pinned (on, base)
 - pick: episode, scenes, technique list → JSON 1–3 picks/scene (on, base + direction LoRA when ready)
 - direct: episode, cards, chosen techniques → JSON plan (on, base + direction LoRA; baseline base)
-- write: §10 context → text streamed by sentence (off, higher temp; base + style prompt, later web novel LoRA)
+- write: §10 context → text streamed by sentence (off, higher temp; base + style framework chosen in roles.yaml, later web novel LoRA)
 - check: beat, cards, state → JSON state changes + warnings (on, base)
 - summary: beat/chapter/episode text → text (off, base)
 - image_prompt: appearance, personality → JSON EN positive/negative (off, base)
@@ -149,7 +149,7 @@ JSON roles low temp.
 - milestone(id,main_id,order,text); region_link(from_id,to_id,travel_time,direction); char_relation(from_id,to_id,relation); episode_character/episode_region(episode_id,card_id); episode_link(from_id,to_id,kind order|cause); milestone_fill(milestone_id,card_id); foreshadowing(id,plant_episode_id,payoff_episode_id,text); worldline(id,work_id,name,branch_episode_id); card_image(id,card_id,path,prompt,seed)
 - technique_card(id,name,definition,effect,caution,source) shared
 - direction_plan(id,episode_id,status,plan JSON); technique_pick(id,plan_id,scene,technique_id,rank,reason,chosen)
-- chapter(id,plan_id,work_id,number,target_chars,read,progress_summary,summary_long,summary_short); beat(id,chapter_id,order,source_stage,technique_id,pov,mode,tension,feedback); beat_version(id,beat_id,version,text,chars,origin generated|edited,created_at) latest = current
+- chapter(id,plan_id,work_id,number,target_chars,read,progress_summary,summary_long,summary_short); beat(id,chapter_id,order,source_stage,technique_id,pov,mode,tension,feedback); beat_version(id,beat_id,version,text,chars,origin generated|edited,prompt_version,style_id,style_version,created_at) latest = current
 - state_record(id,beat_id,card_id,key,value); warning(id,version_id,card_id,kind,status,reason); snapshot(id,work_id,stage,path,created_at)
 card.status: complete|incomplete (any §15 required field missing or below its count; reference fields judged from relation tables); server recomputes for every card whose data or relation rows a write touched (save, delete/restore incl. cascades), and for all cards on migration and backup import. Each table is created by the migration of the dev step that first uses it. No conversation table. FTS5 on card names. Save copies data refs into relation tables; card delete lists then deletes relation rows.
 
@@ -189,7 +189,7 @@ VRAM: base ~5GB + KV 8k ~1.1GB + buffers ~1GB; peak ≤7.5GB; need more ctx → 
 ## 18 Training (training/ only)
 Teacher LLM APIs allowed here; verify terms permit training on outputs.
 - Direction LoRA (RAFT): input card bundle + 5 candidate techniques (some irrelevant) → per-scene picks + plan.
-- Web novel LoRA: format data (teacher writes beats over genre × scene type × POV × tension) + style data (same instructions following user's style spec and short story). Use exact `write` input format.
+- Web novel LoRA: format data (teacher writes beats over genre × scene type × POV × tension) + style data (same instructions following the style framework and short story). Use exact `write` input format.
 - Filter repetition/AI clichés; balance coverage. Pilot 2–3 seeds manually → automate → train Kaggle/Colab T4 QLoRA or paid fp16 on uncensored base (bf16 weights) → GGUF → eval on Q4 + LoRA → ship only if passing. Version seeds, scripts, samples on private HF Hub. Add app beat feedback to later rounds.
 
 ## 19 Tests
