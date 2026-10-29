@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SourceOutput",
+  "description": "`source` role output (§13). Changed sentences are computed by the server (sentence diff), not by the model.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["notes", "questions", "similar_names"],
+  "properties": {
+    "notes": {
+      "description": "Full rewritten source notes; reversals resolved.",
+      "type": "string"
+    },
+    "questions": {
+      "description": "Follow-up questions for missing or ambiguous information.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 3
+    },
+    "similar_names": {
+      "description": "Names in the notes that may be an existing card spelled differently (레오/래오).",
+      "type": "array",
+      "items": {
+        "title": "SimilarName",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["mentioned", "card_id"],
+        "properties": {
+          "mentioned": {
+            "type": "string"
+          },
+          "card_id": {
+            "$ref": "../common/card-id.json"
+          }
+        }
+      }
+    }
+  }
+}

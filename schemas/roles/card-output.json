@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CardOutput",
+  "description": "`card` role output (§13) for the requested type. Evidence indexes refer to the [n]-numbered note sentences in the prompt; the server drops out-of-range indexes and restores pinned fields.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/character"
+    },
+    {
+      "$ref": "#/$defs/region"
+    },
+    {
+      "$ref": "#/$defs/main_story"
+    },
+    {
+      "$ref": "#/$defs/part"
+    },
+    {
+      "$ref": "#/$defs/episode"
+    }
+  ],
+  "discriminator": {
+    "propertyName": "type"
+  },
+  "$defs": {
+    "character": {
+      "title": "CharacterCardOutput",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "name", "data", "evidence", "ai_guess"],
+      "properties": {
+        "type": {
+          "const": "character"
+        },
+        "name": {
+          "$ref": "../card/card.json#/$defs/name"
+        },
+        "data": {
+          "$ref": "../card/character.json"
+        },
+        "evidence": {
+          "$ref": "../card/card.json#/$defs/evidence"
+        },
+        "ai_guess": {
+          "$ref": "../card/card.json#/$defs/aiGuess"
+        }
+      }
+    },
+    "region": {
+      "title": "RegionCardOutput",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "name", "data", "evidence", "ai_guess"],
+      "properties": {
+        "type": {
+          "const": "region"
+        },
+        "name": {
+          "$ref": "../card/card.json#/$defs/name"
+        },
+        "data": {
+          "$ref": "../card/region.json"
+        },
+        "evidence": {
+          "$ref": "../card/card.json#/$defs/evidence"
+        },
+        "ai_guess": {
+          "$ref": "../card/card.json#/$defs/aiGuess"
+        }
+      }
+    },
+    "main_story": {
+      "title": "MainStoryCardOutput",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "name", "data", "evidence", "ai_guess"],
+      "properties": {
+        "type": {
+          "const": "main_story"
+        },
+        "name": {
+          "$ref": "../card/card.json#/$defs/name"
+        },
+        "data": {
+          "$ref": "../card/main-story.json"
+        },
+        "evidence": {
+          "$ref": "../card/card.json#/$defs/evidence"
+        },
+        "ai_guess": {
+          "$ref": "../card/card.json#/$defs/aiGuess"
+        }
+      }
+    },
+    "part": {
+      "title": "PartCardOutput",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "name", "data", "evidence", "ai_guess"],
+      "properties": {
+        "type": {
+          "const": "part"
+        },
+        "name": {
+          "$ref": "../card/card.json#/$defs/name"
+        },
+        "data": {
+          "$ref": "../card/part.json"
+        },
+        "evidence": {
+          "$ref": "../card/card.json#/$defs/evidence"
+        },
+        "ai_guess": {
+          "$ref": "../card/card.json#/$defs/aiGuess"
+        }
+      }
+    },
+    "episode": {
+      "title": "EpisodeCardOutput",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "name", "data", "evidence", "ai_guess"],
+      "properties": {
+        "type": {
+          "const": "episode"
+        },
+        "name": {
+          "$ref": "../card/card.json#/$defs/name"
+        },
+        "data": {
+          "$ref": "../card/episode.json"
+        },
+        "evidence": {
+          "$ref": "../card/card.json#/$defs/evidence"
+        },
+        "ai_guess": {
+          "$ref": "../card/card.json#/$defs/aiGuess"
+        }
+      }
+    }
+  }
+}

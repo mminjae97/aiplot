@@ -132,8 +132,8 @@ Electron main picks port+token → starts server → server reports ready (llama
 Router: `config/roles.yaml` role → profile, LoRA?, prompt version, sampling, thinking. `config/profiles/*.yaml`: GGUF path, chat template, thinking toggle, sampling, ctx 8192, KV type, `lora_mode hotswap|merged`. LoRA registry stores base GGUF hash; never load mismatch. merged = per-role pre-merged GGUF + batch by role. Base swap must need config + LoRA only. `AIPLOT_FAKE_LLM=1` → fixture client.
 Roles (thinking, model):
 - chat: turns, notes, @cards → streamed short text, first char ≤2s (off, base)
-- source: reply, notes → JSON new notes, changed sentences, questions, similar names (on, base)
-- card: notes, refs, pinned → JSON card + evidence + ai_guess (on, base)
+- source: reply, notes → JSON new notes, questions ≤3, similar names; changed sentences computed by server diff (on, base)
+- card: [n]-numbered note sentences, refs, pinned → JSON name + data + evidence (sentence indexes) + ai_guess; server drops out-of-range indexes, restores pinned (on, base)
 - pick: episode, scenes, technique list → JSON 1–3 picks/scene (on, base + direction LoRA when ready)
 - direct: episode, cards, chosen techniques → JSON plan (on, base + direction LoRA; baseline base)
 - write: §10 context → text streamed by sentence (off, higher temp; base + style prompt, later web novel LoRA)
@@ -157,7 +157,8 @@ card.status: complete|incomplete (any §15 required field missing or below its c
 Card: `{id, work_id, type, name, status complete|incomplete, source_notes, data, evidence{field:[sentence idx]}, ai_guess[field], pinned[field], schema_version}` (pinned → column pinned_fields).
 data: character{theme, personality{traits[],behaviors[{situation,action}]}, speech{description,examples[≤5]}, appearance{summary,details}, relations[{target_id,relation}], origin_region_id}; region{parent_id, links[{target_id,travel{value>0,unit minute|hour|day,mode}?,direction?}], appearance, environment{natural,social}, sensory{smell,sound,mood}}; main_story{theme,premise,ending,milestones[{id,order,text}]}; part{order,title,theme,fulfills[],start,end,structure?}; episode{part_id,order,theme,relation_to_main,fulfills[],characters[],locations{main,others[]},links{prev,next,causes[]},foreshadowing{plants[{id fs_,text}],payoffs[fs_ id planted elsewhere]},worldline_id,structure{type 4|5,stages[{name,summary,tension 1–5}] = exactly 기승전결 or 발단…결말},synopsis}. Every data key is always present: undecided scalar or object (e.g. structure) = null, list = []. Source: `schemas/card/`.
 Required (status): character name, theme, personality.traits ≥1, speech.description, speech.examples 3–5, appearance.summary; region name, appearance, environment.natural, environment.social; main_story theme, premise, ending, milestones ≥1; part title, theme, start, end; episode theme, synopsis, characters ≥1, locations.main, structure type + every stage summary. Others optional. Card data schemas validate shape only (no min counts; role output schemas keep their counts); required-ness only via status. Region card responses add position{map_x,map_y} from the region table (not in data, never LLM output).
-Also: plan (§9), state values (§7), each JSON role output.
+Sentences (evidence idx, highlight, changed): server splits notes on . ? ! and newline; one rule for all uses.
+Role outputs: `schemas/roles/` (SourceOutput, CardOutput per type). Also later: plan (§9), state values (§7), other JSON roles.
 
 ## 16 API
 Base `http://127.0.0.1:{port}/api/v1`, `Authorization: Bearer {token}`. JSON, ISO 8601, chars incl. spaces. Error `{code,message,hint}`; each code maps to a UI state. Jobs return `202 {jobId}`. Locked → 423 STAGE_LOCKED.

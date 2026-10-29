@@ -1,0 +1,12 @@
+{
+  "questions": [
+    "테오의 나이는 몇 살인가요?",
+    "미라와 테오는 어떤 사이로 지내나요?"
+  ],
+  "similar_names": [
+    {
+      "mentioned": "래오",
+      "card_id": "c_leo"
+    }
+  ]
+}

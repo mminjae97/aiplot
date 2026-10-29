@@ -28,6 +28,11 @@ export type MilestoneId = string
 export type StoryStructure = FourStageStructure | FiveStageStructure
 export type ForeshadowingId = string
 export type WorldlineId = string
+/**
+ * `card` role output (§13) for the requested type. Evidence indexes refer to the [n]-numbered note sentences in the prompt; the server drops out-of-range indexes and restores pinned fields.
+ */
+export type CardOutput =
+  CharacterCardOutput | RegionCardOutput | MainStoryCardOutput | PartCardOutput | EpisodeCardOutput
 
 export interface CharacterCard {
   id: CardId
@@ -280,4 +285,62 @@ export interface ApiError {
  */
 export interface HealthResponse {
   status: 'ok'
+}
+export interface CharacterCardOutput {
+  type: 'character'
+  name: CardName
+  data: CharacterData
+  evidence: CardEvidence
+  ai_guess: AiGuessFields
+}
+export interface RegionCardOutput {
+  type: 'region'
+  name: CardName
+  data: RegionData
+  evidence: CardEvidence
+  ai_guess: AiGuessFields
+}
+export interface MainStoryCardOutput {
+  type: 'main_story'
+  name: CardName
+  data: MainStoryData
+  evidence: CardEvidence
+  ai_guess: AiGuessFields
+}
+export interface PartCardOutput {
+  type: 'part'
+  name: CardName
+  data: PartData
+  evidence: CardEvidence
+  ai_guess: AiGuessFields
+}
+export interface EpisodeCardOutput {
+  type: 'episode'
+  name: CardName
+  data: EpisodeData
+  evidence: CardEvidence
+  ai_guess: AiGuessFields
+}
+/**
+ * `source` role output (§13). Changed sentences are computed by the server (sentence diff), not by the model.
+ */
+export interface SourceOutput {
+  /**
+   * Full rewritten source notes; reversals resolved.
+   */
+  notes: string
+  /**
+   * Follow-up questions for missing or ambiguous information.
+   *
+   * @maxItems 3
+   */
+  questions: string[]
+  /**
+   * Names in the notes that may be an existing card spelled differently (레오/래오).
+   */
+  similar_names: SimilarName[]
+}
+export interface SimilarName {
+  mentioned: string
+  card_id: CardId
 }
