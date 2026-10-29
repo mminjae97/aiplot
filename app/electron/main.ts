@@ -1,15 +1,24 @@
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow } from 'electron'
 
 const rendererFile = join(__dirname, '../renderer/index.html')
+const rendererUrl = pathToFileURL(rendererFile).href
 // Dev server URL is honored only in unpackaged (development) runs.
 const devUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
 
 let mainWindow: BrowserWindow | null = null
 
 function isAppUrl(url: string): boolean {
-  if (devUrl) return url.startsWith(devUrl)
-  return url.startsWith('file://')
+  try {
+    const target = new URL(url)
+    if (devUrl) return target.origin === new URL(devUrl).origin
+    target.hash = ''
+    target.search = ''
+    return target.href === rendererUrl
+  } catch {
+    return false
+  }
 }
 
 function createWindow(): BrowserWindow {
@@ -22,10 +31,14 @@ function createWindow(): BrowserWindow {
       sandbox: true,
     },
   })
-  win.webContents.on('will-navigate', (event, url) => {
-    if (!isAppUrl(url)) event.preventDefault()
-  })
+  const guard = (details: Electron.Event<{ url: string }>): void => {
+    if (!isAppUrl(details.url)) details.preventDefault()
+  }
+  win.webContents.on('will-navigate', guard)
+  win.webContents.on('will-redirect', guard)
+  win.webContents.on('will-frame-navigate', guard)
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  // Error screen with retry arrives with the server lifecycle (step 1, unit 7).
   const load = devUrl ? win.loadURL(devUrl) : win.loadFile(rendererFile)
   load.catch((err: unknown) => {
     console.error('renderer load failed', err)

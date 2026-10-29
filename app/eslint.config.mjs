@@ -1,20 +1,13 @@
+import { fileURLToPath } from 'node:url'
+import { includeIgnoreFile } from '@eslint/compat'
 import js from '@eslint/js'
 import reactHooks from 'eslint-plugin-react-hooks'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  {
-    ignores: [
-      'out/',
-      'dist/',
-      'release/',
-      'node_modules/',
-      'src/types/',
-      'playwright-report/',
-      'test-results/',
-    ],
-  },
+  includeIgnoreFile(fileURLToPath(new URL('../.gitignore', import.meta.url))),
+  { ignores: ['src/types/'] },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   {
@@ -31,7 +24,7 @@ export default tseslint.config(
     rules: reactHooks.configs.recommended.rules,
   },
   {
-    files: ['electron/**/*.ts', 'tests/e2e/**/*.ts', '*.config.ts'],
+    files: ['electron/**/*.ts', 'tests/e2e/**/*.ts', '*.config.ts', '*.mjs'],
     languageOptions: { globals: globals.node },
   },
   { files: ['*.mjs'], ...tseslint.configs.disableTypeChecked },
