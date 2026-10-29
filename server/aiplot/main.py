@@ -12,8 +12,14 @@ DEV_PORT = 8765
 API_PREFIX = "/api/v1"
 
 
-def create_app() -> FastAPI:
-    app = FastAPI(title="Aiplot")
+def create_app(*, dev: bool = False) -> FastAPI:
+    # Interactive API docs are a development aid only.
+    app = FastAPI(
+        title="Aiplot",
+        docs_url="/docs" if dev else None,
+        redoc_url="/redoc" if dev else None,
+        openapi_url="/openapi.json" if dev else None,
+    )
     app.include_router(health.router, prefix=API_PREFIX)
     return app
 
@@ -41,7 +47,7 @@ def main(argv: list[str] | None = None) -> None:
     except ValueError as exc:
         parser.error(f"invalid AIPLOT_PORT: {exc}")
     uvicorn.run(
-        create_app(),
+        create_app(dev=args.dev),
         host="127.0.0.1",
         port=port,
         log_level="debug" if args.dev else "info",
