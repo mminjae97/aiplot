@@ -10,7 +10,7 @@ Local Windows desktop app (NVIDIA 8GB VRAM) for writing Korean web novels. All m
 - Starting a stage locks earlier stages (read-only).
 
 ## 2 Stack
-Electron + React + TS (Vite); Zustand (UI state) + TanStack Query (server state); TipTap (manuscript); React Flow + d3-force (timeline/map/curves). Python 3.12 FastAPI local server; HTTP + SSE on 127.0.0.1. SQLite + FTS5 (names); stdlib sqlite3, no ORM; migrations `db/migrations/NNN_name.sql` tracked by `PRAGMA user_version`. Codegen: json-schema-to-typescript (TS), datamodel-code-generator (Pydantic, run via server uv env). llama.cpp server Windows CUDA build (pinned version+hash, downloaded at first run, not in installer), LoRA hot-swap via `/lora`. Base: Qwen3-8B uncensored (Heretic) Q4_K_M, LoRAs F16. Optional images: ComfyUI portable + SDXL semi-realistic, fixed workflow JSON. Packaging: PyInstaller + electron-builder. Tests: Vitest, pytest, Playwright (Electron). Lint: ESLint+Prettier+tsc; Ruff+mypy. npm (app, schemas), uv (server, training). Node 22, Python 3.12. CI: GitHub Actions (Windows runner builds installer).
+Electron + React + TS (Vite); Zustand (UI state) + TanStack Query (server state); TipTap (manuscript); React Flow + d3-force (timeline/map/curves). Python 3.12 FastAPI local server; HTTP + SSE on 127.0.0.1. SQLite + FTS5 (names); stdlib sqlite3, no ORM; migrations `db/migrations/NNN_name.sql` tracked by `PRAGMA user_version`; NNN unique + contiguous (CI test; renumber on rebase). Codegen: json-schema-to-typescript (TS), datamodel-code-generator (Pydantic, via `uv run --project ../server`). llama.cpp server Windows CUDA build (pinned version + CUDA version; server and cudart archives each hashed; downloaded at first run, not in installer), LoRA hot-swap via `/lora`. Base: Qwen3-8B uncensored (Heretic) Q4_K_M, LoRAs F16. Optional images: ComfyUI portable + SDXL semi-realistic, fixed workflow JSON. Packaging: PyInstaller + electron-builder. Tests: Vitest, pytest, Playwright (Electron). Lint: ESLint+Prettier+tsc; Ruff+mypy. npm (app, schemas), uv (server, training). Node 22, Python 3.12. CI: GitHub Actions (Windows runner builds installer).
 
 ## 3 Layout
 ```
@@ -66,7 +66,7 @@ Before finishing: lint + typecheck + tests for touched packages.
 - episode: part, order (within part), theme, relation_to_main, fulfills, characters, locations{main,others}, links{prev,next,causes}, foreshadowing{plants,payoffs}, worldline, structure{type 4|5, stages[{name,summary,tension 1–5}]}, synopsis, summary (stage 3).
 - Structure: 5-stage 발단·전개·위기·절정·결말 (conflict bursts); 4-stage 기승전결 (situation flips). AI recommends with reason, user picks. Map 기=발단, 승=전개+위기, 전=절정, 결=결말; 5→4 auto, 4→5 AI proposes split of 승, user confirms.
 - Worldline: branch_episode_id; pre-branch episodes in all worldlines; hide tabs if one.
-- Completeness: milestone fulfillment, empty structure stages, unresolved foreshadowing.
+- Completeness: milestone fulfillment, empty structure stages, unresolved foreshadowing, incomplete cards.
 - State keys (fixed): location{region_id}; injury{part,severity,since_chapter,healed?}; item{name,action gain|lose}; knows_secret{secret,since_chapter}; relation_change{target_id,change}; appearance_change{text}. Appended per beat; context uses latest per card+key.
 
 ## 8 Stage 1 UI
@@ -81,9 +81,9 @@ Card drawer (all types): ~70% width, background dimmed; left chat (top) + source
 - Type section: character speech preview; episode 4/5 picker with recommendation; part milestone assignment.
 - After save: close, highlight card 0.3s. Locked: add/edit disabled, drawer won't open.
 
-Dex (S1-1): grid + translucent "+" card. Front image+name (fallback first-letter image). Back (flip 0.3s): all fields; bottom row "원문 수정" left, red "삭제" right. Delete: confirm listing referencing cards, "되돌리기" toast ~5s (client delays DELETE until it expires), then delete card+relation rows. Locked: read-only; image generation still allowed. Images (step 10): `image_prompt` → ComfyUI 2–4 candidates 896×1152, web-novel-cover semi-realistic, realistic proportions → user picks; store prompt+seed.
+Dex (S1-1): grid + translucent "+" card. Front image+name (fallback first-letter image). Back (flip 0.3s): all fields; bottom row "원문 수정" left, red "삭제" right. Delete: confirm listing referencing cards, "되돌리기" toast ~5s (client delays DELETE until it expires; pending deletes flushed on drawer/screen close, quit, stage advance; timeline reconnect choice sent with the DELETE), then delete card+relation rows. Locked: read-only; image generation still allowed. Images (step 10): `image_prompt` → ComfyUI 2–4 candidates 896×1152, web-novel-cover semi-realistic, realistic proportions → user picks; store prompt+seed.
 
-Region map (S1-2): node per region; lines labeled travel time; parents as dashed areas (double-click zoom). d3-force layout, length ~ travel time, respect direction. Drag changes map_x/y only. Click flips (appearance, environment, mood, adjacent; same bottom row). Badge = episode count, hover lists. New node placed next to linked region. Wheel zoom, drag pan.
+Region map (S1-2): node per region; lines labeled travel time; parents as dashed areas (double-click zoom). d3-force layout, length ~ travel time, respect direction. Drag changes map_x/y only (disabled when locked). Click flips (appearance, environment, mood, adjacent; same bottom row). Badge = episode count, hover lists. New node placed next to linked region. Wheel zoom, drag pan.
 
 Story (S1-3): steps main → parts → episodes, each unlocks next. Timeline: Y region lanes, X story order (same column = simultaneous), X split by part with titles, main line on top, milestones above parts, node color = milestone. Node = episode, arrows = order/cause. Multi-region: main lane + small markers. Click flips (theme, milestones, stages, characters, foreshadowing, synopsis; delete asks to reconnect prev/next). "+ 새 에피소드" adds to selected part, auto-placed. Drag within part → notes line → confirm. Worldline tabs. Completeness panel + "연출 구성 시작" (lock warning). X axis = top row of S2 dual timeline.
 
@@ -110,7 +110,7 @@ Format: short paragraphs, frequent breaks, dialogue own line; end at cut_after w
 S3-1 screen: left chapters (done/generating/waiting), center TipTap manuscript, right warnings + versions. "비트 3/8 · 예상 남은 시간" + bar. Server buffers tokens, emits `sentence` at . ? ! newline. Unchecked beats dim until `beat_checked`; warnings underlined + margin mark. Always-visible pause/stop/regenerate beat. Warning: "수정 제안" regenerates beat, "무시" records reason. Edits create versions (compare/restore). Counter vs 5500. Background run; completion summary (elapsed, chars, warnings). Confirmation unit setting: beat | chapter (default) | episode.
 
 ## 11 Lock, export, backup
-- Lock: stage 2 locks 1; stage 3 locks 1–2; read-only view. Reopen: snapshot → delete direction_plan and all below (picks, chapters, beats, versions, states, warnings); cards kept. Warn on advance and reopen with concrete counts (e.g. "기획 단계를 다시 열면 연출 계획서와 집필한 원고 12화가 삭제돼요. 이 작업은 되돌릴 수 없어요."); red non-default button; manuscript exists → type title.
+- Lock: stage 2 locks 1; stage 3 locks 1–2; read-only view. Incomplete cards never block advance (warning shows count); after advance they are inactive: excluded from stage 2–3 inputs/context, shown dimmed. Reopen: snapshot → delete direction_plan and all below (picks, chapters, beats, versions, states, warnings); cards kept. Warn on advance and reopen with concrete counts (e.g. "기획 단계를 다시 열면 연출 계획서와 집필한 원고 12화가 삭제돼요. 이 작업은 되돌릴 수 없어요."); red non-default button; manuscript exists → type title.
 - Export (any stage): pick finished chapters (+ select all; generating disabled), show count+chars. Formats: platform copy (normalized breaks; multi-chapter "다음 화 복사"), txt, docx, hwp (write .hwpx; .hwp only via installed Hangul automation). Remember last format. Files merged (chapter titles) or one per chapter via OS dialog.
 - Backup (user-initiated only): `{title}_{YYYY-MM-DD}.aiplot` zip of work data, images, app/data version; no models. Show path+size. Import from library new-book → "백업 파일에서 가져오기"; never overwrite, add "{title} (가져옴)"; newer data version → ask app update; older → migrate.
 
@@ -127,7 +127,7 @@ Shortcuts: Ctrl+K; Ctrl+Enter generate card; Ctrl+S save card; Ctrl+. pause/resu
 Components: BookShelf, BookItem, ContentsPage, ExportDialog, BackupDialog, StageLockDialog, CardCreatePanel, SourceEditor, GeneratedCard, NameCheckNotice, CharacterDex, FlipCard, ImageGenerator, RegionMap, EpisodeTimeline, StructurePicker, CompletenessPanel, TechniqueCardPicker, DualTimeline, TensionChart, EvidencePanel, GenerationProgress, ManuscriptEditor, ConsistencyWarning, VersionHistory, ChapterList, Reader, CompletionSummary.
 
 ## 13 Architecture
-Electron main picks port+token → starts server → server starts llama.cpp, health-checks, reports ready. Unresponsive child: restart ≤3 then error screen. Image job: unload llama model → ComfyUI → free → reload. Quit: save at beat granularity, stop children. Job queue: >10s tasks, survives screen changes, batches same role.
+Electron main picks port+token → starts server → server reports ready (llama.cpp not required; /health reports llama/model missing → S0-1) → server starts llama.cpp, health-checks, /health reports model ready. Unresponsive child: restart ≤3 then error screen. Image job: unload llama model → ComfyUI → free → reload. Quit: save at beat granularity, stop children. Job queue: >10s tasks, survives screen changes, batches same role.
 Router: `config/roles.yaml` role → profile, LoRA?, prompt version, sampling, thinking. `config/profiles/*.yaml`: GGUF path, chat template, thinking toggle, sampling, ctx 8192, KV type, `lora_mode hotswap|merged`. LoRA registry stores base GGUF hash; never load mismatch. merged = per-role pre-merged GGUF + batch by role. Base swap must need config + LoRA only. `AIPLOT_FAKE_LLM=1` → fixture client.
 Roles (thinking, model):
 - chat: turns, notes, @cards → streamed short text, first char ≤2s (off, base)
@@ -150,17 +150,18 @@ JSON roles low temp.
 - direction_plan(id,episode_id,status,plan JSON); technique_pick(id,plan_id,scene,technique_id,rank,reason,chosen)
 - chapter(id,plan_id,work_id,number,target_chars,read,progress_summary,summary_long,summary_short); beat(id,chapter_id,order,source_stage,technique_id,pov,mode,tension,feedback); beat_version(id,beat_id,version,text,chars,origin generated|edited,created_at) latest = current
 - state_record(id,beat_id,card_id,key,value); warning(id,version_id,card_id,kind,status,reason); snapshot(id,work_id,stage,path,created_at)
-card.status: complete|incomplete (required fields empty). Each table is created by the migration of the dev step that first uses it. No conversation table. FTS5 on card names. Save copies data refs into relation tables; card delete lists then deletes relation rows.
+card.status: complete|incomplete (any §15 required field empty). Each table is created by the migration of the dev step that first uses it. No conversation table. FTS5 on card names. Save copies data refs into relation tables; card delete lists then deletes relation rows.
 
 ## 15 Schemas
 Card: `{id, work_id, type, name, status complete|incomplete, source_notes, data, evidence{field:[sentence idx]}, ai_guess[field], pinned[field], schema_version}` (pinned → column pinned_fields).
 data: character{theme, personality{traits[],behaviors[{situation,action}]}, speech{description,examples[3..5]}, appearance{summary,details}, relations[{target_id,relation}], origin_region_id}; region{parent_id, links[{target_id,travel{value,unit,mode},direction?}], appearance, environment{natural,social}, sensory{smell,sound,mood}}; main_story{theme,premise,ending,milestones[{id,order,text}]}; part{order,title,theme,fulfills[],start,end,structure?}; episode{part_id,order,theme,relation_to_main,fulfills[],characters[],locations{main,others[]},links{prev,next,causes[]},foreshadowing{plants[],payoffs[]},worldline_id,structure{type 4|5,stages[{name,summary,tension}]},synopsis}.
+Required (status): character name, theme, personality.traits ≥1, speech.description, speech.examples 3–5, appearance.summary; region name, appearance, environment.natural, environment.social; main_story theme, premise, ending, milestones ≥1; part title, theme, fulfills ≥1, start, end; episode theme, synopsis, characters ≥1, locations.main, structure type + every stage summary. Others optional.
 Also: plan (§9), state values (§7), each JSON role output.
 
 ## 16 API
 Base `http://127.0.0.1:{port}/api/v1`, `Authorization: Bearer {token}`. JSON, ISO 8601, chars incl. spaces. Error `{code,message,hint}`; each code maps to a UI state. Jobs return `202 {jobId}`. Locked → 423 STAGE_LOCKED.
 - works: GET/POST /works; GET/PATCH/DELETE /works/{workId}; POST /works/{workId}/stage/advance; GET .../stage/reopen-preview?stage=; POST .../stage/reopen (title confirm if manuscript)
-- cards: GET /works/{workId}/cards?type=&q=; GET /cards/{cardId}; PATCH /cards/{cardId}/position {map_x,map_y} (region only); GET /cards/{cardId}/references; DELETE /cards/{cardId}; GET /works/{workId}/completeness; POST /cards/{cardId}/images (job); PUT /cards/{cardId}/image
+- cards: GET /works/{workId}/cards?type=&q=; GET /cards/{cardId}; PATCH /cards/{cardId} (region only, body {map_x,map_y} only; 423 when locked); GET /cards/{cardId}/references; DELETE /cards/{cardId}; GET /works/{workId}/completeness; POST /cards/{cardId}/images (job); PUT /cards/{cardId}/image
 - drafts: POST /works/{workId}/drafts; POST /drafts/{draftId}/messages (SSE reply, notes change, questions, name checks); PUT .../source; POST .../generate; POST .../save; DELETE /drafts/{draftId}
 - direction: POST/GET /episodes/{episodeId}/plans (POST = job); POST /plans/{planId}/scenes/{scene}/pick; PATCH /plans/{planId} (order, cuts → recheck); POST /plans/{planId}/choose; POST /beats/{beatId}/feedback; GET /techniques?q=
 - writing: GET /works/{workId}/chapters; POST /chapters/{chapterId}/generate (job); POST /beats/{beatId}/regenerate (job); PUT /beats/{beatId}/text; GET /beats/{beatId}/versions; POST /beats/{beatId}/versions/{version}/restore; GET /chapters/{chapterId}/warnings; PATCH /warnings/{warningId}; PATCH /chapters/{chapterId} (read, position)
@@ -190,10 +191,10 @@ Teacher LLM APIs allowed here; verify terms permit training on outputs.
 - Filter repetition/AI clichés; balance coverage. Pilot 2–3 seeds manually → automate → train Kaggle/Colab T4 QLoRA or paid fp16 on uncensored base fp16 → GGUF → eval on Q4 + LoRA → ship only if passing. Version seeds, scripts, samples on private HF Hub. Add app beat feedback to later rounds.
 
 ## 19 Tests
-Fake LLM fixtures only. Must cover: locks + 423; no direct card field edits; snapshot before reopen; relation sync on save/delete; drafts/conversations not persisted; char count incl. spaces; SSE order; backup round-trip. E2E: library → contents → save card → generate. Model quality via training/eval scripts. CI: lint, typecheck, unit tests per push; Windows installer build.
+Fake LLM fixtures only. Must cover: locks + 423 (incl. region position); no direct card field edits; snapshot before reopen; relation sync on save/delete; drafts/conversations not persisted; char count incl. spaces; SSE order; backup round-trip. E2E: library → contents → save card → generate. Model quality via training/eval scripts. CI: lint, typecheck, unit tests per push; Windows installer build.
 
 ## 20 Dev order (pass criteria; draft, blind human evals)
-1. Monorepo, Electron↔server↔llama.cpp, model download, CI, schemas, SQLite, drawer, dex, map, story; minimal library/contents (create/open; full in 9); stage advance + 423 (reopen + snapshot in 9); eval notes in training/eval (Claude drafts, user reviews) — card field match ≥85% (30 notes, 6/type); unsupported fills ≤5%; JSON valid 100% w/ 1 retry; name check ≥90% found, ≤10% false; chat first char ≤2s, card ≤10s; measure real token counts.
+1. Monorepo, Electron↔server↔llama.cpp, model download, CI, schemas, SQLite, drawer, dex, map, story; minimal library/contents (create/open; full in 9); stage advance API + 423 (advance UI "연출 구성 시작" with reopen + snapshot in 9); eval notes in training/eval (Claude drafts, user reviews) — card field match ≥85% (30 notes, 6/type); unsupported fills ≤5%; JSON valid 100% w/ 1 retry; name check ≥90% found, ≤10% false; chat first char ≤2s, card ≤10s; measure real token counts.
 2. Technique cards — ≥30, all fields; right technique within picks ≥80% of 20 scenes (single pick must be right).
 3. Direction baseline, fix plan format — schema pass ≥95%.
 4. Eval set — 20 bundles; rubric 1–5: tension placement, chapter cut, reveal timing, POV consistency, technique fit; no training overlap.
@@ -205,7 +206,7 @@ Fake LLM fixtures only. Must cover: locks + 423; no direct card field edits; sna
 10. Images (optional).
 11. Integration + installer — one episode (3–5 chapters) end to end; resume after forced quit; peak VRAM ≤7.5GB.
 Defer if tight: images, hwp, node drag.
-Step 1 units: 0 env/git · 1 skeleton+CI · 2 schemas · 3 server core+DB · 4 LLM layer · 5 real-model measurement · 6 jobs/SSE, llama process, download · 7 Electron+React shell, S0-1, min library · 8 works/cards API · 9 drafts API · 10 drawer · 11 dex · 12 map · 13 story · 14 E2E + installer CI · 15 eval.
+Step 1 units: 0 env/git · 1 skeleton+CI · 2 schemas · 3 server core+DB · 4 LLM layer · 5 real-model measurement (manually started llama-server via unit 4 client) · 6 jobs/SSE, llama process, download · 7 Electron+React shell, S0-1, min library · 8 works/cards API · 9 drafts API · 10 drawer · 11 dex · 12 map · 13 story · 14 E2E + installer CI · 15 eval.
 **Current step: 1, unit 1.** Update when a unit/step passes. Open: base GGUF repo/file/hash (user to choose).
 
 ## 21 Working rules
