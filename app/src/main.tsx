@@ -6,7 +6,10 @@ import { App } from './App'
 const container = document.getElementById('root')
 if (!container) throw new Error('root element missing')
 
-const queryClient = new QueryClient()
+// The server is local: surface errors at once (§12 shows cause + retry) and skip focus refetches.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
+})
 
 createRoot(container).render(
   <StrictMode>

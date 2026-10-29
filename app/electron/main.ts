@@ -1,4 +1,4 @@
-import { join, normalize } from 'node:path'
+import { join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, session } from 'electron'
 
@@ -16,7 +16,7 @@ const devOrigin = devUrl ? parseOrigin(devUrl) : undefined
 
 // All app data, including the Chromium profile, stays under the data dir (§3, §6).
 const localAppData = envValue('LOCALAPPDATA') ?? join(app.getPath('home'), 'AppData', 'Local')
-const dataDir = envValue('AIPLOT_DATA_DIR') ?? join(localAppData, 'Aiplot')
+const dataDir = resolve(envValue('AIPLOT_DATA_DIR') ?? join(localAppData, 'Aiplot'))
 // sessionData defaults to userData.
 app.setPath('userData', join(dataDir, 'electron'))
 
@@ -84,6 +84,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', () => {
     if (!mainWindow) return
     if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
     mainWindow.focus()
   })
   app

@@ -9,18 +9,19 @@ const root = import.meta.dirname
 const csp =
   "default-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; connect-src 'self' http://127.0.0.1:*; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
 
-// Injected only into production builds: the dev server needs an inline React refresh preamble.
+// Fills the placeholder right after <meta charset> in production builds only:
+// the dev server needs an inline React refresh preamble.
 function cspPlugin(): Plugin {
   return {
     name: 'aiplot-csp',
-    apply: 'build',
-    transformIndexHtml: () => [
-      {
-        tag: 'meta',
-        attrs: { 'http-equiv': 'Content-Security-Policy', content: csp },
-        injectTo: 'head-prepend',
-      },
-    ],
+    transformIndexHtml: (html, ctx) => {
+      const placeholder = '<!-- csp -->'
+      if (!html.includes(placeholder)) throw new Error('index.html must contain <!-- csp -->')
+      const meta = ctx.server
+        ? ''
+        : `<meta http-equiv="Content-Security-Policy" content="${csp}" />`
+      return html.replace(placeholder, meta)
+    },
   }
 }
 
