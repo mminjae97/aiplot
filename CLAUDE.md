@@ -22,7 +22,7 @@ server/{prompts/{role}/v{n}.md, config/{roles.yaml,profiles/*.yaml}, data/techni
 schemas/ (JSON Schema source of truth) + codegen/
 training/{seeds,generate,filter,notebooks,eval} — not shipped
 ```
-Runtime data: `%LOCALAPPDATA%\Aiplot\{data\aiplot.db, images, snapshots, models, lora, llama, comfyui, logs}`.
+Runtime data: `%LOCALAPPDATA%\Aiplot\{data\aiplot.db, images, snapshots, models, lora, llama, comfyui, logs, electron (Chromium profile)}`.
 
 ## 4 Commands
 Not created yet; create with these exact names in dev step 1, then keep accurate.

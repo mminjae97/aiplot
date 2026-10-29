@@ -5,10 +5,24 @@ import { app, BrowserWindow, session } from 'electron'
 const rendererFile = join(__dirname, '../renderer/index.html')
 // Dev server URL is honored only in unpackaged (development) runs.
 const devUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
-const devOrigin = devUrl ? new URL(devUrl).origin : undefined
+const devOrigin = devUrl ? parseOrigin(devUrl) : undefined
 const rendererPath = normalize(rendererFile).toLowerCase()
 
+// All app data, including Chromium profile data, stays under the data dir (��3, ��6).
+const dataDir =
+  process.env.AIPLOT_DATA_DIR ?? join(process.env.LOCALAPPDATA ?? app.getPath('appData'), 'Aiplot')
+app.setPath('userData', join(dataDir, 'electron'))
+app.setPath('sessionData', join(dataDir, 'electron'))
+
 let mainWindow: BrowserWindow | null = null
+
+function parseOrigin(url: string): string {
+  try {
+    return new URL(url).origin
+  } catch {
+    throw new Error(`invalid ELECTRON_RENDERER_URL: ${url}`)
+  }
+}
 
 function isAppUrl(url: string): boolean {
   try {
@@ -25,6 +39,7 @@ function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
+    show: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -38,6 +53,9 @@ function createWindow(): BrowserWindow {
   win.webContents.on('will-frame-navigate', guard)
   win.webContents.on('will-redirect', guard)
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  win.once('ready-to-show', () => {
+    win.show()
+  })
   win.on('closed', () => {
     mainWindow = null
   })
@@ -57,13 +75,19 @@ if (!app.requestSingleInstanceLock()) {
     if (mainWindow.isMinimized()) mainWindow.restore()
     mainWindow.focus()
   })
-  void app.whenReady().then(() => {
-    session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => {
-      callback(false)
+  app
+    .whenReady()
+    .then(() => {
+      session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => {
+        callback(false)
+      })
+      session.defaultSession.setPermissionCheckHandler(() => false)
+      mainWindow = createWindow()
     })
-    session.defaultSession.setPermissionCheckHandler(() => false)
-    mainWindow = createWindow()
-  })
+    .catch((err: unknown) => {
+      console.error('startup failed', err)
+      app.exit(1)
+    })
   app.on('window-all-closed', () => {
     app.quit()
   })

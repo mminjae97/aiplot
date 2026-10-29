@@ -1,4 +1,6 @@
-import { resolve } from 'node:path'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import { _electron as electron, expect, test } from '@playwright/test'
 import { strings } from '../../src/strings'
 
@@ -10,6 +12,8 @@ test('app window opens with title', async () => {
         entry[0] !== 'ELECTRON_RENDERER_URL' && entry[1] !== undefined,
     ),
   )
+  const dataDir = mkdtempSync(join(tmpdir(), 'aiplot-e2e-'))
+  env.AIPLOT_DATA_DIR = dataDir
   const app = await electron.launch({ args: [resolve(__dirname, '../..')], env })
   try {
     const win = await app.firstWindow()
@@ -17,5 +21,6 @@ test('app window opens with title', async () => {
     await expect(win.getByRole('heading', { name: strings.app.name })).toBeVisible()
   } finally {
     await app.close()
+    rmSync(dataDir, { recursive: true, force: true })
   }
 })
