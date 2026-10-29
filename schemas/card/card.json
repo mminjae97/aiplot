@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Card",
   "description": "Saved card (§15), discriminated by type. Card fields are never edited directly (§6).",
+  "type": "object",
   "oneOf": [
     {
       "$ref": "#/$defs/character"
@@ -19,11 +20,22 @@
       "$ref": "#/$defs/episode"
     }
   ],
+  "discriminator": {
+    "propertyName": "type"
+  },
   "$defs": {
+    "name": {
+      "title": "CardName",
+      "type": ["string", "null"]
+    },
     "status": {
       "title": "CardStatus",
       "description": "incomplete = any §15 required field missing; computed by the server.",
       "enum": ["complete", "incomplete"]
+    },
+    "sourceNotes": {
+      "title": "SourceNotes",
+      "type": "string"
     },
     "evidence": {
       "title": "CardEvidence",
@@ -32,9 +44,33 @@
       "additionalProperties": {
         "type": "array",
         "items": {
-          "type": "integer"
+          "type": "integer",
+          "minimum": 0
         }
       }
+    },
+    "aiGuess": {
+      "title": "AiGuessFields",
+      "description": "Field paths filled without evidence (shown as AI 추정).",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "pinned": {
+      "title": "PinnedFields",
+      "description": "Field paths kept across regeneration.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "schemaVersion": {
+      "title": "SchemaVersion",
+      "type": "integer",
+      "minimum": 1
     },
     "character": {
       "title": "CharacterCard",
@@ -64,13 +100,13 @@
           "const": "character"
         },
         "name": {
-          "type": ["string", "null"]
+          "$ref": "#/$defs/name"
         },
         "status": {
           "$ref": "#/$defs/status"
         },
         "source_notes": {
-          "type": "string"
+          "$ref": "#/$defs/sourceNotes"
         },
         "data": {
           "$ref": "character.json"
@@ -79,22 +115,13 @@
           "$ref": "#/$defs/evidence"
         },
         "ai_guess": {
-          "description": "Field paths filled without evidence (shown as AI 추정).",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "$ref": "#/$defs/aiGuess"
         },
         "pinned": {
-          "description": "Field paths kept across regeneration.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "$ref": "#/$defs/pinned"
         },
         "schema_version": {
-          "type": "integer",
-          "minimum": 1
+          "$ref": "#/$defs/schemaVersion"
         }
       }
     },
@@ -127,13 +154,13 @@
           "const": "region"
         },
         "name": {
-          "type": ["string", "null"]
+          "$ref": "#/$defs/name"
         },
         "status": {
           "$ref": "#/$defs/status"
         },
         "source_notes": {
-          "type": "string"
+          "$ref": "#/$defs/sourceNotes"
         },
         "data": {
           "$ref": "region.json"
@@ -142,22 +169,13 @@
           "$ref": "#/$defs/evidence"
         },
         "ai_guess": {
-          "description": "Field paths filled without evidence (shown as AI 추정).",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "$ref": "#/$defs/aiGuess"
         },
         "pinned": {
-          "description": "Field paths kept across regeneration.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "$ref": "#/$defs/pinned"
         },
         "schema_version": {
-          "type": "integer",
-          "minimum": 1
+          "$ref": "#/$defs/schemaVersion"
         },
         "position": {
           "anyOf": [
@@ -199,13 +217,13 @@
           "const": "main_story"
         },
         "name": {
-          "type": ["string", "null"]
+          "$ref": "#/$defs/name"
         },
         "status": {
           "$ref": "#/$defs/status"
         },
         "source_notes": {
-          "type": "string"
+          "$ref": "#/$defs/sourceNotes"
         },
         "data": {
           "$ref": "main-story.json"
@@ -214,22 +232,13 @@
           "$ref": "#/$defs/evidence"
         },
         "ai_guess": {
-          "description": "Field paths filled without evidence (shown as AI 추정).",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "$ref": "#/$defs/aiGuess"
         },
         "pinned": {
-          "description": "Field paths kept across regeneration.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "$ref": "#/$defs/pinned"
         },
         "schema_version": {
-          "type": "integer",
-          "minimum": 1
+          "$ref": "#/$defs/schemaVersion"
         }
       }
     },
@@ -261,13 +270,13 @@
           "const": "part"
         },
         "name": {
-          "type": ["string", "null"]
+          "$ref": "#/$defs/name"
         },
         "status": {
           "$ref": "#/$defs/status"
         },
         "source_notes": {
-          "type": "string"
+          "$ref": "#/$defs/sourceNotes"
         },
         "data": {
           "$ref": "part.json"
@@ -276,22 +285,13 @@
           "$ref": "#/$defs/evidence"
         },
         "ai_guess": {
-          "description": "Field paths filled without evidence (shown as AI 추정).",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "$ref": "#/$defs/aiGuess"
         },
         "pinned": {
-          "description": "Field paths kept across regeneration.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "$ref": "#/$defs/pinned"
         },
         "schema_version": {
-          "type": "integer",
-          "minimum": 1
+          "$ref": "#/$defs/schemaVersion"
         }
       }
     },
@@ -323,13 +323,13 @@
           "const": "episode"
         },
         "name": {
-          "type": ["string", "null"]
+          "$ref": "#/$defs/name"
         },
         "status": {
           "$ref": "#/$defs/status"
         },
         "source_notes": {
-          "type": "string"
+          "$ref": "#/$defs/sourceNotes"
         },
         "data": {
           "$ref": "episode.json"
@@ -338,22 +338,13 @@
           "$ref": "#/$defs/evidence"
         },
         "ai_guess": {
-          "description": "Field paths filled without evidence (shown as AI 추정).",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "$ref": "#/$defs/aiGuess"
         },
         "pinned": {
-          "description": "Field paths kept across regeneration.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "$ref": "#/$defs/pinned"
         },
         "schema_version": {
-          "type": "integer",
-          "minimum": 1
+          "$ref": "#/$defs/schemaVersion"
         }
       }
     }

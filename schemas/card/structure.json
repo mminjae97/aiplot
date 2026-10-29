@@ -2,39 +2,82 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "StoryStructure",
   "description": "Narrative structure (§7): 5-stage 발단·전개·위기·절정·결말 or 4-stage 기승전결.",
-  "type": "object",
-  "additionalProperties": false,
-  "required": ["type", "stages"],
-  "properties": {
-    "type": {
-      "enum": [4, 5]
+  "oneOf": [
+    {
+      "$ref": "#/$defs/four"
     },
-    "stages": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/stage"
-      }
+    {
+      "$ref": "#/$defs/five"
     }
-  },
+  ],
   "$defs": {
-    "stage": {
-      "title": "StructureStage",
+    "four": {
+      "title": "FourStageStructure",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "stages"],
+      "properties": {
+        "type": {
+          "const": 4
+        },
+        "stages": {
+          "description": "One entry per stage, in story order; names unique (checked by the server).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fourStage"
+          },
+          "minItems": 4,
+          "maxItems": 4
+        }
+      }
+    },
+    "five": {
+      "title": "FiveStageStructure",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "stages"],
+      "properties": {
+        "type": {
+          "const": 5
+        },
+        "stages": {
+          "description": "One entry per stage, in story order; names unique (checked by the server).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fiveStage"
+          },
+          "minItems": 5,
+          "maxItems": 5
+        }
+      }
+    },
+    "fourStage": {
+      "title": "FourStage",
       "type": "object",
       "additionalProperties": false,
       "required": ["name", "summary", "tension"],
       "properties": {
         "name": {
-          "enum": [
-            "발단",
-            "전개",
-            "위기",
-            "절정",
-            "결말",
-            "기",
-            "승",
-            "전",
-            "결"
-          ]
+          "enum": ["기", "승", "전", "결"]
+        },
+        "summary": {
+          "type": ["string", "null"]
+        },
+        "tension": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "maximum": 5
+        }
+      }
+    },
+    "fiveStage": {
+      "title": "FiveStage",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "summary", "tension"],
+      "properties": {
+        "name": {
+          "enum": ["발단", "전개", "위기", "절정", "결말"]
         },
         "summary": {
           "type": ["string", "null"]

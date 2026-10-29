@@ -17,9 +17,9 @@
       "others": []
     },
     "links": {
-      "prev": null,
-      "next": "c_ep2",
-      "causes": []
+      "prev": "c_ep1",
+      "next": null,
+      "causes": ["c_ep1"]
     },
     "foreshadowing": {
       "plants": [],

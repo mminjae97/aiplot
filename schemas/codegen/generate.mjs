@@ -88,6 +88,8 @@ function generatePython(outDir, stage) {
     '--enum-field-as-literal',
     'all',
     '--collapse-root-models',
+    // Reused scalars (ids) become Annotated type aliases, so nested refs stay plain str.
+    '--use-type-alias',
     '--use-double-quotes',
     '--disable-timestamp',
     '--custom-file-header',

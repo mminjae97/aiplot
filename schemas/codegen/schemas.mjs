@@ -66,7 +66,10 @@ const titlePattern = /^[A-Z][A-Za-z0-9]*$/
 // Used internally by generate.mjs for the TS registry.
 export const reservedTitles = new Set(['SchemaRegistry'])
 
-/** Codegen preconditions plus strict JSON Schema 2020-12 checks. Returns error messages. */
+/**
+ * Codegen preconditions plus strict JSON Schema 2020-12 checks.
+ * Returns error messages and the compiled Ajv instance (reused for fixtures).
+ */
 export function validateSchemas(schemas) {
   const errors = []
   const owners = new Map()
@@ -91,8 +94,9 @@ export function validateSchemas(schemas) {
     })
   }
 
-  errors.push(...buildAjv(schemas).errors)
-  return errors
+  const compiled = buildAjv(schemas)
+  errors.push(...compiled.errors)
+  return { errors, ajv: compiled.ajv }
 }
 
 const ajvBase = 'https://schemas.aiplot.invalid/'
@@ -100,7 +104,8 @@ const ajvBase = 'https://schemas.aiplot.invalid/'
 /** Compiles every schema (strict 2020-12, cross-file refs). Returns the Ajv instance and errors. */
 function buildAjv(schemas) {
   const errors = []
-  const ajv = new Ajv2020({ strict: true, allErrors: true })
+  // discriminator: oneOf unions tagged by a const property (e.g. Card.type).
+  const ajv = new Ajv2020({ strict: true, allErrors: true, discriminator: true })
   const added = []
   for (const { rel, schema } of schemas) {
     try {
@@ -140,8 +145,8 @@ export function listFixtures() {
   return found.sort()
 }
 
-export function validateFixtures(schemas) {
-  const { ajv, errors } = buildAjv(schemas)
+export function validateFixtures(schemas, ajv) {
+  const errors = []
   const known = new Set(schemas.map(({ rel }) => rel))
   for (const rel of listFixtures()) {
     const match = /^(.+)\/[^/]+\.(valid|invalid)\.json$/.exec(rel)
@@ -158,7 +163,10 @@ export function validateFixtures(schemas) {
       continue
     }
     const validate = ajv.getSchema(ajvBase + schemaRel)
-    if (!validate) continue
+    if (!validate) {
+      errors.push(`fixtures/${rel}: schema ${schemaRel} did not compile`)
+      continue
+    }
     const ok = validate(data)
     if (match[2] === 'valid' && !ok) {
       errors.push(`fixtures/${rel}: should be valid: ${ajv.errorsText(validate.errors)}`)
@@ -172,7 +180,8 @@ export function validateFixtures(schemas) {
 /** Shared entry for validate and codegen: load, validate, and require at least one schema. */
 export function loadValidSchemas() {
   const { schemas, errors } = loadSchemas()
-  errors.push(...validateSchemas(schemas))
+  const checked = validateSchemas(schemas)
+  errors.push(...checked.errors)
   if (schemas.length === 0) errors.push('no schemas found')
-  return { schemas, errors }
+  return { schemas, errors, ajv: checked.ajv }
 }

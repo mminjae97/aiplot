@@ -4,9 +4,17 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from . import character, episode, main_story, part, region, region_position
+
+type CardEvidenceItem = Annotated[int, Field(ge=0)]
+
+
+type AiGuessField = Annotated[str, Field(min_length=1)]
+
+
+type PinnedField = Annotated[str, Field(min_length=1)]
 
 
 class CharacterCard(BaseModel):
@@ -16,7 +24,7 @@ class CharacterCard(BaseModel):
     id: Annotated[str, Field(pattern="^c_[0-9A-Za-z]+$", title="CardId")]
     work_id: Annotated[str, Field(pattern="^w_[0-9A-Za-z]+$", title="WorkId")]
     type: Literal["character"]
-    name: str | None
+    name: Annotated[str | None, Field(title="CardName")]
     status: Annotated[
         Literal["complete", "incomplete"],
         Field(
@@ -24,15 +32,21 @@ class CharacterCard(BaseModel):
             title="CardStatus",
         ),
     ]
-    source_notes: str
+    source_notes: Annotated[str, Field(title="SourceNotes")]
     data: character.CharacterData
-    evidence: dict[str, list[int]]
+    evidence: dict[str, list[CardEvidenceItem]]
     ai_guess: Annotated[
-        list[str],
-        Field(description="Field paths filled without evidence (shown as AI 추정)."),
+        list[AiGuessField],
+        Field(
+            description="Field paths filled without evidence (shown as AI 추정).",
+            title="AiGuessFields",
+        ),
     ]
-    pinned: Annotated[list[str], Field(description="Field paths kept across regeneration.")]
-    schema_version: Annotated[int, Field(ge=1)]
+    pinned: Annotated[
+        list[PinnedField],
+        Field(description="Field paths kept across regeneration.", title="PinnedFields"),
+    ]
+    schema_version: Annotated[int, Field(ge=1, title="SchemaVersion")]
 
 
 class RegionCard(BaseModel):
@@ -42,7 +56,7 @@ class RegionCard(BaseModel):
     id: Annotated[str, Field(pattern="^c_[0-9A-Za-z]+$", title="CardId")]
     work_id: Annotated[str, Field(pattern="^w_[0-9A-Za-z]+$", title="WorkId")]
     type: Literal["region"]
-    name: str | None
+    name: Annotated[str | None, Field(title="CardName")]
     status: Annotated[
         Literal["complete", "incomplete"],
         Field(
@@ -50,15 +64,21 @@ class RegionCard(BaseModel):
             title="CardStatus",
         ),
     ]
-    source_notes: str
+    source_notes: Annotated[str, Field(title="SourceNotes")]
     data: region.RegionData
-    evidence: dict[str, list[int]]
+    evidence: dict[str, list[CardEvidenceItem]]
     ai_guess: Annotated[
-        list[str],
-        Field(description="Field paths filled without evidence (shown as AI 추정)."),
+        list[AiGuessField],
+        Field(
+            description="Field paths filled without evidence (shown as AI 추정).",
+            title="AiGuessFields",
+        ),
     ]
-    pinned: Annotated[list[str], Field(description="Field paths kept across regeneration.")]
-    schema_version: Annotated[int, Field(ge=1)]
+    pinned: Annotated[
+        list[PinnedField],
+        Field(description="Field paths kept across regeneration.", title="PinnedFields"),
+    ]
+    schema_version: Annotated[int, Field(ge=1, title="SchemaVersion")]
     position: region_position.RegionPosition | None
 
 
@@ -69,7 +89,7 @@ class MainStoryCard(BaseModel):
     id: Annotated[str, Field(pattern="^c_[0-9A-Za-z]+$", title="CardId")]
     work_id: Annotated[str, Field(pattern="^w_[0-9A-Za-z]+$", title="WorkId")]
     type: Literal["main_story"]
-    name: str | None
+    name: Annotated[str | None, Field(title="CardName")]
     status: Annotated[
         Literal["complete", "incomplete"],
         Field(
@@ -77,15 +97,21 @@ class MainStoryCard(BaseModel):
             title="CardStatus",
         ),
     ]
-    source_notes: str
+    source_notes: Annotated[str, Field(title="SourceNotes")]
     data: main_story.MainStoryData
-    evidence: dict[str, list[int]]
+    evidence: dict[str, list[CardEvidenceItem]]
     ai_guess: Annotated[
-        list[str],
-        Field(description="Field paths filled without evidence (shown as AI 추정)."),
+        list[AiGuessField],
+        Field(
+            description="Field paths filled without evidence (shown as AI 추정).",
+            title="AiGuessFields",
+        ),
     ]
-    pinned: Annotated[list[str], Field(description="Field paths kept across regeneration.")]
-    schema_version: Annotated[int, Field(ge=1)]
+    pinned: Annotated[
+        list[PinnedField],
+        Field(description="Field paths kept across regeneration.", title="PinnedFields"),
+    ]
+    schema_version: Annotated[int, Field(ge=1, title="SchemaVersion")]
 
 
 class PartCard(BaseModel):
@@ -95,7 +121,7 @@ class PartCard(BaseModel):
     id: Annotated[str, Field(pattern="^c_[0-9A-Za-z]+$", title="CardId")]
     work_id: Annotated[str, Field(pattern="^w_[0-9A-Za-z]+$", title="WorkId")]
     type: Literal["part"]
-    name: str | None
+    name: Annotated[str | None, Field(title="CardName")]
     status: Annotated[
         Literal["complete", "incomplete"],
         Field(
@@ -103,15 +129,21 @@ class PartCard(BaseModel):
             title="CardStatus",
         ),
     ]
-    source_notes: str
+    source_notes: Annotated[str, Field(title="SourceNotes")]
     data: part.PartData
-    evidence: dict[str, list[int]]
+    evidence: dict[str, list[CardEvidenceItem]]
     ai_guess: Annotated[
-        list[str],
-        Field(description="Field paths filled without evidence (shown as AI 추정)."),
+        list[AiGuessField],
+        Field(
+            description="Field paths filled without evidence (shown as AI 추정).",
+            title="AiGuessFields",
+        ),
     ]
-    pinned: Annotated[list[str], Field(description="Field paths kept across regeneration.")]
-    schema_version: Annotated[int, Field(ge=1)]
+    pinned: Annotated[
+        list[PinnedField],
+        Field(description="Field paths kept across regeneration.", title="PinnedFields"),
+    ]
+    schema_version: Annotated[int, Field(ge=1, title="SchemaVersion")]
 
 
 class EpisodeCard(BaseModel):
@@ -121,7 +153,7 @@ class EpisodeCard(BaseModel):
     id: Annotated[str, Field(pattern="^c_[0-9A-Za-z]+$", title="CardId")]
     work_id: Annotated[str, Field(pattern="^w_[0-9A-Za-z]+$", title="WorkId")]
     type: Literal["episode"]
-    name: str | None
+    name: Annotated[str | None, Field(title="CardName")]
     status: Annotated[
         Literal["complete", "incomplete"],
         Field(
@@ -129,22 +161,28 @@ class EpisodeCard(BaseModel):
             title="CardStatus",
         ),
     ]
-    source_notes: str
+    source_notes: Annotated[str, Field(title="SourceNotes")]
     data: episode.EpisodeData
-    evidence: dict[str, list[int]]
+    evidence: dict[str, list[CardEvidenceItem]]
     ai_guess: Annotated[
-        list[str],
-        Field(description="Field paths filled without evidence (shown as AI 추정)."),
-    ]
-    pinned: Annotated[list[str], Field(description="Field paths kept across regeneration.")]
-    schema_version: Annotated[int, Field(ge=1)]
-
-
-class Card(RootModel[CharacterCard | RegionCard | MainStoryCard | PartCard | EpisodeCard]):
-    root: Annotated[
-        CharacterCard | RegionCard | MainStoryCard | PartCard | EpisodeCard,
+        list[AiGuessField],
         Field(
-            description="Saved card (§15), discriminated by type. Card fields are never edited directly (§6).",
-            title="Card",
+            description="Field paths filled without evidence (shown as AI 추정).",
+            title="AiGuessFields",
         ),
     ]
+    pinned: Annotated[
+        list[PinnedField],
+        Field(description="Field paths kept across regeneration.", title="PinnedFields"),
+    ]
+    schema_version: Annotated[int, Field(ge=1, title="SchemaVersion")]
+
+
+type Card = Annotated[
+    CharacterCard | RegionCard | MainStoryCard | PartCard | EpisodeCard,
+    Field(
+        description="Saved card (§15), discriminated by type. Card fields are never edited directly (§6).",
+        discriminator="type",
+        title="Card",
+    ),
+]

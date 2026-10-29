@@ -67,5 +67,5 @@ class EpisodeData(BaseModel):
     links: Annotated[EpisodeLinks, Field(title="EpisodeLinks")]
     foreshadowing: Annotated[EpisodeForeshadowing, Field(title="EpisodeForeshadowing")]
     worldline_id: worldline_id_1.WorldlineId | None
-    structure: structure_1.StoryStructure | None
+    structure: structure_1.FourStageStructure | structure_1.FiveStageStructure | None
     synopsis: str | None

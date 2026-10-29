@@ -6,11 +6,26 @@
 export type Card = CharacterCard | RegionCard | MainStoryCard | PartCard | EpisodeCard
 export type CardId = string
 export type WorkId = string
+export type CardName = string | null
 /**
  * incomplete = any §15 required field missing; computed by the server.
  */
 export type CardStatus = 'complete' | 'incomplete'
+export type SourceNotes = string
+/**
+ * Field paths filled without evidence (shown as AI 추정).
+ */
+export type AiGuessFields = string[]
+/**
+ * Field paths kept across regeneration.
+ */
+export type PinnedFields = string[]
+export type SchemaVersion = number
 export type MilestoneId = string
+/**
+ * Narrative structure (§7): 5-stage 발단·전개·위기·절정·결말 or 4-stage 기승전결.
+ */
+export type StoryStructure = FourStageStructure | FiveStageStructure
 export type ForeshadowingId = string
 export type WorldlineId = string
 
@@ -18,20 +33,14 @@ export interface CharacterCard {
   id: CardId
   work_id: WorkId
   type: 'character'
-  name: string | null
+  name: CardName
   status: CardStatus
-  source_notes: string
+  source_notes: SourceNotes
   data: CharacterData
   evidence: CardEvidence
-  /**
-   * Field paths filled without evidence (shown as AI 추정).
-   */
-  ai_guess: string[]
-  /**
-   * Field paths kept across regeneration.
-   */
-  pinned: string[]
-  schema_version: number
+  ai_guess: AiGuessFields
+  pinned: PinnedFields
+  schema_version: SchemaVersion
 }
 /**
  * Character card data (§7, §15). Every key is present; undecided values are null or [].
@@ -77,20 +86,14 @@ export interface RegionCard {
   id: CardId
   work_id: WorkId
   type: 'region'
-  name: string | null
+  name: CardName
   status: CardStatus
-  source_notes: string
+  source_notes: SourceNotes
   data: RegionData
   evidence: CardEvidence
-  /**
-   * Field paths filled without evidence (shown as AI 추정).
-   */
-  ai_guess: string[]
-  /**
-   * Field paths kept across regeneration.
-   */
-  pinned: string[]
-  schema_version: number
+  ai_guess: AiGuessFields
+  pinned: PinnedFields
+  schema_version: SchemaVersion
   position: RegionPosition | null
 }
 /**
@@ -136,20 +139,14 @@ export interface MainStoryCard {
   id: CardId
   work_id: WorkId
   type: 'main_story'
-  name: string | null
+  name: CardName
   status: CardStatus
-  source_notes: string
+  source_notes: SourceNotes
   data: MainStoryData
   evidence: CardEvidence
-  /**
-   * Field paths filled without evidence (shown as AI 추정).
-   */
-  ai_guess: string[]
-  /**
-   * Field paths kept across regeneration.
-   */
-  pinned: string[]
-  schema_version: number
+  ai_guess: AiGuessFields
+  pinned: PinnedFields
+  schema_version: SchemaVersion
 }
 /**
  * Main story card data (§7, §15).
@@ -169,20 +166,14 @@ export interface PartCard {
   id: CardId
   work_id: WorkId
   type: 'part'
-  name: string | null
+  name: CardName
   status: CardStatus
-  source_notes: string
+  source_notes: SourceNotes
   data: PartData
   evidence: CardEvidence
-  /**
-   * Field paths filled without evidence (shown as AI 추정).
-   */
-  ai_guess: string[]
-  /**
-   * Field paths kept across regeneration.
-   */
-  pinned: string[]
-  schema_version: number
+  ai_guess: AiGuessFields
+  pinned: PinnedFields
+  schema_version: SchemaVersion
 }
 /**
  * Part card data (§7, §15).
@@ -196,15 +187,33 @@ export interface PartData {
   end: string | null
   structure: StoryStructure | null
 }
-/**
- * Narrative structure (§7): 5-stage 발단·전개·위기·절정·결말 or 4-stage 기승전결.
- */
-export interface StoryStructure {
-  type: 4 | 5
-  stages: StructureStage[]
+export interface FourStageStructure {
+  type: 4
+  /**
+   * One entry per stage, in story order; names unique (checked by the server).
+   *
+   * @minItems 4
+   * @maxItems 4
+   */
+  stages: [FourStage, FourStage, FourStage, FourStage, ...FourStage[]]
 }
-export interface StructureStage {
-  name: '발단' | '전개' | '위기' | '절정' | '결말' | '기' | '승' | '전' | '결'
+export interface FourStage {
+  name: '기' | '승' | '전' | '결'
+  summary: string | null
+  tension: number | null
+}
+export interface FiveStageStructure {
+  type: 5
+  /**
+   * One entry per stage, in story order; names unique (checked by the server).
+   *
+   * @minItems 5
+   * @maxItems 5
+   */
+  stages: [FiveStage, FiveStage, FiveStage, FiveStage, FiveStage, ...FiveStage[]]
+}
+export interface FiveStage {
+  name: '발단' | '전개' | '위기' | '절정' | '결말'
   summary: string | null
   tension: number | null
 }
@@ -212,20 +221,14 @@ export interface EpisodeCard {
   id: CardId
   work_id: WorkId
   type: 'episode'
-  name: string | null
+  name: CardName
   status: CardStatus
-  source_notes: string
+  source_notes: SourceNotes
   data: EpisodeData
   evidence: CardEvidence
-  /**
-   * Field paths filled without evidence (shown as AI 추정).
-   */
-  ai_guess: string[]
-  /**
-   * Field paths kept across regeneration.
-   */
-  pinned: string[]
-  schema_version: number
+  ai_guess: AiGuessFields
+  pinned: PinnedFields
+  schema_version: SchemaVersion
 }
 /**
  * Episode card data (§7, §15).

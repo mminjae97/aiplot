@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import Field, RootModel
+from pydantic import Field
 
-
-class CardId(RootModel[str]):
-    root: Annotated[str, Field(pattern="^c_[0-9A-Za-z]+$", title="CardId")]
+type CardId = Annotated[str, Field(pattern="^c_[0-9A-Za-z]+$", title="CardId")]

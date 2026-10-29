@@ -20,4 +20,4 @@ class PartData(BaseModel):
     fulfills: list[milestone_id.MilestoneId]
     start: str | None
     end: str | None
-    structure: structure_1.StoryStructure | None
+    structure: structure_1.FourStageStructure | structure_1.FiveStageStructure | None
