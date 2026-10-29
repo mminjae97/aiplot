@@ -10,7 +10,7 @@ Local Windows desktop app (NVIDIA 8GB VRAM) for writing Korean web novels. All m
 - Starting a stage locks earlier stages (read-only).
 
 ## 2 Stack
-Electron + React + TS (Vite); Zustand (UI state) + TanStack Query (server state); TipTap (manuscript); React Flow + d3-force (timeline/map/curves). Python 3.12 FastAPI local server; HTTP + SSE on 127.0.0.1. SQLite + FTS5 (names); stdlib sqlite3, no ORM; migrations `db/migrations/NNN_name.sql` tracked by `PRAGMA user_version`; NNN unique + contiguous (CI test); merged migrations never change; renumber unmerged ones on rebase, then rebuild dev DBs. Codegen: json-schema-to-typescript (TS), datamodel-code-generator (Pydantic, via `uv run --project ../server`). llama.cpp server Windows CUDA build (pinned version + CUDA version; server and cudart archives each hashed; downloaded at first run, not in installer), LoRA hot-swap via `/lora`. Base: Qwen3-8B uncensored (Heretic) Q4_K_M, LoRAs F16. Optional images: ComfyUI portable + SDXL semi-realistic, fixed workflow JSON. Packaging: PyInstaller + electron-builder. Tests: Vitest, pytest, Playwright (Electron). Lint: ESLint+Prettier+tsc; Ruff+mypy. npm (app, schemas), uv (server, training). Node 22, Python 3.12. CI: GitHub Actions (Windows runner builds installer).
+Electron + React + TS (Vite via electron-vite); Zustand (UI state) + TanStack Query (server state); TipTap (manuscript); React Flow + d3-force (timeline/map/curves). Python 3.12 FastAPI local server; HTTP + SSE on 127.0.0.1. SQLite + FTS5 (names); stdlib sqlite3, no ORM; migrations `db/migrations/NNN_name.sql` tracked by `PRAGMA user_version`; NNN unique + contiguous (CI test); merged migrations never change; renumber unmerged ones on rebase, then rebuild dev DBs. Codegen: json-schema-to-typescript (TS), datamodel-code-generator (Pydantic, via `uv run --project ../server`). llama.cpp server Windows CUDA build (pinned version + CUDA version; server and cudart archives each hashed; downloaded at first run, not in installer), LoRA hot-swap via `/lora`. Base: Qwen3-8B uncensored (Heretic) Q4_K_M, LoRAs F16. Optional images: ComfyUI portable + SDXL semi-realistic, fixed workflow JSON. Packaging: PyInstaller + electron-builder. Tests: Vitest, pytest, Playwright (Electron). Lint: ESLint+Prettier+tsc; Ruff+mypy. npm (app, schemas), uv (server, training). Node 22, Python 3.12. CI: GitHub Actions (Windows runner builds installer).
 
 ## 3 Layout
 ```
@@ -22,7 +22,7 @@ server/{prompts/{role}/v{n}.md, config/{roles.yaml,profiles/*.yaml}, data/techni
 schemas/ (JSON Schema source of truth) + codegen/
 training/{seeds,generate,filter,notebooks,eval} — not shipped
 ```
-Runtime data: `%LOCALAPPDATA%\Aiplot\{data\aiplot.db, images, snapshots, models, lora, llama, comfyui, logs}`.
+Runtime data: `%LOCALAPPDATA%\Aiplot\{data\aiplot.db, images, snapshots, models, lora, llama, comfyui, logs, electron (Chromium profile)}`.
 
 ## 4 Commands
 Not created yet; create with these exact names in dev step 1, then keep accurate.
