@@ -3,7 +3,14 @@ import { _electron as electron, expect, test } from '@playwright/test'
 import { strings } from '../../src/strings'
 
 test('app window opens with title', async () => {
-  const app = await electron.launch({ args: [resolve(__dirname, '../..')] })
+  // Always test the built renderer, never a leftover dev server URL.
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] =>
+        entry[0] !== 'ELECTRON_RENDERER_URL' && entry[1] !== undefined,
+    ),
+  )
+  const app = await electron.launch({ args: [resolve(__dirname, '../..')], env })
   try {
     const win = await app.firstWindow()
     await expect(win).toHaveTitle(strings.app.name)

@@ -1,19 +1,21 @@
 import { join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, session } from 'electron'
 
 const rendererFile = join(__dirname, '../renderer/index.html')
 // Dev server URL is honored only in unpackaged (development) runs.
 const devUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
+const devOrigin = devUrl ? new URL(devUrl).origin : undefined
+const rendererPath = normalize(rendererFile).toLowerCase()
 
 let mainWindow: BrowserWindow | null = null
 
 function isAppUrl(url: string): boolean {
   try {
     const target = new URL(url)
-    if (devUrl) return target.origin === new URL(devUrl).origin
+    if (devOrigin) return target.origin === devOrigin
     if (target.protocol !== 'file:') return false
-    return normalize(fileURLToPath(target)).toLowerCase() === normalize(rendererFile).toLowerCase()
+    return normalize(fileURLToPath(target)).toLowerCase() === rendererPath
   } catch {
     return false
   }
@@ -56,6 +58,10 @@ if (!app.requestSingleInstanceLock()) {
     mainWindow.focus()
   })
   void app.whenReady().then(() => {
+    session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => {
+      callback(false)
+    })
+    session.defaultSession.setPermissionCheckHandler(() => false)
     mainWindow = createWindow()
   })
   app.on('window-all-closed', () => {

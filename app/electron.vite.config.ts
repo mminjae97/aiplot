@@ -2,6 +2,7 @@ import { resolve } from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'electron-vite'
 import type { Plugin } from 'vite'
+import { strings } from './src/strings'
 
 const root = import.meta.dirname
 
@@ -23,6 +24,14 @@ function cspPlugin(): Plugin {
   }
 }
 
+function titlePlugin(): Plugin {
+  return {
+    name: 'aiplot-title',
+    transformIndexHtml: (html) =>
+      html.replace('<title></title>', `<title>${strings.app.name}</title>`),
+  }
+}
+
 export default defineConfig({
   main: {
     build: { rolldownOptions: { input: { index: resolve(root, 'electron/main.ts') } } },
@@ -37,6 +46,6 @@ export default defineConfig({
       outDir: resolve(root, 'out/renderer'),
       rolldownOptions: { input: { index: resolve(root, 'src/index.html') } },
     },
-    plugins: [react(), cspPlugin()],
+    plugins: [react(), titlePlugin(), cspPlugin()],
   },
 })
