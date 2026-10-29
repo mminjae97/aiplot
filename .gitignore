@@ -18,3 +18,6 @@ server/build/
 .env
 .vscode/
 .claude/settings.local.json
+# codegen backups left by an interrupted run
+app/src/types.bak/
+server/aiplot/generated.bak/

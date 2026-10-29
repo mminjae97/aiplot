@@ -8,7 +8,6 @@ export interface ApiError {
   message: string
   hint: string | null
 }
-
 /**
  * GET /health. Model and VRAM fields arrive with the llama process (step 1, unit 6).
  */
