@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RegionData",
+  "description": "Region card data (§7, §15). Map position is not data; see RegionPosition.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["parent_id", "links", "appearance", "environment", "sensory"],
+  "properties": {
+    "parent_id": {
+      "anyOf": [{ "$ref": "../common/card-id.json" }, { "type": "null" }]
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "title": "RegionLink",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target_id", "travel", "direction"],
+        "properties": {
+          "target_id": { "$ref": "../common/card-id.json" },
+          "travel": {
+            "description": "Evidence for the impossible-travel check (§10).",
+            "anyOf": [{ "$ref": "#/$defs/travel" }, { "type": "null" }]
+          },
+          "direction": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "appearance": { "type": ["string", "null"] },
+    "environment": {
+      "title": "RegionEnvironment",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["natural", "social"],
+      "properties": {
+        "natural": { "type": ["string", "null"] },
+        "social": { "type": ["string", "null"] }
+      }
+    },
+    "sensory": {
+      "title": "RegionSensory",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["smell", "sound", "mood"],
+      "properties": {
+        "smell": { "type": ["string", "null"] },
+        "sound": { "type": ["string", "null"] },
+        "mood": { "type": ["string", "null"] }
+      }
+    }
+  },
+  "$defs": {
+    "travel": {
+      "title": "RegionTravel",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "unit", "mode"],
+      "properties": {
+        "value": { "type": "number", "exclusiveMinimum": 0 },
+        "unit": { "enum": ["minute", "hour", "day"] },
+        "mode": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

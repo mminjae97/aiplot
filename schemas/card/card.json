@@ -1,0 +1,361 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Card",
+  "description": "Saved card (§15), discriminated by type. Card fields are never edited directly (§6).",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/character"
+    },
+    {
+      "$ref": "#/$defs/region"
+    },
+    {
+      "$ref": "#/$defs/main_story"
+    },
+    {
+      "$ref": "#/$defs/part"
+    },
+    {
+      "$ref": "#/$defs/episode"
+    }
+  ],
+  "$defs": {
+    "status": {
+      "title": "CardStatus",
+      "description": "incomplete = any §15 required field missing; computed by the server.",
+      "enum": ["complete", "incomplete"]
+    },
+    "evidence": {
+      "title": "CardEvidence",
+      "description": "Field path (e.g. personality.traits) -> indexes of supporting source-note sentences.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "integer"
+        }
+      }
+    },
+    "character": {
+      "title": "CharacterCard",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "work_id",
+        "type",
+        "name",
+        "status",
+        "source_notes",
+        "data",
+        "evidence",
+        "ai_guess",
+        "pinned",
+        "schema_version"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "../common/card-id.json"
+        },
+        "work_id": {
+          "$ref": "../common/work-id.json"
+        },
+        "type": {
+          "const": "character"
+        },
+        "name": {
+          "type": ["string", "null"]
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "source_notes": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "character.json"
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "ai_guess": {
+          "description": "Field paths filled without evidence (shown as AI 추정).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pinned": {
+          "description": "Field paths kept across regeneration.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "schema_version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "region": {
+      "title": "RegionCard",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "work_id",
+        "type",
+        "name",
+        "status",
+        "source_notes",
+        "data",
+        "evidence",
+        "ai_guess",
+        "pinned",
+        "schema_version",
+        "position"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "../common/card-id.json"
+        },
+        "work_id": {
+          "$ref": "../common/work-id.json"
+        },
+        "type": {
+          "const": "region"
+        },
+        "name": {
+          "type": ["string", "null"]
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "source_notes": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "region.json"
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "ai_guess": {
+          "description": "Field paths filled without evidence (shown as AI 추정).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pinned": {
+          "description": "Field paths kept across regeneration.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "position": {
+          "anyOf": [
+            {
+              "$ref": "region-position.json"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "main_story": {
+      "title": "MainStoryCard",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "work_id",
+        "type",
+        "name",
+        "status",
+        "source_notes",
+        "data",
+        "evidence",
+        "ai_guess",
+        "pinned",
+        "schema_version"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "../common/card-id.json"
+        },
+        "work_id": {
+          "$ref": "../common/work-id.json"
+        },
+        "type": {
+          "const": "main_story"
+        },
+        "name": {
+          "type": ["string", "null"]
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "source_notes": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "main-story.json"
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "ai_guess": {
+          "description": "Field paths filled without evidence (shown as AI 추정).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pinned": {
+          "description": "Field paths kept across regeneration.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "schema_version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "part": {
+      "title": "PartCard",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "work_id",
+        "type",
+        "name",
+        "status",
+        "source_notes",
+        "data",
+        "evidence",
+        "ai_guess",
+        "pinned",
+        "schema_version"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "../common/card-id.json"
+        },
+        "work_id": {
+          "$ref": "../common/work-id.json"
+        },
+        "type": {
+          "const": "part"
+        },
+        "name": {
+          "type": ["string", "null"]
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "source_notes": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "part.json"
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "ai_guess": {
+          "description": "Field paths filled without evidence (shown as AI 추정).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pinned": {
+          "description": "Field paths kept across regeneration.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "schema_version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "episode": {
+      "title": "EpisodeCard",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "work_id",
+        "type",
+        "name",
+        "status",
+        "source_notes",
+        "data",
+        "evidence",
+        "ai_guess",
+        "pinned",
+        "schema_version"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "../common/card-id.json"
+        },
+        "work_id": {
+          "$ref": "../common/work-id.json"
+        },
+        "type": {
+          "const": "episode"
+        },
+        "name": {
+          "type": ["string", "null"]
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "source_notes": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "episode.json"
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "ai_guess": {
+          "description": "Field paths filled without evidence (shown as AI 추정).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pinned": {
+          "description": "Field paths kept across regeneration.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "schema_version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MainStoryData",
+  "description": "Main story card data (§7, §15).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["theme", "premise", "ending", "milestones"],
+  "properties": {
+    "theme": { "type": ["string", "null"] },
+    "premise": { "type": ["string", "null"] },
+    "ending": { "type": ["string", "null"] },
+    "milestones": {
+      "type": "array",
+      "items": {
+        "title": "Milestone",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "order", "text"],
+        "properties": {
+          "id": { "$ref": "../common/milestone-id.json" },
+          "order": { "type": "integer", "minimum": 1 },
+          "text": { "type": "string" }
+        }
+      }
+    }
+  }
+}

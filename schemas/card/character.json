@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CharacterData",
+  "description": "Character card data (§7, §15). Every key is present; undecided values are null or [].",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "theme",
+    "personality",
+    "speech",
+    "appearance",
+    "relations",
+    "origin_region_id"
+  ],
+  "properties": {
+    "theme": { "type": ["string", "null"] },
+    "personality": {
+      "title": "CharacterPersonality",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["traits", "behaviors"],
+      "properties": {
+        "traits": { "type": "array", "items": { "type": "string" } },
+        "behaviors": {
+          "type": "array",
+          "items": {
+            "title": "CharacterBehavior",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["situation", "action"],
+            "properties": {
+              "situation": { "type": "string" },
+              "action": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "speech": {
+      "title": "CharacterSpeech",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description", "examples"],
+      "properties": {
+        "description": { "type": ["string", "null"] },
+        "examples": {
+          "type": "array",
+          "items": { "type": "string" },
+          "maxItems": 5
+        }
+      }
+    },
+    "appearance": {
+      "title": "CharacterAppearance",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "details"],
+      "properties": {
+        "summary": { "type": ["string", "null"] },
+        "details": { "type": ["string", "null"] }
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "title": "CharacterRelation",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target_id", "relation"],
+        "properties": {
+          "target_id": { "$ref": "../common/card-id.json" },
+          "relation": { "type": "string" }
+        }
+      }
+    },
+    "origin_region_id": {
+      "anyOf": [{ "$ref": "../common/card-id.json" }, { "type": "null" }]
+    }
+  }
+}

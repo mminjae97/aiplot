@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StoryStructure",
+  "description": "Narrative structure (§7): 5-stage 발단·전개·위기·절정·결말 or 4-stage 기승전결.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "stages"],
+  "properties": {
+    "type": {
+      "enum": [4, 5]
+    },
+    "stages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/stage"
+      }
+    }
+  },
+  "$defs": {
+    "stage": {
+      "title": "StructureStage",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "summary", "tension"],
+      "properties": {
+        "name": {
+          "enum": [
+            "발단",
+            "전개",
+            "위기",
+            "절정",
+            "결말",
+            "기",
+            "승",
+            "전",
+            "결"
+          ]
+        },
+        "summary": {
+          "type": ["string", "null"]
+        },
+        "tension": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "maximum": 5
+        }
+      }
+    }
+  }
+}

@@ -84,6 +84,10 @@ function generatePython(outDir, stage) {
     '--use-union-operator',
     '--use-annotated',
     '--field-constraints',
+    // Enums as Literal (like the TS unions) and constrained scalars inline, not wrapper classes.
+    '--enum-field-as-literal',
+    'all',
+    '--collapse-root-models',
     '--use-double-quotes',
     '--disable-timestamp',
     '--custom-file-header',
