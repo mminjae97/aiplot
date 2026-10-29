@@ -27,8 +27,8 @@ Runtime data: `%LOCALAPPDATA%\Aiplot\{data\aiplot.db, images, snapshots, models,
 ## 4 Commands
 Not created yet; create with these exact names in dev step 1, then keep accurate.
 ```
-cd schemas && npm i && npm run codegen        # → app/src/types, server/aiplot/generated
 cd server && uv sync
+cd schemas && npm i && npm run codegen        # → app/src/types, server/aiplot/generated
 uv run python -m aiplot.main --dev            # port 8765, token AIPLOT_TOKEN
 uv run pytest | uv run ruff check . && uv run ruff format --check . | uv run mypy aiplot
 uv run pyinstaller aiplot-server.spec
@@ -81,11 +81,11 @@ Card drawer (all types): ~70% width, background dimmed; left chat (top) + source
 - Type section: character speech preview; episode 4/5 picker with recommendation; part milestone assignment.
 - After save: close, highlight card 0.3s. Locked: add/edit disabled, drawer won't open.
 
-Dex (S1-1): grid + translucent "+" card. Front image+name (fallback first-letter image). Back (flip 0.3s): all fields; bottom row "원문 수정" left, red "삭제" right. Delete: confirm listing referencing cards, DELETE runs immediately (card + all relation rows touching it, one transaction; episode reconnect via `?reconnect=true`); server keeps the deleted rows (+ added reconnect links, card_image rows; files removed after window) in memory ~10s; "되돌리기" toast → POST /cards/{cardId}/restore reverts all of it. Locked: read-only; image generation still allowed. Images (step 10): `image_prompt` → ComfyUI 2–4 candidates 896×1152, web-novel-cover semi-realistic, realistic proportions → user picks; store prompt+seed.
+Dex (S1-1): grid + translucent "+" card. Front image+name (fallback first-letter image). Back (flip 0.3s): all fields; bottom row "원문 수정" left, red "삭제" right. Delete: confirm listing referencing cards, DELETE runs immediately (card + all relation rows touching it, one transaction; episode reconnect via `?reconnect=true`; part with episodes via `?episodes=move:{partId}|delete`); server keeps the deleted rows (+ added reconnect links, card_image rows; files removed after window) in memory ~10s; "되돌리기" toast → POST /cards/{cardId}/restore reverts all of it (re-indexes FTS5; skips relation rows whose other end is gone). Locked: read-only; image generation still allowed. Images (step 10): `image_prompt` → ComfyUI 2–4 candidates 896×1152, web-novel-cover semi-realistic, realistic proportions → user picks; store prompt+seed.
 
 Region map (S1-2): node per region; lines labeled travel time; parents as dashed areas (double-click zoom). d3-force layout, length ~ travel time, respect direction. Drag changes map_x/y only (disabled when locked). Click flips (appearance, environment, mood, adjacent; same bottom row). Badge = episode count, hover lists. New node placed next to linked region. Wheel zoom, drag pan.
 
-Story (S1-3): steps main → parts → episodes, each unlocks next. Timeline: Y region lanes, X story order (same column = simultaneous), X split by part with titles, main line on top, milestones above parts, node color = milestone. Node = episode, arrows = order/cause. Multi-region: main lane + small markers. Click flips (theme, milestones, stages, characters, foreshadowing, synopsis; delete asks to reconnect prev/next). "+ 새 에피소드" adds to selected part, auto-placed. Drag within part → notes line → confirm. Worldline tabs. Completeness panel + "연출 구성 시작" (lock warning). X axis = top row of S2 dual timeline.
+Story (S1-3): steps main → parts → episodes, each unlocks next. Timeline: Y region lanes, X story order (same column = simultaneous), X split by part with titles, main line on top, milestones above parts, node color = milestone. Node = episode, arrows = order/cause. Multi-region: main lane + small markers. Click flips (theme, milestones, stages, characters, foreshadowing, synopsis; delete asks to reconnect prev/next). "+ 새 에피소드" adds to selected part, auto-placed. Drag within part → notes line → confirm. Worldline tabs. Completeness panel + "연출 구성 시작" (lock warning; step 9). X axis = top row of S2 dual timeline.
 
 ## 9 Stage 2
 Flow: select episode → `pick` (input: episode + technique list titles/one-liners) → scenes + 1–3 picks with rank, reason → auto-pick if 1, else user (keys 1–3, Enter = top) → `direct` (chosen cards' definition/effect/caution) → plan → user edits → confirm. All confirmed → "집필 시작" (lock warning).
@@ -150,7 +150,7 @@ JSON roles low temp.
 - direction_plan(id,episode_id,status,plan JSON); technique_pick(id,plan_id,scene,technique_id,rank,reason,chosen)
 - chapter(id,plan_id,work_id,number,target_chars,read,progress_summary,summary_long,summary_short); beat(id,chapter_id,order,source_stage,technique_id,pov,mode,tension,feedback); beat_version(id,beat_id,version,text,chars,origin generated|edited,created_at) latest = current
 - state_record(id,beat_id,card_id,key,value); warning(id,version_id,card_id,kind,status,reason); snapshot(id,work_id,stage,path,created_at)
-card.status: complete|incomplete (any §15 required field empty); server recomputes on save, delete/restore (cards referencing it too), migration, backup import. Each table is created by the migration of the dev step that first uses it. No conversation table. FTS5 on card names. Save copies data refs into relation tables; card delete lists then deletes relation rows.
+card.status: complete|incomplete (any §15 required field missing or below its count; reference fields judged from relation tables); server recomputes on save, delete/restore (cards referencing it too), migration, backup import. Each table is created by the migration of the dev step that first uses it. No conversation table. FTS5 on card names. Save copies data refs into relation tables; card delete lists then deletes relation rows.
 
 ## 15 Schemas
 Card: `{id, work_id, type, name, status complete|incomplete, source_notes, data, evidence{field:[sentence idx]}, ai_guess[field], pinned[field], schema_version}` (pinned → column pinned_fields).
@@ -161,7 +161,7 @@ Also: plan (§9), state values (§7), each JSON role output.
 ## 16 API
 Base `http://127.0.0.1:{port}/api/v1`, `Authorization: Bearer {token}`. JSON, ISO 8601, chars incl. spaces. Error `{code,message,hint}`; each code maps to a UI state. Jobs return `202 {jobId}`. Locked → 423 STAGE_LOCKED.
 - works: GET/POST /works; GET/PATCH/DELETE /works/{workId}; POST /works/{workId}/stage/advance; GET .../stage/reopen-preview?stage=; POST .../stage/reopen (title confirm if manuscript)
-- cards: GET /works/{workId}/cards?type=&q=; GET /cards/{cardId}; PATCH /cards/{cardId} (region only, body {map_x,map_y} only; 423 when locked); GET /cards/{cardId}/references; DELETE /cards/{cardId}?reconnect=; POST /cards/{cardId}/restore (within ~10s of delete; 423 if locked meanwhile); GET /works/{workId}/completeness; POST /cards/{cardId}/images (job); PUT /cards/{cardId}/image
+- cards: GET /works/{workId}/cards?type=&q=; GET /cards/{cardId}; PATCH /cards/{cardId} (region only, body {map_x,map_y} only; 423 when locked); GET /cards/{cardId}/references; DELETE /cards/{cardId}?reconnect=&episodes=; POST /cards/{cardId}/restore (within ~10s of delete; 423 if locked meanwhile); GET /works/{workId}/completeness; POST /cards/{cardId}/images (job); PUT /cards/{cardId}/image
 - drafts: POST /works/{workId}/drafts; POST /drafts/{draftId}/messages (SSE reply, notes change, questions, name checks); PUT .../source; POST .../generate; POST .../save; DELETE /drafts/{draftId}
 - direction: POST/GET /episodes/{episodeId}/plans (POST = job); POST /plans/{planId}/scenes/{scene}/pick; PATCH /plans/{planId} (order, cuts → recheck); POST /plans/{planId}/choose; POST /beats/{beatId}/feedback; GET /techniques?q=
 - writing: GET /works/{workId}/chapters; POST /chapters/{chapterId}/generate (job); POST /beats/{beatId}/regenerate (job); PUT /beats/{beatId}/text; GET /beats/{beatId}/versions; POST /beats/{beatId}/versions/{version}/restore; GET /chapters/{chapterId}/warnings; PATCH /warnings/{warningId}; PATCH /chapters/{chapterId} (read, position)
