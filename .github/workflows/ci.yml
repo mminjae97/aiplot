@@ -44,6 +44,7 @@ jobs:
           changes=$(git status --porcelain -- ../app/src/types ../server/aiplot/generated)
           if [ -n "$changes" ]; then
             echo "$changes"
+            git --no-pager diff -- ../app/src/types ../server/aiplot/generated
             echo "::error::Generated files are stale. Run 'npm run codegen' in schemas/ and commit."
             exit 1
           fi

@@ -44,22 +44,27 @@ export function loadSchemas() {
   return { schemas, errors }
 }
 
-/** Every `title` in a schema (root and nested subschemas); titles become type names. */
-function collectTitles(node, out) {
+/** Calls visit(subschema) for the root and every nested subschema. */
+function walkSubschemas(node, visit) {
   if (Array.isArray(node)) {
-    for (const item of node) collectTitles(item, out)
+    for (const item of node) walkSubschemas(item, visit)
   } else if (node !== null && typeof node === 'object') {
-    if (typeof node.title === 'string') out.push(node.title)
+    visit(node)
     for (const [key, value] of Object.entries(node)) {
       if (key === 'properties' || key === '$defs' || key === 'patternProperties') {
         // Property names are keys here; their values are subschemas.
-        for (const sub of Object.values(value ?? {})) collectTitles(sub, out)
+        for (const sub of Object.values(value ?? {})) walkSubschemas(sub, visit)
       } else if (!dataKeywords.has(key)) {
-        collectTitles(value, out)
+        walkSubschemas(value, visit)
       }
     }
   }
 }
+
+// Titles become type names in both generators, so they must already be identifiers.
+const titlePattern = /^[A-Z][A-Za-z0-9]*$/
+// Used internally by generate.mjs for the TS registry.
+export const reservedTitles = new Set(['SchemaRegistry'])
 
 /** Codegen preconditions plus strict JSON Schema 2020-12 checks. Returns error messages. */
 export function validateSchemas(schemas) {
@@ -69,13 +74,21 @@ export function validateSchemas(schemas) {
     if (typeof schema.title !== 'string' || schema.title === '') {
       errors.push(`${rel}: top-level "title" is required`)
     }
-    const titles = []
-    collectTitles(schema, titles)
-    for (const title of titles) {
-      // Generated types share one TS module, so every title must be unique repo-wide.
-      if (owners.has(title)) errors.push(`${rel}: duplicate title ${title} (also in ${owners.get(title)})`)
-      else owners.set(title, rel)
-    }
+    walkSubschemas(schema, (node) => {
+      // Refs resolve against file paths in the generators; an $id would change the base.
+      if ('$id' in node) errors.push(`${rel}: "$id" is not allowed (refs are file-relative)`)
+      if (typeof node.title !== 'string') return
+      const { title } = node
+      if (!titlePattern.test(title)) {
+        errors.push(`${rel}: title ${JSON.stringify(title)} must match ${titlePattern}`)
+      } else if (reservedTitles.has(title)) {
+        errors.push(`${rel}: title ${title} is reserved`)
+      }
+      // Generated types share one TS module; compare case-insensitively to avoid near-clashes.
+      const key = title.toLowerCase()
+      if (owners.has(key)) errors.push(`${rel}: duplicate title ${title} (also in ${owners.get(key)})`)
+      else owners.set(key, rel)
+    })
   }
 
   const base = 'https://schemas.aiplot.invalid/'
@@ -97,4 +110,12 @@ export function validateSchemas(schemas) {
     }
   }
   return errors
+}
+
+/** Shared entry for validate and codegen: load, validate, and require at least one schema. */
+export function loadValidSchemas() {
+  const { schemas, errors } = loadSchemas()
+  errors.push(...validateSchemas(schemas))
+  if (schemas.length === 0) errors.push('no schemas found')
+  return { schemas, errors }
 }

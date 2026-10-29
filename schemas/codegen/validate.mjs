@@ -1,8 +1,7 @@
 // `npm test`: validates every schema without generating anything.
-import { loadSchemas, validateSchemas } from './schemas.mjs'
+import { loadValidSchemas } from './schemas.mjs'
 
-const { schemas, errors } = loadSchemas()
-errors.push(...validateSchemas(schemas))
+const { schemas, errors } = loadValidSchemas()
 if (errors.length > 0) {
   for (const line of errors) console.error(line)
   process.exit(1)

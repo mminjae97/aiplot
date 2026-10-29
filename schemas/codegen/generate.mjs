@@ -15,18 +15,16 @@ import {
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { compile } from 'json-schema-to-typescript'
-import { loadSchemas, repoDir, schemasDir, validateSchemas } from './schemas.mjs'
+import { loadValidSchemas, repoDir, reservedTitles, schemasDir } from './schemas.mjs'
 
 const header = 'GENERATED from schemas/ by `npm run codegen` in schemas/. Do not edit.'
 const tsOut = join(repoDir, 'app', 'src', 'types')
 const pyOut = join(repoDir, 'server', 'aiplot', 'generated')
 const serverDir = join(repoDir, 'server')
 const serverConfig = join(serverDir, 'pyproject.toml')
-const registryName = 'SchemaRegistry'
+const [registryName] = reservedTitles
 
-const { schemas, errors } = loadSchemas()
-errors.push(...validateSchemas(schemas))
-if (schemas.length === 0) errors.push('no schemas found')
+const { schemas, errors } = loadValidSchemas()
 if (errors.length > 0) throw new Error(`invalid schemas:\n${errors.join('\n')}`)
 
 async function generateTypeScript(outDir) {
@@ -99,12 +97,26 @@ function generatePython(outDir, stage) {
   run('ruff format', 'uv', [...uv, 'ruff', 'format', '--config', serverConfig, '--quiet', outDir])
 }
 
-// Generated files are committed; keep them LF on every OS.
+// Generated sources are committed; keep them LF on every OS. Other files are left as-is.
 function normalizeEol(dir) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name)
-    if (entry.isDirectory()) normalizeEol(full)
-    else writeFileSync(full, readFileSync(full, 'utf8').replace(/\r\n/g, '\n'))
+    if (entry.isDirectory()) {
+      normalizeEol(full)
+    } else if (/\.(ts|py)$/.test(entry.name)) {
+      const text = readFileSync(full, 'utf8')
+      if (text.includes('\r\n')) writeFileSync(full, text.replace(/\r\n/g, '\n'))
+    }
+  }
+}
+
+// A previous run killed mid-swap may have left only `<dir>.bak`; put it back before starting.
+function recoverBackups(dirs) {
+  for (const dir of dirs) {
+    const backup = `${dir}.bak`
+    if (!existsSync(backup)) continue
+    if (existsSync(dir)) rmSync(backup, { recursive: true, force: true })
+    else renameSync(backup, dir)
   }
 }
 
@@ -130,9 +142,18 @@ function replaceAll(pairs) {
     }
     throw err
   }
-  for (const { backup } of backups) if (backup) rmSync(backup, { recursive: true, force: true })
+  // Outputs are already replaced; a locked backup must not turn success into failure.
+  for (const { backup } of backups) {
+    if (!backup) continue
+    try {
+      rmSync(backup, { recursive: true, force: true })
+    } catch (err) {
+      console.warn(`could not remove ${backup}: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
 }
 
+recoverBackups([tsOut, pyOut])
 const work = mkdtempSync(join(tmpdir(), 'aiplot-codegen-'))
 try {
   const tsTmp = join(work, 'ts')
