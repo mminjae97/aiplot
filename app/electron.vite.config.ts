@@ -27,8 +27,11 @@ function cspPlugin(): Plugin {
 function titlePlugin(): Plugin {
   return {
     name: 'aiplot-title',
-    transformIndexHtml: (html) =>
-      html.replace('<title></title>', `<title>${strings.app.name}</title>`),
+    transformIndexHtml: (html) => {
+      const placeholder = /<title>\s*<\/title>/
+      if (!placeholder.test(html)) throw new Error('index.html must contain an empty <title>')
+      return html.replace(placeholder, `<title>${strings.app.name}</title>`)
+    },
   }
 }
 

@@ -20,7 +20,11 @@ test('app window opens with title', async () => {
     await expect(win).toHaveTitle(strings.app.name)
     await expect(win.getByRole('heading', { name: strings.app.name })).toBeVisible()
   } finally {
-    await app.close()
-    rmSync(dataDir, { recursive: true, force: true })
+    try {
+      await app.close()
+    } finally {
+      // Chromium helpers may hold profile files briefly after close on Windows.
+      rmSync(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+    }
   }
 })

@@ -3,25 +3,34 @@ import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, session } from 'electron'
 
 const rendererFile = join(__dirname, '../renderer/index.html')
-// Dev server URL is honored only in unpackaged (development) runs.
-const devUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
-const devOrigin = devUrl ? parseOrigin(devUrl) : undefined
 const rendererPath = normalize(rendererFile).toLowerCase()
 
-// All app data, including Chromium profile data, stays under the data dir (��3, ��6).
-const dataDir =
-  process.env.AIPLOT_DATA_DIR ?? join(process.env.LOCALAPPDATA ?? app.getPath('appData'), 'Aiplot')
+function envValue(name: string): string | undefined {
+  const value = process.env[name]
+  return value === undefined || value === '' ? undefined : value
+}
+
+// Dev server URL is honored only in unpackaged (development) runs.
+const devUrl = app.isPackaged ? undefined : envValue('ELECTRON_RENDERER_URL')
+const devOrigin = devUrl ? parseOrigin(devUrl) : undefined
+
+// All app data, including the Chromium profile, stays under the data dir (§3, §6).
+const localAppData = envValue('LOCALAPPDATA') ?? join(app.getPath('home'), 'AppData', 'Local')
+const dataDir = envValue('AIPLOT_DATA_DIR') ?? join(localAppData, 'Aiplot')
+// sessionData defaults to userData.
 app.setPath('userData', join(dataDir, 'electron'))
-app.setPath('sessionData', join(dataDir, 'electron'))
 
 let mainWindow: BrowserWindow | null = null
 
 function parseOrigin(url: string): string {
   try {
-    return new URL(url).origin
+    const parsed = new URL(url)
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.origin
   } catch {
-    throw new Error(`invalid ELECTRON_RENDERER_URL: ${url}`)
+    // reported below
   }
+  console.error(`invalid ELECTRON_RENDERER_URL: ${url}`)
+  process.exit(1)
 }
 
 function isAppUrl(url: string): boolean {
@@ -63,6 +72,8 @@ function createWindow(): BrowserWindow {
   const load = devUrl ? win.loadURL(devUrl) : win.loadFile(rendererFile)
   load.catch((err: unknown) => {
     console.error('renderer load failed', err)
+    // Never leave an invisible window holding the single-instance lock.
+    if (!win.isDestroyed()) win.show()
   })
   return win
 }
