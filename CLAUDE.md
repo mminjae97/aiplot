@@ -18,7 +18,7 @@ app/electron/{main.ts (server lifecycle, OS dialogs, snapshots), preload.ts (por
 app/src/{screens,components,api (REST+SSE),stores,strings (Korean UI text),types (GENERATED)}
 app/tests/ (+ e2e/)
 server/aiplot/{main.py,api/ (thin routers),services/,llm/ (router, profiles, LoRA registry, llama/comfy/fake clients),jobs/,db/ (+migrations/),generated/ (GENERATED)}
-server/{prompts/{role}/v{n}.md, config/{roles.yaml,profiles/*.yaml}, data/techniques/, workflows/, tests/ (+fixtures/)}
+server/{prompts/{role}/v{n}.md, config/{roles.yaml,profiles/*.yaml}, data/techniques/, data/style/{id}-v{n}.md (style framework), workflows/, tests/ (+fixtures/)}
 schemas/ (JSON Schema source of truth) + codegen/
 training/{seeds,generate,filter,notebooks,eval} — not shipped
 ```
@@ -104,7 +104,7 @@ S2 screen: left episodes; center dual timeline (top story order, bottom narratio
 
 ## 10 Stage 3
 Beat loop: build context → `write` (stream by sentence) → count chars → `check` (state + warnings) → `summary` (progress) → adjust next target from remaining.
-Write context (~5600/8k tokens, measure in step 1): instructions + style spec summary ~1000; beat instruction ~300; summaries ≤2000 chars ~1500; previous ~1000 chars ~800; appearing characters + speech examples ~1000; latest state ~200; output ~800.
+Write context (~5600/8k tokens, measure in step 1): instructions + style framework ~1000 (role, summary, rules, dialogue, format every beat; examples and by_mode/by_pov/by_tension matching the beat; banned also checked in code; id+version stored with output); beat instruction ~300; summaries ≤2000 chars ~1500; previous ~1000 chars ~800; appearing characters + speech examples ~1000; latest state ~200; output ~800.
 Summaries: chapter.progress_summary 300–500 (after each beat; covers current chapter before last 1000 chars); summary_long ~1000 (chapter end; previous chapter only); summary_short ~200 (chapter end; earlier chapters of episode); episode.summary ~300 (episode end; recent episodes). Cap 2000 chars, drop oldest episode summaries first. Edit or regenerate → redo chapter summaries + state.
 Checks: out-of-character actions, appearance mismatch, impossible travel, state contradictions. Warning: kind, sentence position, evidence card, reason. Group same type; ignore reasons feed later checks; sensitivity setting.
 Format: short paragraphs, frequent breaks, dialogue own line; end at cut_after with hook. Length 5500 ±10%.
