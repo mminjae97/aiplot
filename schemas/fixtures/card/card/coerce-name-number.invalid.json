@@ -1,0 +1,41 @@
+{
+  "id": "c_teo",
+  "work_id": "w_01",
+  "type": "character",
+  "name": 7,
+  "status": "complete",
+  "source_notes": "테오는 북부 항구 출신이다. 말수가 적다.",
+  "data": {
+    "theme": "잃어버린 가족을 찾는 귀환자",
+    "personality": {
+      "traits": ["과묵함", "집요함"],
+      "behaviors": [
+        {
+          "situation": "위협을 받을 때",
+          "action": "먼저 칼을 뽑는다"
+        }
+      ]
+    },
+    "speech": {
+      "description": "짧고 건조한 반말",
+      "examples": ["됐어.", "따라와.", "그건 내 일이 아니야."]
+    },
+    "appearance": {
+      "summary": "왼손에 흉터가 있는 20대 남성",
+      "details": null
+    },
+    "relations": [
+      {
+        "target_id": "c_mira",
+        "relation": "소꿉친구"
+      }
+    ],
+    "origin_region_id": "c_port"
+  },
+  "evidence": {
+    "theme": [0]
+  },
+  "ai_guess": [],
+  "pinned": [],
+  "schema_version": 1
+}

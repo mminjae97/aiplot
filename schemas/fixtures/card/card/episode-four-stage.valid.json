@@ -1,0 +1,62 @@
+{
+  "id": "c_ep2",
+  "work_id": "w_01",
+  "type": "episode",
+  "name": "1화",
+  "status": "complete",
+  "source_notes": "테오는 북부 항구 출신이다. 말수가 적다.",
+  "data": {
+    "part_id": "c_part1",
+    "order": 1,
+    "theme": "귀환",
+    "relation_to_main": "첫 흔적을 발견한다",
+    "fulfills": ["ms_1"],
+    "characters": ["c_teo", "c_mira"],
+    "locations": {
+      "main": "c_port",
+      "others": []
+    },
+    "links": {
+      "prev": "c_ep1",
+      "next": null,
+      "causes": ["c_ep1"]
+    },
+    "foreshadowing": {
+      "plants": [],
+      "payoffs": ["fs_scar"]
+    },
+    "worldline_id": "wl_main",
+    "structure": {
+      "type": 4,
+      "stages": [
+        {
+          "name": "기",
+          "summary": null,
+          "tension": null
+        },
+        {
+          "name": "승",
+          "summary": null,
+          "tension": null
+        },
+        {
+          "name": "전",
+          "summary": null,
+          "tension": null
+        },
+        {
+          "name": "결",
+          "summary": null,
+          "tension": null
+        }
+      ]
+    },
+    "synopsis": "테오가 항구에 돌아와 옛 편지를 찾는다."
+  },
+  "evidence": {
+    "theme": [0]
+  },
+  "ai_guess": [],
+  "pinned": [],
+  "schema_version": 1
+}

@@ -1,5 +1,5 @@
 // Shared helpers: load and validate schema sources under schemas/.
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import Ajv2020 from 'ajv/dist/2020.js'
@@ -66,7 +66,10 @@ const titlePattern = /^[A-Z][A-Za-z0-9]*$/
 // Used internally by generate.mjs for the TS registry.
 export const reservedTitles = new Set(['SchemaRegistry'])
 
-/** Codegen preconditions plus strict JSON Schema 2020-12 checks. Returns error messages. */
+/**
+ * Codegen preconditions plus strict JSON Schema 2020-12 checks.
+ * Returns error messages and the compiled Ajv instance (reused for fixtures).
+ */
 export function validateSchemas(schemas) {
   const errors = []
   const owners = new Map()
@@ -91,12 +94,22 @@ export function validateSchemas(schemas) {
     })
   }
 
-  const base = 'https://schemas.aiplot.invalid/'
-  const ajv = new Ajv2020({ strict: true, allErrors: true })
+  const compiled = buildAjv(schemas)
+  errors.push(...compiled.errors)
+  return { errors, ajv: compiled.ajv }
+}
+
+const ajvBase = 'https://schemas.aiplot.invalid/'
+
+/** Compiles every schema (strict 2020-12, cross-file refs). Returns the Ajv instance and errors. */
+function buildAjv(schemas) {
+  const errors = []
+  // discriminator: oneOf unions tagged by a const property (e.g. Card.type).
+  const ajv = new Ajv2020({ strict: true, allErrors: true, discriminator: true })
   const added = []
   for (const { rel, schema } of schemas) {
     try {
-      ajv.addSchema(schema, base + rel)
+      ajv.addSchema(schema, ajvBase + rel)
       added.push(rel)
     } catch (err) {
       errors.push(`${rel}: ${message(err)}`)
@@ -104,18 +117,73 @@ export function validateSchemas(schemas) {
   }
   for (const rel of added) {
     try {
-      ajv.getSchema(base + rel)
+      ajv.getSchema(ajvBase + rel)
     } catch (err) {
       errors.push(`${rel}: ${message(err)}`)
     }
   }
-  return errors
+  return { ajv, errors }
+}
+
+export const fixturesDir = join(schemasDir, 'fixtures')
+
+/**
+ * Sample payloads: fixtures/<schema path without .json>/<name>.valid.json must validate and
+ * <name>.invalid.json must not. Server tests load the same files against the Pydantic models.
+ */
+export function listFixtures() {
+  const found = []
+  if (!existsSync(fixturesDir)) return found
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name)
+      if (entry.isDirectory()) walk(full)
+      else found.push(relative(fixturesDir, full).split(sep).join('/'))
+    }
+  }
+  walk(fixturesDir)
+  return found.sort()
+}
+
+/** Returns error messages and how many fixtures were checked. */
+export function validateFixtures(schemas, ajv) {
+  const errors = []
+  const known = new Set(schemas.map(({ rel }) => rel))
+  const fixtures = listFixtures()
+  for (const rel of fixtures) {
+    const match = /^(.+)\/[^/]+\.(valid|invalid)\.json$/.exec(rel)
+    const schemaRel = match ? `${match[1]}.json` : null
+    if (!match || !schemaRel || !known.has(schemaRel)) {
+      errors.push(`fixtures/${rel}: expected fixtures/<schema path>/<name>.(valid|invalid).json`)
+      continue
+    }
+    let data
+    try {
+      data = JSON.parse(readFileSync(join(fixturesDir, rel), 'utf8'))
+    } catch (err) {
+      errors.push(`fixtures/${rel}: ${message(err)}`)
+      continue
+    }
+    const validate = ajv.getSchema(ajvBase + schemaRel)
+    if (!validate) {
+      errors.push(`fixtures/${rel}: schema ${schemaRel} did not compile`)
+      continue
+    }
+    const ok = validate(data)
+    if (match[2] === 'valid' && !ok) {
+      errors.push(`fixtures/${rel}: should be valid: ${ajv.errorsText(validate.errors)}`)
+    } else if (match[2] === 'invalid' && ok) {
+      errors.push(`fixtures/${rel}: should be invalid but passed`)
+    }
+  }
+  return { errors, count: fixtures.length }
 }
 
 /** Shared entry for validate and codegen: load, validate, and require at least one schema. */
 export function loadValidSchemas() {
   const { schemas, errors } = loadSchemas()
-  errors.push(...validateSchemas(schemas))
+  const checked = validateSchemas(schemas)
+  errors.push(...checked.errors)
   if (schemas.length === 0) errors.push('no schemas found')
-  return { schemas, errors }
+  return { schemas, errors, ajv: checked.ajv }
 }

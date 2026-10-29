@@ -84,6 +84,17 @@ function generatePython(outDir, stage) {
     '--use-union-operator',
     '--use-annotated',
     '--field-constraints',
+    // Enums as Literal (like the TS unions); every schema with a title becomes a module-level
+    // type alias (ids as Annotated[str, ...]), so nested refs stay plain values.
+    '--enum-field-as-literal',
+    'all',
+    '--use-type-alias',
+    // No lax coercion ("1" -> 1, true -> 1): Pydantic must reject what Ajv rejects.
+    '--strict-types',
+    'str',
+    'int',
+    'float',
+    'bool',
     '--use-double-quotes',
     '--disable-timestamp',
     '--custom-file-header',

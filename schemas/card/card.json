@@ -1,0 +1,352 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Card",
+  "description": "Saved card (§15), discriminated by type. Card fields are never edited directly (§6).",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/character"
+    },
+    {
+      "$ref": "#/$defs/region"
+    },
+    {
+      "$ref": "#/$defs/main_story"
+    },
+    {
+      "$ref": "#/$defs/part"
+    },
+    {
+      "$ref": "#/$defs/episode"
+    }
+  ],
+  "discriminator": {
+    "propertyName": "type"
+  },
+  "$defs": {
+    "name": {
+      "title": "CardName",
+      "type": ["string", "null"]
+    },
+    "status": {
+      "title": "CardStatus",
+      "description": "incomplete = any §15 required field missing; computed by the server.",
+      "enum": ["complete", "incomplete"]
+    },
+    "sourceNotes": {
+      "title": "SourceNotes",
+      "type": "string"
+    },
+    "evidence": {
+      "title": "CardEvidence",
+      "description": "Field path (e.g. personality.traits) -> indexes of supporting source-note sentences.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "aiGuess": {
+      "title": "AiGuessFields",
+      "description": "Field paths filled without evidence (shown as AI 추정).",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "pinned": {
+      "title": "PinnedFields",
+      "description": "Field paths kept across regeneration.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "schemaVersion": {
+      "title": "SchemaVersion",
+      "type": "integer",
+      "minimum": 1
+    },
+    "character": {
+      "title": "CharacterCard",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "work_id",
+        "type",
+        "name",
+        "status",
+        "source_notes",
+        "data",
+        "evidence",
+        "ai_guess",
+        "pinned",
+        "schema_version"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "../common/card-id.json"
+        },
+        "work_id": {
+          "$ref": "../common/work-id.json"
+        },
+        "type": {
+          "const": "character"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "source_notes": {
+          "$ref": "#/$defs/sourceNotes"
+        },
+        "data": {
+          "$ref": "character.json"
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "ai_guess": {
+          "$ref": "#/$defs/aiGuess"
+        },
+        "pinned": {
+          "$ref": "#/$defs/pinned"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schemaVersion"
+        }
+      }
+    },
+    "region": {
+      "title": "RegionCard",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "work_id",
+        "type",
+        "name",
+        "status",
+        "source_notes",
+        "data",
+        "evidence",
+        "ai_guess",
+        "pinned",
+        "schema_version",
+        "position"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "../common/card-id.json"
+        },
+        "work_id": {
+          "$ref": "../common/work-id.json"
+        },
+        "type": {
+          "const": "region"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "source_notes": {
+          "$ref": "#/$defs/sourceNotes"
+        },
+        "data": {
+          "$ref": "region.json"
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "ai_guess": {
+          "$ref": "#/$defs/aiGuess"
+        },
+        "pinned": {
+          "$ref": "#/$defs/pinned"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schemaVersion"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "$ref": "region-position.json"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "main_story": {
+      "title": "MainStoryCard",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "work_id",
+        "type",
+        "name",
+        "status",
+        "source_notes",
+        "data",
+        "evidence",
+        "ai_guess",
+        "pinned",
+        "schema_version"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "../common/card-id.json"
+        },
+        "work_id": {
+          "$ref": "../common/work-id.json"
+        },
+        "type": {
+          "const": "main_story"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "source_notes": {
+          "$ref": "#/$defs/sourceNotes"
+        },
+        "data": {
+          "$ref": "main-story.json"
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "ai_guess": {
+          "$ref": "#/$defs/aiGuess"
+        },
+        "pinned": {
+          "$ref": "#/$defs/pinned"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schemaVersion"
+        }
+      }
+    },
+    "part": {
+      "title": "PartCard",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "work_id",
+        "type",
+        "name",
+        "status",
+        "source_notes",
+        "data",
+        "evidence",
+        "ai_guess",
+        "pinned",
+        "schema_version"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "../common/card-id.json"
+        },
+        "work_id": {
+          "$ref": "../common/work-id.json"
+        },
+        "type": {
+          "const": "part"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "source_notes": {
+          "$ref": "#/$defs/sourceNotes"
+        },
+        "data": {
+          "$ref": "part.json"
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "ai_guess": {
+          "$ref": "#/$defs/aiGuess"
+        },
+        "pinned": {
+          "$ref": "#/$defs/pinned"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schemaVersion"
+        }
+      }
+    },
+    "episode": {
+      "title": "EpisodeCard",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "work_id",
+        "type",
+        "name",
+        "status",
+        "source_notes",
+        "data",
+        "evidence",
+        "ai_guess",
+        "pinned",
+        "schema_version"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "../common/card-id.json"
+        },
+        "work_id": {
+          "$ref": "../common/work-id.json"
+        },
+        "type": {
+          "const": "episode"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "source_notes": {
+          "$ref": "#/$defs/sourceNotes"
+        },
+        "data": {
+          "$ref": "episode.json"
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "ai_guess": {
+          "$ref": "#/$defs/aiGuess"
+        },
+        "pinned": {
+          "$ref": "#/$defs/pinned"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schemaVersion"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EpisodeData",
+  "description": "Episode card data (§7, §15).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "part_id",
+    "order",
+    "theme",
+    "relation_to_main",
+    "fulfills",
+    "characters",
+    "locations",
+    "links",
+    "foreshadowing",
+    "worldline_id",
+    "structure",
+    "synopsis"
+  ],
+  "properties": {
+    "part_id": {
+      "anyOf": [
+        {
+          "$ref": "../common/card-id.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "order": {
+      "type": ["integer", "null"],
+      "minimum": 1
+    },
+    "theme": {
+      "type": ["string", "null"]
+    },
+    "relation_to_main": {
+      "type": ["string", "null"]
+    },
+    "fulfills": {
+      "type": "array",
+      "items": {
+        "$ref": "../common/milestone-id.json"
+      }
+    },
+    "characters": {
+      "type": "array",
+      "items": {
+        "$ref": "../common/card-id.json"
+      }
+    },
+    "locations": {
+      "title": "EpisodeLocations",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["main", "others"],
+      "properties": {
+        "main": {
+          "anyOf": [
+            {
+              "$ref": "../common/card-id.json"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "others": {
+          "type": "array",
+          "items": {
+            "$ref": "../common/card-id.json"
+          }
+        }
+      }
+    },
+    "links": {
+      "title": "EpisodeLinks",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prev", "next", "causes"],
+      "properties": {
+        "prev": {
+          "anyOf": [
+            {
+              "$ref": "../common/card-id.json"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "next": {
+          "anyOf": [
+            {
+              "$ref": "../common/card-id.json"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "causes": {
+          "type": "array",
+          "items": {
+            "$ref": "../common/card-id.json"
+          }
+        }
+      }
+    },
+    "foreshadowing": {
+      "title": "EpisodeForeshadowing",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plants", "payoffs"],
+      "properties": {
+        "plants": {
+          "type": "array",
+          "items": {
+            "title": "ForeshadowingPlant",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "text"],
+            "properties": {
+              "id": {
+                "$ref": "../common/foreshadowing-id.json"
+              },
+              "text": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "payoffs": {
+          "description": "Ids of foreshadowing planted in other episodes and paid off here.",
+          "type": "array",
+          "items": {
+            "$ref": "../common/foreshadowing-id.json"
+          }
+        }
+      }
+    },
+    "worldline_id": {
+      "anyOf": [
+        {
+          "$ref": "../common/worldline-id.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "structure": {
+      "anyOf": [
+        {
+          "$ref": "structure.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "synopsis": {
+      "type": ["string", "null"]
+    }
+  }
+}

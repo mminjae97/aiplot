@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RegionPosition",
+  "description": "Region map position (§8): the only directly editable card values; PATCH /cards/{cardId} body.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["map_x", "map_y"],
+  "properties": {
+    "map_x": { "type": "number" },
+    "map_y": { "type": "number" }
+  }
+}

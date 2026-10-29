@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PartData",
+  "description": "Part card data (§7, §15).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "order",
+    "title",
+    "theme",
+    "fulfills",
+    "start",
+    "end",
+    "structure"
+  ],
+  "properties": {
+    "order": {
+      "type": ["integer", "null"],
+      "minimum": 1
+    },
+    "title": {
+      "type": ["string", "null"]
+    },
+    "theme": {
+      "type": ["string", "null"]
+    },
+    "fulfills": {
+      "type": "array",
+      "items": {
+        "$ref": "../common/milestone-id.json"
+      }
+    },
+    "start": {
+      "type": ["string", "null"]
+    },
+    "end": {
+      "type": ["string", "null"]
+    },
+    "structure": {
+      "anyOf": [
+        {
+          "$ref": "structure.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}
