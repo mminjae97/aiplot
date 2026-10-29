@@ -1,20 +1,32 @@
-// Checks every schema against JSON Schema 2020-12 (strict) and resolves cross-file $refs.
+// Checks every schema against JSON Schema 2020-12 (strict), resolves cross-file $refs,
+// and enforces the codegen preconditions.
 import Ajv2020 from 'ajv/dist/2020.js'
-import { listSchemas, readSchema } from './schemas.mjs'
+import { checkTitles, listSchemas, readSchema } from './schemas.mjs'
 
 const base = 'https://schemas.aiplot.invalid/'
 const ajv = new Ajv2020({ strict: true, allErrors: true })
 const schemas = listSchemas()
-for (const rel of schemas) ajv.addSchema(readSchema(rel), base + rel)
+const errors = checkTitles(schemas)
 
-let failed = 0
+const added = []
 for (const rel of schemas) {
+  try {
+    ajv.addSchema(readSchema(rel), base + rel)
+    added.push(rel)
+  } catch (err) {
+    errors.push(`${rel}: ${err instanceof Error ? err.message : String(err)}`)
+  }
+}
+for (const rel of added) {
   try {
     ajv.getSchema(base + rel)
   } catch (err) {
-    failed += 1
-    console.error(`${rel}: ${err instanceof Error ? err.message : String(err)}`)
+    errors.push(`${rel}: ${err instanceof Error ? err.message : String(err)}`)
   }
 }
-if (failed > 0) process.exit(1)
+
+if (errors.length > 0) {
+  for (const message of errors) console.error(message)
+  process.exit(1)
+}
 console.log(`${schemas.length} schemas valid`)
