@@ -2,10 +2,11 @@
 
 from fastapi import APIRouter
 
+from aiplot.generated.common.health import HealthResponse
+
 router = APIRouter()
 
 
 @router.get("/health")
-def health() -> dict[str, str]:
-    # Response model comes from generated schemas (step 1, unit 2).
-    return {"status": "ok"}
+def health() -> HealthResponse:
+    return HealthResponse(status="ok")

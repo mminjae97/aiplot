@@ -1,0 +1,18 @@
+{
+  "name": "aiplot-schemas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JSON Schema source of truth and codegen for app and server types",
+  "engines": {
+    "node": ">=22.22.2 <23"
+  },
+  "type": "module",
+  "scripts": {
+    "codegen": "node codegen/generate.mjs",
+    "test": "node codegen/validate.mjs"
+  },
+  "devDependencies": {
+    "ajv": "^8.20.0",
+    "json-schema-to-typescript": "^16.0.0"
+  }
+}
