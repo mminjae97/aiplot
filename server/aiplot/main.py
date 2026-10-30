@@ -12,7 +12,7 @@ from pathlib import Path
 import uvicorn
 from fastapi import APIRouter, Depends, FastAPI
 
-from aiplot.api import health, jobs, setup
+from aiplot.api import health, jobs, setup, works
 from aiplot.api.auth import require_token
 from aiplot.api.errors import install_error_handlers
 from aiplot.db.migrate import MigrationError, init_db
@@ -73,6 +73,7 @@ def create_app(
     api.include_router(health.router)
     api.include_router(jobs.router)
     api.include_router(setup.router)
+    api.include_router(works.router)
     app.include_router(api)
     return app
 

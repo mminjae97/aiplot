@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkCreate",
+  "description": "POST /works: \"새로 만들기\" asks for the title only (§12 S0).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["title"],
+  "properties": {
+    "title": { "$ref": "work.json#/$defs/title" }
+  }
+}

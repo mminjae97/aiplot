@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkList",
+  "description": "GET /works: every book, most recently modified first (§12 S0).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["works"],
+  "properties": {
+    "works": { "type": "array", "items": { "$ref": "work.json" } }
+  }
+}

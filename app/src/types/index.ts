@@ -44,6 +44,10 @@ export type JobLifecycleEvent =
  */
 export type CardOutput =
   CharacterCardOutput | RegionCardOutput | MainStoryCardOutput | PartCardOutput | EpisodeCardOutput
+/**
+ * Shown on the spine and cover; the server trims it.
+ */
+export type WorkTitle = string
 
 export interface CharacterCard {
   id: CardId
@@ -530,4 +534,39 @@ export interface SetupItem {
    */
   total_bytes: number
   present_bytes: number
+}
+/**
+ * POST /works: "새로 만들기" asks for the title only (§12 S0).
+ */
+export interface WorkCreate {
+  title: WorkTitle
+}
+/**
+ * GET /works: every book, most recently modified first (§12 S0).
+ */
+export interface WorkList {
+  works: Work[]
+}
+/**
+ * A book in the library (§12 S0, §14 work). Fields for the cover (main theme, chapters) arrive with the units that create them.
+ */
+export interface Work {
+  id: WorkId
+  title: WorkTitle
+  /**
+   * 1 planning, 2 direction, 3 writing (§1).
+   */
+  stage: 1 | 2 | 3
+  /**
+   * Highest read-only stage; 0 = none (§11).
+   */
+  locked_stage: 0 | 1 | 2
+  /**
+   * Contents item opened last, highlighted on S1 (§12).
+   */
+  last_item: ('characters' | 'regions' | 'story' | 'direction' | 'writing' | 'reading') | null
+  /**
+   * ISO 8601 UTC.
+   */
+  updated_at: string
 }

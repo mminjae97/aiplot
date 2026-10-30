@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Work",
+  "description": "A book in the library (§12 S0, §14 work). Fields for the cover (main theme, chapters) arrive with the units that create them.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "title", "stage", "locked_stage", "last_item", "updated_at"],
+  "properties": {
+    "id": { "$ref": "../common/work-id.json" },
+    "title": { "$ref": "#/$defs/title" },
+    "stage": { "description": "1 planning, 2 direction, 3 writing (§1).", "enum": [1, 2, 3] },
+    "locked_stage": { "description": "Highest read-only stage; 0 = none (§11).", "enum": [0, 1, 2] },
+    "last_item": {
+      "description": "Contents item opened last, highlighted on S1 (§12).",
+      "anyOf": [{ "enum": ["characters", "regions", "story", "direction", "writing", "reading"] }, { "type": "null" }]
+    },
+    "updated_at": { "description": "ISO 8601 UTC.", "type": "string" }
+  },
+  "$defs": {
+    "title": {
+      "title": "WorkTitle",
+      "description": "Shown on the spine and cover; the server trims it.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    }
+  }
+}
