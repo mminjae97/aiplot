@@ -231,7 +231,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 34px 20px 22px 26px;
   color: var(--gilt);
   background:
@@ -249,7 +249,13 @@
   pointer-events: none;
 }
 
+/* The title's centre sits on the upper third line; extra lines grow both ways. */
 .book-title {
+  position: absolute;
+  top: calc(100% / 3);
+  left: 26px;
+  right: 20px;
+  transform: translateY(-50%);
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
