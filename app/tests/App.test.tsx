@@ -10,6 +10,12 @@ import type { Work } from '../src/types'
 
 let listeners: ((state: ServerState) => void)[] = []
 const retry = vi.fn(() => Promise.resolve())
+let maximizedListeners: ((maximized: boolean) => void)[] = []
+const windowCalls = {
+  minimize: vi.fn(() => Promise.resolve()),
+  toggleMaximize: vi.fn(() => Promise.resolve()),
+  close: vi.fn(() => Promise.resolve()),
+}
 
 function bridge(initial: ServerState): AiplotBridge {
   return {
@@ -20,6 +26,16 @@ function bridge(initial: ServerState): AiplotBridge {
         listeners.push(listener)
         return () => {
           listeners = listeners.filter((l) => l !== listener)
+        }
+      },
+    },
+    window: {
+      ...windowCalls,
+      isMaximized: () => Promise.resolve(false),
+      onMaximizedChange: (listener) => {
+        maximizedListeners.push(listener)
+        return () => {
+          maximizedListeners = maximizedListeners.filter((l) => l !== listener)
         }
       },
     },
@@ -86,7 +102,9 @@ beforeEach(() => {
   useServer.setState({ state: null })
   useNavigation.setState({ screen: { name: 'library' }, highlight: null })
   listeners = []
+  maximizedListeners = []
   retry.mockClear()
+  for (const call of Object.values(windowCalls)) call.mockClear()
 })
 
 afterEach(() => {
@@ -114,7 +132,7 @@ test('missing server offers no retry', async () => {
   connectServer()
   renderApp()
   expect(await screen.findByText(strings.server.missing)).toBeTruthy()
-  expect(screen.queryByRole('button')).toBeNull()
+  expect(screen.queryByRole('button', { name: strings.server.retry })).toBeNull()
 })
 
 test('empty library invites the first book once the server is ready', async () => {
@@ -264,6 +282,24 @@ test('server says the title is too long', async () => {
   fireEvent.change(screen.getByLabelText(strings.newBook.label), { target: { value: '책' } })
   fireEvent.click(screen.getByRole('button', { name: strings.newBook.create }))
   expect(await screen.findByText(strings.newBook.titleTooLong)).toBeTruthy()
+})
+
+test('the top bar is the title bar: window buttons on every screen', async () => {
+  window.aiplot = bridge({ status: 'starting', restarts: 0 })
+  connectServer()
+  renderApp()
+  // Even before the server is up the window can be moved, minimized and closed.
+  fireEvent.click(await screen.findByRole('button', { name: strings.window.minimize }))
+  fireEvent.click(screen.getByRole('button', { name: strings.window.maximize }))
+  fireEvent.click(screen.getByRole('button', { name: strings.window.close }))
+  expect(windowCalls.minimize).toHaveBeenCalledOnce()
+  expect(windowCalls.toggleMaximize).toHaveBeenCalledOnce()
+  expect(windowCalls.close).toHaveBeenCalledOnce()
+  // The middle button follows the window's state.
+  act(() => {
+    for (const listener of maximizedListeners) listener(true)
+  })
+  expect(screen.getByRole('button', { name: strings.window.restore })).toBeTruthy()
 })
 
 test('library load error offers a retry', async () => {

@@ -177,7 +177,7 @@ input {
   display: grid;
   place-content: center;
   gap: 14px;
-  height: 100%;
+  height: calc(100% - var(--top-bar));
   padding: 24px;
   text-align: center;
 }

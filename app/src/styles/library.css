@@ -1,6 +1,9 @@
 /* S0 library: a walnut bookcase with oak boards; books stand cover out like a display. */
 
+/* Also the window's title bar: drag anywhere on it; controls opt out. */
 .top-bar {
+  -webkit-app-region: drag;
+  user-select: none;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -24,6 +27,10 @@
   font-size: var(--size-lead);
   font-weight: 700;
   letter-spacing: 0.02em;
+}
+
+.top-bar button {
+  -webkit-app-region: no-drag;
 }
 
 .top-bar-back {
@@ -459,4 +466,48 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Window buttons at the far right of the top bar: ink strokes on paper; only close turns red. */
+.window-controls {
+  display: flex;
+  align-self: stretch;
+  margin-left: auto;
+  margin-right: -24px;
+}
+
+.window-controls button {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  border: 0;
+  background: none;
+  color: var(--ink-soft);
+  cursor: default;
+  transition:
+    background var(--motion),
+    color var(--motion);
+}
+
+.window-controls svg {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1;
+  shape-rendering: crispedges;
+}
+
+.window-controls button:hover,
+.window-controls button:focus-visible {
+  background: var(--paper-edge);
+  color: var(--ink);
+}
+
+.window-controls .window-close:hover,
+.window-controls .window-close:focus-visible {
+  background: var(--danger);
+  color: #fff8ea;
+}
+
+.window-controls button:focus-visible {
+  outline-offset: -3px;
 }
