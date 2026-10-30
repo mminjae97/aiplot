@@ -160,7 +160,7 @@
 /* Books stand cover out, all the same size (1:1.5), like a display shelf. */
 .book {
   position: relative;
-  width: var(--cover-width);
+  width: var(--book-width);
   height: var(--cover-height);
 }
 
@@ -181,15 +181,35 @@
   transition: transform var(--motion);
 }
 
-/* A hardcover: board edge at the hinge, a soft shadow on the back panel. */
+/* A hardcover: the rounded spine at the left, the 1:1.5 front beside it. */
 .book-cover {
+  background: none;
+  box-shadow: 6px 8px 14px var(--wood-shadow);
+}
+
+.book-spine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--spine-width);
+  background:
+    linear-gradient(90deg, rgb(0 0 0 / 38%) 0, rgb(255 255 255 / 10%) 45%, rgb(0 0 0 / 30%) 100%),
+    var(--binding);
+  border-radius: 3px 0 0 3px;
+}
+
+.book-front {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--spine-width);
+  width: var(--cover-width);
   overflow: hidden;
   background: var(--binding);
-  border-radius: 1px 3px 3px 1px;
-  box-shadow:
-    inset 6px 0 0 rgb(0 0 0 / 22%),
-    inset 7px 0 0 rgb(255 255 255 / 8%),
-    6px 8px 14px var(--wood-shadow);
+  border-radius: 0 3px 3px 0;
+  /* the hinge where the board meets the spine */
+  box-shadow: inset 2px 0 0 rgb(0 0 0 / 25%);
 }
 
 .book:hover .book-cover,
@@ -232,7 +252,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  padding: 34px 20px 28px 26px;
+  padding: 34px 20px 28px;
   color: var(--gilt);
   background:
     linear-gradient(115deg, rgb(255 255 255 / 9%) 0, transparent 38%, rgb(0 0 0 / 18%) 100%),
@@ -242,7 +262,7 @@
 .book-face::before {
   content: '';
   position: absolute;
-  inset: 14px 12px 14px 18px;
+  inset: 14px 12px;
   border: 1px solid var(--brass);
   outline: 1px solid rgb(176 138 62 / 45%);
   outline-offset: -6px;
@@ -250,11 +270,11 @@
 }
 
 /* The title's centre sits on the upper third line; extra lines grow both ways. It keeps
-   18px clear of the inner gilt line on both sides (inner line at 24px left, 18px right). */
+   18px clear of the inner gilt line on both sides (inner line at 18px). */
 .book-title {
   position: absolute;
   top: calc(100% / 3);
-  left: 42px;
+  left: 36px;
   right: 36px;
   transform: translateY(-50%);
   display: -webkit-box;
@@ -337,7 +357,7 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  width: var(--cover-width);
+  width: var(--book-width);
   height: var(--cover-height);
   color: var(--brass-bright);
   background: rgb(255 248 234 / 7%);

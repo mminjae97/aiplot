@@ -1,10 +1,12 @@
 /* S1 contents: the book lies open on the walnut desk. */
 
+/* The open book fills the window with the same wooden margin at any window size. */
 .desk {
+  --desk-margin: 32px;
+
   height: calc(100% - 48px);
-  display: grid;
-  place-items: center;
-  padding: 32px 16px;
+  display: flex;
+  padding: var(--desk-margin);
   background:
     repeating-linear-gradient(
       0deg,
@@ -18,10 +20,10 @@
 }
 
 .spread {
+  flex: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  width: min(980px, 100%);
-  min-height: 560px;
+  min-height: 480px;
   background: var(--paper);
   box-shadow:
     0 2px 0 var(--paper-edge),

@@ -1,7 +1,7 @@
 import { type CSSProperties, useLayoutEffect, useRef, useState } from 'react'
 import { strings } from '../strings'
 import type { Work } from '../types'
-import { BookItem, COVER_HEIGHT, COVER_WIDTH } from './BookItem'
+import { BOOK_WIDTH, BookItem, COVER_HEIGHT, COVER_WIDTH, SPINE_WIDTH } from './BookItem'
 
 // Room between covers on display.
 // Spacing follows the cover size: half its width between books, half its height of clear
@@ -20,8 +20,8 @@ type Slot = ({ kind: 'work'; work: Work } | { kind: 'new' }) & {
 }
 
 export function perShelf(width: number): number {
-  const usable = Math.max(width - SHELF_PADDING * 2, COVER_WIDTH)
-  return Math.max(1, Math.floor((usable + GAP) / (COVER_WIDTH + GAP)))
+  const usable = Math.max(width - SHELF_PADDING * 2, BOOK_WIDTH)
+  return Math.max(1, Math.floor((usable + GAP) / (BOOK_WIDTH + GAP)))
 }
 
 /** Stands covers left to right, newest first, as many per board as fit the width, and adds
@@ -75,10 +75,12 @@ export function BookShelf({ works, highlight, onOpen, onNew }: Props) {
   const newest = works[0]?.id
   // Every row spans the same centred grid, so a short last row still starts at its left edge.
   const row = {
-    '--row-width': `${String(perShelf(size.width) * (COVER_WIDTH + GAP) - GAP)}px`,
+    '--row-width': `${String(perShelf(size.width) * (BOOK_WIDTH + GAP) - GAP)}px`,
   } as CSSProperties
   const metrics = {
     '--cover-width': `${String(COVER_WIDTH)}px`,
+    '--spine-width': `${String(SPINE_WIDTH)}px`,
+    '--book-width': `${String(BOOK_WIDTH)}px`,
     '--cover-height': `${String(COVER_HEIGHT)}px`,
     '--cover-gap': `${String(GAP)}px`,
     '--shelf-clear': `${String(CLEAR)}px`,

@@ -2,9 +2,12 @@ import type { CSSProperties } from 'react'
 import { strings } from '../strings'
 import type { Work } from '../types'
 
-// Every book is the same size, cover facing out (portrait 1:1.5).
+// Every book is the same size, cover facing out: the front is exactly portrait 1:1.5 (an
+// uploaded illustration fits it uncropped) and the spine shows beside it, outside that ratio.
 export const COVER_WIDTH = 200
 export const COVER_HEIGHT = 300
+export const SPINE_WIDTH = 14
+export const BOOK_WIDTH = SPINE_WIDTH + COVER_WIDTH
 
 // Cloth bindings for covers without an illustration: muted, so the brass stays the accent.
 const BINDINGS = ['#6e2c28', '#2f4a3a', '#2c3a55', '#6b4f22', '#465156', '#5a3a4f', '#3f3428']
@@ -56,14 +59,17 @@ export function BookItem({ work, cover, slip, newest, highlighted, onOpen }: Pro
           onOpen(work)
         }}
       >
-        {cover ? (
-          <img className="book-art" src={cover} alt="" />
-        ) : (
-          <span className="book-face" aria-hidden="true">
-            <span className="book-title">{work.title}</span>
-            <span className="book-stage">{stage}</span>
-          </span>
-        )}
+        <span className="book-spine" aria-hidden="true" />
+        <span className="book-front">
+          {cover ? (
+            <img className="book-art" src={cover} alt="" />
+          ) : (
+            <span className="book-face" aria-hidden="true">
+              <span className="book-title">{work.title}</span>
+              <span className="book-stage">{stage}</span>
+            </span>
+          )}
+        </span>
       </button>
       <div className="book-slip" id={slipId} role="tooltip" data-side={slip}>
         <p className="book-slip-title">{work.title}</p>
