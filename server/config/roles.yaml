@@ -20,7 +20,7 @@ roles:
   card:
     profile: qwen3-8b-uncensor-q5km
     lora: null
-    prompt: 1
+    prompt: 2
     thinking: true
     sampling: { temperature: 0.3 }
     max_tokens: 4096

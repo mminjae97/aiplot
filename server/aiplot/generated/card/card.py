@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 
 from ..common import card_id
 from ..common import work_id as work_id_1
-from . import character, episode, main_story, part, region, region_position
+from . import character, episode, main_story, part, region, region_position, world
 
 type CardName = Annotated[StrictStr | None, Field(title="CardName")]
 
@@ -53,6 +53,23 @@ type PinnedFields = Annotated[
 
 
 type SchemaVersion = Annotated[StrictInt, Field(ge=1, title="SchemaVersion")]
+
+
+class WorldCard(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    id: card_id.CardId
+    work_id: work_id_1.WorkId
+    type: Literal["world"]
+    name: CardName
+    status: CardStatus
+    source_notes: SourceNotes
+    data: world.WorldData
+    evidence: CardEvidence
+    ai_guess: AiGuessFields
+    pinned: PinnedFields
+    schema_version: SchemaVersion
 
 
 class CharacterCard(BaseModel):
@@ -142,7 +159,7 @@ class EpisodeCard(BaseModel):
 
 
 type Card = Annotated[
-    CharacterCard | RegionCard | MainStoryCard | PartCard | EpisodeCard,
+    WorldCard | CharacterCard | RegionCard | MainStoryCard | PartCard | EpisodeCard,
     Field(
         description="Saved card (§15), discriminated by type. Card fields are never edited directly (§6).",
         discriminator="type",

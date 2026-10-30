@@ -22,9 +22,9 @@ SOURCE = json.dumps(
 
 @pytest.fixture
 def prompts(tmp_path: Path) -> Path:
-    for role in ("chat", "source", "card"):
+    for role, config in load_llm_config().roles.items():
         (tmp_path / role).mkdir()
-        (tmp_path / role / "v1.md").write_text(
+        (tmp_path / role / f"v{config.prompt}.md").write_text(
             f"<!-- 작성 메모 -->\n{role} 지시문\n<!-- 여러 줄\n메모 -->\n끝\n", encoding="utf-8"
         )
     return tmp_path

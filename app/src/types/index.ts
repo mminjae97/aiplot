@@ -3,7 +3,7 @@
 /**
  * Saved card (§15), discriminated by type. Card fields are never edited directly (§6).
  */
-export type Card = CharacterCard | RegionCard | MainStoryCard | PartCard | EpisodeCard
+export type Card = WorldCard | CharacterCard | RegionCard | MainStoryCard | PartCard | EpisodeCard
 export type CardId = string
 export type WorkId = string
 export type CardName = string | null
@@ -43,12 +43,64 @@ export type JobLifecycleEvent =
  * `card` role output (§13). The server constrains and validates with the variant for the requested type. Evidence indexes are the 0-based [n] numbers of the server-split note sentences in the prompt. The server then drops out-of-range indexes, unknown field paths and unknown card ids, assigns ms_/fs_ ids, sets placement fields from context and restores pinned fields (§13).
  */
 export type CardOutput =
-  CharacterCardOutput | RegionCardOutput | MainStoryCardOutput | PartCardOutput | EpisodeCardOutput
+  | WorldCardOutput
+  | CharacterCardOutput
+  | RegionCardOutput
+  | MainStoryCardOutput
+  | PartCardOutput
+  | EpisodeCardOutput
 /**
  * Shown on the spine and cover; the server trims it.
  */
 export type WorkTitle = string
 
+export interface WorldCard {
+  id: CardId
+  work_id: WorkId
+  type: 'world'
+  name: CardName
+  status: CardStatus
+  source_notes: SourceNotes
+  data: WorldData
+  evidence: CardEvidence
+  ai_guess: AiGuessFields
+  pinned: PinnedFields
+  schema_version: SchemaVersion
+}
+/**
+ * World card data (§7, §15): one topic of the setting per card, e.g. a magic system, a faction, an era, terms.
+ */
+export interface WorldData {
+  /**
+   * rule 규칙·능력, faction 세력·조직, history 역사·사건, culture 문화·용어, other 기타.
+   */
+  category: ('rule' | 'faction' | 'history' | 'culture' | 'other') | null
+  summary: string | null
+  details: string | null
+  /**
+   * Evidence for the world-rule check (§10).
+   */
+  rules: WorldRule[]
+  terms: WorldTerm[]
+  /**
+   * Character, region or world cards this topic involves (e.g. faction members, where a rule holds).
+   */
+  related: CardId[]
+}
+export interface WorldRule {
+  rule: string
+  exception: string | null
+}
+export interface WorldTerm {
+  term: string
+  meaning: string | null
+}
+/**
+ * Field path (e.g. personality.traits) -> 0-based indexes of supporting source-note sentences (server split).
+ */
+export interface CardEvidence {
+  [k: string]: number[] | undefined
+}
 export interface CharacterCard {
   id: CardId
   work_id: WorkId
@@ -95,12 +147,6 @@ export interface CharacterAppearance {
 export interface CharacterRelation {
   target_id: CardId
   relation: string
-}
-/**
- * Field path (e.g. personality.traits) -> 0-based indexes of supporting source-note sentences (server split).
- */
-export interface CardEvidence {
-  [k: string]: number[] | undefined
 }
 export interface RegionCard {
   id: CardId
@@ -261,6 +307,10 @@ export interface EpisodeData {
   fulfills: MilestoneId[]
   characters: CardId[]
   locations: EpisodeLocations
+  /**
+   * World cards this episode relies on (stage 2-3 context, world-rule check).
+   */
+  world: CardId[]
   links: EpisodeLinks
   foreshadowing: EpisodeForeshadowing
   worldline_id: WorldlineId | null
@@ -418,6 +468,13 @@ export interface LoraManifest {
    * sha256 of the base GGUF the adapter was trained for.
    */
   base_sha256: string
+}
+export interface WorldCardOutput {
+  type: 'world'
+  name: CardName
+  data: WorldData
+  evidence: CardEvidence
+  ai_guess: AiGuessFields
 }
 export interface CharacterCardOutput {
   type: 'character'

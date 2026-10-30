@@ -12,6 +12,7 @@
     "fulfills",
     "characters",
     "locations",
+    "world",
     "links",
     "foreshadowing",
     "worldline_id",
@@ -73,6 +74,13 @@
             "$ref": "../common/card-id.json"
           }
         }
+      }
+    },
+    "world": {
+      "description": "World cards this episode relies on (stage 2-3 context, world-rule check).",
+      "type": "array",
+      "items": {
+        "$ref": "../common/card-id.json"
       }
     },
     "links": {

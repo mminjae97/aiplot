@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorldData",
+  "description": "World card data (§7, §15): one topic of the setting per card, e.g. a magic system, a faction, an era, terms.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["category", "summary", "details", "rules", "terms", "related"],
+  "properties": {
+    "category": {
+      "description": "rule 규칙·능력, faction 세력·조직, history 역사·사건, culture 문화·용어, other 기타.",
+      "anyOf": [
+        { "enum": ["rule", "faction", "history", "culture", "other"] },
+        { "type": "null" }
+      ]
+    },
+    "summary": { "type": ["string", "null"] },
+    "details": { "type": ["string", "null"] },
+    "rules": {
+      "description": "Evidence for the world-rule check (§10).",
+      "type": "array",
+      "items": {
+        "title": "WorldRule",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule", "exception"],
+        "properties": {
+          "rule": { "type": "string", "minLength": 1 },
+          "exception": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "terms": {
+      "type": "array",
+      "items": {
+        "title": "WorldTerm",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["term", "meaning"],
+        "properties": {
+          "term": { "type": "string", "minLength": 1 },
+          "meaning": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "related": {
+      "description": "Character, region or world cards this topic involves (e.g. faction members, where a rule holds).",
+      "type": "array",
+      "items": { "$ref": "../common/card-id.json" }
+    }
+  }
+}

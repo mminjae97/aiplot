@@ -64,6 +64,12 @@ class EpisodeData(BaseModel):
     fulfills: list[milestone_id.MilestoneId]
     characters: list[card_id.CardId]
     locations: Annotated[EpisodeLocations, Field(title="EpisodeLocations")]
+    world: Annotated[
+        list[card_id.CardId],
+        Field(
+            description="World cards this episode relies on (stage 2-3 context, world-rule check)."
+        ),
+    ]
     links: Annotated[EpisodeLinks, Field(title="EpisodeLinks")]
     foreshadowing: Annotated[EpisodeForeshadowing, Field(title="EpisodeForeshadowing")]
     worldline_id: worldline_id_1.WorldlineId | None

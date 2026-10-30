@@ -5,6 +5,9 @@
   "type": "object",
   "oneOf": [
     {
+      "$ref": "#/$defs/world"
+    },
+    {
       "$ref": "#/$defs/character"
     },
     {
@@ -24,6 +27,29 @@
     "propertyName": "type"
   },
   "$defs": {
+    "world": {
+      "title": "WorldCardOutput",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "name", "data", "evidence", "ai_guess"],
+      "properties": {
+        "type": {
+          "const": "world"
+        },
+        "name": {
+          "$ref": "../card/card.json#/$defs/name"
+        },
+        "data": {
+          "$ref": "../card/world.json"
+        },
+        "evidence": {
+          "$ref": "../card/card.json#/$defs/evidence"
+        },
+        "ai_guess": {
+          "$ref": "../card/card.json#/$defs/aiGuess"
+        }
+      }
+    },
     "character": {
       "title": "CharacterCardOutput",
       "type": "object",
