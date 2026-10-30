@@ -35,7 +35,6 @@
   --ink-faint: #9a8a74;
 
   --wood-panel: #5a3b26;
-  --wood-panel-seam: #4a301f;
   --wood-board: #b5835a;
   --wood-board-edge: #8e623e;
   --wood-shadow: rgb(38 22 12 / 55%);
@@ -73,7 +72,6 @@
   --ink-soft: #bfae94;
   --ink-faint: #8c7c66;
   --wood-panel: #2b1d13;
-  --wood-panel-seam: #22170f;
   --wood-board: #6f4e33;
   --wood-board-edge: #553a25;
   --wood-shadow: rgb(0 0 0 / 65%);
@@ -91,7 +89,6 @@
     --ink-soft: #bfae94;
     --ink-faint: #8c7c66;
     --wood-panel: #2b1d13;
-    --wood-panel-seam: #22170f;
     --wood-board: #6f4e33;
     --wood-board-edge: #553a25;
     --wood-shadow: rgb(0 0 0 / 65%);

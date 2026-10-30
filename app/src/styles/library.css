@@ -56,23 +56,13 @@
   height: calc(100% - var(--top-bar));
   display: flex;
   flex-direction: column;
+  /* walnut planks 200px wide: grain, growth rings and faint joints (images rendered from scripts/wood) over the colour */
   background:
-    /* plank seams of the back panel */
-    repeating-linear-gradient(
-      90deg,
-      transparent 0 179px,
-      var(--wood-panel-seam) 179px 181px,
-      transparent 181px 360px
-    ),
-    /* faint grain */
-    repeating-linear-gradient(
-        90deg,
-        rgb(255 255 255 / 2%) 0 3px,
-        transparent 3px 11px,
-        rgb(0 0 0 / 4%) 11px 13px,
-        transparent 13px 29px
-      ),
+    image-set(url('../assets/wood/panel.webp') 1x, url('../assets/wood/panel@2x.webp') 2x) 0 0 /
+      1600px 1400px,
     var(--wood-panel);
+  /* the panel scrolls with the books, not fixed behind them */
+  background-attachment: local;
   overflow-y: auto;
 }
 
@@ -104,6 +94,8 @@
       transparent 2px 12px,
       rgb(0 0 0 / 22%) 12px
     ),
+    image-set(url('../assets/wood/post.webp') 1x, url('../assets/wood/post@2x.webp') 2x) 0 0 / 60px
+      1400px,
     var(--wood-board);
   box-shadow: 0 0 12px var(--wood-shadow);
 }
@@ -145,7 +137,9 @@
       transparent 2px 14px,
       var(--wood-board-edge) 14px 100%
     ),
-    repeating-linear-gradient(90deg, rgb(0 0 0 / 5%) 0 2px, transparent 2px 23px), var(--wood-board);
+    image-set(url('../assets/wood/board.webp') 1x, url('../assets/wood/board@2x.webp') 2x) 0 0 /
+      1400px 60px,
+    var(--wood-board);
   border-radius: 1px;
   box-shadow: 0 10px 14px -6px var(--wood-shadow);
 }

@@ -29,8 +29,9 @@ export default defineConfig(
       'tests/electron/**/*.ts',
       '*.config.ts',
       '*.mjs',
+      'scripts/**/*.mjs',
     ],
     languageOptions: { globals: globals.node },
   },
-  { files: ['*.mjs'], ...tseslint.configs.disableTypeChecked },
+  { files: ['*.mjs', 'scripts/**/*.mjs'], ...tseslint.configs.disableTypeChecked },
 )
