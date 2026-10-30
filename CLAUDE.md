@@ -217,7 +217,7 @@ Fake LLM fixtures only. Must cover: locks + 423 (incl. region position); PATCH /
 11. Integration + installer — one episode (3–5 chapters) end to end; resume after forced quit; peak VRAM ≤7.5GB.
 Defer if tight: images, hwp, node drag.
 Step 1 units: 0 env/git · 1 skeleton+CI · 2 schemas · 3 server core+DB · 4 LLM layer · 5 real-model measurement (manually started llama-server via unit 4 client) · 6 jobs/SSE, llama process, download · 7 Electron+React shell, S0-1, min library · 8 works/cards API · 9 drafts API · 10 drawer · 11 dex · 12 map · 13 story · 14 E2E + installer CI · 15 eval.
-**Current step: 1, unit 6.** Update when a unit/step passes.
+**Current step: 1, unit 7.** Update when a unit/step passes.
 
 ## 21 Working rules
 - Build only the current step unless asked. Small units; run checks before finishing.
