@@ -198,7 +198,7 @@
   transition: transform var(--motion);
 }
 
-/* A hardcover: the rounded spine at the left, the 1:1.5 front beside it. */
+/* A hardcover: the spine at the left, the 1:1.5 front beside it. */
 .book-cover {
   background: none;
   box-shadow: 6px 8px 14px var(--wood-shadow);

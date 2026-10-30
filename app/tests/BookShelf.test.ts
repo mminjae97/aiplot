@@ -23,7 +23,7 @@ test('bindings are stable per work', () => {
 
 test('covers keep their order across boards, as many per board as fit, + book last', () => {
   const list = works(20)
-  // 1440 wide: (1440 - 96 + 100) / (200 + 100) = 4 per board, a gap of half a cover.
+  // 1440 wide: (1440 - 96 + 100) / (206 + 100) = 4 per board (front 200 + spine 6), a gap of half a cover.
   const shelves = packShelves(list, 1440, 600)
   expect(shelves.map((s) => s.length)).toEqual([4, 4, 4, 4, 4, 1])
   expect(shelves.flat().map((s) => (s.kind === 'work' ? s.work.id : 'new'))).toEqual([
