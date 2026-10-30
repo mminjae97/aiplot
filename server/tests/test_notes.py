@@ -56,7 +56,11 @@ from aiplot.services.notes import (
             "그는 \"그건 '물때'다.\"라고 한다. 끝이다.",
             ["그는 \"그건 '물때'다.\"라고 한다.", "끝이다."],
         ),
-        # Known limit (§15): two word-initial marks on one line read as a quote.
+        (
+            "“그는 “가자. 어서.” 했다. 테오는 뛴다.” 미라는 웃는다.",
+            ["“그는 “가자. 어서.” 했다. 테오는 뛴다.” 미라는 웃는다."],
+        ),
+        # Known limit (§15): a word-initial ' with another ' later on the line reads as a quote.
         (
             "그는 '90년대에 태어났다. 미라는 '00년대에 태어났다.",
             ["그는 '90년대에 태어났다. 미라는 '00년대에 태어났다."],
@@ -130,6 +134,7 @@ def test_model_mistakes_are_dropped() -> None:
                 (0, "리아는 항구 출신이다."),
                 (0, None),
                 (2, "리아는 말이 빠르다."),
+                (2, None),
             ]
         ),
     )

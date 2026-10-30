@@ -60,8 +60,9 @@ def split_spans(text: str) -> list[tuple[int, int]]:
         elif (ch in TOGGLE_QUOTES or ch in OPEN_QUOTES) and can_open(text, i):
             closer = ch if ch in TOGGLE_QUOTES else OPEN_QUOTES[ch]
             limit = len(text) if line_end < 0 else line_end
-            if closers:
-                # A quote inside a quote must close before the enclosing one does.
+            if closers and closer != closers[-1]:
+                # A different quote inside a quote must close before the enclosing one does;
+                # the same paired mark nests (“…“…”…”).
                 outer = text.find(closers[-1], i + 1, limit)
                 limit = outer if outer >= 0 else limit
             if text.find(closer, i + 1, limit) >= 0:
@@ -127,9 +128,11 @@ class RevisedNotes:
 def apply_edits(notes: str, output: SourceOutput) -> RevisedNotes:
     spans = split_spans(notes)
     replaced: dict[int, str | None] = {}
+    seen: set[int] = set()
     for edit in output.edits:
         # Out-of-range and repeated indexes are model mistakes; the first edit wins.
-        if edit.index < len(spans) and edit.index not in replaced:
+        if edit.index < len(spans) and edit.index not in seen:
+            seen.add(edit.index)
             text = with_period(edit.text) if edit.text is not None else ""
             start, end = spans[edit.index]
             if text != notes[start:end]:  # an unchanged rewrite is not an edit
