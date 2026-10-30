@@ -10,6 +10,16 @@
   border-bottom: 1px solid var(--paper-edge);
 }
 
+.top-bar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.top-bar-brand img {
+  border-radius: 5px;
+}
+
 .top-bar h1 {
   font-size: var(--size-lead);
   font-weight: 700;

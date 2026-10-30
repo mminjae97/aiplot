@@ -1,3 +1,4 @@
+import logo from '../assets/logo.png'
 import { strings } from '../strings'
 
 type Props = {
@@ -14,7 +15,10 @@ export function TopBar({ onBack, title }: Props) {
           {strings.contents.back}
         </button>
       ) : (
-        <h1>{strings.app.name}</h1>
+        <h1 className="top-bar-brand">
+          <img src={logo} alt="" width={24} height={24} />
+          {strings.app.name}
+        </h1>
       )}
       {title !== undefined && <h1 className="top-bar-title">{title}</h1>}
     </header>

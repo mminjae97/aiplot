@@ -4,6 +4,8 @@ import { app, BrowserWindow, ipcMain, screen, session, type IpcMainInvokeEvent }
 import type { ServerState } from '../src/api/bridge'
 import { type ServerCommand, ServerSupervisor } from './processes'
 import { minimumWindowSize, type Size } from './windowSize'
+// The user's logo (app/build/icon.png) trimmed to its rounded square; bundled for the window.
+import icon from '../src/assets/logo.png?asset'
 
 const rendererFile = join(__dirname, '../renderer/index.html')
 const rendererPath = normalize(rendererFile).toLowerCase()
@@ -128,6 +130,8 @@ function createWindow(): BrowserWindow {
     width: Math.min(1440, workAreaSize.width),
     height: Math.min(900, workAreaSize.height),
     show: false,
+    // Title bar and taskbar (§12); the packaged .exe gets build/icon.png from the installer.
+    icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -191,6 +195,9 @@ function createWindow(): BrowserWindow {
   })
   return win
 }
+
+// Groups the taskbar button under the app, not Electron; the installer (unit 14) uses the same id.
+app.setAppUserModelId('com.aiplot.app')
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
