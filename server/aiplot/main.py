@@ -1,18 +1,33 @@
 """Aiplot local server entry point."""
 
 import argparse
+import logging
 import os
+from collections.abc import Mapping
+from dataclasses import dataclass
+from logging.handlers import TimedRotatingFileHandler
+from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import APIRouter, Depends, FastAPI
 
 from aiplot.api import health
+from aiplot.api.auth import require_token
+from aiplot.api.errors import install_error_handlers
 
 DEV_PORT = 8765
 API_PREFIX = "/api/v1"
+LOG_RETENTION_DAYS = 14
 
 
-def create_app(*, dev: bool = False) -> FastAPI:
+@dataclass(frozen=True)
+class Settings:
+    port: int
+    token: str
+    data_dir: Path
+
+
+def create_app(*, token: str, dev: bool = False) -> FastAPI:
     # Interactive API docs are a development aid only.
     app = FastAPI(
         title="Aiplot",
@@ -20,8 +35,17 @@ def create_app(*, dev: bool = False) -> FastAPI:
         redoc_url="/redoc" if dev else None,
         openapi_url="/openapi.json" if dev else None,
     )
-    app.include_router(health.router, prefix=API_PREFIX)
+    app.state.token = token
+    install_error_handlers(app)
+    api = APIRouter(prefix=API_PREFIX, dependencies=[Depends(require_token)])
+    api.include_router(health.router)
+    app.include_router(api)
     return app
+
+
+def env_value(env: Mapping[str, str], name: str) -> str | None:
+    value = env.get(name)
+    return value or None
 
 
 def resolve_port(value: str | None, *, dev: bool) -> int:
@@ -38,19 +62,72 @@ def resolve_port(value: str | None, *, dev: bool) -> int:
     return port
 
 
+def resolve_token(value: str | None) -> str:
+    """Return AIPLOT_TOKEN; required in every run, printable ASCII without spaces."""
+    if not value:
+        raise ValueError("AIPLOT_TOKEN is required")
+    if not all("!" <= ch <= "~" for ch in value):
+        raise ValueError("token must be printable ASCII without spaces")
+    return value
+
+
+def resolve_data_dir(env: Mapping[str, str]) -> Path:
+    """Same rule as app/electron/main.ts: AIPLOT_DATA_DIR, else %LOCALAPPDATA%\\Aiplot."""
+    override = env_value(env, "AIPLOT_DATA_DIR")
+    if override:
+        return Path(override).resolve()
+    local_app_data = env_value(env, "LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+    return (Path(local_app_data) / "Aiplot").resolve()
+
+
+def load_settings(env: Mapping[str, str], *, dev: bool) -> Settings:
+    try:
+        port = resolve_port(env_value(env, "AIPLOT_PORT"), dev=dev)
+    except ValueError as exc:
+        raise ValueError(f"invalid AIPLOT_PORT: {exc}") from exc
+    try:
+        token = resolve_token(env_value(env, "AIPLOT_TOKEN"))
+    except ValueError as exc:
+        raise ValueError(f"invalid AIPLOT_TOKEN: {exc}") from exc
+    return Settings(port=port, token=token, data_dir=resolve_data_dir(env))
+
+
+def setup_logging(log_dir: Path, *, dev: bool) -> None:
+    """Daily-rotated server.log under the data dir (§17); console too in dev."""
+    log_dir.mkdir(parents=True, exist_ok=True)
+    file_handler = TimedRotatingFileHandler(
+        log_dir / "server.log",
+        when="midnight",
+        backupCount=LOG_RETENTION_DAYS,
+        encoding="utf-8",
+    )
+    handlers: list[logging.Handler] = [file_handler]
+    if dev:
+        handlers.append(logging.StreamHandler())
+    logging.basicConfig(
+        level=logging.DEBUG if dev else logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        handlers=handlers,
+        force=True,
+    )
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="aiplot")
     parser.add_argument("--dev", action="store_true", help="run with development defaults")
     args = parser.parse_args(argv)
     try:
-        port = resolve_port(os.environ.get("AIPLOT_PORT"), dev=args.dev)
+        settings = load_settings(os.environ, dev=args.dev)
     except ValueError as exc:
-        parser.error(f"invalid AIPLOT_PORT: {exc}")
+        parser.error(str(exc))
+    setup_logging(settings.data_dir / "logs", dev=args.dev)
     uvicorn.run(
-        create_app(dev=args.dev),
+        create_app(token=settings.token, dev=args.dev),
         host="127.0.0.1",
-        port=port,
+        port=settings.port,
         log_level="debug" if args.dev else "info",
+        # Uvicorn loggers propagate to the root handlers set up above.
+        log_config=None,
     )
 
 

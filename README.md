@@ -1181,7 +1181,7 @@ cd schemas && npm install && npm run codegen
 
 # 로컬 서버
 cd server && uv sync
-uv run python -m aiplot.main --dev
+AIPLOT_TOKEN=dev-token uv run python -m aiplot.main --dev   # 포트 8765, 토큰은 항상 필요
 
 # 앱 (개발 모드에서는 로컬 서버도 함께 실행)
 cd app && npm install && npm run dev
