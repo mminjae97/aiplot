@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, ipcMain, screen, session, type IpcMainInvokeEvent } from 'electron'
 import type { ServerState } from '../src/api/bridge'
 import { type ServerCommand, ServerSupervisor } from './processes'
-import { minimumWindowSize } from './windowSize'
+import { minimumWindowSize, type Size } from './windowSize'
 
 const rendererFile = join(__dirname, '../renderer/index.html')
 const rendererPath = normalize(rendererFile).toLowerCase()
@@ -80,15 +80,18 @@ function isAppUrl(url: string): boolean {
 
 // The open book never shrinks below its size in a half-screen window (§12 S1). With no menu
 // bar the page fills the content area, so the frame is the outer size minus the content size.
-function applyMinimumSize(win: BrowserWindow): void {
-  if (win.isDestroyed()) return
+function frameOf(win: BrowserWindow): Size {
   const [outerWidth = 0, outerHeight = 0] = win.getSize()
   const [contentWidth = 0, contentHeight = 0] = win.getContentSize()
+  return { width: outerWidth - contentWidth, height: outerHeight - contentHeight }
+}
+
+// frame is measured once at creation: a minimized window reports a 0x0 content size.
+function applyMinimumSize(win: BrowserWindow, frame: Size): void {
+  if (win.isDestroyed() || win.isMinimized()) return
+  const [outerWidth = 0, outerHeight = 0] = win.getSize()
   const { workArea } = screen.getDisplayMatching(win.getBounds())
-  const min = minimumWindowSize(workArea, {
-    width: outerWidth - contentWidth,
-    height: outerHeight - contentHeight,
-  })
+  const min = minimumWindowSize(workArea, frame)
   win.setMinimumSize(min.width, min.height)
   // setMinimumSize never grows a window that is already smaller (e.g. moved to a larger
   // display): grow it, keeping it inside the work area.
@@ -141,15 +144,27 @@ function createWindow(): BrowserWindow {
   // Electron's default File/Edit/View menu is not part of the app; its top bar is (§12).
   win.removeMenu()
   if (!app.isPackaged) devToolsKeys(win)
-  applyMinimumSize(win)
-  win.center()
-  // Another monitor or resolution changes what half the screen is.
-  win.on('moved', () => {
-    applyMinimumSize(win)
-  })
-  const onDisplays = (): void => {
-    applyMinimumSize(win)
+  const frame = frameOf(win)
+  const apply = (): void => {
+    applyMinimumSize(win, frame)
   }
+  apply()
+  win.center()
+  // Another monitor or resolution changes what half the screen is. 'move' also covers
+  // keyboard moves (Win+Shift+arrow), which never send 'moved'; it only recomputes when the
+  // window lands on another display.
+  let displayId = screen.getDisplayMatching(win.getBounds()).id
+  win.on('move', () => {
+    if (win.isMinimized()) return
+    const id = screen.getDisplayMatching(win.getBounds()).id
+    if (id === displayId) return
+    displayId = id
+    apply()
+  })
+  win.on('moved', apply)
+  win.on('restore', apply)
+  win.on('unmaximize', apply)
+  const onDisplays = apply
   screen.on('display-metrics-changed', onDisplays)
   win.once('ready-to-show', () => {
     win.show()
