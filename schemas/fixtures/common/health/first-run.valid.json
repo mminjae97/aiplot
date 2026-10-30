@@ -1,0 +1,10 @@
+{
+ "status": "ok",
+ "llama": {
+  "state": "missing_model",
+  "profile": "qwen3-8b-uncensor-q5km",
+  "restarts": 0,
+  "message": "Qwen3-8B-Uncensor-v2.i1-Q5_K_M.gguf not found"
+ },
+ "vram": null
+}

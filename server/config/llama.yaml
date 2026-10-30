@@ -1,0 +1,15 @@
+# llama.cpp server build (§2). Downloaded at first run into {data dir}/llama/{dir}, never shipped.
+# Archives are verified by size + sha256 (matching the GitHub release digests) before extraction.
+build: b11982
+cuda: "13.4"
+dir: b11982-cuda-13.4
+executable: llama-server.exe
+archives:
+  - file: llama-b11982-bin-win-cuda-13.4-x64.zip
+    url: https://github.com/ggml-org/llama.cpp/releases/download/b11982/llama-b11982-bin-win-cuda-13.4-x64.zip
+    size: 164987252
+    sha256: aebd94feb10c3f13a770e8f78a0c75d21c4e2701c1f7823e866613f1aa2f82ab
+  - file: cudart-llama-bin-win-cuda-13.4-x64.zip
+    url: https://github.com/ggml-org/llama.cpp/releases/download/b11982/cudart-llama-bin-win-cuda-13.4-x64.zip
+    size: 423535356
+    sha256: 738f8c251ac22b70c3ae6f83a10cf222725df0395246a2cf58f32bdb85fbe668

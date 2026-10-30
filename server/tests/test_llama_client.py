@@ -211,3 +211,38 @@ def test_bad_or_error_chunk_raises(data: str) -> None:
 
 def test_chunk_without_choices() -> None:
     assert parse_chunk(json.dumps({"choices": [], "usage": {}})) == []
+
+
+async def test_client_follows_base_url_and_sends_api_key() -> None:
+    seen: list[tuple[str, str | None]] = []
+    port = ["1111"]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        host = f"{request.url.host}:{request.url.port}"
+        seen.append((host, request.headers.get("Authorization")))
+        if request.url.path == "/lora-adapters":
+            return httpx.Response(200, json=[])
+        return httpx.Response(200, content=sse())
+
+    client = LlamaClient(
+        lambda: (f"http://127.0.0.1:{port[0]}", "k3y"), transport=httpx.MockTransport(handler)
+    )
+    [d async for d in client.stream(chat_request())]
+    port[0] = "2222"
+    await collect(client, chat_request())
+    assert [host for host, _ in seen] == ["127.0.0.1:1111"] * 2 + ["127.0.0.1:2222"] * 2
+    assert {auth for _, auth in seen} == {"Bearer k3y"}
+
+
+async def test_client_refuses_when_no_endpoint() -> None:
+    sent: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(request)
+        return httpx.Response(200, json=[])
+
+    client = LlamaClient(lambda: None, transport=httpx.MockTransport(handler))
+    with pytest.raises(LlmError) as exc_info:
+        await collect(client, chat_request())
+    assert exc_info.value.code == "LLM_UNAVAILABLE"
+    assert sent == []

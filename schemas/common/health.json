@@ -1,11 +1,42 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "HealthResponse",
-  "description": "GET /health. Model and VRAM fields arrive with the llama process (step 1, unit 6).",
+  "description": "GET /health. The server is up whenever this answers; llama says whether the model can be used (missing files → S0-1 first run, §12, §13).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["status"],
+  "required": ["status", "llama", "vram"],
   "properties": {
-    "status": { "type": "string", "const": "ok" }
+    "status": { "type": "string", "const": "ok" },
+    "llama": {
+      "title": "LlamaHealth",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "profile", "restarts", "message"],
+      "properties": {
+        "state": {
+          "description": "fake: AIPLOT_FAKE_LLM=1 fixtures, no model. missing_binary / missing_model: first run or files removed. starting: process up, model loading. ready: usable. error: stopped after 3 restarts or a start failure; message says why.",
+          "enum": ["fake", "missing_binary", "missing_model", "starting", "ready", "error", "stopped"]
+        },
+        "profile": { "description": "Base profile id in use (config/profiles).", "type": ["string", "null"] },
+        "restarts": { "description": "Restarts of an unresponsive or crashed llama-server in this session (at most 3).", "type": "integer", "minimum": 0 },
+        "message": { "type": ["string", "null"] }
+      }
+    },
+    "vram": {
+      "description": "From nvidia-smi; null when it cannot be read.",
+      "anyOf": [
+        {
+          "title": "VramUsage",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["used_mb", "total_mb"],
+          "properties": {
+            "used_mb": { "type": "integer", "minimum": 0 },
+            "total_mb": { "type": "integer", "minimum": 0 }
+          }
+        },
+        { "type": "null" }
+      ]
+    }
   }
 }
