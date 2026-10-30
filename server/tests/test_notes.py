@@ -42,6 +42,25 @@ from aiplot.services.notes import (
         ),
         ("그는 '90년대에 태어났다. 테오는 강하다.", ["그는 '90년대에 태어났다.", "테오는 강하다."]),
         ("테오's 검이다. 테오는 강하다.", ["테오's 검이다.", "테오는 강하다."]),
+        ("테오's 검이다. 미라's 활이다.", ["테오's 검이다.", "미라's 활이다."]),
+        # A quote inside a quote must close before the enclosing one.
+        (
+            "미라는 \"'90년대가 좋았지.\"라고 한다. 테오는 '물때'를 안다.",
+            ['미라는 "\'90년대가 좋았지."라고 한다.', "테오는 '물때'를 안다."],
+        ),
+        (
+            "테오는 \"It's mine.\"이라 한다. 미라는 '물때'라 부른다.",
+            ['테오는 "It\'s mine."이라 한다.', "미라는 '물때'라 부른다."],
+        ),
+        (
+            "그는 \"그건 '물때'다.\"라고 한다. 끝이다.",
+            ["그는 \"그건 '물때'다.\"라고 한다.", "끝이다."],
+        ),
+        # Known limit (§15): two word-initial marks on one line read as a quote.
+        (
+            "그는 '90년대에 태어났다. 미라는 '00년대에 태어났다.",
+            ["그는 '90년대에 태어났다. 미라는 '00년대에 태어났다."],
+        ),
         (
             "테오는 “가자. 어서 하고 외친다. 미라는 웃는다.",
             ["테오는 “가자.", "어서 하고 외친다.", "미라는 웃는다."],
@@ -167,6 +186,9 @@ def test_added_lines_follow_the_notes_line_ending() -> None:
 
 def test_repeated_sentence_counts_as_changed() -> None:
     assert apply_edits("A다. B다.", output(added=["A다."])).changed == [2]
+    # The highlight follows what the model wrote, not an untouched copy of the same text.
+    assert apply_edits("A다. B다. C다.", output([(0, "C다.")])).changed == [0]
+    assert apply_edits("A다. B다. C다.", output([(0, "B다.")])).changed == [0]
 
 
 def test_rewrite_into_two_sentences_is_split() -> None:

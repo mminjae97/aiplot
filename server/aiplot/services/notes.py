@@ -25,6 +25,14 @@ class EmptyNotesError(ValueError):
     """The edits would empty notes that were not empty (§13: rejected)."""
 
 
+def can_open(text: str, i: int) -> bool:
+    """An ASCII ' inside a word is an apostrophe (테오's), never an opening quote."""
+    if text[i] != "'" or i == 0:
+        return True
+    before = text[i - 1]
+    return before.isspace() or before in "([" or before in OPEN_QUOTES or before == '"'
+
+
 def split_spans(text: str) -> list[tuple[int, int]]:
     """Start/end offsets of each sentence, whitespace trimmed, empty pieces dropped."""
     spans: list[tuple[int, int]] = []
@@ -49,9 +57,14 @@ def split_spans(text: str) -> list[tuple[int, int]]:
             line_end = text.find("\n", i + 1)
         elif closers and ch == closers[-1]:
             closers.pop()
-        elif ch in TOGGLE_QUOTES or ch in OPEN_QUOTES:
+        elif (ch in TOGGLE_QUOTES or ch in OPEN_QUOTES) and can_open(text, i):
             closer = ch if ch in TOGGLE_QUOTES else OPEN_QUOTES[ch]
-            if text.find(closer, i + 1, len(text) if line_end < 0 else line_end) >= 0:
+            limit = len(text) if line_end < 0 else line_end
+            if closers:
+                # A quote inside a quote must close before the enclosing one does.
+                outer = text.find(closers[-1], i + 1, limit)
+                limit = outer if outer >= 0 else limit
+            if text.find(closer, i + 1, limit) >= 0:
                 closers.append(closer)
         elif ch in TERMINATORS and not closers:
             end = i
@@ -117,8 +130,10 @@ def apply_edits(notes: str, output: SourceOutput) -> RevisedNotes:
     for edit in output.edits:
         # Out-of-range and repeated indexes are model mistakes; the first edit wins.
         if edit.index < len(spans) and edit.index not in replaced:
-            text = edit.text.strip() if edit.text is not None else ""
-            replaced[edit.index] = text or None
+            text = with_period(edit.text) if edit.text is not None else ""
+            start, end = spans[edit.index]
+            if text != notes[start:end]:  # an unchanged rewrite is not an edit
+                replaced[edit.index] = text or None
     added = [with_period(line) for line in output.added if line.strip()]
     if not replaced and not added:
         sentences = split_sentences(notes)
@@ -127,10 +142,12 @@ def apply_edits(notes: str, output: SourceOutput) -> RevisedNotes:
     newline = "\r\n" if "\r\n" in notes else "\n"
     kept = Counter(notes[a:b] for n, (a, b) in enumerate(spans) if n not in replaced)
 
-    def build(isolate: bool) -> str:
-        """isolate puts every replacement on its own line: a newline resets quote state, so
-        a replacement can never merge with its neighbours."""
-        parts: list[str] = []
+    def build(isolate: bool) -> tuple[str, list[tuple[int, int]]]:
+        """The revised notes and the offsets of every piece the model wrote. isolate puts each
+        replacement on its own line: a newline resets quote state, so it can never merge with
+        its neighbours."""
+        out = ""
+        written: list[tuple[int, int]] = []
         cursor = 0
         pending: str | None = None  # gap left by a deleted sentence
         after_replacement = False
@@ -139,35 +156,39 @@ def apply_edits(notes: str, output: SourceOutput) -> RevisedNotes:
             cursor = end
             if pending is not None:
                 # Nothing kept before it: the notes' own leading whitespace stays.
-                gap, pending = (wider_gap(pending, gap) if parts else pending), None
+                gap, pending = (wider_gap(pending, gap) if out else pending), None
             if index in replaced and replaced[index] is None:
                 pending = gap
                 continue
             is_replacement = index in replaced
-            if isolate and parts and (is_replacement or after_replacement) and "\n" not in gap:
+            if isolate and out and (is_replacement or after_replacement) and "\n" not in gap:
                 gap = newline
-            text = with_period(replaced[index] or "") if is_replacement else notes[start:end]
-            parts.append(gap + text)
+            text = (replaced[index] or "") if is_replacement else notes[start:end]
+            out += gap
+            if is_replacement:
+                written.append((len(out), len(out) + len(text)))
+            out += text
             after_replacement = is_replacement
-        revised = "".join(parts)
         if not added:
             # A deleted last sentence takes its gap along; trailing whitespace stays.
-            return revised + notes[cursor:]
-        return newline.join([revised.rstrip(), *added]) if revised.strip() else newline.join(added)
+            return out + notes[cursor:], written
+        out = out.rstrip()
+        for line in added:
+            out += newline if out else ""
+            written.append((len(out), len(out) + len(line)))
+            out += line
+        return out, written
 
-    revised = build(isolate=False)
+    revised, written = build(isolate=False)
     if kept - Counter(split_sentences(revised)):
-        revised = build(isolate=True)
+        revised, written = build(isolate=True)
     if spans and not revised.strip():
         raise EmptyNotesError("edits would empty the notes")
 
-    before = Counter(split_sentences(notes))
-    sentences = split_sentences(revised)
-    changed = []
-    for n, sentence in enumerate(sentences):
-        if before[sentence] > 0:
-            before[sentence] -= 1
-        else:
-            changed.append(n)
+    new_spans = split_spans(revised)
+    sentences = [revised[a:b] for a, b in new_spans]
+    changed = [
+        n for n, (a, b) in enumerate(new_spans) if any(a < we and ws < b for ws, we in written)
+    ]
     casual = [n for n in changed if not is_declarative(sentences[n])]
     return RevisedNotes(notes=revised, sentences=sentences, changed=changed, casual=casual)

@@ -183,8 +183,10 @@ async def run_source(
         result.update(changed=applied.changed, casual=applied.casual)
         if not applied.casual:
             break
-    last = attempts[-1]
-    if last.get("emptied"):
+    # Casual then emptied keeps the casual result; only emptied twice is invalid.
+    usable = [a for a in attempts if "value" in a and not a.get("emptied")]
+    last = usable[-1] if usable else attempts[-1]
+    if all(a.get("emptied") for a in attempts):
         last = {**last, "error": "LLM_INVALID_OUTPUT", "message": "notes emptied twice"}
         last.pop("value", None)
     usages = [a["usage"] for a in attempts if a.get("usage")]
