@@ -29,6 +29,29 @@ test('app starts the local server, opens the library and makes a book', async ()
     await win.getByLabel(strings.newBook.label).fill('안개의 항구')
     await win.getByRole('button', { name: strings.newBook.create, exact: true }).click()
     await expect(win.getByRole('heading', { name: strings.contents.heading })).toBeVisible()
+
+    // The window cannot shrink below half the screen's width, and there the open book is as
+    // wide as the width allows (4:3 inside the desk margin). It also opens at least that big.
+    const min = await app.evaluate(({ BrowserWindow, screen }) => {
+      const window = BrowserWindow.getAllWindows()[0]
+      if (!window) throw new Error('no window')
+      const [width = 0, height = 0] = window.getMinimumSize()
+      const [openWidth = 0, openHeight = 0] = window.getSize()
+      if (openWidth < width || openHeight < height) throw new Error('opened below its minimum')
+      window.setSize(width, height)
+      return {
+        width,
+        half: Math.floor(screen.getDisplayMatching(window.getBounds()).workAreaSize.width / 2),
+      }
+    })
+    expect(min.width).toBe(min.half)
+    const pageWidth = Number(await win.evaluate('window.innerWidth'))
+    await expect
+      .poll(async () => {
+        const spread = await win.locator('.spread').boundingBox()
+        return spread ? [Math.round(spread.width), Math.round(spread.height)] : null
+      })
+      .toEqual([pageWidth - 128, Math.round((pageWidth - 128) * 0.75)])
     await win.getByRole('button', { name: strings.contents.back }).click()
     await expect(win.locator('.book-title', { hasText: '안개의 항구' })).toBeVisible()
   } finally {

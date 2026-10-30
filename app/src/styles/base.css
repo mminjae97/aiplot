@@ -54,6 +54,10 @@
   --size-display: 30px;
 
   --motion: 0.2s;
+
+  /* set from styles/metrics.ts in main.tsx; these are fallbacks */
+  --top-bar: 48px;
+  --desk-margin: 64px;
 }
 
 /* Dark: the same study after dusk; paper turns to lamplit vellum. */
