@@ -161,7 +161,7 @@ Sentences (evidence idx, highlight, changed): server splits notes after a run of
 Role outputs: `schemas/roles/` (SourceOutput, CardOutput per type). Also later: plan (§9), state values (§7), other JSON roles.
 
 ## 16 API
-Base `http://127.0.0.1:{port}/api/v1`, `Authorization: Bearer {token}`. JSON, ISO 8601, chars incl. spaces. Error `{code,message,hint}`; each code maps to a UI state. Jobs return `202 {jobId}`. Locked → 423 STAGE_LOCKED.
+Base `http://127.0.0.1:{port}/api/v1`, `Authorization: Bearer {token}` on every route incl. /health (missing/wrong → 401 UNAUTHORIZED; AIPLOT_TOKEN required in every run). JSON, ISO 8601, chars incl. spaces. Error `{code,message,hint}`; each code maps to a UI state; framework codes VALIDATION_ERROR 422, NOT_FOUND, METHOD_NOT_ALLOWED, INTERNAL_ERROR 500. Jobs return `202 {jobId}`. Locked → 423 STAGE_LOCKED.
 - works: GET/POST /works; GET/PATCH/DELETE /works/{workId}; POST /works/{workId}/stage/advance; GET .../stage/reopen-preview?stage=; POST .../stage/reopen (title confirm if manuscript)
 - cards: GET /works/{workId}/cards?type=&q=; GET /cards/{cardId}; PATCH /cards/{cardId} (region only, body {map_x,map_y} only; 423 when locked); GET /cards/{cardId}/references; DELETE /cards/{cardId}?reconnect=&episodes=; POST /cards/{cardId}/restore (within ~10s of delete; 423 if locked meanwhile); GET /works/{workId}/completeness; POST /cards/{cardId}/images (job); PUT /cards/{cardId}/image
 - drafts: POST /works/{workId}/drafts; POST /drafts/{draftId}/messages (SSE reply, notes change, questions, name checks); PUT .../source; POST .../generate; POST .../save; DELETE /drafts/{draftId}
@@ -184,7 +184,7 @@ error {code}
 ```
 
 ## 17 Runtime
-VRAM: peak ≤7.5GB; measured (RTX 3070 Laptop 8GB, b11982, `-ngl 99 -fa on -np 1`, f16 KV, ctx 8192 with 7.6k-token prompt): Q4_K_M 5.88GB, tg 66.6 t/s empty / 54.6 t/s at 7.6k; i1-Q5_K_M 6.59GB, 59.2 / 49.4 t/s; need more ctx → 8-bit KV. Evaluate LoRAs on the chosen base quant + F16 LoRA. Models downloaded in first run; ComfyUI on first image. Updates: GitHub Releases notify only; DB via migrations. Logs per process, daily rotation, failures + VRAM, never sent.
+VRAM: peak ≤7.5GB; measured (RTX 3070 Laptop 8GB, b11982, `-ngl 99 -fa on -np 1`, f16 KV, ctx 8192 with 7.6k-token prompt): Q4_K_M 5.88GB, tg 66.6 t/s empty / 54.6 t/s at 7.6k; i1-Q5_K_M 6.59GB, 59.2 / 49.4 t/s; need more ctx → 8-bit KV. Evaluate LoRAs on the chosen base quant + F16 LoRA. Models downloaded in first run; ComfyUI on first image. Updates: GitHub Releases notify only; DB via migrations. Logs per process (`logs/server.log`, …), daily rotation, 14 days kept, failures + VRAM, never sent.
 
 ## 18 Training (training/ only)
 Teacher LLM APIs allowed here; verify terms permit training on outputs.
