@@ -395,9 +395,10 @@
   font-size: var(--size-body);
 }
 
+/* Starts below the top bar, which stays the window's title bar while a dialog is open. */
 .dialog-backdrop {
   position: fixed;
-  inset: 0;
+  inset: var(--top-bar) 0 0;
   z-index: 10;
   display: grid;
   place-items: center;
@@ -501,14 +502,12 @@
   stroke-linecap: round;
 }
 
-.window-controls button:hover,
-.window-controls button:focus-visible {
+.window-controls button:hover {
   background: var(--control-hover);
   color: var(--ink);
 }
 
-.window-controls .window-close:hover,
-.window-controls .window-close:focus-visible {
+.window-controls .window-close:hover {
   background: var(--danger);
   color: #fff8ea;
 }

@@ -300,6 +300,23 @@ test('the top bar is the title bar: window buttons on every screen', async () =>
     for (const listener of maximizedListeners) listener(true)
   })
   expect(screen.getByRole('button', { name: strings.window.restore })).toBeTruthy()
+  // Never Tab stops, like native caption buttons.
+  for (const name of [strings.window.minimize, strings.window.restore, strings.window.close]) {
+    expect(screen.getByRole('button', { name }).tabIndex).toBe(-1)
+  }
+})
+
+test('window buttons stay usable while the new-book dialog is open', async () => {
+  serve([])
+  window.aiplot = bridge(READY)
+  connectServer()
+  renderApp()
+  fireEvent.click(await screen.findByRole('button', { name: strings.library.newBook }))
+  expect(screen.getByRole('dialog')).toBeTruthy()
+  const close = screen.getByRole('button', { name: strings.window.close })
+  expect(close.closest('[inert]')).toBeNull()
+  fireEvent.click(close)
+  expect(windowCalls.close).toHaveBeenCalledOnce()
 })
 
 test('library load error offers a retry', async () => {

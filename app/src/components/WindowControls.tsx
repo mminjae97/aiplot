@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { strings } from '../strings'
 
-/** Minimize, maximize/restore and close, drawn for the paper top bar (§12). */
+/** Minimize, maximize/restore and close, drawn for the paper top bar (§12). Like native caption
+ * buttons they are not Tab stops (keyboard: Alt+F4, Win+arrows), so a stray Enter never closes
+ * the app. */
 export function WindowControls() {
   const [maximized, setMaximized] = useState(false)
 
@@ -21,6 +23,7 @@ export function WindowControls() {
     <div className="window-controls">
       <button
         type="button"
+        tabIndex={-1}
         aria-label={strings.window.minimize}
         title={strings.window.minimize}
         onClick={() => {
@@ -33,6 +36,7 @@ export function WindowControls() {
       </button>
       <button
         type="button"
+        tabIndex={-1}
         aria-label={maximized ? strings.window.restore : strings.window.maximize}
         title={maximized ? strings.window.restore : strings.window.maximize}
         onClick={() => {
@@ -52,6 +56,7 @@ export function WindowControls() {
       </button>
       <button
         type="button"
+        tabIndex={-1}
         className="window-close"
         aria-label={strings.window.close}
         title={strings.window.close}

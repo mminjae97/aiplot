@@ -26,10 +26,11 @@ export function LibraryScreen() {
 
   return (
     <>
-      {/* inert keeps keyboard focus inside the dialog while it is open. */}
-      <div className="screen" inert={creating}>
+      <div className="screen">
+        {/* The top bar is the title bar: it stays usable while a dialog is open. */}
         <TopBar />
-        <main className="library">
+        {/* inert keeps keyboard focus inside the dialog while it is open. */}
+        <main className="library" inert={creating}>
           {works.isError && (
             <p className="library-alert" role="alert">
               {strings.library.loadFailed}{' '}
