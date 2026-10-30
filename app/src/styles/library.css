@@ -218,7 +218,7 @@
       var(--brass) calc(100% - 15px) calc(100% - 14px),
       transparent calc(100% - 14px)
     ),
-    linear-gradient(90deg, rgb(0 0 0 / 38%) 0, rgb(0 0 0 / 24%) 35%, rgb(0 0 0 / 20%) 100%),
+    linear-gradient(90deg, rgb(0 0 0 / 28%) 0, rgb(0 0 0 / 14%) 45%, rgb(0 0 0 / 10%) 100%),
     var(--binding);
   border-radius: 2px 0 0 2px;
 }
