@@ -297,7 +297,9 @@ class Setup:
         # step names what runs; the app turns it into Korean text (§5).
         progress.step = f"verify {progress.step}"
         progress.ctx.progress(progress.done, progress.total, progress.step)
-        digest = await in_thread(sha256_of, remote.part, None, stop=threading.Event())
+        stop = threading.Event()
+        # A cancel stops the hash; the .part stays for the next resume.
+        digest = await in_thread(sha256_of, remote.part, None, stop, stop=stop)
         if digest != remote.sha256:
             remote.part.unlink()
             raise JobError("DOWNLOAD_CORRUPT", f"{remote.part.name}: sha256 mismatch, removed")

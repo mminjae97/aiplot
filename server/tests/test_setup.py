@@ -404,3 +404,35 @@ async def test_cancel_during_extraction_never_races_the_next_download(
     job = await finish(second)
     assert job.status == "done", job.error
     assert installer.llama_installed() and installer.model_installed()
+
+
+async def test_cancel_during_download_hash_stops_at_once(
+    installer: Setup, jobs: JobQueue, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_sha256 = hashlib.sha256
+
+    class SlowSha:
+        """Each 1 MB update takes 0.6 s, so the full hash of the 3 MB model takes ~2 s."""
+
+        def __init__(self) -> None:
+            self._digest = real_sha256()
+
+        def update(self, data: bytes) -> None:
+            time.sleep(0.6)
+            self._digest.update(data)
+
+        def hexdigest(self) -> str:
+            return self._digest.hexdigest()
+
+    monkeypatch.setattr("aiplot.services.setup.hashlib.sha256", SlowSha)
+    job = download(jobs, installer)
+    async with asyncio.timeout(10):
+        while not any(str(e.data.get("step", "")).startswith("verify base") for e in job.events):
+            await asyncio.sleep(0.001)
+    t0 = time.monotonic()
+    jobs.cancel(job)
+    await finish(job)
+    assert job.status == "cancelled"
+    # A stopped hash ends after the chunk in hand, not after the whole file.
+    assert time.monotonic() - t0 < 1.2
+    assert installer.default_model.with_name("base.gguf.part").stat().st_size == len(MODEL)
