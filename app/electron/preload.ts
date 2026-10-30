@@ -16,6 +16,21 @@ const bridge: AiplotBridge = {
       }
     },
   },
+  window: {
+    minimize: () => ipcRenderer.invoke('window:minimize') as Promise<void>,
+    toggleMaximize: () => ipcRenderer.invoke('window:toggle-maximize') as Promise<void>,
+    close: () => ipcRenderer.invoke('window:close') as Promise<void>,
+    isMaximized: () => ipcRenderer.invoke('window:is-maximized') as Promise<boolean>,
+    onMaximizedChange: (listener) => {
+      const handler = (_event: IpcRendererEvent, maximized: boolean): void => {
+        listener(maximized)
+      }
+      ipcRenderer.on('window:maximized', handler)
+      return () => {
+        ipcRenderer.removeListener('window:maximized', handler)
+      }
+    },
+  },
 }
 
 contextBridge.exposeInMainWorld('aiplot', bridge)

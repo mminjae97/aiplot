@@ -24,6 +24,23 @@ test('app starts the local server, opens the library and makes a book', async ()
     await expect(win.getByText(strings.library.empty)).toBeVisible({ timeout: 45_000 })
     await expect(win.getByRole('heading', { name: strings.app.name })).toBeVisible()
 
+    // The top bar is the title bar: its buttons drive the real window.
+    const state = () =>
+      app.evaluate(({ BrowserWindow }) => {
+        const window = BrowserWindow.getAllWindows()[0]
+        return { maximized: window?.isMaximized(), minimized: window?.isMinimized() }
+      })
+    await win.getByRole('button', { name: strings.window.maximize }).click()
+    await expect.poll(state).toMatchObject({ maximized: true })
+    await win.getByRole('button', { name: strings.window.restore }).click()
+    await expect.poll(state).toMatchObject({ maximized: false })
+    await win.getByRole('button', { name: strings.window.minimize }).click()
+    await expect.poll(state).toMatchObject({ minimized: true })
+    await app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.restore()
+    })
+    await expect.poll(state).toMatchObject({ minimized: false })
+
     // A new book opens to its contents and then stands on the shelf.
     await win.getByRole('button', { name: strings.library.newBook }).click()
     await win.getByLabel(strings.newBook.label).fill('안개의 항구')

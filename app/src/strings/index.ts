@@ -2,6 +2,12 @@ export const strings = {
   app: {
     name: 'Aiplot',
   },
+  window: {
+    minimize: '최소화',
+    maximize: '최대화',
+    restore: '이전 크기로',
+    close: '닫기',
+  },
   server: {
     starting: 'Aiplot을 준비하고 있어요',
     errorTitle: 'Aiplot을 시작하지 못했어요',

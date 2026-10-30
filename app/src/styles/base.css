@@ -27,6 +27,9 @@
 
   --paper: #ede3cf;
   --paper-edge: #dccfb4;
+  /* round window buttons, a shade deeper than the top bar */
+  --control: #d9caac;
+  --control-hover: #c9b691;
   --ink: #2e2219;
   --ink-soft: #6b5a48;
   --ink-faint: #9a8a74;
@@ -64,6 +67,8 @@
 :root[data-theme='dark'] {
   --paper: #2f271f;
   --paper-edge: #3b3127;
+  --control: #453a2e;
+  --control-hover: #584a3a;
   --ink: #eadfca;
   --ink-soft: #bfae94;
   --ink-faint: #8c7c66;
@@ -80,6 +85,8 @@
   :root[data-theme='system'] {
     --paper: #2f271f;
     --paper-edge: #3b3127;
+    --control: #453a2e;
+    --control-hover: #584a3a;
     --ink: #eadfca;
     --ink-soft: #bfae94;
     --ink-faint: #8c7c66;
@@ -177,7 +184,7 @@ input {
   display: grid;
   place-content: center;
   gap: 14px;
-  height: 100%;
+  height: calc(100% - var(--top-bar));
   padding: 24px;
   text-align: center;
 }

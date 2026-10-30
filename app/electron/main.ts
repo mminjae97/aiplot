@@ -130,7 +130,10 @@ function createWindow(): BrowserWindow {
     width: Math.min(1440, workAreaSize.width),
     height: Math.min(900, workAreaSize.height),
     show: false,
-    // Title bar and taskbar (§12); the packaged .exe gets build/icon.png from the installer.
+    // The app's top bar is the title bar (§12): Windows keeps the frame (resize, snap, shadow)
+    // but draws no title bar or buttons.
+    titleBarStyle: 'hidden',
+    // Taskbar and Alt+Tab (§12); the packaged .exe gets build/icon.png from the installer.
     icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -178,6 +181,12 @@ function createWindow(): BrowserWindow {
   })
   win.on('restore', apply)
   win.on('unmaximize', apply)
+  // The top bar's maximize button shows the matching icon.
+  const sendMaximized = (): void => {
+    if (!win.isDestroyed()) win.webContents.send('window:maximized', win.isMaximized())
+  }
+  win.on('maximize', sendMaximized)
+  win.on('unmaximize', sendMaximized)
   const onDisplays = apply
   screen.on('display-metrics-changed', onDisplays)
   win.once('ready-to-show', () => {
@@ -223,6 +232,23 @@ if (!app.requestSingleInstanceLock()) {
         if (!fromApp(event)) throw new Error('not the app window')
         server.retry()
       })
+      // The top bar's window buttons (§12).
+      const appWindow = (event: IpcMainInvokeEvent): BrowserWindow => {
+        if (!fromApp(event) || !mainWindow) throw new Error('not the app window')
+        return mainWindow
+      }
+      ipcMain.handle('window:minimize', (event) => {
+        appWindow(event).minimize()
+      })
+      ipcMain.handle('window:toggle-maximize', (event) => {
+        const win = appWindow(event)
+        if (win.isMaximized()) win.unmaximize()
+        else win.maximize()
+      })
+      ipcMain.handle('window:close', (event) => {
+        appWindow(event).close()
+      })
+      ipcMain.handle('window:is-maximized', (event) => appWindow(event).isMaximized())
       server.start()
       mainWindow = createWindow()
     })
