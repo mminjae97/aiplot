@@ -12,6 +12,7 @@
   background:
     url('../assets/wood/desk.svg') 0 0 / 1400px 1440px,
     var(--wood-panel);
+  background-attachment: local;
   overflow: auto;
 }
 
