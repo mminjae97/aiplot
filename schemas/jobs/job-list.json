@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "JobList",
+  "description": "GET /works/{workId}/jobs: that work's jobs still in server memory, newest first.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["jobs"],
+  "properties": {
+    "jobs": { "type": "array", "items": { "$ref": "job.json" } }
+  }
+}

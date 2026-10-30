@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "JobAccepted",
+  "description": "202 body of every endpoint that starts a job (§16).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["jobId"],
+  "properties": {
+    "jobId": { "$ref": "../common/job-id.json" }
+  }
+}

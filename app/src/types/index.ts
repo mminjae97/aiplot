@@ -28,6 +28,17 @@ export type MilestoneId = string
 export type StoryStructure = FourStageStructure | FiveStageStructure
 export type ForeshadowingId = string
 export type WorldlineId = string
+export type JobId = string
+/**
+ * data of the SSE events every job can send on GET /jobs/{jobId}/events; the SSE event name is the type (§16). Job kinds add their own events (e.g. chapter: beat_start, sentence).
+ */
+export type JobLifecycleEvent =
+  | JobProgressEvent
+  | JobPausedEvent
+  | JobResumedEvent
+  | JobDoneEvent
+  | JobErrorEvent
+  | JobCancelledEvent
 /**
  * `card` role output (§13). The server constrains and validates with the variant for the requested type. Evidence indexes are the 0-based [n] numbers of the server-split note sentences in the prompt. The server then drops out-of-range indexes, unknown field paths and unknown card ids, assigns ms_/fs_ ids, sets placement fields from context and restores pinned fields (§13).
  */
@@ -285,6 +296,85 @@ export interface ApiError {
  */
 export interface HealthResponse {
   status: 'ok'
+}
+/**
+ * event: progress. Units are the job's own (beats, bytes).
+ */
+export interface JobProgressEvent {
+  done: number
+  total: number
+  /**
+   * Estimated seconds left; null until there is enough progress to estimate.
+   */
+  etaSec: number | null
+  /**
+   * What runs now, e.g. a file name.
+   */
+  step: string | null
+}
+/**
+ * event: paused. Pause takes effect at the job's next checkpoint (beat granularity).
+ */
+export interface JobPausedEvent {
+  reason: 'user'
+}
+/**
+ * event: resumed.
+ */
+export interface JobResumedEvent {}
+/**
+ * event: done. Last event of a successful job; result is job-specific.
+ */
+export interface JobDoneEvent {
+  result: {
+    [k: string]: unknown | undefined
+  }
+}
+/**
+ * event: error. Last event of a failed job; code maps to a UI state like ApiError.code.
+ */
+export interface JobErrorEvent {
+  code: string
+  message: string
+}
+/**
+ * event: cancelled. Last event of a cancelled job.
+ */
+export interface JobCancelledEvent {}
+/**
+ * 202 body of every endpoint that starts a job (§16).
+ */
+export interface JobAccepted {
+  jobId: JobId
+}
+/**
+ * GET /works/{workId}/jobs: that work's jobs still in server memory, newest first.
+ */
+export interface JobList {
+  jobs: Job[]
+}
+/**
+ * GET /jobs/{jobId}. Work over ~10 s runs as a job (§5, §13); jobs live in server memory, results in the DB. Keys are camelCase (§5, §16).
+ */
+export interface Job {
+  jobId: JobId
+  /**
+   * What the job does, e.g. chapter, plan, download.
+   */
+  kind: string
+  workId: WorkId | null
+  status: 'queued' | 'running' | 'paused' | 'done' | 'failed' | 'cancelled'
+  /**
+   * ISO 8601 UTC.
+   */
+  createdAt: string
+  startedAt: string | null
+  finishedAt: string | null
+  /**
+   * Id of the newest event; pass it as Last-Event-ID to resume the stream.
+   */
+  lastEventId: number
+  error: JobErrorEvent | null
 }
 /**
  * lora/{id}.json beside the adapter in the data dir. Written by training/, read by the server LoRA registry, which never loads an adapter whose base_sha256 differs from the profile's GGUF (§13).

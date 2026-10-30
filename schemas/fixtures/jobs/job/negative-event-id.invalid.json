@@ -1,0 +1,11 @@
+{
+ "jobId": "job_a1B2",
+ "kind": "chapter",
+ "workId": "w_1",
+ "status": "running",
+ "createdAt": "2026-10-30T04:00:00Z",
+ "startedAt": "2026-10-30T04:00:01Z",
+ "finishedAt": null,
+ "lastEventId": -1,
+ "error": null
+}

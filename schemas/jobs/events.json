@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "JobLifecycleEvent",
+  "description": "data of the SSE events every job can send on GET /jobs/{jobId}/events; the SSE event name is the type (§16). Job kinds add their own events (e.g. chapter: beat_start, sentence).",
+  "oneOf": [
+    { "$ref": "#/$defs/progress" },
+    { "$ref": "#/$defs/paused" },
+    { "$ref": "#/$defs/resumed" },
+    { "$ref": "#/$defs/done" },
+    { "$ref": "#/$defs/error" },
+    { "$ref": "#/$defs/cancelled" }
+  ],
+  "$defs": {
+    "progress": {
+      "title": "JobProgressEvent",
+      "description": "event: progress. Units are the job's own (beats, bytes).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["done", "total", "etaSec", "step"],
+      "properties": {
+        "done": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 0 },
+        "etaSec": { "description": "Estimated seconds left; null until there is enough progress to estimate.", "type": ["number", "null"], "minimum": 0 },
+        "step": { "description": "What runs now, e.g. a file name.", "type": ["string", "null"] }
+      }
+    },
+    "paused": {
+      "title": "JobPausedEvent",
+      "description": "event: paused. Pause takes effect at the job's next checkpoint (beat granularity).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason"],
+      "properties": {
+        "reason": { "enum": ["user"] }
+      }
+    },
+    "resumed": {
+      "title": "JobResumedEvent",
+      "description": "event: resumed.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "done": {
+      "title": "JobDoneEvent",
+      "description": "event: done. Last event of a successful job; result is job-specific.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result"],
+      "properties": {
+        "result": { "type": "object" }
+      }
+    },
+    "error": {
+      "title": "JobErrorEvent",
+      "description": "event: error. Last event of a failed job; code maps to a UI state like ApiError.code.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+        "message": { "type": "string" }
+      }
+    },
+    "cancelled": {
+      "title": "JobCancelledEvent",
+      "description": "event: cancelled. Last event of a cancelled job.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Job",
+  "description": "GET /jobs/{jobId}. Work over ~10 s runs as a job (§5, §13); jobs live in server memory, results in the DB. Keys are camelCase (§5, §16).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["jobId", "kind", "workId", "status", "createdAt", "startedAt", "finishedAt", "lastEventId", "error"],
+  "properties": {
+    "jobId": { "$ref": "../common/job-id.json" },
+    "kind": { "description": "What the job does, e.g. chapter, plan, download.", "type": "string", "pattern": "^[a-z][a-z_]*$" },
+    "workId": { "anyOf": [{ "$ref": "../common/work-id.json" }, { "type": "null" }] },
+    "status": { "enum": ["queued", "running", "paused", "done", "failed", "cancelled"] },
+    "createdAt": { "description": "ISO 8601 UTC.", "type": "string" },
+    "startedAt": { "type": ["string", "null"] },
+    "finishedAt": { "type": ["string", "null"] },
+    "lastEventId": { "description": "Id of the newest event; pass it as Last-Event-ID to resume the stream.", "type": "integer", "minimum": 0 },
+    "error": { "anyOf": [{ "$ref": "events.json#/$defs/error" }, { "type": "null" }] }
+  }
+}
