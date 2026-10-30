@@ -567,7 +567,8 @@ export interface Work {
   /**
    * Contents item opened last, highlighted on S1 (§12).
    */
-  last_item: ('characters' | 'regions' | 'story' | 'direction' | 'writing' | 'reading') | null
+  last_item:
+    ('world' | 'characters' | 'regions' | 'story' | 'direction' | 'writing' | 'reading') | null
   /**
    * ISO 8601 UTC.
    */

@@ -5,7 +5,7 @@ CREATE TABLE work (
     stage INTEGER NOT NULL DEFAULT 1 CHECK (stage IN (1, 2, 3)),
     locked_stage INTEGER NOT NULL DEFAULT 0 CHECK (locked_stage IN (0, 1, 2)),
     last_item TEXT CHECK (
-        last_item IN ('characters', 'regions', 'story', 'direction', 'writing', 'reading')
+        last_item IN ('world', 'characters', 'regions', 'story', 'direction', 'writing', 'reading')
     ),
     updated_at TEXT NOT NULL
 );

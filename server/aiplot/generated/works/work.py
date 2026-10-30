@@ -32,7 +32,8 @@ class Work(BaseModel):
         Literal[0, 1, 2], Field(description="Highest read-only stage; 0 = none (§11).")
     ]
     last_item: Annotated[
-        Literal["characters", "regions", "story", "direction", "writing", "reading"] | None,
+        Literal["world", "characters", "regions", "story", "direction", "writing", "reading"]
+        | None,
         Field(description="Contents item opened last, highlighted on S1 (§12)."),
     ]
     updated_at: Annotated[StrictStr, Field(description="ISO 8601 UTC.")]

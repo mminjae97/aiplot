@@ -12,7 +12,7 @@
     "locked_stage": { "description": "Highest read-only stage; 0 = none (§11).", "enum": [0, 1, 2] },
     "last_item": {
       "description": "Contents item opened last, highlighted on S1 (§12).",
-      "anyOf": [{ "enum": ["characters", "regions", "story", "direction", "writing", "reading"] }, { "type": "null" }]
+      "anyOf": [{ "enum": ["world", "characters", "regions", "story", "direction", "writing", "reading"] }, { "type": "null" }]
     },
     "updated_at": { "description": "ISO 8601 UTC.", "type": "string" }
   },
