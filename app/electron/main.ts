@@ -1,8 +1,9 @@
 import { join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, ipcMain, session, type IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, ipcMain, screen, session, type IpcMainInvokeEvent } from 'electron'
 import type { ServerState } from '../src/api/bridge'
 import { type ServerCommand, ServerSupervisor } from './processes'
+import { minimumWindowSize } from './windowSize'
 
 const rendererFile = join(__dirname, '../renderer/index.html')
 const rendererPath = normalize(rendererFile).toLowerCase()
@@ -77,6 +78,29 @@ function isAppUrl(url: string): boolean {
   }
 }
 
+// The open book never shrinks below its size in a half-screen window (§12 S1). Everything
+// around the page (frame, menu bar) is measured from the page's own viewport.
+async function applyMinimumSize(win: BrowserWindow): Promise<void> {
+  const viewport: unknown = await win.webContents.executeJavaScript(
+    '[window.innerWidth, window.innerHeight]',
+  )
+  if (win.isDestroyed() || !Array.isArray(viewport)) return
+  const [pageWidth, pageHeight] = viewport.map(Number)
+  const [outerWidth = 0, outerHeight = 0] = win.getSize()
+  const { workAreaSize } = screen.getDisplayMatching(win.getBounds())
+  const min = minimumWindowSize(workAreaSize, {
+    width: outerWidth - (pageWidth ?? outerWidth),
+    height: outerHeight - (pageHeight ?? outerHeight),
+  })
+  win.setMinimumSize(min.width, min.height)
+}
+
+function keepMinimumSize(win: BrowserWindow): void {
+  void applyMinimumSize(win).catch((err: unknown) => {
+    console.error('minimum window size', err)
+  })
+}
+
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1440,
@@ -95,10 +119,25 @@ function createWindow(): BrowserWindow {
   win.webContents.on('will-frame-navigate', guard)
   win.webContents.on('will-redirect', guard)
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  // Electron's default File/Edit/View menu is not part of the app; its top bar is (§12).
+  win.removeMenu()
+  // Measured once shown (layout settled); another monitor or resolution changes what half
+  // the screen is.
+  win.on('show', () => {
+    keepMinimumSize(win)
+  })
+  win.on('moved', () => {
+    keepMinimumSize(win)
+  })
+  const onDisplays = (): void => {
+    if (!win.isDestroyed()) keepMinimumSize(win)
+  }
+  screen.on('display-metrics-changed', onDisplays)
   win.once('ready-to-show', () => {
     win.show()
   })
   win.on('closed', () => {
+    screen.off('display-metrics-changed', onDisplays)
     mainWindow = null
   })
   const load = devUrl ? win.loadURL(devUrl) : win.loadFile(rendererFile)

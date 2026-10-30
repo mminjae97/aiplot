@@ -1,11 +1,9 @@
 /* S1 contents: the book lies open on the walnut desk. */
 
-/* The open book keeps a landscape 4:3 spread, as large as fits inside a 64px wooden margin;
+/* The open book keeps a landscape 4:3 spread, as large as fits inside the wooden margin;
    a taller window adds margin above and below, a wider one at the sides. */
 .desk {
-  --desk-margin: 64px;
-
-  height: calc(100% - 48px);
+  height: calc(100% - var(--top-bar));
   display: grid;
   place-items: center;
   padding: var(--desk-margin);
