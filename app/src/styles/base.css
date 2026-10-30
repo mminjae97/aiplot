@@ -185,3 +185,15 @@ input {
 .server-screen .paper-button {
   justify-self: center;
 }
+
+/* Scrolling stays (wheel, touchpad, keyboard); only the bar is hidden. Rows cut at the
+   window edge show there is more. */
+.library,
+.desk {
+  scrollbar-width: none;
+}
+
+.library::-webkit-scrollbar,
+.desk::-webkit-scrollbar {
+  display: none;
+}
