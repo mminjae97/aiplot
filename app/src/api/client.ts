@@ -1,5 +1,5 @@
 import { useServer } from '../stores/server'
-import type { ApiError, WorkList } from '../types'
+import type { ApiError, Work, WorkCreate, WorkList } from '../types'
 
 const API_PREFIX = '/api/v1'
 
@@ -57,4 +57,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 
 export const api = {
   listWorks: () => request<WorkList>('/works'),
+  getWork: (workId: string) => request<Work>(`/works/${encodeURIComponent(workId)}`),
+  createWork: (body: WorkCreate) =>
+    request<Work>('/works', { method: 'POST', body: JSON.stringify(body) }),
 }

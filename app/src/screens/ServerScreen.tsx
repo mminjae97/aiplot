@@ -21,6 +21,7 @@ export function ServerScreen({ state }: Props) {
       {state.reason === 'failed' && (
         <button
           type="button"
+          className="paper-button"
           onClick={() => {
             void window.aiplot.server.retry()
           }}
