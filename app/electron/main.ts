@@ -78,33 +78,52 @@ function isAppUrl(url: string): boolean {
   }
 }
 
-// The open book never shrinks below its size in a half-screen window (§12 S1). Everything
-// around the page (frame, menu bar) is measured from the page's own viewport.
-async function applyMinimumSize(win: BrowserWindow): Promise<void> {
-  const viewport: unknown = await win.webContents.executeJavaScript(
-    '[window.innerWidth, window.innerHeight]',
-  )
-  if (win.isDestroyed() || !Array.isArray(viewport)) return
-  const [pageWidth, pageHeight] = viewport.map(Number)
+// The open book never shrinks below its size in a half-screen window (§12 S1). With no menu
+// bar the page fills the content area, so the frame is the outer size minus the content size.
+function applyMinimumSize(win: BrowserWindow): void {
+  if (win.isDestroyed()) return
   const [outerWidth = 0, outerHeight = 0] = win.getSize()
-  const { workAreaSize } = screen.getDisplayMatching(win.getBounds())
-  const min = minimumWindowSize(workAreaSize, {
-    width: outerWidth - (pageWidth ?? outerWidth),
-    height: outerHeight - (pageHeight ?? outerHeight),
+  const [contentWidth = 0, contentHeight = 0] = win.getContentSize()
+  const { workArea } = screen.getDisplayMatching(win.getBounds())
+  const min = minimumWindowSize(workArea, {
+    width: outerWidth - contentWidth,
+    height: outerHeight - contentHeight,
   })
   win.setMinimumSize(min.width, min.height)
+  // setMinimumSize never grows a window that is already smaller (e.g. moved to a larger
+  // display): grow it, keeping it inside the work area.
+  if (win.isMaximized() || win.isFullScreen()) return
+  if (outerWidth >= min.width && outerHeight >= min.height) return
+  const width = Math.max(outerWidth, min.width)
+  const height = Math.max(outerHeight, min.height)
+  const { x, y } = win.getBounds()
+  win.setBounds({
+    x: Math.min(Math.max(x, workArea.x), workArea.x + workArea.width - width),
+    y: Math.min(Math.max(y, workArea.y), workArea.y + workArea.height - height),
+    width,
+    height,
+  })
 }
 
-function keepMinimumSize(win: BrowserWindow): void {
-  void applyMinimumSize(win).catch((err: unknown) => {
-    console.error('minimum window size', err)
+// Without the default menu, unpackaged runs still open DevTools with F12 or Ctrl+Shift+I.
+function devToolsKeys(win: BrowserWindow): void {
+  win.webContents.on('before-input-event', (event, input) => {
+    const key = input.key.toLowerCase()
+    if (
+      input.type === 'keyDown' &&
+      (key === 'f12' || (input.control && input.shift && key === 'i'))
+    ) {
+      event.preventDefault()
+      win.webContents.toggleDevTools()
+    }
   })
 }
 
 function createWindow(): BrowserWindow {
+  const { workAreaSize } = screen.getPrimaryDisplay()
   const win = new BrowserWindow({
-    width: 1440,
-    height: 900,
+    width: Math.min(1440, workAreaSize.width),
+    height: Math.min(900, workAreaSize.height),
     show: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -121,16 +140,15 @@ function createWindow(): BrowserWindow {
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   // Electron's default File/Edit/View menu is not part of the app; its top bar is (§12).
   win.removeMenu()
-  // Measured once shown (layout settled); another monitor or resolution changes what half
-  // the screen is.
-  win.on('show', () => {
-    keepMinimumSize(win)
-  })
+  if (!app.isPackaged) devToolsKeys(win)
+  applyMinimumSize(win)
+  win.center()
+  // Another monitor or resolution changes what half the screen is.
   win.on('moved', () => {
-    keepMinimumSize(win)
+    applyMinimumSize(win)
   })
   const onDisplays = (): void => {
-    if (!win.isDestroyed()) keepMinimumSize(win)
+    applyMinimumSize(win)
   }
   screen.on('display-metrics-changed', onDisplays)
   win.once('ready-to-show', () => {

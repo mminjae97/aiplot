@@ -31,11 +31,13 @@ test('app starts the local server, opens the library and makes a book', async ()
     await expect(win.getByRole('heading', { name: strings.contents.heading })).toBeVisible()
 
     // The window cannot shrink below half the screen's width, and there the open book is as
-    // wide as the width allows (4:3 inside the desk margin).
+    // wide as the width allows (4:3 inside the desk margin). It also opens at least that big.
     const min = await app.evaluate(({ BrowserWindow, screen }) => {
       const window = BrowserWindow.getAllWindows()[0]
       if (!window) throw new Error('no window')
       const [width = 0, height = 0] = window.getMinimumSize()
+      const [openWidth = 0, openHeight = 0] = window.getSize()
+      if (openWidth < width || openHeight < height) throw new Error('opened below its minimum')
       window.setSize(width, height)
       return {
         width,
