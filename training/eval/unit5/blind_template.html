@@ -188,10 +188,16 @@ render();
 (async () => {
   try { db = (await window.claude?.use?.("db")) ?? null; } catch { db = null; }
   if (!db) { $("status").textContent = "저장소에 연결하지 못했어요. 선택이 남지 않아요."; return; }
+  let restored = false;
   db.collection("votes").onSnapshot((snap) => {
     for (const d of snap.docs) votes[d.id] = d.data();
-    const first = pairs.findIndex((p) => !votes[p.id]);
-    if (first !== -1 && votes[pairs[index].id]) index = first;
+    // Jump to the first open pair only when saved votes first load; choose() moves on its own
+    // after each save, so moving here too would skip a pair.
+    if (!restored) {
+      restored = true;
+      const first = pairs.findIndex((p) => !votes[p.id]);
+      if (first !== -1) index = first;
+    }
     render();
   }, (e) => { $("status").textContent = "저장된 선택을 불러오지 못했어요. (" + e.code + ")"; });
 })();
