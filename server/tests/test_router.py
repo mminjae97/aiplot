@@ -15,7 +15,7 @@ pytestmark = pytest.mark.anyio
 
 TURNS: list[Message] = [{"role": "user", "content": "<원문>\n테오는 북부 항구 출신이다.\n</원문>"}]
 SOURCE = json.dumps(
-    {"notes": "테오는 북부 항구 출신이다.", "questions": [], "similar_names": []},
+    {"edits": [], "added": ["테오는 북부 항구 출신이다."], "questions": [], "similar_names": []},
     ensure_ascii=False,
 )
 
@@ -81,7 +81,7 @@ async def test_stream_text_closes_client_stream_when_consumer_stops(prompts: Pat
 async def test_complete_json(prompts: Path) -> None:
     client = FakeClient({"source": FakeResponse(content=SOURCE, reasoning="근거")})
     result = await router(prompts, client).complete_json("source", TURNS, SourceOutput)
-    assert result.value.notes == "테오는 북부 항구 출신이다."
+    assert result.value.added == ["테오는 북부 항구 출신이다."]
     assert result.reasoning == "근거"
     source_version = load_llm_config().roles["source"].prompt
     assert (result.meta.role, result.meta.prompt_version, result.meta.lora) == (

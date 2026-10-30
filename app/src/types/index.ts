@@ -512,13 +512,17 @@ export interface EpisodeCardOutput {
   ai_guess: AiGuessFields
 }
 /**
- * `source` role output (§13). Changed sentences are computed by the server (sentence diff), not by the model.
+ * `source` role output (§13). The model sees the notes as [n]-numbered sentences (server split, §15) and returns only edits; the server applies them, so sentences it does not name stay byte-identical. Changed sentences are the edited and added ones.
  */
 export interface SourceOutput {
   /**
-   * Full rewritten source notes; reversals resolved. Server rejects an empty result when previous notes were non-empty.
+   * Existing sentences this turn changes: text replaces sentence [index], null deletes it. The server drops out-of-range and repeated indexes.
    */
-  notes: string
+  edits: SourceEdit[]
+  /**
+   * New sentences appended after the notes, in order.
+   */
+  added: string[]
   /**
    * Follow-up questions for missing or ambiguous information.
    *
@@ -529,6 +533,10 @@ export interface SourceOutput {
    * Pairs of names that may be one entity spelled differently (레오/래오), within the notes or against existing cards.
    */
   similar_names: SimilarName[]
+}
+export interface SourceEdit {
+  index: number
+  text: string | null
 }
 export interface SimilarName {
   mentioned: string

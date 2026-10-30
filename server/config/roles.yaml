@@ -13,7 +13,7 @@ roles:
   source:
     profile: qwen3-8b-uncensor-q5km
     lora: null
-    prompt: 2
+    prompt: 3
     thinking: true
     sampling: { temperature: 0.3 }
     max_tokens: 4096

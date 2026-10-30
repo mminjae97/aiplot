@@ -4,9 +4,23 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 
 from ..common import card_id as card_id_1
+
+type Text = Annotated[StrictStr, Field(min_length=1)]
+
+
+class SourceEdit(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    index: Annotated[StrictInt, Field(ge=0)]
+    text: Text | None
+
+
+type AddedItem = Annotated[StrictStr, Field(min_length=1)]
+
 
 type Question = Annotated[StrictStr, Field(min_length=1)]
 
@@ -27,11 +41,15 @@ class SourceOutput(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    notes: Annotated[
-        StrictStr,
+    edits: Annotated[
+        list[SourceEdit],
         Field(
-            description="Full rewritten source notes; reversals resolved. Server rejects an empty result when previous notes were non-empty."
+            description="Existing sentences this turn changes: text replaces sentence [index], null deletes it. The server drops out-of-range and repeated indexes."
         ),
+    ]
+    added: Annotated[
+        list[AddedItem],
+        Field(description="New sentences appended after the notes, in order."),
     ]
     questions: Annotated[
         list[Question],

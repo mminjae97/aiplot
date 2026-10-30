@@ -1,14 +1,45 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "SourceOutput",
-  "description": "`source` role output (§13). Changed sentences are computed by the server (sentence diff), not by the model.",
+  "description": "`source` role output (§13). The model sees the notes as [n]-numbered sentences (server split, §15) and returns only edits; the server applies them, so sentences it does not name stay byte-identical. Changed sentences are the edited and added ones.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["notes", "questions", "similar_names"],
+  "required": ["edits", "added", "questions", "similar_names"],
   "properties": {
-    "notes": {
-      "description": "Full rewritten source notes; reversals resolved. Server rejects an empty result when previous notes were non-empty.",
-      "type": "string"
+    "edits": {
+      "description": "Existing sentences this turn changes: text replaces sentence [index], null deletes it. The server drops out-of-range and repeated indexes.",
+      "type": "array",
+      "items": {
+        "title": "SourceEdit",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["index", "text"],
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "added": {
+      "description": "New sentences appended after the notes, in order.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "questions": {
       "description": "Follow-up questions for missing or ambiguous information.",
