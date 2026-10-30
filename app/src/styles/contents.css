@@ -8,14 +8,9 @@
   place-items: center;
   padding: var(--desk-margin);
   container-type: size;
+  /* the walnut desk: horizontal planks from assets/wood */
   background:
-    repeating-linear-gradient(
-      0deg,
-      rgb(255 255 255 / 2%) 0 3px,
-      transparent 3px 13px,
-      rgb(0 0 0 / 5%) 13px 15px,
-      transparent 15px 34px
-    ),
+    url('../assets/wood/desk.svg') 0 0 / 1400px 1440px,
     var(--wood-panel);
   overflow: auto;
 }

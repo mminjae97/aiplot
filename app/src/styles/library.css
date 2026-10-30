@@ -56,22 +56,9 @@
   height: calc(100% - var(--top-bar));
   display: flex;
   flex-direction: column;
+  /* walnut planks: grain, growth rings and joints from assets/wood (alpha over the colour) */
   background:
-    /* plank seams of the back panel */
-    repeating-linear-gradient(
-      90deg,
-      transparent 0 179px,
-      var(--wood-panel-seam) 179px 181px,
-      transparent 181px 360px
-    ),
-    /* faint grain */
-    repeating-linear-gradient(
-        90deg,
-        rgb(255 255 255 / 2%) 0 3px,
-        transparent 3px 11px,
-        rgb(0 0 0 / 4%) 11px 13px,
-        transparent 13px 29px
-      ),
+    url('../assets/wood/panel.svg') 0 0 / 1440px 1400px,
     var(--wood-panel);
   overflow-y: auto;
 }
@@ -104,6 +91,7 @@
       transparent 2px 12px,
       rgb(0 0 0 / 22%) 12px
     ),
+    url('../assets/wood/post.svg') 0 0 / 60px 1400px,
     var(--wood-board);
   box-shadow: 0 0 12px var(--wood-shadow);
 }
@@ -145,7 +133,8 @@
       transparent 2px 14px,
       var(--wood-board-edge) 14px 100%
     ),
-    repeating-linear-gradient(90deg, rgb(0 0 0 / 5%) 0 2px, transparent 2px 23px), var(--wood-board);
+    url('../assets/wood/board.svg') 0 0 / 1400px 60px,
+    var(--wood-board);
   border-radius: 1px;
   box-shadow: 0 10px 14px -6px var(--wood-shadow);
 }

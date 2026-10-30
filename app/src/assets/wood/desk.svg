@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1440">
+  <!-- Planks (vertical: bookcase back; horizontal: desk), each with its own grain (fractal noise stretched along the
+       board and cut into bands like growth rings), fine fibres and a soft sheen. Alpha only:
+       the theme's wood colour shows through. Tiles seamlessly. -->
+  <defs>
+    <filter id="p0" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.0011 0.014" numOctaves="4" seed="11" stitchTiles="stitch" result="n"/>
+      <feComponentTransfer in="n" result="r">
+        <feFuncR type="table" tableValues="0 0.15 0.9 0.15 0 0.1 0.8 0.1 0 0.15 0.9 0.15 0 0.1 0.8 0.1 0"/>
+      </feComponentTransfer>
+      <feColorMatrix in="r" type="matrix" values="0 0 0 0 0.1  0 0 0 0 0.05  0 0 0 0 0.02  0.30 0 0 0 0" result="rings"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.45" numOctaves="2" seed="61" stitchTiles="stitch" result="f"/>
+      <feColorMatrix in="f" type="matrix" values="0 0 0 0 0.08  0 0 0 0 0.04  0 0 0 0 0.01  0.16 0 0 0 -0.03" result="fibres"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.0008 0.006" numOctaves="2" seed="101" stitchTiles="stitch" result="s"/>
+      <feColorMatrix in="s" type="matrix" values="0 0 0 0 1  0 0 0 0 0.92  0 0 0 0 0.8  0.10 0 0 0 -0.03" result="sheen"/>
+      <feMerge>
+        <feMergeNode in="sheen"/>
+        <feMergeNode in="rings"/>
+        <feMergeNode in="fibres"/>
+      </feMerge>
+    </filter>
+    <filter id="p1" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.0011 0.014" numOctaves="4" seed="4" stitchTiles="stitch" result="n"/>
+      <feComponentTransfer in="n" result="r">
+        <feFuncR type="table" tableValues="0 0.15 0.9 0.15 0 0.1 0.8 0.1 0 0.15 0.9 0.15 0 0.1 0.8 0.1 0"/>
+      </feComponentTransfer>
+      <feColorMatrix in="r" type="matrix" values="0 0 0 0 0.1  0 0 0 0 0.05  0 0 0 0 0.02  0.30 0 0 0 0" result="rings"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.45" numOctaves="2" seed="54" stitchTiles="stitch" result="f"/>
+      <feColorMatrix in="f" type="matrix" values="0 0 0 0 0.08  0 0 0 0 0.04  0 0 0 0 0.01  0.16 0 0 0 -0.03" result="fibres"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.0008 0.006" numOctaves="2" seed="94" stitchTiles="stitch" result="s"/>
+      <feColorMatrix in="s" type="matrix" values="0 0 0 0 1  0 0 0 0 0.92  0 0 0 0 0.8  0.10 0 0 0 -0.03" result="sheen"/>
+      <feMerge>
+        <feMergeNode in="sheen"/>
+        <feMergeNode in="rings"/>
+        <feMergeNode in="fibres"/>
+      </feMerge>
+    </filter>
+    <filter id="p2" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.0011 0.014" numOctaves="4" seed="27" stitchTiles="stitch" result="n"/>
+      <feComponentTransfer in="n" result="r">
+        <feFuncR type="table" tableValues="0 0.15 0.9 0.15 0 0.1 0.8 0.1 0 0.15 0.9 0.15 0 0.1 0.8 0.1 0"/>
+      </feComponentTransfer>
+      <feColorMatrix in="r" type="matrix" values="0 0 0 0 0.1  0 0 0 0 0.05  0 0 0 0 0.02  0.30 0 0 0 0" result="rings"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.45" numOctaves="2" seed="77" stitchTiles="stitch" result="f"/>
+      <feColorMatrix in="f" type="matrix" values="0 0 0 0 0.08  0 0 0 0 0.04  0 0 0 0 0.01  0.16 0 0 0 -0.03" result="fibres"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.0008 0.006" numOctaves="2" seed="117" stitchTiles="stitch" result="s"/>
+      <feColorMatrix in="s" type="matrix" values="0 0 0 0 1  0 0 0 0 0.92  0 0 0 0 0.8  0.10 0 0 0 -0.03" result="sheen"/>
+      <feMerge>
+        <feMergeNode in="sheen"/>
+        <feMergeNode in="rings"/>
+        <feMergeNode in="fibres"/>
+      </feMerge>
+    </filter>
+    <filter id="p3" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.0011 0.014" numOctaves="4" seed="8" stitchTiles="stitch" result="n"/>
+      <feComponentTransfer in="n" result="r">
+        <feFuncR type="table" tableValues="0 0.15 0.9 0.15 0 0.1 0.8 0.1 0 0.15 0.9 0.15 0 0.1 0.8 0.1 0"/>
+      </feComponentTransfer>
+      <feColorMatrix in="r" type="matrix" values="0 0 0 0 0.1  0 0 0 0 0.05  0 0 0 0 0.02  0.30 0 0 0 0" result="rings"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.45" numOctaves="2" seed="58" stitchTiles="stitch" result="f"/>
+      <feColorMatrix in="f" type="matrix" values="0 0 0 0 0.08  0 0 0 0 0.04  0 0 0 0 0.01  0.16 0 0 0 -0.03" result="fibres"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.0008 0.006" numOctaves="2" seed="98" stitchTiles="stitch" result="s"/>
+      <feColorMatrix in="s" type="matrix" values="0 0 0 0 1  0 0 0 0 0.92  0 0 0 0 0.8  0.10 0 0 0 -0.03" result="sheen"/>
+      <feMerge>
+        <feMergeNode in="sheen"/>
+        <feMergeNode in="rings"/>
+        <feMergeNode in="fibres"/>
+      </feMerge>
+    </filter>
+    <filter id="p4" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.0011 0.014" numOctaves="4" seed="19" stitchTiles="stitch" result="n"/>
+      <feComponentTransfer in="n" result="r">
+        <feFuncR type="table" tableValues="0 0.15 0.9 0.15 0 0.1 0.8 0.1 0 0.15 0.9 0.15 0 0.1 0.8 0.1 0"/>
+      </feComponentTransfer>
+      <feColorMatrix in="r" type="matrix" values="0 0 0 0 0.1  0 0 0 0 0.05  0 0 0 0 0.02  0.30 0 0 0 0" result="rings"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.45" numOctaves="2" seed="69" stitchTiles="stitch" result="f"/>
+      <feColorMatrix in="f" type="matrix" values="0 0 0 0 0.08  0 0 0 0 0.04  0 0 0 0 0.01  0.16 0 0 0 -0.03" result="fibres"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.0008 0.006" numOctaves="2" seed="109" stitchTiles="stitch" result="s"/>
+      <feColorMatrix in="s" type="matrix" values="0 0 0 0 1  0 0 0 0 0.92  0 0 0 0 0.8  0.10 0 0 0 -0.03" result="sheen"/>
+      <feMerge>
+        <feMergeNode in="sheen"/>
+        <feMergeNode in="rings"/>
+        <feMergeNode in="fibres"/>
+      </feMerge>
+    </filter>
+    <filter id="p5" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.0011 0.014" numOctaves="4" seed="33" stitchTiles="stitch" result="n"/>
+      <feComponentTransfer in="n" result="r">
+        <feFuncR type="table" tableValues="0 0.15 0.9 0.15 0 0.1 0.8 0.1 0 0.15 0.9 0.15 0 0.1 0.8 0.1 0"/>
+      </feComponentTransfer>
+      <feColorMatrix in="r" type="matrix" values="0 0 0 0 0.1  0 0 0 0 0.05  0 0 0 0 0.02  0.30 0 0 0 0" result="rings"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.45" numOctaves="2" seed="83" stitchTiles="stitch" result="f"/>
+      <feColorMatrix in="f" type="matrix" values="0 0 0 0 0.08  0 0 0 0 0.04  0 0 0 0 0.01  0.16 0 0 0 -0.03" result="fibres"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.0008 0.006" numOctaves="2" seed="123" stitchTiles="stitch" result="s"/>
+      <feColorMatrix in="s" type="matrix" values="0 0 0 0 1  0 0 0 0 0.92  0 0 0 0 0.8  0.10 0 0 0 -0.03" result="sheen"/>
+      <feMerge>
+        <feMergeNode in="sheen"/>
+        <feMergeNode in="rings"/>
+        <feMergeNode in="fibres"/>
+      </feMerge>
+    </filter>
+    <filter id="p6" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.0011 0.014" numOctaves="4" seed="2" stitchTiles="stitch" result="n"/>
+      <feComponentTransfer in="n" result="r">
+        <feFuncR type="table" tableValues="0 0.15 0.9 0.15 0 0.1 0.8 0.1 0 0.15 0.9 0.15 0 0.1 0.8 0.1 0"/>
+      </feComponentTransfer>
+      <feColorMatrix in="r" type="matrix" values="0 0 0 0 0.1  0 0 0 0 0.05  0 0 0 0 0.02  0.30 0 0 0 0" result="rings"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.45" numOctaves="2" seed="52" stitchTiles="stitch" result="f"/>
+      <feColorMatrix in="f" type="matrix" values="0 0 0 0 0.08  0 0 0 0 0.04  0 0 0 0 0.01  0.16 0 0 0 -0.03" result="fibres"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.0008 0.006" numOctaves="2" seed="92" stitchTiles="stitch" result="s"/>
+      <feColorMatrix in="s" type="matrix" values="0 0 0 0 1  0 0 0 0 0.92  0 0 0 0 0.8  0.10 0 0 0 -0.03" result="sheen"/>
+      <feMerge>
+        <feMergeNode in="sheen"/>
+        <feMergeNode in="rings"/>
+        <feMergeNode in="fibres"/>
+      </feMerge>
+    </filter>
+    <filter id="p7" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.0011 0.014" numOctaves="4" seed="15" stitchTiles="stitch" result="n"/>
+      <feComponentTransfer in="n" result="r">
+        <feFuncR type="table" tableValues="0 0.15 0.9 0.15 0 0.1 0.8 0.1 0 0.15 0.9 0.15 0 0.1 0.8 0.1 0"/>
+      </feComponentTransfer>
+      <feColorMatrix in="r" type="matrix" values="0 0 0 0 0.1  0 0 0 0 0.05  0 0 0 0 0.02  0.30 0 0 0 0" result="rings"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.45" numOctaves="2" seed="65" stitchTiles="stitch" result="f"/>
+      <feColorMatrix in="f" type="matrix" values="0 0 0 0 0.08  0 0 0 0 0.04  0 0 0 0 0.01  0.16 0 0 0 -0.03" result="fibres"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.0008 0.006" numOctaves="2" seed="105" stitchTiles="stitch" result="s"/>
+      <feColorMatrix in="s" type="matrix" values="0 0 0 0 1  0 0 0 0 0.92  0 0 0 0 0.8  0.10 0 0 0 -0.03" result="sheen"/>
+      <feMerge>
+        <feMergeNode in="sheen"/>
+        <feMergeNode in="rings"/>
+        <feMergeNode in="fibres"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect y="0" width="1400" height="180" filter="url(#p0)"/>
+  <rect y="0" width="1400" height="1" fill="#28180e" fill-opacity="0.55"/>
+  <rect y="1" width="1400" height="1" fill="#fff" fill-opacity="0.04"/>
+  <rect y="180" width="1400" height="180" filter="url(#p1)"/>
+  <rect y="180" width="1400" height="1" fill="#28180e" fill-opacity="0.55"/>
+  <rect y="181" width="1400" height="1" fill="#fff" fill-opacity="0.04"/>
+  <rect y="360" width="1400" height="180" filter="url(#p2)"/>
+  <rect y="360" width="1400" height="1" fill="#28180e" fill-opacity="0.55"/>
+  <rect y="361" width="1400" height="1" fill="#fff" fill-opacity="0.04"/>
+  <rect y="540" width="1400" height="180" filter="url(#p3)"/>
+  <rect y="540" width="1400" height="1" fill="#28180e" fill-opacity="0.55"/>
+  <rect y="541" width="1400" height="1" fill="#fff" fill-opacity="0.04"/>
+  <rect y="720" width="1400" height="180" filter="url(#p4)"/>
+  <rect y="720" width="1400" height="1" fill="#28180e" fill-opacity="0.55"/>
+  <rect y="721" width="1400" height="1" fill="#fff" fill-opacity="0.04"/>
+  <rect y="900" width="1400" height="180" filter="url(#p5)"/>
+  <rect y="900" width="1400" height="1" fill="#28180e" fill-opacity="0.55"/>
+  <rect y="901" width="1400" height="1" fill="#fff" fill-opacity="0.04"/>
+  <rect y="1080" width="1400" height="180" filter="url(#p6)"/>
+  <rect y="1080" width="1400" height="1" fill="#28180e" fill-opacity="0.55"/>
+  <rect y="1081" width="1400" height="1" fill="#fff" fill-opacity="0.04"/>
+  <rect y="1260" width="1400" height="180" filter="url(#p7)"/>
+  <rect y="1260" width="1400" height="1" fill="#28180e" fill-opacity="0.55"/>
+  <rect y="1261" width="1400" height="1" fill="#fff" fill-opacity="0.04"/>
+</svg>
