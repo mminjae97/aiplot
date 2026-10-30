@@ -40,6 +40,8 @@ FILE_POLL_SEC = 5.0
 STOP_TIMEOUT_SEC = 10.0
 HEALTH_TIMEOUT_SEC = 5.0
 TAIL_LINES = 20
+# After the child exits its pipe reaches EOF; wait this long for the last lines.
+PUMP_DRAIN_SEC = 1.0
 
 
 def free_port() -> int:
@@ -83,6 +85,7 @@ class LlamaProcess:
         self._process: subprocess.Popen[bytes] | None = None
         self._tail: deque[str] = deque(maxlen=TAIL_LINES)
         self._listening = threading.Event()
+        self._pump_thread: threading.Thread | None = None
         self._spawned = False
         self._wake = asyncio.Event()
         self._stopping = False
@@ -215,7 +218,8 @@ class LlamaProcess:
         )
         if self._job is not None:
             self._job.assign(self._process)
-        threading.Thread(target=self._pump, args=(self._process,), daemon=True).start()
+        self._pump_thread = threading.Thread(target=self._pump, args=(self._process,), daemon=True)
+        self._pump_thread.start()
 
     def _pump(self, process: subprocess.Popen[bytes]) -> None:
         assert process.stdout is not None
@@ -263,8 +267,13 @@ class LlamaProcess:
 
     def _failure(self, what: str) -> str:
         code = self._process.poll() if self._process is not None else None
+        if code is not None and self._pump_thread is not None:
+            # The cause (e.g. "out of memory") is often in the last lines still in the pipe.
+            self._pump_thread.join(PUMP_DRAIN_SEC)
         detail = f" (exit {code})" if code is not None else ""
-        last = next((line for line in reversed(self._tail) if line.strip()), None)
+        # Copy first: the pump thread appends while we read (list() copies under the GIL).
+        lines = list(self._tail)
+        last = next((line for line in reversed(lines) if line.strip()), None)
         return f"llama-server {what}{detail}" + (f": {last}" if last else "")
 
     async def _kill(self) -> None:
