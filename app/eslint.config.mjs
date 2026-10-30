@@ -17,13 +17,19 @@ export default defineConfig(
   },
   {
     files: ['src/**/*.{ts,tsx}', 'tests/**/*.{ts,tsx}'],
-    ignores: ['tests/e2e/**'],
+    ignores: ['tests/e2e/**', 'tests/electron/**'],
     plugins: { 'react-hooks': reactHooks },
     languageOptions: { globals: globals.browser },
     rules: reactHooks.configs.recommended.rules,
   },
   {
-    files: ['electron/**/*.ts', 'tests/e2e/**/*.ts', '*.config.ts', '*.mjs'],
+    files: [
+      'electron/**/*.ts',
+      'tests/e2e/**/*.ts',
+      'tests/electron/**/*.ts',
+      '*.config.ts',
+      '*.mjs',
+    ],
     languageOptions: { globals: globals.node },
   },
   { files: ['*.mjs'], ...tseslint.configs.disableTypeChecked },

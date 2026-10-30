@@ -3,6 +3,7 @@
 import argparse
 import logging
 import os
+import socket
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -11,6 +12,7 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import APIRouter, Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from aiplot.api import health, jobs, setup, works
 from aiplot.api.auth import require_token
@@ -23,6 +25,8 @@ from aiplot.parent import parse_pid, watch
 DEV_PORT = 8765
 API_PREFIX = "/api/v1"
 LOG_RETENTION_DAYS = 14
+# Read by app/electron/processes.ts; followed by the bound port.
+READY_LINE = "AIPLOT_READY"
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +38,7 @@ class Settings:
     data_dir: Path
     fake_llm: bool = False
     parent_pid: int | None = None
+    dev_origin: str | None = None
 
     @property
     def db_path(self) -> Path:
@@ -41,9 +46,15 @@ class Settings:
 
 
 def create_app(
-    *, token: str, db_path: Path, dev: bool = False, llm: LlmRuntime | None = None
+    *,
+    token: str,
+    db_path: Path,
+    dev: bool = False,
+    llm: LlmRuntime | None = None,
+    dev_origin: str | None = None,
 ) -> FastAPI:
-    """llm defaults to the fixture runtime so tests never need a GPU."""
+    """llm defaults to the fixture runtime so tests never need a GPU. dev_origin is the Vite dev
+    server the renderer runs on in `npm run dev`; only --dev runs allow it (CORS)."""
     job_queue = JobQueue()
     runtime = llm or fake_runtime(db_path.parent)
 
@@ -69,6 +80,14 @@ def create_app(
     app.state.jobs = job_queue
     app.state.llm = runtime
     install_error_handlers(app)
+    if dev and dev_origin:
+        # Outside the router, so preflight OPTIONS never needs the token.
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=[dev_origin],
+            allow_methods=["*"],
+            allow_headers=["Authorization", "Content-Type", "Last-Event-ID"],
+        )
     api = APIRouter(prefix=API_PREFIX, dependencies=[Depends(require_token)])
     api.include_router(health.router)
     api.include_router(jobs.router)
@@ -76,6 +95,16 @@ def create_app(
     api.include_router(works.router)
     app.include_router(api)
     return app
+
+
+class ReportingServer(uvicorn.Server):
+    """Prints READY_LINE on stdout once the socket is bound. Electron trusts the port only after
+    its own child says so, never a process that happens to answer there (§13)."""
+
+    async def startup(self, sockets: list[socket.socket] | None = None) -> None:
+        await super().startup(sockets)
+        if self.started:
+            print(f"{READY_LINE} {self.config.port}", flush=True)
 
 
 def env_value(env: Mapping[str, str], name: str) -> str | None:
@@ -135,6 +164,7 @@ def load_settings(env: Mapping[str, str], *, dev: bool) -> Settings:
         data_dir=resolve_data_dir(env),
         fake_llm=fake_llm,
         parent_pid=parent_pid,
+        dev_origin=env_value(env, "AIPLOT_DEV_ORIGIN"),
     )
 
 
@@ -185,9 +215,15 @@ def main(argv: list[str] | None = None) -> None:
         raise SystemExit(1) from None
     data_dir = settings.data_dir
     llm = fake_runtime(data_dir) if settings.fake_llm else llama_runtime(data_dir)
-    server = uvicorn.Server(
+    server = ReportingServer(
         uvicorn.Config(
-            create_app(token=settings.token, db_path=settings.db_path, dev=args.dev, llm=llm),
+            create_app(
+                token=settings.token,
+                db_path=settings.db_path,
+                dev=args.dev,
+                llm=llm,
+                dev_origin=settings.dev_origin,
+            ),
             host="127.0.0.1",
             port=settings.port,
             log_level="debug" if args.dev else "info",
