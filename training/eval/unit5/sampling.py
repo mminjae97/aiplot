@@ -90,6 +90,8 @@ async def run(args: argparse.Namespace) -> None:
     )
     chats = {c["id"]: c["chat"]["text"] for c in base["cards"] if c["repeat"] == 0}
     for case in cases["cards"]:
+        if case["id"] not in chats:
+            continue  # case added after the base run
         print(f"source presence {case['id']}", flush=True)
         turn = "\n".join(
             [
