@@ -6,6 +6,7 @@ import io
 import os
 import subprocess
 import threading
+import time
 import zipfile
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
@@ -51,6 +52,7 @@ class Files:
     ignore_range: bool = False
     drop_once: set[str] = field(default_factory=set)
     corrupt: set[str] = field(default_factory=set)
+    fail_once: dict[str, int] = field(default_factory=dict)
     ranges: list[tuple[str, str | None]] = field(default_factory=list)
 
 
@@ -68,6 +70,9 @@ def files() -> Iterator[tuple[Files, str]]:
                 data = bytes(len(data))
             header = self.headers.get("Range")
             state.ranges.append((self.path, header))
+            if self.path in state.fail_once:
+                self.send_error(state.fail_once.pop(self.path))
+                return
             start = 0
             if header and not state.ignore_range:
                 start = int(header.removeprefix("bytes=").split("-")[0])
@@ -307,3 +312,95 @@ async def test_download_drops_a_user_path_whose_file_is_gone(
     assert job.status == "done", job.error
     item = installer.status().items[1]
     assert (item.status, item.custom) == ("installed", False)
+
+
+@pytest.mark.parametrize("status", [503, 429])
+async def test_transient_http_errors_are_retried(
+    installer: Setup,
+    jobs: JobQueue,
+    files: tuple[Files, str],
+    monkeypatch: pytest.MonkeyPatch,
+    status: int,
+) -> None:
+    monkeypatch.setattr(asyncio, "sleep", fast_sleep)
+    files[0].fail_once["/model.gguf"] = status
+    job = await finish(download(jobs, installer))
+    assert job.status == "done", job.error
+    assert installer.default_model.read_bytes() == MODEL
+
+
+async def test_range_not_satisfiable_starts_the_file_over(
+    installer: Setup, jobs: JobQueue, files: tuple[Files, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(asyncio, "sleep", fast_sleep)
+    part = installer.default_model.with_name("base.gguf.part")
+    part.parent.mkdir(parents=True)
+    part.write_bytes(MODEL[:1000])
+    files[0].fail_once["/model.gguf"] = 416
+    job = await finish(download(jobs, installer))
+    assert job.status == "done", job.error
+    model_requests = [r for r in files[0].ranges if r[0] == "/model.gguf"]
+    assert model_requests[-1][1] is None
+    done = [e.data["done"] for e in job.events if e.type == "progress"]
+    assert max(done) <= job.events[0].data["total"]
+
+
+async def test_download_replaces_a_user_model_that_no_longer_fits(
+    installer: Setup, jobs: JobQueue, tmp_path: Path
+) -> None:
+    mine = tmp_path / "elsewhere.gguf"
+    mine.write_bytes(MODEL)
+    await finish(set_paths(jobs, installer, str(mine), None))
+    mine.write_bytes(MODEL[:10])  # still there, but not the base model any more
+    job = await finish(download(jobs, installer))
+    assert job.status == "done", job.error
+    item = installer.status().items[1]
+    assert (item.status, item.custom) == ("installed", False)
+
+
+async def test_cancelled_hash_stops_and_emits_nothing_after(
+    installer: Setup, jobs: JobQueue, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("aiplot.services.setup.CHUNK", 64)
+    monkeypatch.setattr("aiplot.services.setup.PROGRESS_SEC", 0)
+    mine = tmp_path / "elsewhere.gguf"
+    mine.write_bytes(MODEL)
+    job = set_paths(jobs, installer, str(mine), None)
+    async with asyncio.timeout(10):
+        while not any(e.type == "progress" for e in job.events):
+            await asyncio.sleep(0.005)
+    jobs.cancel(job)
+    await finish(job)
+    count = len(job.events)
+    await asyncio.sleep(0.3)
+    assert job.events[-1].type == "cancelled"
+    assert len(job.events) == count
+    assert installer.status().items[1].custom is False
+
+
+async def test_cancel_during_extraction_never_races_the_next_download(
+    installer: Setup, jobs: JobQueue, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    started = threading.Event()
+    finished = threading.Event()
+    original = Setup._extract_llama
+
+    def slow_extract(self: Setup) -> None:
+        started.set()
+        time.sleep(0.3)
+        original(self)
+        finished.set()
+
+    monkeypatch.setattr(Setup, "_extract_llama", slow_extract)
+    first = download(jobs, installer)
+    async with asyncio.timeout(10):
+        while not started.is_set():
+            await asyncio.sleep(0.005)
+    jobs.cancel(first)
+    await finish(first)
+    # The job ends only once its extraction is really over.
+    assert finished.is_set()
+    second = download(jobs, installer)
+    job = await finish(second)
+    assert job.status == "done", job.error
+    assert installer.llama_installed() and installer.model_installed()

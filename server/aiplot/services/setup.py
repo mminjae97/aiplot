@@ -3,14 +3,19 @@
 Downloads resume from `.part` files with HTTP Range and are checked against the pinned size and
 sha256 (config/llama.yaml, the base profile) before anything uses them. User-set paths are
 checked the same way and kept in {data}/data/setup.json; files there are used in place.
+
+Setup jobs run one at a time (a lock), and file work in threads always finishes or stops before
+its job ends, so a cancelled job never races the next one or emits events after its last.
 """
 
 import asyncio
+import contextlib
 import hashlib
 import json
 import logging
 import shutil
 import subprocess
+import threading
 import time
 import zipfile
 from collections.abc import Callable
@@ -32,6 +37,16 @@ ATTEMPTS = 3
 PROGRESS_SEC = 0.5
 # Room for extraction and for the OS on top of the download itself.
 DISK_MARGIN = 1 << 30
+# CDN hiccups worth another try, like dropped connections.
+RETRY_STATUS = frozenset({408, 429, 500, 502, 503, 504})
+
+
+class RetryableError(Exception):
+    """A download attempt failed in a way the next attempt may fix."""
+
+
+class StoppedError(Exception):
+    """A thread noticed its job was cancelled."""
 
 
 @dataclass(frozen=True)
@@ -62,14 +77,30 @@ def part_size(path: Path) -> int:
     return path.stat().st_size if path.is_file() else 0
 
 
-def sha256_of(path: Path, on_chunk: Callable[[int], None] | None = None) -> str:
+def sha256_of(
+    path: Path, on_chunk: Callable[[int], None] | None = None, stop: threading.Event | None = None
+) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as f:
         while chunk := f.read(CHUNK):
+            if stop is not None and stop.is_set():
+                raise StoppedError
             digest.update(chunk)
             if on_chunk is not None:
                 on_chunk(len(chunk))
     return digest.hexdigest()
+
+
+async def in_thread[T](fn: Callable[..., T], *args: Any, stop: threading.Event) -> T:
+    """Run blocking file work; on cancel, signal it and wait until it is really over."""
+    future = asyncio.ensure_future(asyncio.to_thread(fn, *args))
+    try:
+        return await asyncio.shield(future)
+    except asyncio.CancelledError:
+        stop.set()
+        with contextlib.suppress(Exception):
+            await future
+        raise
 
 
 class Setup:
@@ -87,7 +118,9 @@ class Setup:
         self.process = process
         self._transport = transport
         self._overrides_file = data_dir / "data" / "setup.json"
+        self._lock = asyncio.Lock()
         self.job_id: str | None = None
+        self.job_kind: str | None = None
         self._apply_paths()
 
     # Locations -------------------------------------------------------------------------------
@@ -96,6 +129,8 @@ class Setup:
         try:
             raw = json.loads(self._overrides_file.read_text(encoding="utf-8"))
         except (OSError, ValueError):
+            return {}
+        if not isinstance(raw, dict):
             return {}
         return {
             k: v for k, v in raw.items() if k in ("model_path", "llama_dir") and isinstance(v, str)
@@ -127,17 +162,19 @@ class Setup:
     def binary(self) -> Path:
         return self.llama_dir / self.build.executable
 
-    def _forget_missing_overrides(self) -> None:
-        """A download goes to the default place; drop a user path whose file is gone."""
+    def _forget_unusable_overrides(self) -> None:
+        """A download goes to the default place, so drop a user path it would replace."""
         overrides = self._overrides()
-        kept = {k: v for k, v in overrides.items() if Path(v).exists()}
-        if kept != overrides:
-            self._save_overrides(kept)
+        if "llama_dir" in overrides and not self.llama_installed():
+            overrides.pop("llama_dir")
+        if "model_path" in overrides and not self.model_installed():
+            overrides.pop("model_path")
+        if overrides != self._overrides():
+            self._save_overrides(overrides)
 
     def _apply_paths(self) -> None:
         if self.process is not None:
-            self.process.binary = self.binary
-            self.process.model = self.model
+            self.process.use_paths(self.binary, self.model)
             self.process.files_changed()
 
     def _archive_parts(self) -> list[Remote]:
@@ -166,10 +203,15 @@ class Setup:
         llama_total = sum(a.size for a in self.build.archives)
         llama_ok = self.llama_installed()
         llama_present = (
-            llama_total if llama_ok else sum(part_size(r.part) for r in self._archive_parts())
+            llama_total
+            if llama_ok
+            else sum(min(part_size(r.part), r.size) for r in self._archive_parts())
         )
         model_ok = self.model_installed()
-        model_present = self.profile.gguf.size if model_ok else part_size(self._model_part().part)
+        model_part = self._model_part()
+        model_present = (
+            self.profile.gguf.size if model_ok else min(part_size(model_part.part), model_part.size)
+        )
         items = [
             SetupItem(
                 id="llama",
@@ -200,14 +242,21 @@ class Setup:
 
     async def download(self, ctx: JobContext) -> dict[str, Any]:
         """Fetch whatever is not installed; resumable, verified, then starts llama-server."""
-        self._forget_missing_overrides()
+        async with self._lock:
+            return await self._download(ctx)
+
+    async def _download(self, ctx: JobContext) -> dict[str, Any]:
+        self._forget_unusable_overrides()
         need_llama = not self.llama_installed()
         need_model = not self.model_installed()
         remotes = (self._archive_parts() if need_llama else []) + (
             [self._model_part()] if need_model else []
         )
+        for remote in remotes:
+            if part_size(remote.part) > remote.size:
+                remote.part.unlink()
         total = sum(r.size for r in remotes)
-        present = sum(min(part_size(r.part), r.size) for r in remotes)
+        present = sum(part_size(r.part) for r in remotes)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         if shutil.disk_usage(self.data_dir).free < total - present + DISK_MARGIN:
             raise JobError("DISK_FULL", f"need {(total - present + DISK_MARGIN) >> 20} MB free")
@@ -220,7 +269,8 @@ class Setup:
                 progress.step = remote.part.name.removesuffix(".part")
                 await self._fetch(http, remote, progress, ctx)
         if need_llama:
-            await asyncio.to_thread(self._extract_llama)
+            # Never stopped halfway: a cancel waits for it, then the job ends.
+            await in_thread(self._extract_llama, stop=threading.Event())
         if need_model:
             self._model_part().part.replace(self.default_model)
         self._apply_paths()
@@ -231,8 +281,6 @@ class Setup:
         self, http: httpx.AsyncClient, remote: Remote, progress: Progress, ctx: JobContext
     ) -> None:
         remote.part.parent.mkdir(parents=True, exist_ok=True)
-        if part_size(remote.part) > remote.size:
-            remote.part.unlink()
         for attempt in range(1, ATTEMPTS + 1):
             have = part_size(remote.part)
             if have == remote.size:
@@ -240,7 +288,7 @@ class Setup:
             try:
                 await self._fetch_from(http, remote, have, progress, ctx)
                 break
-            except httpx.TransportError as exc:
+            except (httpx.TransportError, RetryableError) as exc:
                 # Bytes already written stay in the .part file and in progress.done.
                 logger.warning("download %s attempt %d failed: %s", remote.url, attempt, exc)
                 if attempt == ATTEMPTS:
@@ -249,7 +297,7 @@ class Setup:
         # step names what runs; the app turns it into Korean text (§5).
         progress.step = f"verify {progress.step}"
         progress.ctx.progress(progress.done, progress.total, progress.step)
-        digest = await asyncio.to_thread(sha256_of, remote.part)
+        digest = await in_thread(sha256_of, remote.part, None, stop=threading.Event())
         if digest != remote.sha256:
             remote.part.unlink()
             raise JobError("DOWNLOAD_CORRUPT", f"{remote.part.name}: sha256 mismatch, removed")
@@ -264,12 +312,20 @@ class Setup:
     ) -> None:
         headers = {"Range": f"bytes={have}-"} if have else {}
         async with http.stream("GET", remote.url, headers=headers) as response:
-            if have and response.status_code == 200:
+            status = response.status_code
+            if have and status == 200:
                 # The server ignored Range: start this file over.
                 progress.done -= have
                 have = 0
-            elif response.status_code not in (200, 206):
-                raise JobError("DOWNLOAD_FAILED", f"{remote.url}: HTTP {response.status_code}")
+            elif status == 416:
+                # Our part no longer fits the file: drop it and start over next attempt.
+                remote.part.unlink(missing_ok=True)
+                progress.done -= have
+                raise RetryableError(f"HTTP 416 at byte {have}")
+            elif status in RETRY_STATUS:
+                raise RetryableError(f"HTTP {status}")
+            elif status not in (200, 206):
+                raise JobError("DOWNLOAD_FAILED", f"{remote.url}: HTTP {status}")
             with remote.part.open("ab" if have else "wb") as f:
                 async for chunk in response.aiter_bytes(CHUNK):
                     f.write(chunk)
@@ -301,20 +357,21 @@ class Setup:
         self, ctx: JobContext, model_path: str | None, llama_dir: str | None
     ) -> dict[str, Any]:
         """None = default location. A path equal to the current one is kept unchecked."""
-        overrides = self._overrides()
-        if model_path is None:
-            overrides.pop("model_path", None)
-        elif str(Path(model_path).resolve()) != overrides.get("model_path"):
-            await self._check_model(ctx, Path(model_path))
-            overrides["model_path"] = str(Path(model_path).resolve())
-        if llama_dir is None:
-            overrides.pop("llama_dir", None)
-        elif str(Path(llama_dir).resolve()) != overrides.get("llama_dir"):
-            await asyncio.to_thread(self._check_llama, Path(llama_dir))
-            overrides["llama_dir"] = str(Path(llama_dir).resolve())
-        self._save_overrides(overrides)
-        self._apply_paths()
-        return {"model": str(self.model), "llama_dir": str(self.llama_dir)}
+        async with self._lock:
+            overrides = self._overrides()
+            if model_path is None:
+                overrides.pop("model_path", None)
+            elif str(Path(model_path).resolve()) != overrides.get("model_path"):
+                await self._check_model(ctx, Path(model_path))
+                overrides["model_path"] = str(Path(model_path).resolve())
+            if llama_dir is None:
+                overrides.pop("llama_dir", None)
+            elif str(Path(llama_dir).resolve()) != overrides.get("llama_dir"):
+                await in_thread(self._check_llama, Path(llama_dir), stop=threading.Event())
+                overrides["llama_dir"] = str(Path(llama_dir).resolve())
+            self._save_overrides(overrides)
+            self._apply_paths()
+            return {"model": str(self.model), "llama_dir": str(self.llama_dir)}
 
     async def _check_model(self, ctx: JobContext, path: Path) -> None:
         gguf = self.profile.gguf
@@ -324,11 +381,13 @@ class Setup:
             raise JobError("MODEL_MISMATCH", f"{path.name} is not {gguf.file} (size differs)")
         progress = Progress(ctx, gguf.size, step=f"verify {path.name}")
         loop = asyncio.get_running_loop()
+        stop = threading.Event()
 
         def on_chunk(n: int) -> None:
-            loop.call_soon_threadsafe(progress.add, n)
+            if not stop.is_set():
+                loop.call_soon_threadsafe(progress.add, n)
 
-        digest = await asyncio.to_thread(sha256_of, path, on_chunk)
+        digest = await in_thread(sha256_of, path, on_chunk, stop, stop=stop)
         if digest != gguf.sha256:
             raise JobError("MODEL_MISMATCH", f"{path.name} is not {gguf.file} (sha256 differs)")
 

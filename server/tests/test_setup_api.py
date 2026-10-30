@@ -13,7 +13,7 @@ from aiplot.llm.router import Router
 from aiplot.llm.runtime import LlmRuntime
 from aiplot.main import create_app
 from aiplot.services.setup import Setup
-from tests.test_setup import Files, files, pins
+from tests.test_setup import MODEL, Files, files, pins
 
 __all__ = ["files"]  # fixture used by this module
 
@@ -81,3 +81,22 @@ def test_set_paths_needs_both_keys(client: TestClient) -> None:
 def test_retry_and_auth(client: TestClient) -> None:
     assert client.post("/api/v1/setup/retry", headers=AUTH).status_code == 204
     assert client.get("/api/v1/setup").status_code == 401
+
+
+def test_download_while_a_path_check_runs_is_busy(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def slow_hash(*args: object) -> str:
+        time.sleep(1.0)
+        return ""
+
+    monkeypatch.setattr("aiplot.services.setup.sha256_of", slow_hash)
+    mine = tmp_path / "mine.gguf"
+    mine.write_bytes(MODEL)
+    response = client.put(
+        "/api/v1/setup/paths", headers=AUTH, json={"model_path": str(mine), "llama_dir": None}
+    )
+    assert response.status_code == 202
+    busy = client.post("/api/v1/setup/download", headers=AUTH)
+    assert (busy.status_code, busy.json()["code"]) == (409, "SETUP_BUSY")
+    wait_job(client, response.json()["jobId"])

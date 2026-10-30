@@ -183,3 +183,33 @@ async def test_endpoint_only_for_the_confirmed_live_child(running: LlamaProcess)
     assert running.endpoint() is None
     await until(running, lambda p: p.state == "ready" and p.restarts == 1)
     assert running.api_key != first_key
+
+
+def test_argv_runs_the_current_binary(tmp_path: Path) -> None:
+    process = LlamaProcess(
+        binary=tmp_path / "a" / "llama-server.exe",
+        model=tmp_path / "m.gguf",
+        profile=load_llm_config().base,
+        port=free_port(),
+        log=logging.getLogger("llama.test"),
+        job=None,
+    )
+    assert process.argv()[0] == str(tmp_path / "a" / "llama-server.exe")
+    process.use_paths(tmp_path / "b" / "llama-server.exe", tmp_path / "n.gguf")
+    argv = process.argv()
+    assert argv[0] == str(tmp_path / "b" / "llama-server.exe")
+    assert argv[argv.index("-m") + 1] == str(tmp_path / "n.gguf")
+
+
+async def test_new_paths_replace_the_running_child_without_a_restart(
+    running: LlamaProcess, tmp_path: Path
+) -> None:
+    await until(running, lambda p: p.state == "ready")
+    old = running.process
+    other = tmp_path / "models" / "other.gguf"
+    other.write_bytes(b"GGUF")
+    running.use_paths(running.binary, other)
+    await until(running, lambda p: p.state == "ready" and p.process is not old)
+    assert old is not None and old.poll() is not None
+    assert running.restarts == 0
+    assert running.argv()[running.argv().index("-m") + 1] == str(other)

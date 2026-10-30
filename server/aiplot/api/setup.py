@@ -25,7 +25,7 @@ def running_job(setup: Setup, jobs: JobQueue) -> str | None:
     """The setup job still in progress, if any (and forget finished ones)."""
     job = jobs.get(setup.job_id) if setup.job_id else None
     if job is None or job.status in TERMINAL:
-        setup.job_id = None
+        setup.job_id = setup.job_kind = None
         return None
     return job.id
 
@@ -42,12 +42,14 @@ async def start_download(request: Request) -> JobAccepted:
     setup, jobs, _ = services(request)
     current = running_job(setup, jobs)
     if current is not None:
-        # Pressing download again shows the same progress.
-        return JobAccepted(jobId=current)
+        if setup.job_kind == "download":
+            # Pressing download again shows the same progress.
+            return JobAccepted(jobId=current)
+        raise AppError(409, "SETUP_BUSY", "a path check is running")
     if setup.llama_installed() and setup.model_installed():
         raise AppError(409, "SETUP_COMPLETE", "llama.cpp and the base model are already installed")
     job = jobs.submit("download", setup.download, lane="download")
-    setup.job_id = job.id
+    setup.job_id, setup.job_kind = job.id, job.kind
     return JobAccepted(jobId=job.id)
 
 
@@ -61,7 +63,7 @@ async def set_paths(request: Request, body: SetupPathsRequest) -> JobAccepted:
         return await setup.set_paths(ctx, body.model_path, body.llama_dir)
 
     job = jobs.submit("verify_paths", check, lane="download")
-    setup.job_id = job.id
+    setup.job_id, setup.job_kind = job.id, job.kind
     return JobAccepted(jobId=job.id)
 
 
