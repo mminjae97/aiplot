@@ -1,0 +1,21 @@
+# Base model profile (§13). File name = id. Swapping the base needs only a profile + LoRAs.
+id: qwen3-8b-uncensor-q4km
+gguf:
+  # Under {data dir}/models; verified by size + sha256 when downloaded.
+  file: Qwen3-8B-Uncensor-v2.Q4_K_M.gguf
+  size: 5027783968
+  sha256: da4ab579079a342c5796e11b3e98626d77c9ecc252f104733d0d167cab8ed6a4
+  source: https://huggingface.co/mradermacher/Qwen3-8B-Uncensor-v2-GGUF/resolve/a006645a87109b2925e5d042a6e798728b764e60/Qwen3-8B-Uncensor-v2.Q4_K_M.gguf
+# The GGUF's own jinja template (llama-server --jinja, default on).
+chat_template: embedded
+# chat_template_kwargs key that switches Qwen3 thinking on/off per request.
+thinking_kwarg: enable_thinking
+ctx: 8192
+kv_type: f16
+lora_mode: hotswap
+# Other llama-server flags; model, ctx, KV type, host, port and LoRAs are set from the fields above.
+server_args: [-ngl, "99", -fa, "on", -np, "1", --cache-ram, "1024"]
+# Qwen3 recommended defaults; roles.yaml may override per role.
+sampling:
+  thinking: { temperature: 0.6, top_p: 0.95, top_k: 20, min_p: 0.0 }
+  no_thinking: { temperature: 0.7, top_p: 0.8, top_k: 20, min_p: 0.0 }

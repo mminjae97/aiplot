@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LoraManifest",
+  "description": "lora/{id}.json beside the adapter in the data dir. Written by training/, read by the server LoRA registry, which never loads an adapter whose base_sha256 differs from the profile's GGUF (§13).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "file", "sha256", "base_sha256"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "file": {
+      "description": "Adapter file name in the same folder.",
+      "type": "string",
+      "pattern": "^[^/\\\\:]+\\.gguf$"
+    },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "base_sha256": {
+      "description": "sha256 of the base GGUF the adapter was trained for.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

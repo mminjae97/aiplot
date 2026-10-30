@@ -1,0 +1,16 @@
+# Candidate base (imatrix Q5_K_M); compared with Q4_K_M in step 1 unit 5.
+id: qwen3-8b-uncensor-q5km
+gguf:
+  file: Qwen3-8B-Uncensor-v2.i1-Q5_K_M.gguf
+  size: 5851112992
+  sha256: 338a8a89707ad1ebe61c4cfa62cc429548849a41528535fa17d2f04ad2e866dd
+  source: https://huggingface.co/mradermacher/Qwen3-8B-Uncensor-v2-i1-GGUF/resolve/71d3e2906bbfa20cce9f7f9e843939ed31b45b01/Qwen3-8B-Uncensor-v2.i1-Q5_K_M.gguf
+chat_template: embedded
+thinking_kwarg: enable_thinking
+ctx: 8192
+kv_type: f16
+lora_mode: hotswap
+server_args: [-ngl, "99", -fa, "on", -np, "1", --cache-ram, "1024"]
+sampling:
+  thinking: { temperature: 0.6, top_p: 0.95, top_k: 20, min_p: 0.0 }
+  no_thinking: { temperature: 0.7, top_p: 0.8, top_k: 20, min_p: 0.0 }
