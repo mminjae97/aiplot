@@ -83,7 +83,12 @@ async def test_complete_json(prompts: Path) -> None:
     result = await router(prompts, client).complete_json("source", TURNS, SourceOutput)
     assert result.value.notes == "테오는 북부 항구 출신이다."
     assert result.reasoning == "근거"
-    assert (result.meta.role, result.meta.prompt_version, result.meta.lora) == ("source", 1, None)
+    source_version = load_llm_config().roles["source"].prompt
+    assert (result.meta.role, result.meta.prompt_version, result.meta.lora) == (
+        "source",
+        source_version,
+        None,
+    )
     assert result.meta.profile == "qwen3-8b-uncensor-q5km"
     assert client.requests[0].json_schema == SourceOutput.model_json_schema()
     assert result.usage is None

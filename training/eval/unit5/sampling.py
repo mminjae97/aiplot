@@ -96,7 +96,7 @@ async def run(args: argparse.Namespace) -> None:
                 block("원문", case["notes"]),
                 block("참고 카드", "\n".join(case["refs"])),
                 block("지시", f"카드 종류: {TYPE_NAMES[case['type']]}"),
-                block("대화", f"사용자: {case['chat_user']}\n조수: {chats[case['id']]}"),
+                block("대화", f"사용자: {case['chat_user']}\nAI: {chats[case['id']]}"),
             ]
         )
         turns: list[Message] = [{"role": "user", "content": turn}]

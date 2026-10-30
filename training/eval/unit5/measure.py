@@ -4,6 +4,8 @@ Start llama-server by hand with the profile's GGUF and flags, then run for examp
     uv run python eval/unit5/measure.py --url http://127.0.0.1:8796 \
         --profile qwen3-8b-uncensor-q4km --out eval/results/unit5-q4km.json
 
+--cases ID... runs only those card cases (no refusals or writing).
+
 Measures the chat template thinking toggle, chat/source/card on cases.json (time, token usage,
 finish reason, schema validity), refusals on typical web novel scenes, and Korean prose beats
 written with the style framework (for the blind comparison). Results hold raw model output and
@@ -200,7 +202,7 @@ async def run_card_case(
                     block("원문", case["notes"]),
                     block("참고 카드", refs),
                     block("지시", f"카드 종류: {kind}"),
-                    block("대화", f"사용자: {case['chat_user']}\n조수: {chat['text']}"),
+                    block("대화", f"사용자: {case['chat_user']}\nAI: {chat['text']}"),
                 ]
             ),
         }
@@ -275,9 +277,21 @@ async def main() -> None:
     parser.add_argument("--profile", required=True)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--repeat", type=int, default=2)
+    parser.add_argument(
+        "--cases", nargs="+", metavar="ID", help="only these card cases; skips refusals and writing"
+    )
     args = parser.parse_args()
 
     cases = json.loads((HERE / "cases.json").read_text(encoding="utf-8"))
+    if args.cases:
+        unknown = set(args.cases) - {case["id"] for case in cases["cards"]}
+        if unknown:
+            raise SystemExit(f"unknown card cases: {sorted(unknown)}")
+        cases = {
+            "cards": [case for case in cases["cards"] if case["id"] in args.cases],
+            "refusals": [],
+            "writing": [],
+        }
     config = measure_config(args.profile)
     client = LlamaClient(args.url)
     router = Router(config, client, lora_dir=HERE / "no-lora")
