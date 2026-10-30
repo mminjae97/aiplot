@@ -198,11 +198,78 @@ describe('ServerSupervisor', () => {
   })
 
   test('restarts a server that never becomes ready', async () => {
-    const s = started(setup({ readyTimeoutMs: 20 }))
+    const s = started(setup({ readyTimeoutMs: 20, maxRestarts: 1 }))
+    await vi.waitFor(() => {
+      expect(s.last()).toEqual({ status: 'error', reason: 'failed', restarts: 1 })
+    })
+    expect(s.children).toHaveLength(2)
+    expect(s.children.every((child) => child.kill.mock.calls.length === 1)).toBe(true)
+  })
+
+  test('retry while a launch waits for its port starts one server, not two', async () => {
+    let releasePort: (port: number) => void = () => undefined
+    const ports: Promise<number>[] = [
+      Promise.resolve(9100),
+      new Promise((resolve) => {
+        releasePort = resolve
+      }),
+      Promise.resolve(9300),
+    ]
+    const s = started(
+      setup({
+        maxRestarts: 1,
+        pickPort: () => ports.shift() ?? Promise.reject(new Error('no port')),
+      }),
+    )
+    await vi.waitFor(() => {
+      expect(s.children).toHaveLength(1)
+    })
+    // The crash restart now waits on the second port...
+    s.children[0]?.exit(1)
+    await vi.waitFor(() => {
+      expect(s.last()).toEqual({ status: 'starting', restarts: 1 })
+    })
+    // ...and retry is ignored outside the error state.
+    s.supervisor.retry()
+    releasePort(9200)
     await vi.waitFor(() => {
       expect(s.children).toHaveLength(2)
     })
-    expect(s.children[0]?.kill).toHaveBeenCalled()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(s.children.map((c) => c.env.AIPLOT_PORT)).toEqual(['9100', '9200'])
+  })
+
+  test('a stale launch never spawns after the supervisor restarts', async () => {
+    let releasePort: (port: number) => void = () => undefined
+    const ports: Promise<number>[] = [
+      Promise.resolve(9100),
+      new Promise((resolve) => {
+        releasePort = resolve
+      }),
+      Promise.resolve(9300),
+    ]
+    const s = started(
+      setup({
+        maxRestarts: 1,
+        pickPort: () => ports.shift() ?? Promise.reject(new Error('no port')),
+      }),
+    )
+    await vi.waitFor(() => {
+      expect(s.children).toHaveLength(1)
+    })
+    s.children[0]?.exit(1)
+    await vi.waitFor(() => {
+      expect(s.last()?.status).toBe('starting')
+    })
+    // Restart the supervisor while the crash restart still waits for its port.
+    s.supervisor.stop()
+    s.supervisor.start()
+    releasePort(9200)
+    await vi.waitFor(() => {
+      expect(s.children).toHaveLength(2)
+    })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(s.children.map((c) => c.env.AIPLOT_PORT)).toEqual(['9100', '9300'])
   })
 
   test('reports a missing executable without starting or restarting', () => {

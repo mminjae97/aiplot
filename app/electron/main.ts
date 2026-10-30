@@ -42,6 +42,8 @@ function serverCommand(): ServerCommand {
 const server = new ServerSupervisor({
   command: serverCommand(),
   dataDir,
+  // `npm run dev` serves the renderer from Vite; the --dev server allows only that origin.
+  env: devOrigin ? { ...process.env, AIPLOT_DEV_ORIGIN: devOrigin } : process.env,
   onState: (state: ServerState) => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('server:state', state)
   },

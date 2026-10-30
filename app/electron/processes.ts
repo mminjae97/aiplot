@@ -53,6 +53,9 @@ export function pickPort(): Promise<number> {
 export class ServerSupervisor {
   private readonly options: Required<Omit<SupervisorOptions, 'env'>> & { env: NodeJS.ProcessEnv }
   private child: ChildProcess | null = null
+  // Bumped whenever the current launch is abandoned, so a launch still awaiting its port
+  // never spawns a second server.
+  private generation = 0
   private restarts = 0
   private stopped = false
   private timers: NodeJS.Timeout[] = []
@@ -87,7 +90,9 @@ export class ServerSupervisor {
     void this.launch()
   }
 
+  /** Only from the error state ("다시 시도"); a repeated click while starting is ignored. */
   retry(): void {
+    if (this.state.status !== 'error') return
     this.restarts = 0
     this.halt()
     this.start()
@@ -96,21 +101,24 @@ export class ServerSupervisor {
   /** App quit: the server sees its parent end and shuts down gracefully (AIPLOT_PARENT_PID). */
   stop(): void {
     this.stopped = true
+    this.generation += 1
     this.clearTimers()
     this.child = null
   }
 
   private async launch(): Promise<void> {
+    const generation = this.generation
     this.setState({ status: 'starting', restarts: this.restarts })
     let port: number
     try {
       port = await this.options.pickPort()
     } catch (err) {
+      if (generation !== this.generation) return
       console.error('no free port for the server', err)
       this.fail()
       return
     }
-    if (this.stopped) return
+    if (generation !== this.generation) return
     const token = randomBytes(32).toString('hex')
     const { executable, args, cwd } = this.options.command
     const child = this.options.spawn(executable, args, {
@@ -209,6 +217,7 @@ export class ServerSupervisor {
 
   // Stops the current child (if any) without counting it as a failure.
   private halt(): void {
+    this.generation += 1
     this.clearTimers()
     const child = this.child
     this.child = null

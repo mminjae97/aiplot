@@ -200,3 +200,27 @@ def test_ready_line_only_after_bind(tmp_path: Path) -> None:
     finally:
         child.terminate()
         child.wait(timeout=30)
+
+
+@pytest.mark.parametrize(("dev", "allowed"), [(True, True), (False, False)])
+def test_dev_origin_cors_only_in_dev(tmp_path: Path, dev: bool, allowed: bool) -> None:
+    origin = "http://localhost:5173"
+    client = TestClient(
+        create_app(token=TOKEN, db_path=tmp_path / "aiplot.db", dev=dev, dev_origin=origin)
+    )
+    preflight = client.options(
+        "/api/v1/works",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization",
+        },
+    )
+    assert (preflight.headers.get("access-control-allow-origin") == origin) is allowed
+    other = client.options(
+        "/api/v1/works",
+        headers={"Origin": "http://evil.example", "Access-Control-Request-Method": "GET"},
+    )
+    assert "access-control-allow-origin" not in other.headers
+    # CORS never replaces the token check.
+    assert client.get("/api/v1/works", headers={"Origin": origin}).status_code == 401
