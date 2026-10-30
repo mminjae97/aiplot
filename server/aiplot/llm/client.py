@@ -102,6 +102,8 @@ class LlamaClient:
             "top_p": sampling.top_p,
             "top_k": sampling.top_k,
             "min_p": sampling.min_p,
+            "presence_penalty": sampling.presence_penalty,
+            "dry_multiplier": sampling.dry_multiplier,
             "chat_template_kwargs": {request.thinking_kwarg: request.thinking},
         }
         if request.json_schema is not None:

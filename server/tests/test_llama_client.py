@@ -97,6 +97,7 @@ async def test_request_body() -> None:
     assert body["stream"] is True
     assert body["chat_template_kwargs"] == {"enable_thinking": True}
     assert (body["temperature"], body["top_p"], body["top_k"], body["min_p"]) == (0.3, 0.95, 20, 0)
+    assert (body["presence_penalty"], body["dry_multiplier"]) == (0, 0)
     assert body["max_tokens"] == 100
     assert body["response_format"] == {
         "type": "json_schema",

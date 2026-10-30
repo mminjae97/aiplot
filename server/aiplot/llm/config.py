@@ -77,6 +77,9 @@ class Sampling(StrictModel):
     top_p: float = Field(gt=0, le=1)
     top_k: int = Field(ge=0)
     min_p: float = Field(ge=0, le=1)
+    # Repetition control; 0 = off. dry_multiplier enables llama.cpp's DRY sampler.
+    presence_penalty: float = Field(default=0.0, ge=0, le=2)
+    dry_multiplier: float = Field(default=0.0, ge=0, le=5)
 
 
 class SamplingOverride(StrictModel):
@@ -84,6 +87,8 @@ class SamplingOverride(StrictModel):
     top_p: float | None = Field(default=None, gt=0, le=1)
     top_k: int | None = Field(default=None, ge=0)
     min_p: float | None = Field(default=None, ge=0, le=1)
+    presence_penalty: float | None = Field(default=None, ge=0, le=2)
+    dry_multiplier: float | None = Field(default=None, ge=0, le=5)
 
 
 class ProfileSampling(StrictModel):

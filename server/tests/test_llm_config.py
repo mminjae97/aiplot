@@ -46,6 +46,13 @@ def test_sampling_uses_thinking_defaults_then_role_overrides() -> None:
     assert (chat.temperature, chat.top_p) == (0.7, 0.8)
     source = config.sampling_for("source")
     assert (source.temperature, source.top_p, source.top_k) == (0.3, 0.95, 20)
+    assert (source.presence_penalty, source.dry_multiplier) == (0, 0)
+
+
+def test_role_can_override_repetition_control(config_dir: Path) -> None:
+    edit_role(config_dir, "chat", {"sampling": {"presence_penalty": 1.5, "dry_multiplier": 0.8}})
+    chat = load_llm_config(config_dir).sampling_for("chat")
+    assert (chat.presence_penalty, chat.dry_multiplier, chat.temperature) == (1.5, 0.8, 0.7)
 
 
 def test_prompt_path(tmp_path: Path) -> None:
