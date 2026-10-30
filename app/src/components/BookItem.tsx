@@ -6,7 +6,7 @@ import type { Work } from '../types'
 // uploaded illustration fits it uncropped) and the spine shows beside it, outside that ratio.
 export const COVER_WIDTH = 200
 export const COVER_HEIGHT = 300
-export const SPINE_WIDTH = 14
+export const SPINE_WIDTH = 6
 export const BOOK_WIDTH = SPINE_WIDTH + COVER_WIDTH
 
 // Cloth bindings for covers without an illustration: muted, so the brass stays the accent.
