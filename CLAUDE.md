@@ -122,7 +122,7 @@ S3-1 screen: left chapters (done/generating/waiting), center TipTap manuscript, 
 ## 12 Screens
 S0 Library: books on shelf, recent first + highlight; translucent "+" book last ("새로 만들기" title only → contents, or import). Cover: title, stage, chapters. Hover: main theme, modified, chapters. Right-click "제목 바꾸기/백업 생성/삭제" (delete shows counts, type title). Progress band while generating. Empty: "첫 작품을 시작해 보세요".
 S0-1 First run: capabilities/limits, download llama.cpp + base (~5GB, resumable, hash) or set path.
-S1 Contents: opened book. Left: title, main theme, stage, card count, modified, "원고 내보내기", "백업 생성", "이어서 작업". Right: items by stage (캐릭터, 지역, 스토리 | 연출 | 집필, 소설 읽기) with dotted leader + status; last item highlighted; future dim (click explains); past locked read-only + "다시 열기". Top-bar title → contents; "← 서재".
+S1 Contents: opened book. Left: title, main theme, stage, card count, modified, "원고 내보내기", "백업 생성", "이어서 작업". Right: items by stage (세계관, 캐릭터, 지역, 스토리 | 연출 | 집필, 소설 읽기; `work.last_item` world|characters|regions|story|direction|writing|reading) with dotted leader + status; last item highlighted; future dim (click explains); past locked read-only + "다시 열기". Top-bar title → contents; "← 서재".
 S1-1/2/3 §8; S2 §9; S3-1 §10.
 S3-2 Chapter list: read chapters bold, sort newest/oldest (remembered), toggle read, "이어 읽기". S3-3 Reader: read-only, prev/next, font size, line height; end of chapter marks read.
 G Settings: automation level, models (list/path/size/redownload/delete; mismatched LoRA shown not loaded), theme, fonts, check sensitivity, shortcuts.
