@@ -25,7 +25,7 @@ test('covers keep their order across boards, as many per board as fit, + book la
   const list = works(20)
   // 1440 wide: (1440 - 96 + 100) / (206 + 100) = 4 per board (front 200 + spine 6), a gap of half a cover.
   const shelves = packShelves(list, 1440, 600)
-  expect(shelves.map((s) => s.length)).toEqual([4, 4, 4, 4, 4, 1])
+  expect(shelves.map((s) => s.length)).toEqual([4, 4, 4, 4, 4, 1, 0])
   expect(shelves.flat().map((s) => (s.kind === 'work' ? s.work.id : 'new'))).toEqual([
     ...list.map((w) => w.id),
     'new',
@@ -41,6 +41,12 @@ test('empty boards fill the visible height but never force a scroll', () => {
   expect(packShelves([], 1440, 984)).toHaveLength(2)
   expect(packShelves([], 1440, 1000)).toHaveLength(2)
   expect(packShelves([], 1440, 1500)).toHaveLength(3)
+})
+
+test('books that scroll end with one empty board', () => {
+  // 1440 wide holds 4 per board; 8 works + the + book take 3 boards.
+  expect(packShelves(works(8), 1440, 1500)).toHaveLength(3)
+  expect(packShelves(works(8), 1440, 984).map((s) => s.length)).toEqual([4, 4, 1, 0])
 })
 
 test('slips open away from the nearer bookcase side', () => {
