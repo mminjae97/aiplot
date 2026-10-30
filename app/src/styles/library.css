@@ -196,7 +196,7 @@
 .book-cover:focus-visible,
 .book-new:hover,
 .book-new:focus-visible {
-  transform: translateY(-6px);
+  transform: translateY(-12px);
 }
 
 .book[data-highlighted] .book-cover {
@@ -205,7 +205,7 @@
 
 @keyframes book-arrive {
   from {
-    transform: translateY(-12px);
+    transform: translateY(-24px);
   }
 }
 
@@ -290,7 +290,7 @@
 
 .book:hover .book-ribbon,
 .book:focus-within .book-ribbon {
-  transform: translateY(-6px);
+  transform: translateY(-12px);
 }
 
 .book-slip {
