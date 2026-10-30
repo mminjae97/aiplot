@@ -76,7 +76,7 @@ Before finishing: lint + typecheck + tests for touched packages.
 - State keys (fixed): location{region_id}; injury{part,severity,since_chapter,healed?}; item{name,action gain|lose}; knows_secret{secret,since_chapter}; relation_change{target_id,change}; appearance_change{text}. Appended per beat; context uses latest per card+key.
 
 ## 8 Stage 1 UI
-Card drawer (all types): ~70% width, background dimmed; left chat (top) + source notes (bottom), right card preview; X/Esc closes. Opened by world book "+", dex "+", card "원문 수정", "+ 새 에피소드", "+ 새 지역", main/part setup.
+Card drawer (all types): ~70% width, background dimmed; left chat (top) + source notes (bottom), right card preview; X/Esc closes. Opened by world book "+ 새 설정", dex "+", card "원문 수정", "+ 새 에피소드", "+ 새 지역", main/part setup.
 - Header: type, new/edit, name; episode shows part+region; part shows milestones.
 - `chat` replies and asks for missing info; new cards may open with question/draft; parts open with LLM draft. After each reply `source` rewrites notes (reversals resolved, changed sentences briefly highlighted). User may edit notes.
 - Model context: last few turns + notes + `@` cards.
@@ -87,7 +87,7 @@ Card drawer (all types): ~70% width, background dimmed; left chat (top) + source
 - Type section: character speech preview; episode 4/5 picker with recommendation; part milestone assignment.
 - After save: close, highlight card 0.3s. Locked: add/edit disabled, drawer won't open.
 
-World book (S1-0): world cards grouped by category (규칙·능력, 세력·조직, 역사·사건, 문화·용어, 기타), translucent "+" card per group (its category goes to `card` as a hint; the saved card lands where its generated category puts it); flip cards as in dex but no images (front name + category + summary; back all fields, same bottom row, delete/restore).
+World book (S1-0): open encyclopedia. Left page: category bookmark tabs (규칙·능력, 세력·조직, 역사·사건, 문화·용어, 기타) + entry index with dotted leader and page number; "+ 새 설정" (current tab's category goes to `card` as a hint; the saved card lands where its generated category puts it); 용어집 last (all terms 가나다 order → their entry). Right page: selected entry (name, category, summary, details, rules with exceptions, terms, "함께 보기" related links: world → that entry, character/region → its card in dex/map); bottom row "원문 수정" left, red "삭제" right, delete/restore as in dex. After save it opens the saved entry. No images.
 
 Dex (S1-1): grid + translucent "+" card. Front image+name (fallback first-letter image). Back (flip 0.3s): all fields; bottom row "원문 수정" left, red "삭제" right. Delete: confirm listing referencing cards, DELETE runs immediately (card + all relation rows touching it, one transaction; episode reconnect via `?reconnect=true`; part with episodes via `?episodes=move:{partId}|delete`); server keeps every row the delete removed or changed (relations, reconnected links, moved episodes' part/order, card_image rows; files removed after window) in memory ~10s; "되돌리기" toast → POST /cards/{cardId}/restore reverts all of it (re-indexes FTS5; skips relation rows whose other end is gone). Locked: read-only; image generation still allowed. Images (step 10): `image_prompt` → ComfyUI 2–4 candidates 896×1152, web-novel-cover semi-realistic, realistic proportions → user picks; store prompt+seed.
 
