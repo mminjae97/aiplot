@@ -3,7 +3,8 @@
 import argparse
 import logging
 import os
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
@@ -11,10 +12,11 @@ from pathlib import Path
 import uvicorn
 from fastapi import APIRouter, Depends, FastAPI
 
-from aiplot.api import health
+from aiplot.api import health, jobs
 from aiplot.api.auth import require_token
 from aiplot.api.errors import install_error_handlers
 from aiplot.db.migrate import MigrationError, init_db
+from aiplot.jobs.queue import JobQueue
 
 DEV_PORT = 8765
 API_PREFIX = "/api/v1"
@@ -35,18 +37,29 @@ class Settings:
 
 
 def create_app(*, token: str, db_path: Path, dev: bool = False) -> FastAPI:
+    job_queue = JobQueue()
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        job_queue.start()
+        yield
+        await job_queue.stop()
+
     # Interactive API docs are a development aid only.
     app = FastAPI(
         title="Aiplot",
+        lifespan=lifespan,
         docs_url="/docs" if dev else None,
         redoc_url="/redoc" if dev else None,
         openapi_url="/openapi.json" if dev else None,
     )
     app.state.token = token
     app.state.db_path = db_path
+    app.state.jobs = job_queue
     install_error_handlers(app)
     api = APIRouter(prefix=API_PREFIX, dependencies=[Depends(require_token)])
     api.include_router(health.router)
+    api.include_router(jobs.router)
     app.include_router(api)
     return app
 

@@ -172,7 +172,7 @@ Base `http://127.0.0.1:{port}/api/v1`, `Authorization: Bearer {token}` on every 
 - drafts: POST /works/{workId}/drafts; POST /drafts/{draftId}/messages (SSE reply, notes change, questions, name checks); PUT .../source; POST .../generate; POST .../save; DELETE /drafts/{draftId}
 - direction: POST/GET /episodes/{episodeId}/plans (POST = job); POST /plans/{planId}/scenes/{scene}/pick; PATCH /plans/{planId} (order, cuts → recheck); POST /plans/{planId}/choose; POST /beats/{beatId}/feedback; GET /techniques?q=
 - writing: GET /works/{workId}/chapters; POST /chapters/{chapterId}/generate (job); POST /beats/{beatId}/regenerate (job); PUT /beats/{beatId}/text; GET /beats/{beatId}/versions; POST /beats/{beatId}/versions/{version}/restore; GET /chapters/{chapterId}/warnings; PATCH /warnings/{warningId}; PATCH /chapters/{chapterId} (read, position)
-- jobs: GET /jobs/{jobId}; GET /jobs/{jobId}/events (SSE); POST /jobs/{jobId}/pause|resume|cancel; GET /works/{workId}/jobs
+- jobs: GET /jobs/{jobId}; GET /jobs/{jobId}/events (SSE; `id:` per event, replay after Last-Event-ID or ?after=, keep-alive comment every 15s, ends after done|error|cancelled); POST /jobs/{jobId}/pause|resume|cancel (409 JOB_NOT_RUNNING|JOB_NOT_PAUSED|JOB_FINISHED; 404 JOB_NOT_FOUND); GET /works/{workId}/jobs. Jobs in server memory only (last 100 finished kept); lanes llm (1 slot, matches -np 1) and download; pause waits for the job's next checkpoint (beat), cancel stops at once. Lifecycle event data: `schemas/jobs/events.json`.
 - misc: POST /works/{workId}/export; POST /works/{workId}/backup; POST /backups/import; GET /health (model, VRAM); GET/PUT /settings
 SSE order (chapter job):
 ```
@@ -184,8 +184,10 @@ state_update {cardId,key,value}
 warning {warningId,beatId,kind}
 beat_checked {beatId,warnings}
 paused {reason}
-done {chars,warnings,elapsedSec}
-error {code}
+resumed {}
+done {result:{chars,warnings,elapsedSec}}
+error {code,message}
+cancelled {}
 ```
 
 ## 17 Runtime
