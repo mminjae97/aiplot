@@ -77,7 +77,9 @@ class LlamaProcess:
         self.message: str | None = None
         self._log = log
         self._job = job
-        self._command = command or [str(binary)]
+        # Tests run a stand-in; otherwise argv always starts with the current binary.
+        self._command = command
+        self._paths_changed = False
         self._load_timeout = load_timeout
         self._check_interval = check_interval
         self._file_poll = file_poll
@@ -98,7 +100,7 @@ class LlamaProcess:
     def argv(self) -> list[str]:
         p = self.profile
         return [
-            *self._command,
+            *(self._command or [str(self.binary)]),
             "-m",
             str(self.model),
             "-c",
@@ -141,6 +143,17 @@ class LlamaProcess:
         """A download finished or a path was set: look again now."""
         self._wake.set()
 
+    def use_paths(self, binary: Path, model: Path) -> None:
+        """Switch files; a child running the old ones is replaced without using a restart."""
+        if binary == self.binary and model == self.model:
+            return
+        self.binary, self.model = binary, model
+        process = self._process
+        if process is not None and process.poll() is None:
+            self._paths_changed = True
+            process.terminate()
+        self._wake.set()
+
     def retry(self) -> None:
         """After "error": start again with a fresh restart budget."""
         self.restarts = 0
@@ -162,6 +175,9 @@ class LlamaProcess:
             await self._kill()
             if self._stopping:
                 return
+            if self._paths_changed:
+                self._paths_changed = False
+                continue
             if self.restarts >= MAX_RESTARTS:
                 self.state, self.message = "error", failure
                 self._log.error("llama-server gave up after %d restarts: %s", MAX_RESTARTS, failure)

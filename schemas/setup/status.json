@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SetupStatus",
+  "description": "GET /setup: what the first-run screen (S0-1) needs. Files are downloaded at first run, never shipped (§2, §6).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["items", "remaining_bytes", "free_bytes", "job_id"],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "title": "SetupItem",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status", "path", "custom", "total_bytes", "present_bytes"],
+        "properties": {
+          "id": { "description": "llama: llama.cpp server build. model: base GGUF.", "enum": ["llama", "model"] },
+          "status": {
+            "description": "installed: usable. partial: a resumable download is on disk. missing: nothing yet.",
+            "enum": ["installed", "partial", "missing"]
+          },
+          "path": { "description": "Where the server looks (default under the data dir, or the path the user set).", "type": "string" },
+          "custom": { "description": "True when the user pointed to an existing file or folder.", "type": "boolean" },
+          "total_bytes": { "description": "Download size (llama: both archives).", "type": "integer", "minimum": 0 },
+          "present_bytes": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "remaining_bytes": { "description": "Still to download for everything not installed.", "type": "integer", "minimum": 0 },
+    "free_bytes": { "description": "Free space on the data dir's drive.", "type": "integer", "minimum": 0 },
+    "job_id": {
+      "description": "Download or path check running now, if any.",
+      "anyOf": [{ "$ref": "../common/job-id.json" }, { "type": "null" }]
+    }
+  }
+}

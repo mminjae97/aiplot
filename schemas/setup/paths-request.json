@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SetupPathsRequest",
+  "description": "PUT /setup/paths: use files the user already has instead of downloading. Send both keys; null means the default location under the data dir, and a value equal to the current one is kept without a new check. Starts a job that checks changed paths (model: size + sha256 against the profile; llama: `--version` reports the pinned build) before they are used.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "model_path": {
+      "description": "Full path of the base GGUF file.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "llama_dir": {
+      "description": "Folder that holds llama-server.exe and its DLLs.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    }
+  },
+  "required": [
+    "model_path",
+    "llama_dir"
+  ]
+}
