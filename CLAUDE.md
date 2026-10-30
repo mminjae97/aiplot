@@ -122,7 +122,7 @@ S3-1 screen: left chapters (done/generating/waiting), center TipTap manuscript, 
 ## 12 Screens
 S0 Library: books on shelf, recent first + highlight; translucent "+" book last ("새로 만들기" title only → contents, or import). Cover: title, stage, chapters. Hover: main theme, modified, chapters. Right-click "제목 바꾸기/백업 생성/삭제" (delete shows counts, type title). Progress band while generating. Empty: "첫 작품을 시작해 보세요".
 S0-1 First run: capabilities/limits, download llama.cpp + base (~5GB, resumable, hash) or set path.
-S1 Contents: opened book. Left: title, main theme, stage, card count, modified, "원고 내보내기", "백업 생성", "이어서 작업". Right: items by stage (캐릭터, 지역, 스토리 | 연출 | 집필, 소설 읽기) with dotted leader + status; last item highlighted; future dim (click explains); past locked read-only + "다시 열기". Top-bar title → contents; "← 서재".
+S1 Contents: opened book. Left: title, main theme, stage, card count, modified, "원고 내보내기", "백업 생성", "이어서 작업". Right: items by stage (세계관, 캐릭터, 지역, 스토리 | 연출 | 집필, 소설 읽기; `work.last_item` world|characters|regions|story|direction|writing|reading) with dotted leader + status; last item highlighted; future dim (click explains); past locked read-only + "다시 열기". Top-bar title → contents; "← 서재".
 S1-1/2/3 §8; S2 §9; S3-1 §10.
 S3-2 Chapter list: read chapters bold, sort newest/oldest (remembered), toggle read, "이어 읽기". S3-3 Reader: read-only, prev/next, font size, line height; end of chapter marks read.
 G Settings: automation level, models (list/path/size/redownload/delete; mismatched LoRA shown not loaded), theme, fonts, check sensitivity, shortcuts.
@@ -167,7 +167,7 @@ Role outputs: `schemas/roles/` (SourceOutput, CardOutput per type). Also later: 
 
 ## 16 API
 Base `http://127.0.0.1:{port}/api/v1`, `Authorization: Bearer {token}` on every route incl. /health (missing/wrong → 401 UNAUTHORIZED; AIPLOT_TOKEN required in every run). JSON, ISO 8601, chars incl. spaces. Error `{code,message,hint}`; each code maps to a UI state; framework codes VALIDATION_ERROR 422, NOT_FOUND, METHOD_NOT_ALLOWED, INTERNAL_ERROR 500, other statuses HTTP_{status}. Jobs return `202 {jobId}`. Locked → 423 STAGE_LOCKED.
-- works: GET/POST /works; GET/PATCH/DELETE /works/{workId}; POST /works/{workId}/stage/advance; GET .../stage/reopen-preview?stage=; POST .../stage/reopen (title confirm if manuscript)
+- works: GET/POST /works (list newest first; POST {title}, whitespace collapsed, then blank → 422 TITLE_EMPTY, >100 chars → 422 TITLE_TOO_LONG; new work stage 1); GET/PATCH/DELETE /works/{workId} (404 WORK_NOT_FOUND); POST /works/{workId}/stage/advance; GET .../stage/reopen-preview?stage=; POST .../stage/reopen (title confirm if manuscript)
 - cards: GET /works/{workId}/cards?type=&q=; GET /cards/{cardId}; PATCH /cards/{cardId} (region only, body {map_x,map_y} only; 423 when locked); GET /cards/{cardId}/references; DELETE /cards/{cardId}?reconnect=&episodes=; POST /cards/{cardId}/restore (within ~10s of delete; 423 if locked meanwhile); GET /works/{workId}/completeness; POST /cards/{cardId}/images (job); PUT /cards/{cardId}/image
 - drafts: POST /works/{workId}/drafts; POST /drafts/{draftId}/messages (SSE reply, notes change, questions, name checks); PUT .../source; POST .../generate; POST .../save; DELETE /drafts/{draftId}
 - direction: POST/GET /episodes/{episodeId}/plans (POST = job); POST /plans/{planId}/scenes/{scene}/pick; PATCH /plans/{planId} (order, cuts → recheck); POST /plans/{planId}/choose; POST /beats/{beatId}/feedback; GET /techniques?q=
