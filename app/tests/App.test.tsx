@@ -195,17 +195,18 @@ test('new book keeps focus inside and gives it back to the + book', async () => 
 
 test('closing the dialog before the server answers stays on the shelf', async () => {
   let answer: (response: Response) => void = () => undefined
-  const { calls } = serve([])
+  let posts = 0
+  serve([])
   const base = vi.mocked(fetch)
   vi.stubGlobal(
     'fetch',
-    vi.fn((url: string, init: RequestInit = {}) =>
-      init.method === 'POST'
-        ? new Promise<Response>((resolve) => {
-            answer = resolve
-          })
-        : base(url, init),
-    ),
+    vi.fn((url: string, init: RequestInit = {}) => {
+      if (init.method !== 'POST') return base(url, init)
+      posts += 1
+      return new Promise<Response>((resolve) => {
+        answer = resolve
+      })
+    }),
   )
   window.aiplot = bridge(READY)
   connectServer()
@@ -222,7 +223,7 @@ test('closing the dialog before the server answers stays on the shelf', async ()
   )
   await new Promise((resolve) => setTimeout(resolve, 50))
   expect(screen.queryByRole('heading', { name: strings.contents.heading })).toBeNull()
-  expect(calls.every((c) => c.method === 'GET')).toBe(true)
+  expect(posts).toBe(1)
 })
 
 test('new book explains server title errors and closes with Escape', async () => {

@@ -109,7 +109,12 @@ export function BookShelf({ works, highlight, onOpen, onNew }: Props) {
                     </div>
                   ) : (
                     <div role="listitem" key="new">
-                      <button type="button" className="book-new" onClick={onNew}>
+                      <button
+                        type="button"
+                        className="book-new"
+                        aria-describedby={works.length === 0 ? 'shelf-empty-tag' : undefined}
+                        onClick={onNew}
+                      >
                         <span className="book-new-plus" aria-hidden="true">
                           +
                         </span>
@@ -120,7 +125,10 @@ export function BookShelf({ works, highlight, onOpen, onNew }: Props) {
                 )}
               </div>
               {index === 0 && works.length === 0 && (
-                <p className="shelf-tag">{strings.library.empty}</p>
+                // Read with the + book (its description), so the list keeps only books.
+                <p className="shelf-tag" id="shelf-empty-tag" aria-hidden="true">
+                  {strings.library.empty}
+                </p>
               )}
             </div>
             <div className="shelf-board" aria-hidden="true" />
