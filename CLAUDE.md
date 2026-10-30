@@ -40,7 +40,7 @@ uv run python eval/unit5/report.py pairs|metrics|votes ...
 cd app && npm i
 npm run dev | test | lint | typecheck | e2e | build
 ```
-Env: `AIPLOT_DATA_DIR` (override data dir), `AIPLOT_PORT`/`AIPLOT_TOKEN`, `AIPLOT_FAKE_LLM=1` (fixture LLM, no GPU; default in tests/CI).
+Env: `AIPLOT_DATA_DIR` (override data dir), `AIPLOT_PORT`/`AIPLOT_TOKEN`, `AIPLOT_FAKE_LLM=1` (fixture LLM, no GPU; default in tests/CI), `AIPLOT_PARENT_PID` (Electron's PID; the server shuts down gracefully when it ends).
 Before finishing: lint + typecheck + tests for touched packages.
 
 ## 5 Conventions

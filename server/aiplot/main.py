@@ -18,6 +18,7 @@ from aiplot.api.errors import install_error_handlers
 from aiplot.db.migrate import MigrationError, init_db
 from aiplot.jobs.queue import JobQueue
 from aiplot.llm.runtime import LLAMA_LOGGER, LlmRuntime, fake_runtime, llama_runtime
+from aiplot.parent import parse_pid, watch
 
 DEV_PORT = 8765
 API_PREFIX = "/api/v1"
@@ -32,6 +33,7 @@ class Settings:
     token: str
     data_dir: Path
     fake_llm: bool = False
+    parent_pid: int | None = None
 
     @property
     def db_path(self) -> Path:
@@ -121,8 +123,18 @@ def load_settings(env: Mapping[str, str], *, dev: bool) -> Settings:
         token = resolve_token(env_value(env, "AIPLOT_TOKEN"))
     except ValueError as exc:
         raise ValueError(f"invalid AIPLOT_TOKEN: {exc}") from exc
+    try:
+        parent_pid = parse_pid(env_value(env, "AIPLOT_PARENT_PID"))
+    except ValueError as exc:
+        raise ValueError(f"invalid AIPLOT_PARENT_PID: {exc}") from exc
     fake_llm = env_value(env, "AIPLOT_FAKE_LLM") == "1"
-    return Settings(port=port, token=token, data_dir=resolve_data_dir(env), fake_llm=fake_llm)
+    return Settings(
+        port=port,
+        token=token,
+        data_dir=resolve_data_dir(env),
+        fake_llm=fake_llm,
+        parent_pid=parent_pid,
+    )
 
 
 def setup_logging(log_dir: Path, *, dev: bool) -> None:
@@ -172,14 +184,24 @@ def main(argv: list[str] | None = None) -> None:
         raise SystemExit(1) from None
     data_dir = settings.data_dir
     llm = fake_runtime(data_dir) if settings.fake_llm else llama_runtime(data_dir)
-    uvicorn.run(
-        create_app(token=settings.token, db_path=settings.db_path, dev=args.dev, llm=llm),
-        host="127.0.0.1",
-        port=settings.port,
-        log_level="debug" if args.dev else "info",
-        # Uvicorn loggers propagate to the root handlers set up above.
-        log_config=None,
+    server = uvicorn.Server(
+        uvicorn.Config(
+            create_app(token=settings.token, db_path=settings.db_path, dev=args.dev, llm=llm),
+            host="127.0.0.1",
+            port=settings.port,
+            log_level="debug" if args.dev else "info",
+            # Uvicorn loggers propagate to the root handlers set up above.
+            log_config=None,
+        )
     )
+    if settings.parent_pid is not None:
+
+        def stop() -> None:
+            # Read by uvicorn's main loop: a normal graceful shutdown.
+            server.should_exit = True
+
+        watch(settings.parent_pid, stop)
+    server.run()
 
 
 if __name__ == "__main__":
