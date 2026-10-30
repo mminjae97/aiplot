@@ -1,0 +1,34 @@
+[project]
+name = "aiplot-training"
+version = "0.1.0"
+description = "Aiplot training data, LoRA training and model evaluation (not shipped)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "aiplot",
+    "httpx2>=2.16.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.1",
+    "ruff>=0.17.3",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+# Evaluations call the server's own router and clients, exactly as the app does.
+aiplot = { path = "../server", editable = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]

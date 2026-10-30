@@ -33,6 +33,10 @@ cd server && uv sync
 uv run python -m aiplot.main --dev            # port 8765, token AIPLOT_TOKEN
 uv run pytest | uv run ruff check . && uv run ruff format --check . | uv run mypy aiplot tests
 uv run pyinstaller aiplot-server.spec
+cd training && uv sync                        # path dep on ../server; eval/results/ is gitignored
+uv run ruff check . && uv run ruff format --check . && uv run mypy eval
+uv run python eval/unit5/measure.py --url http://127.0.0.1:8796 --profile {id} --out eval/results/unit5-{id}.json   # llama-server started by hand
+uv run python eval/unit5/report.py pairs|metrics|votes ...
 cd app && npm i
 npm run dev | test | lint | typecheck | e2e | build
 ```
