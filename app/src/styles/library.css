@@ -56,9 +56,9 @@
   height: calc(100% - var(--top-bar));
   display: flex;
   flex-direction: column;
-  /* walnut planks two books wide: grain, growth rings and faint joints from assets/wood (alpha over the colour) */
+  /* walnut planks 270px wide: grain, growth rings and faint joints from assets/wood (alpha over the colour) */
   background:
-    url('../assets/wood/panel.svg') 0 0 / 1440px 1400px,
+    url('../assets/wood/panel.svg') 0 0 / 1620px 1400px,
     var(--wood-panel);
   /* the panel scrolls with the books, not fixed behind them */
   background-attachment: local;
