@@ -3,5 +3,6 @@
 *.jpg binary
 *.ico binary
 *.ttf binary
+*.otf binary
 app/src/types/** linguist-generated=true
 server/aiplot/generated/** linguist-generated=true

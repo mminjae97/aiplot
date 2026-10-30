@@ -2,21 +2,28 @@
    screen; the library's is the brass of gilt spine lettering. */
 
 @font-face {
-  font-family: 'D2Coding';
-  src: url('../assets/fonts/D2Coding-Ver1.4.0-20261003.ttf') format('truetype');
+  font-family: 'Source Han Sans KR';
+  src: url('../assets/fonts/SourceHanSansKR-Regular.otf') format('opentype');
   font-weight: 400;
   font-display: block;
 }
 
 @font-face {
-  font-family: 'D2Coding';
-  src: url('../assets/fonts/D2CodingBold-Ver1.4.0-20261003.ttf') format('truetype');
+  font-family: 'Source Han Sans KR';
+  src: url('../assets/fonts/SourceHanSansKR-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Source Han Sans KR';
+  src: url('../assets/fonts/SourceHanSansKR-Bold.otf') format('opentype');
   font-weight: 700;
   font-display: block;
 }
 
 :root {
-  --font: 'D2Coding', 'Malgun Gothic', sans-serif;
+  --font: 'Source Han Sans KR', 'Malgun Gothic', sans-serif;
 
   --paper: #ede3cf;
   --paper-edge: #dccfb4;
