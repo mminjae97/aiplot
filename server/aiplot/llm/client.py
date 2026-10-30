@@ -30,9 +30,20 @@ class ChatRequest:
 
 
 @dataclass(frozen=True)
+class Usage:
+    prompt_tokens: int  # including cached_tokens
+    cached_tokens: int  # reused from the prompt cache
+    completion_tokens: int  # including reasoning
+
+
+@dataclass(frozen=True)
 class Delta:
-    kind: Literal["content", "reasoning"]
+    """content/reasoning: streamed text. finish: last delta; text is the finish reason
+    ("stop", or "length" when max_tokens cut the reply)."""
+
+    kind: Literal["content", "reasoning", "finish"]
     text: str
+    usage: Usage | None = None
 
 
 class LlmError(Exception):
@@ -127,6 +138,14 @@ def status_error(status: int, detail: str) -> LlmError:
     return LlmError(code, f"{status}: {detail}")
 
 
+def usage(timings: object) -> Usage | None:
+    """llama-server timings: prompt_n counts only newly processed prompt tokens."""
+    if not isinstance(timings, dict) or not {"prompt_n", "predicted_n"} <= timings.keys():
+        return None
+    cached = int(timings.get("cache_n", 0))
+    return Usage(int(timings["prompt_n"]) + cached, cached, int(timings["predicted_n"]))
+
+
 def parse_chunk(data: str) -> list[Delta]:
     try:
         chunk = json.loads(data)
@@ -139,6 +158,8 @@ def parse_chunk(data: str) -> list[Delta]:
                 deltas.append(Delta("reasoning", reasoning))
             if content := delta.get("content"):
                 deltas.append(Delta("content", content))
-    except (ValueError, AttributeError, TypeError) as exc:
+            if reason := choice.get("finish_reason"):
+                deltas.append(Delta("finish", reason, usage(chunk.get("timings"))))
+    except (ValueError, AttributeError, TypeError, KeyError) as exc:
         raise LlmError("LLM_REQUEST_FAILED", f"bad stream chunk: {data[:200]!r}") from exc
     return deltas

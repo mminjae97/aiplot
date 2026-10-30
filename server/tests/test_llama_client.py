@@ -6,7 +6,7 @@ from typing import Any
 import httpx2 as httpx
 import pytest
 
-from aiplot.llm.client import ChatRequest, Delta, LlamaClient, LlmError, parse_chunk
+from aiplot.llm.client import ChatRequest, Delta, LlamaClient, LlmError, Usage, parse_chunk
 from aiplot.llm.config import Sampling
 
 pytestmark = pytest.mark.anyio
@@ -74,7 +74,18 @@ async def test_streams_reasoning_and_content() -> None:
         )
     )
     deltas = await collect(llama.client(), chat_request())
-    assert deltas == [Delta("reasoning", "생각"), Delta("content", '{"a":'), Delta("content", "1}")]
+    assert deltas == [
+        Delta("reasoning", "생각"),
+        Delta("content", '{"a":'),
+        Delta("content", "1}"),
+        Delta("finish", "stop"),
+    ]
+
+
+def test_finish_carries_usage() -> None:
+    timings = {"prompt_n": 15, "cache_n": 641, "predicted_n": 30, "predicted_ms": 500.0}
+    chunk = {"choices": [{"index": 0, "delta": {}, "finish_reason": "length"}], "timings": timings}
+    assert parse_chunk(json.dumps(chunk)) == [Delta("finish", "length", Usage(656, 641, 30))]
 
 
 async def test_request_body() -> None:

@@ -13,7 +13,7 @@ from pathlib import Path
 from pydantic import BaseModel, ValidationError
 
 from aiplot.llm import lora
-from aiplot.llm.client import ChatRequest, LlmClient, LlmError, Message
+from aiplot.llm.client import ChatRequest, Delta, LlmClient, LlmError, Message, Usage
 from aiplot.llm.config import PROMPTS_DIR, LlmConfig, Role, prompt_path
 
 # Author notes in prompt files never reach the model.
@@ -36,6 +36,7 @@ class JsonResult[T: BaseModel]:
     value: T
     reasoning: str
     meta: OutputMeta
+    usage: Usage | None
 
 
 class Router:
@@ -92,10 +93,16 @@ class Router:
             lora=adapter,
         )
 
-    async def stream_text(self, role: Role, turns: list[Message]) -> AsyncGenerator[str, None]:
-        """Answer text as it arrives; reasoning is dropped."""
+    async def stream(self, role: Role, turns: list[Message]) -> AsyncGenerator[Delta, None]:
+        """Every delta, ending with finish (reason + token usage)."""
         # aclosing: a consumer that stops early closes the HTTP stream, ending generation.
         async with aclosing(self._client.stream(self.request(role, turns))) as deltas:
+            async for delta in deltas:
+                yield delta
+
+    async def stream_text(self, role: Role, turns: list[Message]) -> AsyncGenerator[str, None]:
+        """Answer text as it arrives; reasoning is dropped."""
+        async with aclosing(self.stream(role, turns)) as deltas:
             async for delta in deltas:
                 if delta.kind == "content":
                     yield delta.text
@@ -103,19 +110,28 @@ class Router:
     async def complete_json[T: BaseModel](
         self, role: Role, turns: list[Message], output: type[T]
     ) -> JsonResult[T]:
-        """Schema-constrained JSON, validated; one retry on invalid output (§20)."""
+        """Schema-constrained JSON, validated; one retry on invalid or cut-off output (§20)."""
         request = self.request(role, turns, output.model_json_schema())
-        error: ValidationError | None = None
+        error = LlmError("LLM_INVALID_OUTPUT", f"{role}: no attempt")
         for _ in range(JSON_ATTEMPTS):
             content: list[str] = []
             reasoning: list[str] = []
+            finish: Delta | None = None
             async with aclosing(self._client.stream(request)) as deltas:
                 async for delta in deltas:
-                    (content if delta.kind == "content" else reasoning).append(delta.text)
+                    if delta.kind == "finish":
+                        finish = delta
+                    else:
+                        (content if delta.kind == "content" else reasoning).append(delta.text)
+            if finish is not None and finish.text == "length":
+                # Grammar-constrained JSON cut by max_tokens may still parse; never accept it.
+                error = LlmError("LLM_OUTPUT_TRUNCATED", f"{role}: reply hit max_tokens")
+                continue
             try:
                 value = output.model_validate_json("".join(content))
             except ValidationError as exc:
-                error = exc
+                error = LlmError("LLM_INVALID_OUTPUT", f"{role}: {exc}")
                 continue
-            return JsonResult(value, "".join(reasoning), self.meta(role))
-        raise LlmError("LLM_INVALID_OUTPUT", f"{role}: {error}")
+            usage = finish.usage if finish is not None else None
+            return JsonResult(value, "".join(reasoning), self.meta(role), usage)
+        raise error
