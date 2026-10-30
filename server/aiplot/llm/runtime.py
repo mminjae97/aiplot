@@ -50,5 +50,6 @@ def llama_runtime(data_dir: Path, config_dir: Path = CONFIG_DIR) -> LlmRuntime:
         log=logging.getLogger(LLAMA_LOGGER),
         job=KillOnCloseJob(),
     )
-    router = Router(config, LlamaClient(process.url), lora_dir=data_dir / "lora")
+    client = LlamaClient(lambda: process.url, api_key=process.api_key)
+    router = Router(config, client, lora_dir=data_dir / "lora")
     return LlmRuntime(router, process)

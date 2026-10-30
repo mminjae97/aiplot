@@ -38,6 +38,8 @@ MANAGED_FLAGS = frozenset(
         "--port",
         "--lora",
         "--lora-scaled",
+        "--api-key",
+        "--api-key-file",
         "--chat-template",
         "--chat-template-file",
         "--chat-template-kwargs",

@@ -12,6 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 port = int(sys.argv[sys.argv.index("--port") + 1])
 mode = os.environ.get("FAKE_LLAMA_MODE", "ok")
 print(f"fake llama-server args: {' '.join(sys.argv[1:])}", flush=True)
+print(f"api key from env: {'yes' if os.environ.get('LLAMA_API_KEY') else 'no'}", flush=True)
 if mode == "crash":
     print("CUDA error: out of memory", flush=True)
     sys.exit(1)
@@ -34,4 +35,11 @@ class Health(BaseHTTPRequestHandler):
         pass
 
 
-ThreadingHTTPServer(("127.0.0.1", port), Health).serve_forever()
+class Server(ThreadingHTTPServer):
+    # Like llama-server: fail if the port is taken instead of sharing it.
+    allow_reuse_address = False
+
+
+server = Server(("127.0.0.1", port), Health)
+print(f"listening on http://127.0.0.1:{port}", flush=True)
+server.serve_forever()

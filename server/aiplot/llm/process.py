@@ -4,11 +4,18 @@ Missing files are a state, not a failure: the first-run screen downloads them or
 paths, then `files_changed()` starts the server without counting a restart. A crash or an
 unresponsive server (several failed /health checks in a row) is restarted at most MAX_RESTARTS
 times per session; after that the state is "error" until `retry()` (the "다시 시도" button).
+
+Other local programs must not reach the model or the prompts it holds: llama-server gets a
+per-session API key through LLAMA_API_KEY (not argv, which other processes can read), and a port
+counts as ours only after our own child prints that it listens there. Every start picks a fresh
+port, so a port taken in between only costs one restart.
 """
 
 import asyncio
 import contextlib
 import logging
+import os
+import secrets
 import socket
 import subprocess
 import threading
@@ -61,6 +68,7 @@ class LlamaProcess:
         self.model = model
         self.profile = profile
         self.port = port
+        self.api_key = secrets.token_urlsafe(32)
         self.state: State = "stopped"
         self.restarts = 0
         self.message: str | None = None
@@ -73,6 +81,8 @@ class LlamaProcess:
         self._health_timeout = health_timeout
         self._process: subprocess.Popen[bytes] | None = None
         self._tail: deque[str] = deque(maxlen=TAIL_LINES)
+        self._listening = threading.Event()
+        self._spawned = False
         self._wake = asyncio.Event()
         self._stopping = False
         self._task: asyncio.Task[None] | None = None
@@ -170,7 +180,10 @@ class LlamaProcess:
             self._spawn()
         except OSError as exc:
             return f"could not start {self.binary.name}: {exc}"
-        async with httpx.AsyncClient(base_url=self.url, timeout=self._health_timeout) as http:
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        async with httpx.AsyncClient(
+            base_url=self.url, headers=headers, timeout=self._health_timeout
+        ) as http:
             if not await self._wait_ready(http):
                 return self._failure("did not become ready")
             self.state = "ready"
@@ -178,9 +191,14 @@ class LlamaProcess:
             return await self._watch(http)
 
     def _spawn(self) -> None:
+        if self._spawned:
+            self.port = free_port()
+        self._spawned = True
         self._tail.clear()
+        self._listening.clear()
         self._process = subprocess.Popen(
             self.argv(),
+            env=os.environ | {"LLAMA_API_KEY": self.api_key},
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -194,6 +212,8 @@ class LlamaProcess:
         assert process.stdout is not None
         for raw in process.stdout:
             line = raw.decode("utf-8", "replace").rstrip()
+            if f"listening on {self.url}" in line:
+                self._listening.set()
             self._tail.append(line)
             self._log.info(line)
 
@@ -203,10 +223,12 @@ class LlamaProcess:
         while loop.time() < deadline and not self._stopping:
             if self._exited():
                 return False
-            # 503 while the model loads; 200 once it can serve.
-            with contextlib.suppress(httpx.HTTPError):
-                if (await http.get("/health")).status_code == 200:
-                    return True
+            # 503 while the model loads; 200 once it can serve. Until our child says it listens,
+            # whatever answers on the port is not ours.
+            if self._listening.is_set():
+                with contextlib.suppress(httpx.HTTPError):
+                    if (await http.get("/health")).status_code == 200:
+                        return True
             await asyncio.sleep(0.25)
         return False
 

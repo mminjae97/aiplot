@@ -3,7 +3,9 @@
 import asyncio
 import logging
 import sys
+import threading
 from collections.abc import AsyncIterator, Callable
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
@@ -135,3 +137,35 @@ async def test_start_failure_is_reported(tmp_path: Path) -> None:
     await until(process, lambda p: p.state == "error")
     assert process.message is not None and process.message.startswith("could not start")
     await process.stop()
+
+
+async def test_api_key_goes_through_env_not_argv(running: LlamaProcess) -> None:
+    await until(running, lambda p: p.state == "ready")
+    assert running.api_key not in " ".join(running.argv())
+    assert "--api-key" not in running.argv()
+    assert "api key from env: yes" in running._tail
+
+
+async def test_impostor_on_the_port_is_never_trusted(tmp_path: Path) -> None:
+    install(tmp_path)
+    process = make(tmp_path)
+
+    class Impostor(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, format: str, *args: object) -> None:
+            pass
+
+    impostor = ThreadingHTTPServer(("127.0.0.1", process.port), Impostor)
+    threading.Thread(target=impostor.serve_forever, daemon=True).start()
+    taken = process.port
+    try:
+        process.start()
+        await until(process, lambda p: p.state == "ready")
+        assert process.port != taken
+        assert process.restarts == 1
+    finally:
+        impostor.shutdown()
+        await process.stop()
