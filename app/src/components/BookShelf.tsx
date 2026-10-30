@@ -1,39 +1,40 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { type CSSProperties, useLayoutEffect, useRef, useState } from 'react'
 import { strings } from '../strings'
 import type { Work } from '../types'
-import { BookItem, spineOf } from './BookItem'
+import { BookItem, COVER_HEIGHT, COVER_WIDTH } from './BookItem'
 
-const GAP = 3
-const NEW_BOOK_WIDTH = 58
+// Room between covers on display.
+const GAP = 28
 // Frame post plus the board's inner margin on each side.
-const SHELF_PADDING = 44
-// One board with its books: top margin, tallest book plus lift, board.
-const SHELF_HEIGHT = 312
+const SHELF_PADDING = 48
+// One board with its covers: top margin, cover plus lift, board.
+const SHELF_HEIGHT = COVER_HEIGHT + 90
 
 type Slot = ({ kind: 'work'; work: Work } | { kind: 'new' }) & {
-  // Which side of the spine its info slip opens on, away from the bookcase edge.
+  // Which side of the cover its info slip opens on, away from the bookcase edge.
   slip: 'left' | 'right'
 }
 
-/** Packs spines left to right, newest first, onto as many boards as the width needs, and
- * adds empty boards until the bookcase fills the visible height. */
+export function perShelf(width: number): number {
+  const usable = Math.max(width - SHELF_PADDING * 2, COVER_WIDTH)
+  return Math.max(1, Math.floor((usable + GAP) / (COVER_WIDTH + GAP)))
+}
+
+/** Stands covers left to right, newest first, as many per board as fit the width, and adds
+ * empty boards until the bookcase fills the visible height. */
 export function packShelves(works: Work[], width: number, height: number): Slot[][] {
-  const usable = Math.max(width - SHELF_PADDING * 2, NEW_BOOK_WIDTH)
+  const columns = perShelf(width)
   const items = [
     ...works.map((work) => ({ kind: 'work' as const, work })),
     { kind: 'new' as const },
   ]
-  const shelves: Slot[][] = [[]]
-  let used = 0
-  for (const item of items) {
-    const w = (item.kind === 'work' ? spineOf(item.work.id).width : NEW_BOOK_WIDTH) + GAP
-    if (used + w > usable && (shelves.at(-1)?.length ?? 0) > 0) {
-      shelves.push([])
-      used = 0
-    }
-    shelves.at(-1)?.push({ ...item, slip: used + w / 2 > usable / 2 ? 'left' : 'right' })
-    used += w
-  }
+  const shelves: Slot[][] = []
+  items.forEach((item, index) => {
+    const column = index % columns
+    if (column === 0) shelves.push([])
+    const slip = columns > 1 && column >= columns / 2 ? 'left' : 'right'
+    shelves.at(-1)?.push({ ...item, slip })
+  })
   const fill = Math.max(1, Math.floor((height - 24) / SHELF_HEIGHT))
   while (shelves.length < fill) shelves.push([])
   return shelves
@@ -68,38 +69,44 @@ export function BookShelf({ works, highlight, onOpen, onNew }: Props) {
 
   const shelves = packShelves(works, size.width, size.height)
   const newest = works[0]?.id
+  // Every row spans the same centred grid, so a short last row still starts at its left edge.
+  const row = {
+    '--row-width': `${String(perShelf(size.width) * (COVER_WIDTH + GAP) - GAP)}px`,
+  } as CSSProperties
   return (
     <section className="bookcase" ref={ref} aria-label={strings.library.shelfLabel}>
       {shelves.map((shelf, index) => (
         <div className="shelf" key={index}>
-          <div className="shelf-books" role="list">
-            {shelf.map((slot) =>
-              slot.kind === 'work' ? (
-                <div role="listitem" key={slot.work.id}>
-                  <BookItem
-                    work={slot.work}
-                    slip={slot.slip}
-                    newest={slot.work.id === newest}
-                    highlighted={slot.work.id === highlight}
-                    onOpen={onOpen}
-                  />
-                </div>
-              ) : (
-                <div role="listitem" key="new">
-                  <button type="button" className="book-new" onClick={onNew}>
-                    <span className="book-new-plus" aria-hidden="true">
-                      +
-                    </span>
-                    <span className="book-title">{strings.library.newBook}</span>
-                  </button>
-                </div>
-              ),
+          <div className="shelf-row" style={row}>
+            <div className="shelf-books" role="list">
+              {shelf.map((slot) =>
+                slot.kind === 'work' ? (
+                  <div role="listitem" key={slot.work.id}>
+                    <BookItem
+                      work={slot.work}
+                      slip={slot.slip}
+                      newest={slot.work.id === newest}
+                      highlighted={slot.work.id === highlight}
+                      onOpen={onOpen}
+                    />
+                  </div>
+                ) : (
+                  <div role="listitem" key="new">
+                    <button type="button" className="book-new" onClick={onNew}>
+                      <span className="book-new-plus" aria-hidden="true">
+                        +
+                      </span>
+                      <span className="book-new-label">{strings.library.newBook}</span>
+                    </button>
+                  </div>
+                ),
+              )}
+            </div>
+            {index === 0 && works.length === 0 && (
+              <p className="shelf-tag">{strings.library.empty}</p>
             )}
           </div>
           <div className="shelf-board" aria-hidden="true" />
-          {index === 0 && works.length === 0 && (
-            <p className="shelf-tag">{strings.library.empty}</p>
-          )}
         </div>
       ))}
     </section>

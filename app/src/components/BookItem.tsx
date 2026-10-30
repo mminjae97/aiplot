@@ -2,7 +2,11 @@ import type { CSSProperties } from 'react'
 import { strings } from '../strings'
 import type { Work } from '../types'
 
-// Cloth bindings: muted, so the brass lettering stays the only accent on the shelf.
+// Every book is the same size, cover facing out (portrait 1:1.5).
+export const COVER_WIDTH = 150
+export const COVER_HEIGHT = 225
+
+// Cloth bindings for covers without an illustration: muted, so the brass stays the accent.
 const BINDINGS = ['#6e2c28', '#2f4a3a', '#2c3a55', '#6b4f22', '#465156', '#5a3a4f', '#3f3428']
 
 function hash(text: string): number {
@@ -14,14 +18,9 @@ function hash(text: string): number {
   return h >>> 0
 }
 
-/** Stable per work: the same book keeps its colour and size on every visit. */
-export function spineOf(id: string): { width: number; height: number; binding: string } {
-  const h = hash(id)
-  return {
-    width: 46 + (h % 17),
-    height: 206 + ((h >>> 5) % 44),
-    binding: BINDINGS[(h >>> 11) % BINDINGS.length] ?? '#3f3428',
-  }
+/** Stable per work: the same book keeps its binding on every visit. */
+export function bindingOf(id: string): string {
+  return BINDINGS[hash(id) % BINDINGS.length] ?? '#3f3428'
 }
 
 const dateFormat = new Intl.DateTimeFormat('ko-KR', {
@@ -32,34 +31,39 @@ const dateFormat = new Intl.DateTimeFormat('ko-KR', {
 
 type Props = {
   work: Work
+  // Cover illustration (1:1.5) once works have one; it replaces all cover text.
+  cover?: string
   slip: 'left' | 'right'
   newest: boolean
   highlighted: boolean
   onOpen: (work: Work) => void
 }
 
-export function BookItem({ work, slip, newest, highlighted, onOpen }: Props) {
-  const spine = spineOf(work.id)
+export function BookItem({ work, cover, slip, newest, highlighted, onOpen }: Props) {
   const stage = strings.stage[work.stage]
   const slipId = `slip-${work.id}`
-  const style = {
-    '--spine-width': `${String(spine.width)}px`,
-    '--spine-height': `${String(spine.height)}px`,
-    '--binding': spine.binding,
-  } as CSSProperties
+  const style = { '--binding': bindingOf(work.id) } as CSSProperties
   return (
     <div className="book" style={style} data-highlighted={highlighted || undefined}>
       {newest && <span className="book-ribbon" aria-hidden="true" />}
       <button
         type="button"
-        className="book-spine"
+        className="book-cover"
+        aria-label={work.title}
         aria-describedby={slipId}
+        data-illustrated={cover ? true : undefined}
         onClick={() => {
           onOpen(work)
         }}
       >
-        <span className="book-title">{work.title}</span>
-        <span className="book-stage">{stage}</span>
+        {cover ? (
+          <img className="book-art" src={cover} alt="" />
+        ) : (
+          <span className="book-face" aria-hidden="true">
+            <span className="book-title">{work.title}</span>
+            <span className="book-stage">{stage}</span>
+          </span>
+        )}
       </button>
       <div className="book-slip" id={slipId} role="tooltip" data-side={slip}>
         <p className="book-slip-title">{work.title}</p>

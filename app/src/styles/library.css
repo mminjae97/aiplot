@@ -1,4 +1,4 @@
-/* S0 library: the inside of a walnut bookcase with oak boards; books are cloth-bound. */
+/* S0 library: a walnut bookcase with oak boards; books stand cover out like a display. */
 
 .top-bar {
   display: flex;
@@ -105,12 +105,17 @@
   margin-top: 28px;
 }
 
+.shelf-row {
+  position: relative;
+  width: var(--row-width);
+  margin: 0 auto;
+}
+
 .shelf-books {
   display: flex;
   align-items: flex-end;
-  gap: 3px;
-  min-height: 262px;
-  padding: 0 44px;
+  gap: 28px;
+  min-height: 247px;
 }
 
 .shelf-board {
@@ -131,8 +136,9 @@
 /* A paper tag tied to the first board when the shelf is empty. */
 .shelf-tag {
   position: absolute;
-  left: 116px;
-  bottom: -46px;
+  z-index: 1;
+  left: 96px;
+  bottom: -70px;
   padding: 6px 14px 7px;
   background: var(--paper);
   color: var(--ink);
@@ -145,16 +151,17 @@
   content: '';
   position: absolute;
   left: 22px;
-  top: -18px;
+  top: -26px;
   width: 1px;
-  height: 18px;
+  height: 26px;
   background: var(--paper-edge);
 }
 
+/* Books stand cover out, all the same size (1:1.5), like a display shelf. */
 .book {
   position: relative;
-  width: var(--spine-width);
-  height: var(--spine-height);
+  width: 150px;
+  height: 225px;
 }
 
 .book:hover,
@@ -162,98 +169,111 @@
   z-index: 3;
 }
 
-.book-spine,
+.book-cover,
 .book-new {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
+  display: block;
   width: 100%;
   height: 100%;
-  padding: 18px 0 14px;
+  padding: 0;
   border: 0;
   cursor: pointer;
   transition: transform var(--motion);
 }
 
-.book-spine {
-  color: var(--gilt);
-  background:
-    /* gilt bands near head and tail */
-    linear-gradient(
-      180deg,
-      transparent 0 8px,
-      var(--brass) 8px 9px,
-      transparent 9px 11px,
-      var(--brass) 11px 12px,
-      transparent 12px calc(100% - 12px),
-      var(--brass) calc(100% - 12px) calc(100% - 11px),
-      transparent calc(100% - 11px) calc(100% - 9px),
-      var(--brass) calc(100% - 9px) calc(100% - 8px),
-      transparent calc(100% - 8px)
-    ),
-    /* rounded spine catching the light */
-    linear-gradient(
-        90deg,
-        rgb(0 0 0 / 30%) 0,
-        rgb(255 255 255 / 10%) 28%,
-        rgb(255 255 255 / 4%) 55%,
-        rgb(0 0 0 / 35%) 100%
-      ),
-    var(--binding);
-  border-radius: 2px 2px 1px 1px;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%);
+/* A hardcover: board edge at the hinge, a soft shadow on the back panel. */
+.book-cover {
+  overflow: hidden;
+  background: var(--binding);
+  border-radius: 1px 3px 3px 1px;
+  box-shadow:
+    inset 6px 0 0 rgb(0 0 0 / 22%),
+    inset 7px 0 0 rgb(255 255 255 / 8%),
+    6px 8px 14px var(--wood-shadow);
 }
 
-.book:hover .book-spine,
-.book-spine:focus-visible,
+.book:hover .book-cover,
+.book-cover:focus-visible,
 .book-new:hover,
 .book-new:focus-visible {
-  transform: translateY(-10px);
+  transform: translateY(-6px);
 }
 
-.book[data-highlighted] .book-spine {
+.book[data-highlighted] .book-cover {
   animation: book-arrive 0.3s ease-out;
 }
 
 @keyframes book-arrive {
   from {
-    transform: translateY(-14px);
+    transform: translateY(-12px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .book[data-highlighted] .book-spine {
+  .book[data-highlighted] .book-cover {
     animation: none;
     outline: 2px solid var(--brass-bright);
   }
 }
 
-/* Long titles wrap into a second column instead of an ellipsis. */
+/* An illustrated cover shows the illustration only. */
+.book-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Without an illustration: cloth, a gilt double frame, the title set in the middle. */
+.book-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 34px 20px 22px 26px;
+  color: var(--gilt);
+  background:
+    linear-gradient(115deg, rgb(255 255 255 / 9%) 0, transparent 38%, rgb(0 0 0 / 18%) 100%),
+    repeating-linear-gradient(45deg, rgb(255 255 255 / 2.5%) 0 1px, transparent 1px 3px);
+}
+
+.book-face::before {
+  content: '';
+  position: absolute;
+  inset: 12px 10px 12px 16px;
+  border: 1px solid var(--brass);
+  outline: 1px solid rgb(176 138 62 / 45%);
+  outline-offset: -5px;
+  pointer-events: none;
+}
+
 .book-title {
-  writing-mode: vertical-rl;
-  max-height: calc(100% - 46px);
-  max-width: calc(100% - 8px);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
   overflow: hidden;
-  word-break: keep-all;
-  font-size: 14px;
+  font-size: var(--size-lead);
   font-weight: 700;
-  line-height: 1.35;
-  letter-spacing: 0.06em;
+  line-height: 1.4;
+  text-align: center;
+  text-wrap: balance;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .book-stage {
-  font-size: 11px;
-  color: rgb(255 248 234 / 60%);
+  font-size: var(--size-small);
+  color: rgb(255 248 234 / 62%);
 }
 
-/* The newest book's ribbon bookmark peeks out above its head. */
+/* The newest book's ribbon bookmark peeks out above its top edge. */
 .book-ribbon {
   position: absolute;
-  top: -18px;
-  right: 9px;
-  width: 7px;
+  top: -16px;
+  right: 22px;
+  width: 9px;
   height: 22px;
   background: var(--brass);
   clip-path: polygon(0 0, 50% 22%, 100% 0, 100% 100%, 0 100%);
@@ -263,13 +283,12 @@
 
 .book:hover .book-ribbon,
 .book:focus-within .book-ribbon {
-  transform: translateY(-10px);
+  transform: translateY(-6px);
 }
 
 .book-slip {
   position: absolute;
-  z-index: 2;
-  top: 18px;
+  top: 24px;
   left: calc(100% + 12px);
   width: 220px;
   padding: 10px 14px;
@@ -304,14 +323,19 @@
   overflow-wrap: anywhere;
 }
 
-/* The "+" book: a glassy blank waiting at the end of the row. */
+/* The "+" book: a glassy blank cover waiting at the end of the row. */
 .book-new {
-  width: 58px;
-  height: 228px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 150px;
+  height: 225px;
   color: var(--brass-bright);
   background: rgb(255 248 234 / 7%);
   border: 1px dashed rgb(212 174 92 / 55%);
-  border-radius: 2px;
+  border-radius: 1px 3px 3px 1px;
 }
 
 .book-new:hover {
@@ -323,8 +347,8 @@
   line-height: 1;
 }
 
-.book-new .book-title {
-  font-weight: 400;
+.book-new-label {
+  font-size: var(--size-body);
 }
 
 .dialog-backdrop {

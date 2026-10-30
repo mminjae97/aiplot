@@ -140,7 +140,7 @@ test('books stand newest first with their info slip', async () => {
   renderApp()
   await screen.findByText('둘째 책', { selector: '.book-title' })
   const titles = [...document.querySelectorAll('.book-title')].map((t) => t.textContent)
-  expect(titles).toEqual(['둘째 책', '첫 책', strings.library.newBook])
+  expect(titles).toEqual(['둘째 책', '첫 책'])
   expect(screen.queryByText(strings.library.empty)).toBeNull()
   const [slip] = screen.getAllByRole('tooltip', { hidden: true })
   expect(slip?.textContent).toContain(strings.library.stageOf(strings.stage[1]))
