@@ -5,6 +5,9 @@
   "type": "object",
   "oneOf": [
     {
+      "$ref": "#/$defs/world"
+    },
+    {
       "$ref": "#/$defs/character"
     },
     {
@@ -71,6 +74,59 @@
       "title": "SchemaVersion",
       "type": "integer",
       "minimum": 1
+    },
+    "world": {
+      "title": "WorldCard",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "work_id",
+        "type",
+        "name",
+        "status",
+        "source_notes",
+        "data",
+        "evidence",
+        "ai_guess",
+        "pinned",
+        "schema_version"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "../common/card-id.json"
+        },
+        "work_id": {
+          "$ref": "../common/work-id.json"
+        },
+        "type": {
+          "const": "world"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "source_notes": {
+          "$ref": "#/$defs/sourceNotes"
+        },
+        "data": {
+          "$ref": "world.json"
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "ai_guess": {
+          "$ref": "#/$defs/aiGuess"
+        },
+        "pinned": {
+          "$ref": "#/$defs/pinned"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schemaVersion"
+        }
+      }
     },
     "character": {
       "title": "CharacterCard",

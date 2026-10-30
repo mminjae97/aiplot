@@ -1,0 +1,30 @@
+{
+  "type": "world",
+  "name": "조수 마법",
+  "data": {
+    "category": "rule",
+    "summary": "바닷물을 매개로 하는 마법",
+    "details": "밀물 때 가장 강하고 썰물 때 약하다.",
+    "rules": [
+      {
+        "rule": "바닷물이 닿는 곳에서만 쓸 수 있다",
+        "exception": null
+      },
+      {
+        "rule": "쓸 때마다 체온을 잃는다",
+        "exception": "등대지기 혈통은 대가가 없다"
+      }
+    ],
+    "terms": [
+      {
+        "term": "물때",
+        "meaning": "마법이 가장 강한 시각"
+      }
+    ],
+    "related": ["c_teo", "c_port"]
+  },
+  "evidence": {
+    "rules": [0, 1]
+  },
+  "ai_guess": ["details"]
+}

@@ -6,7 +6,18 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..card import card, character, episode, main_story, part, region
+from ..card import card, character, episode, main_story, part, region, world
+
+
+class WorldCardOutput(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    type: Literal["world"]
+    name: card.CardName
+    data: world.WorldData
+    evidence: card.CardEvidence
+    ai_guess: card.AiGuessFields
 
 
 class CharacterCardOutput(BaseModel):
@@ -65,7 +76,8 @@ class EpisodeCardOutput(BaseModel):
 
 
 type CardOutput = Annotated[
-    CharacterCardOutput
+    WorldCardOutput
+    | CharacterCardOutput
     | RegionCardOutput
     | MainStoryCardOutput
     | PartCardOutput

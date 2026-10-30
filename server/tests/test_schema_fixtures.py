@@ -13,7 +13,7 @@ from typing import Any, get_args
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from aiplot.generated.card.card import Card, CharacterCard, EpisodeCard, RegionCard
+from aiplot.generated.card.card import Card, CharacterCard, EpisodeCard, RegionCard, WorldCard
 from aiplot.generated.roles.card_output import CardOutput
 
 SCHEMAS = Path(__file__).resolve().parents[2] / "schemas"
@@ -59,6 +59,7 @@ def test_card_type_selects_variant() -> None:
         adapter.validate_python(load(card_dir / "character.valid.json")), CharacterCard
     )
     assert isinstance(adapter.validate_python(load(card_dir / "region.valid.json")), RegionCard)
+    assert isinstance(adapter.validate_python(load(card_dir / "world.valid.json")), WorldCard)
 
 
 def test_nested_ids_are_plain_strings() -> None:
@@ -69,6 +70,7 @@ def test_nested_ids_are_plain_strings() -> None:
     assert "c_teo" in card.data.characters
     assert card.data.part_id == "c_part1"
     assert {"c_teo", "c_mira"} == set(card.data.characters)
+    assert card.data.world == ["c_tide"]
 
 
 def test_card_output_covers_every_card_type() -> None:
@@ -77,4 +79,4 @@ def test_card_output_covers_every_card_type() -> None:
         return {get_args(m.model_fields["type"].annotation)[0] for m in members}
 
     assert type_literals(Card) == type_literals(CardOutput)
-    assert type_literals(Card) == {"character", "region", "main_story", "part", "episode"}
+    assert type_literals(Card) == {"world", "character", "region", "main_story", "part", "episode"}

@@ -1,0 +1,20 @@
+{
+  "id": "c_tide",
+  "work_id": "w_01",
+  "type": "world",
+  "name": null,
+  "status": "incomplete",
+  "source_notes": "조수 마법은 바닷물이 닿는 곳에서만 쓸 수 있다. 쓸 때마다 체온을 잃는다.",
+  "data": {
+    "category": null,
+    "summary": null,
+    "details": null,
+    "rules": [],
+    "terms": [],
+    "related": []
+  },
+  "evidence": {},
+  "ai_guess": [],
+  "pinned": [],
+  "schema_version": 1
+}

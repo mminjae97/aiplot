@@ -28,6 +28,7 @@ from aiplot.generated.roles.card_output import (
     MainStoryCardOutput,
     PartCardOutput,
     RegionCardOutput,
+    WorldCardOutput,
 )
 from aiplot.generated.roles.source_output import SourceOutput
 from aiplot.llm.client import ChatRequest, LlamaClient, LlmError, Message, Usage
@@ -43,6 +44,7 @@ WRITE_MAX_TOKENS = 1500
 # Step 7 sets the write role; same settings for every profile keeps the comparison fair.
 WRITE_SAMPLING = Sampling(temperature=0.8, top_p=0.8, top_k=20, min_p=0.0)
 CARD_OUTPUTS: dict[str, type[BaseModel]] = {
+    "world": WorldCardOutput,
     "character": CharacterCardOutput,
     "region": RegionCardOutput,
     "main_story": MainStoryCardOutput,
@@ -50,6 +52,7 @@ CARD_OUTPUTS: dict[str, type[BaseModel]] = {
     "episode": EpisodeCardOutput,
 }
 TYPE_NAMES = {
+    "world": "세계관",
     "character": "캐릭터",
     "region": "지역",
     "main_story": "메인 스토리",
