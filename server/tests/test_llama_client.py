@@ -153,15 +153,48 @@ async def test_server_unreachable() -> None:
     assert exc_info.value.code == "LLM_UNAVAILABLE"
 
 
-async def test_lora_list_error_status() -> None:
+@pytest.mark.parametrize(
+    ("status", "code"), [(503, "LLM_UNAVAILABLE"), (500, "LLM_REQUEST_FAILED")]
+)
+async def test_lora_list_error_status(status: int, code: str) -> None:
     with pytest.raises(LlmError) as exc_info:
-        await collect(failing(lambda request: httpx.Response(503)), chat_request())
+        await collect(failing(lambda request: httpx.Response(status)), chat_request())
+    assert exc_info.value.code == code
+
+
+async def test_model_still_loading_is_unavailable() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/lora-adapters":
+            return httpx.Response(200, json=[])
+        loading = {"error": {"code": 503, "message": "Loading model", "type": "unavailable_error"}}
+        return httpx.Response(503, json=loading)
+
+    with pytest.raises(LlmError) as exc_info:
+        await collect(failing(handler), chat_request())
+    assert exc_info.value.code == "LLM_UNAVAILABLE"
+
+
+@pytest.mark.parametrize("reply", [b"not json", b'[{"id": 0}]', b'{"id": 0}'])
+async def test_bad_lora_list_reply(tmp_path: Path, reply: bytes) -> None:
+    client = failing(lambda request: httpx.Response(200, content=reply))
+    with pytest.raises(LlmError) as exc_info:
+        await collect(client, chat_request(lora=tmp_path / "direction-v1.gguf"))
     assert exc_info.value.code == "LLM_REQUEST_FAILED"
 
 
-def test_error_chunk_raises() -> None:
-    with pytest.raises(LlmError):
-        parse_chunk(json.dumps({"error": {"message": "context exceeded"}}))
+@pytest.mark.parametrize(
+    "data",
+    [
+        json.dumps({"error": {"message": "context exceeded"}}),
+        "{truncated",
+        "[1]",
+        '{"choices": [1]}',
+    ],
+)
+def test_bad_or_error_chunk_raises(data: str) -> None:
+    with pytest.raises(LlmError) as exc_info:
+        parse_chunk(data)
+    assert exc_info.value.code == "LLM_REQUEST_FAILED"
 
 
 def test_chunk_without_choices() -> None:

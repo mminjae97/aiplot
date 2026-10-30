@@ -53,7 +53,8 @@ class LlamaClient:
     """Streams deltas from llama-server; closing the iterator early stops generation there."""
 
     def __init__(self, base_url: str, *, transport: httpx.AsyncBaseTransport | None = None) -> None:
-        # read: longest gap between streamed chunks (thinking can pause output briefly).
+        # read: longest wait for the next bytes, including the first chunk, which arrives only
+        # after queueing (-np 1) and prompt processing; the job queue (unit 6) serializes calls.
         timeout = httpx.Timeout(connect=5.0, read=120.0, write=30.0, pool=5.0)
         self._http = httpx.AsyncClient(base_url=base_url, transport=transport, timeout=timeout)
 
@@ -66,7 +67,7 @@ class LlamaClient:
             async with self._http.stream("POST", "/v1/chat/completions", json=body) as response:
                 if response.status_code != 200:
                     detail = (await response.aread()).decode("utf-8", "replace")[:300]
-                    raise LlmError("LLM_REQUEST_FAILED", f"{response.status_code}: {detail}")
+                    raise status_error(response.status_code, detail)
                 async for line in response.aiter_lines():
                     if not line.startswith("data: "):
                         continue
@@ -77,6 +78,8 @@ class LlamaClient:
                         yield delta
         except httpx.TransportError as exc:
             raise LlmError("LLM_UNAVAILABLE", f"llama-server unreachable: {exc}") from exc
+        except httpx.RequestError as exc:
+            raise LlmError("LLM_REQUEST_FAILED", f"bad response from llama-server: {exc}") from exc
 
     async def _body(self, request: ChatRequest) -> dict[str, Any]:
         sampling = request.sampling
@@ -104,26 +107,38 @@ class LlamaClient:
         """Scale 1 for the wanted adapter and 0 for every other loaded one."""
         response = await self._http.get("/lora-adapters")
         if response.status_code != 200:
-            raise LlmError("LLM_REQUEST_FAILED", f"/lora-adapters: {response.status_code}")
-        adapters: list[dict[str, Any]] = response.json()
-        scales = [
-            {"id": a["id"], "scale": 1.0 if wanted and same_path(a["path"], wanted) else 0.0}
-            for a in adapters
-        ]
+            raise status_error(response.status_code, "/lora-adapters")
+        try:
+            adapters: list[dict[str, Any]] = response.json()
+            scales = [
+                {"id": a["id"], "scale": 1.0 if wanted and same_path(a["path"], wanted) else 0.0}
+                for a in adapters
+            ]
+        except (ValueError, KeyError, TypeError) as exc:
+            raise LlmError("LLM_REQUEST_FAILED", f"bad /lora-adapters reply: {exc!r}") from exc
         if wanted is not None and not any(s["scale"] for s in scales):
             raise LlmError("LORA_NOT_LOADED", f"llama-server has not loaded {wanted.name}")
         return scales
 
 
+def status_error(status: int, detail: str) -> LlmError:
+    # 503 = llama-server is up but still loading the model: retry later, not a bad request.
+    code = "LLM_UNAVAILABLE" if status == 503 else "LLM_REQUEST_FAILED"
+    return LlmError(code, f"{status}: {detail}")
+
+
 def parse_chunk(data: str) -> list[Delta]:
-    chunk = json.loads(data)
-    if "error" in chunk:
-        raise LlmError("LLM_REQUEST_FAILED", str(chunk["error"]))
-    deltas: list[Delta] = []
-    for choice in chunk.get("choices", []):
-        delta = choice.get("delta", {})
-        if reasoning := delta.get("reasoning_content"):
-            deltas.append(Delta("reasoning", reasoning))
-        if content := delta.get("content"):
-            deltas.append(Delta("content", content))
+    try:
+        chunk = json.loads(data)
+        if "error" in chunk:
+            raise LlmError("LLM_REQUEST_FAILED", str(chunk["error"]))
+        deltas: list[Delta] = []
+        for choice in chunk.get("choices", []):
+            delta = choice.get("delta", {})
+            if reasoning := delta.get("reasoning_content"):
+                deltas.append(Delta("reasoning", reasoning))
+            if content := delta.get("content"):
+                deltas.append(Delta("content", content))
+    except (ValueError, AttributeError, TypeError) as exc:
+        raise LlmError("LLM_REQUEST_FAILED", f"bad stream chunk: {data[:200]!r}") from exc
     return deltas
