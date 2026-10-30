@@ -86,6 +86,23 @@ async def test_complete_json(prompts: Path) -> None:
     assert (result.meta.role, result.meta.prompt_version, result.meta.lora) == ("source", 1, None)
     assert result.meta.profile == "qwen3-8b-uncensor-q4km"
     assert client.requests[0].json_schema == SourceOutput.model_json_schema()
+    assert result.usage is None
+
+
+async def test_complete_json_never_accepts_truncated_reply(prompts: Path) -> None:
+    # Valid JSON, but cut at max_tokens: the grammar can close it early.
+    client = FakeClient({"source": FakeResponse(content=SOURCE, finish_reason="length")})
+    with pytest.raises(LlmError) as exc_info:
+        await router(prompts, client).complete_json("source", TURNS, SourceOutput)
+    assert exc_info.value.code == "LLM_OUTPUT_TRUNCATED"
+    assert len(client.requests) == 2
+
+
+async def test_stream_ends_with_finish(prompts: Path) -> None:
+    client = FakeClient({"chat": FakeResponse(content="네.")})
+    deltas = [d async for d in router(prompts, client).stream("chat", TURNS)]
+    assert [d.kind for d in deltas] == ["content", "finish"]
+    assert deltas[-1].text == "stop"
 
 
 async def test_complete_json_retries_once(prompts: Path) -> None:

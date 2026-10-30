@@ -17,6 +17,7 @@ CHUNK_CHARS = 8
 class FakeResponse:
     content: str
     reasoning: str = ""
+    finish_reason: str = "stop"
 
 
 def load_fixtures(directory: Path = FIXTURES_DIR) -> dict[str, FakeResponse]:
@@ -46,6 +47,7 @@ class FakeClient:
                 yield Delta("reasoning", piece)
         for piece in chunks(response.content):
             yield Delta("content", piece)
+        yield Delta("finish", response.finish_reason)
 
     def respond(self, role: Role, response: FakeResponse) -> None:
         self.responses[role] = response
