@@ -6,6 +6,10 @@
   "additionalProperties": false,
   "required": ["title"],
   "properties": {
-    "title": { "$ref": "work.json#/$defs/title" }
+    "title": {
+      "description": "Raw input: the server collapses whitespace, then requires 1..100 chars (TITLE_EMPTY, TITLE_TOO_LONG).",
+      "type": "string",
+      "maxLength": 1000
+    }
   }
 }

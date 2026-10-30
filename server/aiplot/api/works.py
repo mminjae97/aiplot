@@ -23,6 +23,8 @@ def create_work(db: Db, body: WorkCreate) -> Work:
         return works.create(db, body.title)
     except works.TitleEmptyError as exc:
         raise AppError(422, "TITLE_EMPTY", "the title is blank") from exc
+    except works.TitleTooLongError as exc:
+        raise AppError(422, "TITLE_TOO_LONG", f"the title is over {works.TITLE_MAX} chars") from exc
 
 
 @router.get("/works/{workId}")

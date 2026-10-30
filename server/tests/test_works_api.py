@@ -1,6 +1,5 @@
 """Library books over HTTP: create, list newest first, open."""
 
-import time
 from pathlib import Path
 
 import pytest
@@ -40,11 +39,14 @@ def test_create_starts_in_planning(client: TestClient) -> None:
 
 
 def test_list_is_newest_first(client: TestClient) -> None:
-    first = create(client, "첫 책")
-    time.sleep(0.01)
-    second = create(client, "둘째 책")
+    # Same-millisecond creations (coarse Windows clock) still list newest first.
+    made = [create(client, f"책 {n}")["id"] for n in range(5)]
     works = client.get("/api/v1/works", headers=AUTH).json()["works"]
-    assert [w["id"] for w in works] == [second["id"], first["id"]]
+    assert [w["id"] for w in works] == made[::-1]
+
+
+def test_title_fits_after_collapsing(client: TestClient) -> None:
+    assert create(client, "가" * 100 + " \n")["title"] == "가" * 100
 
 
 def test_open_one(client: TestClient) -> None:
@@ -58,8 +60,9 @@ def test_open_one(client: TestClient) -> None:
     ("body", "code"),
     [
         ({"title": "   "}, "TITLE_EMPTY"),
-        ({"title": ""}, "VALIDATION_ERROR"),
-        ({"title": "가" * 101}, "VALIDATION_ERROR"),
+        ({"title": ""}, "TITLE_EMPTY"),
+        ({"title": "가" * 101}, "TITLE_TOO_LONG"),
+        ({"title": "가" * 1001}, "VALIDATION_ERROR"),
         ({}, "VALIDATION_ERROR"),
         ({"title": "책", "stage": 3}, "VALIDATION_ERROR"),
     ],

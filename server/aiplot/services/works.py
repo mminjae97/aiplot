@@ -7,8 +7,14 @@ from datetime import UTC, datetime
 from aiplot.db import works as db
 from aiplot.generated.works.work import Work
 
+TITLE_MAX = 100
+
 
 class TitleEmptyError(ValueError):
+    pass
+
+
+class TitleTooLongError(ValueError):
     pass
 
 
@@ -21,6 +27,8 @@ def create(conn: sqlite3.Connection, title: str) -> Work:
     clean = " ".join(title.split())
     if not clean:
         raise TitleEmptyError("title is blank")
+    if len(clean) > TITLE_MAX:
+        raise TitleTooLongError(f"title is over {TITLE_MAX} chars")
     return db.insert(conn, f"w_{secrets.token_hex(8)}", clean, now())
 
 

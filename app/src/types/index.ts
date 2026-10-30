@@ -539,7 +539,10 @@ export interface SetupItem {
  * POST /works: "새로 만들기" asks for the title only (§12 S0).
  */
 export interface WorkCreate {
-  title: WorkTitle
+  /**
+   * Raw input: the server collapses whitespace, then requires 1..100 chars (TITLE_EMPTY, TITLE_TOO_LONG).
+   */
+  title: string
 }
 /**
  * GET /works: every book, most recently modified first (§12 S0).

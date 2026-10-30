@@ -24,5 +24,7 @@ def get(conn: sqlite3.Connection, work_id: str) -> Work | None:
 
 
 def list_recent(conn: sqlite3.Connection) -> list[Work]:
-    rows = conn.execute(f"SELECT {COLUMNS} FROM work ORDER BY updated_at DESC, id").fetchall()
+    rows = conn.execute(
+        f"SELECT {COLUMNS} FROM work ORDER BY updated_at DESC, rowid DESC"
+    ).fetchall()
     return [to_work(row) for row in rows]
