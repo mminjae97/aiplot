@@ -140,7 +140,7 @@ Roles (thinking, model):
 - check: beat, cards, state → JSON state changes + warnings (on, base)
 - summary: beat/chapter/episode text → text (off, base)
 - image_prompt: appearance, personality → JSON EN positive/negative (off, base)
-JSON roles low temp.
+JSON roles low temp. Quality over latency: never cut thinking/reasoning or quant to save time; slow calls run as jobs with progress (only chat's first char has a time target).
 
 ## 14 DB
 `data/aiplot.db`: WAL, foreign_keys on, autocommit + explicit `transaction()`, one connection per request; migrations run at server start, each file + user_version bump in one transaction (no BEGIN/COMMIT in files), foreign keys off during migrations and `foreign_key_check` before each commit; DB newer than app → server exits.
@@ -197,7 +197,7 @@ Teacher LLM APIs allowed here; verify terms permit training on outputs.
 Fake LLM fixtures only. Must cover: locks + 423 (incl. region position); PATCH /cards rejects non-region types and fields other than map_x/map_y; delete restore; no direct card field edits; snapshot before reopen; relation sync on save/delete; drafts/conversations not persisted; char count incl. spaces; SSE order; backup round-trip. E2E: library → contents → save card → generate. Model quality via training/eval scripts. CI: lint, typecheck, unit tests, e2e per PR and main push; Windows installer build (from unit 14).
 
 ## 20 Dev order (pass criteria; draft, blind human evals)
-1. Monorepo, Electron↔server↔llama.cpp, model download, CI, schemas, SQLite, drawer, dex, map, story; minimal library/contents (create/open; full in 9); stage advance API + 423 (advance UI "연출 구성 시작" with reopen + snapshot in 3); eval notes in training/eval (Claude drafts, user reviews) — card field match ≥85% (30 notes, 6/type); unsupported fills ≤5%; JSON valid 100% w/ 1 retry; name check ≥90% found, ≤10% false; chat first char ≤2s, card ≤10s; measure real token counts.
+1. Monorepo, Electron↔server↔llama.cpp, model download, CI, schemas, SQLite, drawer, dex, map, story; minimal library/contents (create/open; full in 9); stage advance API + 423 (advance UI "연출 구성 시작" with reopen + snapshot in 3); eval notes in training/eval (Claude drafts, user reviews) — card field match ≥85% (30 notes, 6/type); unsupported fills ≤5%; JSON valid 100% w/ 1 retry; name check ≥90% found, ≤10% false; chat first char ≤2s, card no time limit (quality first; runs as a job); measure real token counts.
 2. Technique cards — ≥30, all fields; right technique within picks ≥80% of 20 scenes (single pick must be right).
 3. Direction baseline, fix plan format; stage advance UI + reopen + snapshot — schema pass ≥95%.
 4. Eval set — 20 bundles; rubric 1–5: tension placement, chapter cut, reveal timing, POV consistency, technique fit; no training overlap.
