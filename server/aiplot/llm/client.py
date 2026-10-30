@@ -52,6 +52,10 @@ class LlmError(Exception):
         self.code = code
 
 
+# (base url, API key or None), or None while nothing trustworthy is serving.
+EndpointSource = Callable[[], tuple[str, str | None] | None]
+
+
 class LlmClient(Protocol):
     def stream(self, request: ChatRequest) -> AsyncGenerator[Delta, None]: ...
 
@@ -64,22 +68,22 @@ class LlamaClient:
     """Streams deltas from llama-server; closing the iterator early stops generation there."""
 
     def __init__(
-        self,
-        base_url: str | Callable[[], str],
-        *,
-        api_key: str | None = None,
-        transport: httpx.AsyncBaseTransport | None = None,
+        self, target: str | EndpointSource, *, transport: httpx.AsyncBaseTransport | None = None
     ) -> None:
-        # A callable follows llama-server to a new port after a restart.
-        self._base_url = base_url if callable(base_url) else lambda: base_url
-        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        # A source is asked before every request: it follows llama-server to a new port and key
+        # after a restart, and returns None while no confirmed child is serving.
+        self._target: EndpointSource = target if callable(target) else lambda: (target, None)
         # read: longest wait for the next bytes, including the first chunk, which arrives only
         # after queueing (-np 1) and prompt processing; the job queue (unit 6) serializes calls.
         timeout = httpx.Timeout(connect=5.0, read=120.0, write=30.0, pool=5.0)
-        self._http = httpx.AsyncClient(headers=headers, transport=transport, timeout=timeout)
+        self._http = httpx.AsyncClient(transport=transport, timeout=timeout)
 
-    def _url(self, path: str) -> str:
-        return f"{self._base_url()}{path}"
+    def _endpoint(self, path: str) -> tuple[str, dict[str, str]]:
+        endpoint = self._target()
+        if endpoint is None:
+            raise LlmError("LLM_UNAVAILABLE", "llama-server is not ready")
+        base, key = endpoint
+        return f"{base}{path}", ({"Authorization": f"Bearer {key}"} if key else {})
 
     async def aclose(self) -> None:
         await self._http.aclose()
@@ -87,8 +91,8 @@ class LlamaClient:
     async def stream(self, request: ChatRequest) -> AsyncGenerator[Delta, None]:
         try:
             body = await self._body(request)
-            url = self._url("/v1/chat/completions")
-            async with self._http.stream("POST", url, json=body) as response:
+            url, headers = self._endpoint("/v1/chat/completions")
+            async with self._http.stream("POST", url, json=body, headers=headers) as response:
                 if response.status_code != 200:
                     detail = (await response.aread()).decode("utf-8", "replace")[:300]
                     raise status_error(response.status_code, detail)
@@ -131,7 +135,8 @@ class LlamaClient:
 
     async def _lora_scales(self, wanted: Path | None) -> list[dict[str, Any]]:
         """Scale 1 for the wanted adapter and 0 for every other loaded one."""
-        response = await self._http.get(self._url("/lora-adapters"))
+        url, headers = self._endpoint("/lora-adapters")
+        response = await self._http.get(url, headers=headers)
         if response.status_code != 200:
             raise status_error(response.status_code, "/lora-adapters")
         try:

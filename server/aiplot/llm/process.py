@@ -6,9 +6,10 @@ unresponsive server (several failed /health checks in a row) is restarted at mos
 times per session; after that the state is "error" until `retry()` (the "다시 시도" button).
 
 Other local programs must not reach the model or the prompts it holds: llama-server gets a
-per-session API key through LLAMA_API_KEY (not argv, which other processes can read), and a port
-counts as ours only after our own child prints that it listens there. Every start picks a fresh
-port, so a port taken in between only costs one restart.
+fresh API key per start through LLAMA_API_KEY (not argv, which other processes can read), and a
+port counts as ours only after our own child prints that it listens there. Every start picks a
+fresh port, so a port taken in between only costs one restart. Callers get the address and key
+from `endpoint()` per request, which answers only while that child is alive and confirmed.
 """
 
 import asyncio
@@ -68,7 +69,7 @@ class LlamaProcess:
         self.model = model
         self.profile = profile
         self.port = port
-        self.api_key = secrets.token_urlsafe(32)
+        self.api_key = ""
         self.state: State = "stopped"
         self.restarts = 0
         self.message: str | None = None
@@ -109,6 +110,13 @@ class LlamaProcess:
             str(self.port),
             *p.server_args,
         ]
+
+    def endpoint(self) -> tuple[str, str] | None:
+        """(url, api key) of the current child, or None unless it is ready, alive and confirmed
+        on its port: a request must never reach whatever took a dead child's port."""
+        if self.state != "ready" or not self._listening.is_set() or self._exited():
+            return None
+        return self.url, self.api_key
 
     def health(self) -> LlamaHealth:
         return LlamaHealth(
@@ -194,6 +202,7 @@ class LlamaProcess:
         if self._spawned:
             self.port = free_port()
         self._spawned = True
+        self.api_key = secrets.token_urlsafe(32)
         self._tail.clear()
         self._listening.clear()
         self._process = subprocess.Popen(

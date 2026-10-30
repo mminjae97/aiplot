@@ -169,3 +169,17 @@ async def test_impostor_on_the_port_is_never_trusted(tmp_path: Path) -> None:
     finally:
         impostor.shutdown()
         await process.stop()
+
+
+async def test_endpoint_only_for_the_confirmed_live_child(running: LlamaProcess) -> None:
+    await until(running, lambda p: p.state == "ready")
+    endpoint = running.endpoint()
+    assert endpoint == (running.url, running.api_key)
+    first_key = running.api_key
+    assert running.process is not None
+    running.process.kill()
+    running.process.wait()
+    # Dead child: nothing is handed out even before the supervisor notices.
+    assert running.endpoint() is None
+    await until(running, lambda p: p.state == "ready" and p.restarts == 1)
+    assert running.api_key != first_key
