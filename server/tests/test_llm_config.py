@@ -7,6 +7,7 @@ import yaml
 from aiplot.llm.config import CONFIG_DIR, ConfigError, load_llm_config, prompt_path
 
 Q4 = "qwen3-8b-uncensor-q4km"
+Q5 = "qwen3-8b-uncensor-q5km"
 
 
 @pytest.fixture
@@ -30,9 +31,9 @@ def edit_role(config_dir: Path, role: str, change: dict[str, object]) -> None:
 def test_shipped_config_loads() -> None:
     config = load_llm_config()
     assert set(config.roles) == {"chat", "source", "card"}
-    assert set(config.profiles) == {Q4, "qwen3-8b-uncensor-q5km"}
-    assert all(role.profile == Q4 for role in config.roles.values())
-    assert config.profile_for("chat").gguf.file == "Qwen3-8B-Uncensor-v2.Q4_K_M.gguf"
+    assert set(config.profiles) == {Q4, Q5}
+    assert all(role.profile == Q5 for role in config.roles.values())
+    assert config.profile_for("chat").gguf.file == "Qwen3-8B-Uncensor-v2.i1-Q5_K_M.gguf"
 
 
 def test_profiles_differ_only_in_model_file() -> None:
@@ -43,7 +44,7 @@ def test_profiles_differ_only_in_model_file() -> None:
 def test_sampling_uses_thinking_defaults_then_role_overrides() -> None:
     config = load_llm_config()
     chat = config.sampling_for("chat")
-    assert (chat.temperature, chat.top_p) == (0.7, 0.8)
+    assert (chat.temperature, chat.top_p, chat.presence_penalty) == (0.7, 0.8, 1.5)
     source = config.sampling_for("source")
     assert (source.temperature, source.top_p, source.top_k) == (0.3, 0.95, 20)
     assert (source.presence_penalty, source.dry_multiplier) == (0, 0)
