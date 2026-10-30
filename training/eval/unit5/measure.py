@@ -36,6 +36,7 @@ from aiplot.generated.roles.source_output import SourceOutput
 from aiplot.llm.client import ChatRequest, LlamaClient, LlmError, Message, Usage
 from aiplot.llm.config import SERVER_DIR, LlmConfig, Sampling, load_llm_config
 from aiplot.llm.router import Router
+from aiplot.services.notes import EmptyNotesError, apply_edits, numbered
 from pydantic import BaseModel
 
 HERE = Path(__file__).parent
@@ -159,6 +160,30 @@ async def run_json(
     }
 
 
+async def run_source(
+    router: Router, turns: list[Message], notes: str
+) -> tuple[dict[str, Any], str]:
+    """source as the drafts flow runs it (§13): apply the edits; casual sentences or emptied
+    notes get one more generation, then the second result is kept."""
+    attempts: list[dict[str, Any]] = []
+    revised = notes
+    for _ in range(2):
+        result = await run_json(router, "source", turns, SourceOutput)
+        if "value" not in result:
+            attempts.append(result)
+            continue
+        try:
+            applied = apply_edits(notes, SourceOutput.model_validate(result["value"]))
+        except EmptyNotesError:
+            attempts.append({**result, "emptied": True})
+            continue
+        revised = applied.notes
+        attempts.append({**result, "changed": applied.changed, "casual": applied.casual})
+        if not applied.casual:
+            break
+    return {**attempts[-1], "attempts": len(attempts), "notes": revised}, revised
+
+
 def elapsed(started: float) -> float:
     return round(time.perf_counter() - started, 2)
 
@@ -199,7 +224,7 @@ async def run_card_case(
             "role": "user",
             "content": "\n".join(
                 [
-                    block("원문", case["notes"]),
+                    block("원문", numbered(case["notes"])),
                     block("참고 카드", refs),
                     block("지시", f"카드 종류: {kind}"),
                     block("대화", f"사용자: {case['chat_user']}\nAI: {chat['text']}"),
@@ -207,16 +232,13 @@ async def run_card_case(
             ),
         }
     ]
-    source = await run_json(router, "source", source_turns, SourceOutput)
-    notes = source.get("value", {}).get("notes") or case["notes"]
-    sentences = [line.strip() for line in notes.splitlines() if line.strip()]
-    numbered = "\n".join(f"[{i}] {s}" for i, s in enumerate(sentences))
+    source, notes = await run_source(router, source_turns, case["notes"])
     card_turns: list[Message] = [
         {
             "role": "user",
             "content": "\n".join(
                 [
-                    block("원문", numbered),
+                    block("원문", numbered(notes)),
                     block("참고 카드", refs),
                     block("지시", f"카드 종류: {case['type']}"),
                 ]

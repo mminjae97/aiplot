@@ -21,6 +21,7 @@ from aiplot.generated.roles.source_output import SourceOutput
 from aiplot.llm.client import LlamaClient, Message
 from aiplot.llm.config import LlmConfig, Sampling
 from aiplot.llm.router import Router
+from aiplot.services.notes import numbered
 from measure import (
     HERE,
     TYPE_NAMES,
@@ -95,7 +96,7 @@ async def run(args: argparse.Namespace) -> None:
         print(f"source presence {case['id']}", flush=True)
         turn = "\n".join(
             [
-                block("원문", case["notes"]),
+                block("원문", numbered(case["notes"])),
                 block("참고 카드", "\n".join(case["refs"])),
                 block("지시", f"카드 종류: {TYPE_NAMES[case['type']]}"),
                 block("대화", f"사용자: {case['chat_user']}\nAI: {chats[case['id']]}"),
