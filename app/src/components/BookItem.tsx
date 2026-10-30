@@ -3,8 +3,8 @@ import { strings } from '../strings'
 import type { Work } from '../types'
 
 // Every book is the same size, cover facing out (portrait 1:1.5).
-export const COVER_WIDTH = 150
-export const COVER_HEIGHT = 225
+export const COVER_WIDTH = 200
+export const COVER_HEIGHT = 300
 
 // Cloth bindings for covers without an illustration: muted, so the brass stays the accent.
 const BINDINGS = ['#6e2c28', '#2f4a3a', '#2c3a55', '#6b4f22', '#465156', '#5a3a4f', '#3f3428']
