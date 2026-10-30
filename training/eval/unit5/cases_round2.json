@@ -1,0 +1,20 @@
+{
+  "writing": [
+    {"id": "e01", "focus": "감정", "genre": "로맨스 판타지", "scene": "이별", "pov": "엘리시아 3인칭", "mode": "장면화", "tension": 3, "target_chars": 800, "instruction": "새벽 성문 앞. 전장으로 떠나는 카이렌의 소매를 엘리시아가 붙잡는다. 둘 다 하고 싶은 말을 끝내 꺼내지 못한다."},
+    {"id": "e02", "focus": "감정", "genre": "현대 판타지", "scene": "죽음", "pov": "강도윤 1인칭", "mode": "장면화", "tension": 4, "target_chars": 800, "instruction": "무너진 던전 입구. 강도윤이 쓰러진 동료 민재의 손을 잡고 마지막 말을 듣는다. 민재는 끝까지 농담을 한다."},
+    {"id": "e03", "focus": "감정", "genre": "회귀물", "scene": "재회", "pov": "한서진 1인칭", "mode": "장면화", "tension": 3, "target_chars": 800, "instruction": "부엌. 회귀한 한서진이 살아 있는 어머니를 처음 껴안는다. 어머니는 영문을 모른 채 웃는다."},
+    {"id": "e04", "focus": "감정", "genre": "무협", "scene": "애도", "pov": "진무혁 3인칭", "mode": "장면화", "tension": 2, "target_chars": 800, "instruction": "비 그친 산중. 진무혁이 자기 손으로 벤 사부의 무덤 앞에서 사부가 좋아하던 술을 따른다."},
+    {"id": "e05", "focus": "감정", "genre": "스릴러", "scene": "유품", "pov": "형사 오지훈 3인칭", "mode": "장면화", "tension": 3, "target_chars": 800, "instruction": "오지훈이 십 년 동안 열지 못한 동생의 유품 상자를 연다. 맨 위에 자신에게 쓴 생일 카드가 있다."},
+    {"id": "e06", "focus": "감정", "genre": "로맨스 판타지", "scene": "고백", "pov": "카이렌 1인칭", "mode": "장면화", "tension": 4, "target_chars": 800, "instruction": "온실. 카이렌이 무릎을 꿇고 다시 청혼한다. 엘리시아는 대답 대신 운다."},
+    {"id": "e07", "focus": "감정", "genre": "현대 판타지", "scene": "대화", "pov": "강도윤 3인칭", "mode": "장면화", "tension": 2, "target_chars": 800, "instruction": "길드장실. 길드장이 강도윤에게 해고를 통보한다. 길드장은 미안해하고, 강도윤은 괜찮은 척한다."},
+    {"id": "e08", "focus": "감정", "genre": "학원물", "scene": "비밀", "pov": "윤하린 1인칭", "mode": "장면화", "tension": 3, "target_chars": 800, "instruction": "방과 후 옥상. 윤하린이 가장 친한 친구에게 자신이 능력자라는 비밀을 처음 털어놓는다."},
+    {"id": "i01", "focus": "정보", "genre": "판타지", "scene": "설정", "pov": "3인칭 전지", "mode": "요약", "tension": 1, "target_chars": 600, "instruction": "아르덴 왕국의 신분 제도와 마력 등급(1~9급)이 어떻게 맞물려 있는지 설명한다. 마지막 문장에서 주인공 루카가 등급 판정을 받지 못한 무등급이라는 사실을 알린다."},
+    {"id": "i02", "focus": "정보", "genre": "회귀물", "scene": "경과", "pov": "한서진 1인칭", "mode": "요약", "tension": 2, "target_chars": 600, "instruction": "한서진이 회귀 전 10년 동안 일어난 일(입사, 승진, 배신, 해고, 사고)을 순서대로 정리한다."},
+    {"id": "i03", "focus": "정보", "genre": "현대 판타지", "scene": "결과", "pov": "강도윤 1인칭", "mode": "요약", "tension": 1, "target_chars": 600, "instruction": "던전 공략 뒤 보상 분배와 길드 순위 변화를 정리한다. 강도윤의 몫은 예상보다 적다."},
+    {"id": "i04", "focus": "정보", "genre": "무협", "scene": "정세", "pov": "3인칭 전지", "mode": "요약", "tension": 2, "target_chars": 600, "instruction": "무림맹과 마교가 십 년 휴전을 맺게 된 경위와 지금의 세력 판도를 설명한다."},
+    {"id": "i05", "focus": "정보", "genre": "스릴러", "scene": "경과", "pov": "형사 오지훈 3인칭", "mode": "요약", "tension": 2, "target_chars": 600, "instruction": "오지훈 팀이 일주일 동안 확보한 단서(CCTV, 통화 기록, 목격자 진술)와 막힌 지점을 정리한다."},
+    {"id": "i06", "focus": "정보", "genre": "현대 판타지", "scene": "설명", "pov": "강도윤 3인칭", "mode": "장면화", "tension": 1, "target_chars": 700, "instruction": "길드 접수처. 접수원이 강도윤에게 새 의뢰의 조건(장소, 기한, 보수, 위약금)을 설명한다."},
+    {"id": "i07", "focus": "정보", "genre": "판타지", "scene": "설명", "pov": "루카 3인칭", "mode": "장면화", "tension": 1, "target_chars": 700, "instruction": "마탑 첫 수업. 교수가 마법의 세 계통(원소, 정신, 계약)과 각각의 대가를 설명한다. 루카는 필기를 한다."},
+    {"id": "i08", "focus": "정보", "genre": "스릴러", "scene": "브리핑", "pov": "형사 오지훈 3인칭", "mode": "장면화", "tension": 2, "target_chars": 700, "instruction": "아침 회의실. 반장이 연쇄 실종 사건의 공통점(나이, 직업, 실종 요일)을 브리핑한다."}
+  ]
+}

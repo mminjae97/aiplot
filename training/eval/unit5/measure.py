@@ -82,9 +82,10 @@ def block(tag: str, body: str) -> str:
     return f"<{tag}>\n{body}\n</{tag}>"
 
 
-def style_system_prompt() -> str:
-    """Every-beat sections of the style framework (§10), as step 7 will send them."""
-    text = STYLE_FILE.read_text(encoding="utf-8")
+def style_system_prompt(path: Path = STYLE_FILE, beat: dict[str, Any] | None = None) -> str:
+    """Style framework as step 7 will send it (§10): every-beat sections first (the cached
+    prefix), then the by_mode / by_focus subsections matching the beat; empty ones omitted."""
+    text = path.read_text(encoding="utf-8")
     text = re.sub(r"^---.*?---\n", "", text, flags=re.DOTALL)
     text = re.sub(r"<!--.*?-->\n?", "", text, flags=re.DOTALL)
     sections = dict(re.findall(r"^## (\w+)\n(.*?)(?=^## |\Z)", text, flags=re.DOTALL | re.M))
@@ -95,6 +96,13 @@ def style_system_prompt() -> str:
     ]
     parts = [sections[name].strip() for name in ("role", "summary", "rules", "dialogue", "format")]
     parts.append("금지 표현: " + ", ".join(f'"{b}"' for b in banned))
+    if beat is not None:
+        for section, key in (("by_mode", beat.get("mode")), ("by_focus", beat.get("focus"))):
+            subsections = dict(
+                re.findall(r"^### (\S+)\n(.*?)(?=^### |\Z)", sections.get(section, ""), re.S | re.M)
+            )
+            if key is not None and subsections.get(key, "").strip():
+                parts.append(subsections[key].strip())
     return "\n\n".join(p for p in parts if p)
 
 
