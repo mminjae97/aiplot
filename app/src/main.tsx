@@ -2,6 +2,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
+import './styles/base.css'
+import './styles/library.css'
+import './styles/contents.css'
 import { connectServer } from './stores/server'
 
 const container = document.getElementById('root')

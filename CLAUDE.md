@@ -52,7 +52,7 @@ Before finishing: lint + typecheck + tests for touched packages.
 - Format changes: edit `schemas/` → codegen → commit generated. Card field change → bump `schema_version` + migration + backup import conversion.
 - Prompts: files only; never edit old version, add v{n+1}, update roles.yaml; store prompt version with every output; context blocks tagged `<원문> <참고 카드> <상태> <지시> <대화>`; JSON roles pass schema as llama.cpp `json_schema`.
 - DB changes only via migrations.
-- UI: one accent color per screen; irreversible = red, never default, strong ones require typing work title; warnings orange; never color-only meaning; motion only on state change 0.2–0.3s (respect reduced motion); waits >10s show progress, ETA, background option; themes light/dark/system; manuscript 17px, line-height 1.7.
+- UI: one accent color per screen; irreversible = red, never default, strong ones require typing work title; warnings orange; never color-only meaning; motion only on state change 0.2–0.3s (respect reduced motion); waits >10s show progress, ETA, background option; themes light/dark/system (light default); manuscript 17px, line-height 1.7. Look: calm wooden study with paper books — tokens in `app/src/styles/base.css` (paper, sepia ink, oak/walnut, brass accent; spine lettering ≥4.5:1 on every binding); font D2Coding (bundled TTF + OFL in `app/src/assets/fonts/`).
 
 ## 6 Prohibitions
 - Never edit card fields directly; change source notes and regenerate. Exceptions: region `map_x/map_y`; timeline node drag (LLM writes one line into notes, user confirms).
@@ -123,7 +123,7 @@ S3-1 screen: left chapters (done/generating/waiting), center TipTap manuscript, 
 - Backup (user-initiated only): `{title}_{YYYY-MM-DD}.aiplot` zip of work data, images, app/data version; no models. Show path+size. Import from library new-book → "백업 파일에서 가져오기"; never overwrite, add "{title} (가져옴)"; newer data version → ask app update; older → migrate.
 
 ## 12 Screens
-S0 Library: books on shelf, recent first + highlight; translucent "+" book last ("새로 만들기" title only → contents, or import). Cover: title, stage, chapters. Hover: main theme, modified, chapters. Right-click "제목 바꾸기/백업 생성/삭제" (delete shows counts, type title). Progress band while generating. Empty: "첫 작품을 시작해 보세요".
+S0 Library: books on shelf (walnut bookcase, oak boards and frame posts; cloth spines with vertical titles, colour/size stable per work id; empty boards fill the window height), recent first + highlight (newest: ribbon bookmark; just made/opened: short lift); translucent "+" book last ("새로 만들기" title only → contents, or import). Cover: title, stage, chapters. Hover/focus: book lifts, paper slip beside it (away from the nearer side) with main theme, modified, chapters. Right-click "제목 바꾸기/백업 생성/삭제" (delete shows counts, type title). Progress band while generating. Empty: "첫 작품을 시작해 보세요".
 S0-1 First run: capabilities/limits, download llama.cpp + base (~5GB, resumable, hash) or set path.
 S1 Contents: opened book. Left: title, main theme, stage, card count, modified, "원고 내보내기", "백업 생성", "이어서 작업". Right: items by stage (세계관, 캐릭터, 지역, 스토리 | 연출 | 집필, 소설 읽기; `work.last_item` world|characters|regions|story|direction|writing|reading) with dotted leader + status; last item highlighted; future dim (click explains); past locked read-only + "다시 열기". Top-bar title → contents; "← 서재".
 S1-0/1/2/3 §8; S2 §9; S3-1 §10.

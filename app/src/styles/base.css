@@ -1,0 +1,180 @@
+/* Design tokens (§5): a calm wooden study, paper books, light by default. One accent per
+   screen; the library's is the brass of gilt spine lettering. */
+
+@font-face {
+  font-family: 'D2Coding';
+  src: url('../assets/fonts/D2Coding-Ver1.4.0-20261003.ttf') format('truetype');
+  font-weight: 400;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'D2Coding';
+  src: url('../assets/fonts/D2CodingBold-Ver1.4.0-20261003.ttf') format('truetype');
+  font-weight: 700;
+  font-display: block;
+}
+
+:root {
+  --font: 'D2Coding', 'Malgun Gothic', sans-serif;
+
+  --paper: #ede3cf;
+  --paper-edge: #dccfb4;
+  --ink: #2e2219;
+  --ink-soft: #6b5a48;
+  --ink-faint: #9a8a74;
+
+  --wood-panel: #5a3b26;
+  --wood-panel-seam: #4a301f;
+  --wood-board: #b5835a;
+  --wood-board-edge: #8e623e;
+  --wood-shadow: rgb(38 22 12 / 55%);
+
+  --brass: #b08a3e;
+  --brass-bright: #d4ae5c;
+  /* spine lettering: at least 4.5:1 on every cloth binding */
+  --gilt: #e8c877;
+
+  --danger: #9c2f24;
+  --warning: #b8641c;
+
+  --focus: var(--brass-bright);
+
+  --size-small: 13px;
+  --size-body: 15px;
+  --size-lead: 17px;
+  --size-title: 22px;
+  --size-display: 30px;
+
+  --motion: 0.2s;
+}
+
+/* Dark: the same study after dusk; paper turns to lamplit vellum. */
+:root[data-theme='dark'] {
+  --paper: #2f271f;
+  --paper-edge: #3b3127;
+  --ink: #eadfca;
+  --ink-soft: #bfae94;
+  --ink-faint: #8c7c66;
+  --wood-panel: #2b1d13;
+  --wood-panel-seam: #22170f;
+  --wood-board: #6f4e33;
+  --wood-board-edge: #553a25;
+  --wood-shadow: rgb(0 0 0 / 65%);
+  --brass: #c49b4c;
+  --brass-bright: #e0bf73;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='system'] {
+    --paper: #2f271f;
+    --paper-edge: #3b3127;
+    --ink: #eadfca;
+    --ink-soft: #bfae94;
+    --ink-faint: #8c7c66;
+    --wood-panel: #2b1d13;
+    --wood-panel-seam: #22170f;
+    --wood-board: #6f4e33;
+    --wood-board-edge: #553a25;
+    --wood-shadow: rgb(0 0 0 / 65%);
+    --brass: #c49b4c;
+    --brass-bright: #e0bf73;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion: 0s;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font);
+  font-size: var(--size-body);
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.paper-button {
+  border: 1px solid var(--ink-soft);
+  border-radius: 3px;
+  background: var(--paper);
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: background var(--motion);
+}
+
+.paper-button:hover {
+  background: var(--paper-edge);
+}
+
+.paper-button[data-primary] {
+  border-color: var(--brass);
+  background: var(--brass);
+  color: #fff8ea;
+}
+
+.paper-button[data-primary]:hover {
+  background: var(--brass-bright);
+}
+
+.paper-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Before the server is up: a quiet sheet of paper. */
+.server-screen {
+  display: grid;
+  place-content: center;
+  gap: 14px;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+}
+
+.server-screen h1 {
+  font-size: var(--size-title);
+}
+
+.server-screen p {
+  max-width: 34em;
+  color: var(--ink-soft);
+}
+
+.server-screen .paper-button {
+  justify-self: center;
+}

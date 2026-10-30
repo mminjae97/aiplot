@@ -1,0 +1,401 @@
+/* S0 library: the inside of a walnut bookcase with oak boards; books are cloth-bound. */
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 48px;
+  padding: 0 24px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--paper-edge);
+}
+
+.top-bar h1 {
+  font-size: var(--size-lead);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.top-bar-back {
+  border: 0;
+  background: none;
+  padding: 4px 0;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.top-bar-back:hover {
+  color: var(--ink);
+}
+
+.top-bar-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library {
+  height: calc(100% - 48px);
+  display: flex;
+  flex-direction: column;
+  background:
+    /* plank seams of the back panel */
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 179px,
+      var(--wood-panel-seam) 179px 181px,
+      transparent 181px 360px
+    ),
+    /* faint grain */
+    repeating-linear-gradient(
+        90deg,
+        rgb(255 255 255 / 2%) 0 3px,
+        transparent 3px 11px,
+        rgb(0 0 0 / 4%) 11px 13px,
+        transparent 13px 29px
+      ),
+    var(--wood-panel);
+  overflow-y: auto;
+}
+
+.library-alert {
+  margin: 16px 28px 0;
+  padding: 10px 14px;
+  background: var(--paper);
+  border-left: 3px solid var(--warning);
+}
+
+/* Oak frame posts at both sides; the boards run between them. */
+.bookcase {
+  position: relative;
+  flex: 1;
+  padding: 24px 0 40px;
+}
+
+.bookcase::before,
+.bookcase::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 16px;
+  background:
+    linear-gradient(
+      90deg,
+      rgb(255 255 255 / 12%) 0 2px,
+      transparent 2px 12px,
+      rgb(0 0 0 / 22%) 12px
+    ),
+    var(--wood-board);
+  box-shadow: 0 0 12px var(--wood-shadow);
+}
+
+.bookcase::before {
+  left: 0;
+}
+
+.bookcase::after {
+  right: 0;
+  transform: scaleX(-1);
+}
+
+.shelf {
+  position: relative;
+  margin-top: 28px;
+}
+
+.shelf-books {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  min-height: 262px;
+  padding: 0 44px;
+}
+
+.shelf-board {
+  height: 22px;
+  margin: 0 16px;
+  background:
+    linear-gradient(
+      180deg,
+      rgb(255 255 255 / 18%) 0 2px,
+      transparent 2px 14px,
+      var(--wood-board-edge) 14px 100%
+    ),
+    repeating-linear-gradient(90deg, rgb(0 0 0 / 5%) 0 2px, transparent 2px 23px), var(--wood-board);
+  border-radius: 1px;
+  box-shadow: 0 10px 14px -6px var(--wood-shadow);
+}
+
+/* A paper tag tied to the first board when the shelf is empty. */
+.shelf-tag {
+  position: absolute;
+  left: 116px;
+  bottom: -46px;
+  padding: 6px 14px 7px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: var(--size-body);
+  box-shadow: 0 3px 8px var(--wood-shadow);
+  transform: rotate(-1.5deg);
+}
+
+.shelf-tag::before {
+  content: '';
+  position: absolute;
+  left: 22px;
+  top: -18px;
+  width: 1px;
+  height: 18px;
+  background: var(--paper-edge);
+}
+
+.book {
+  position: relative;
+  width: var(--spine-width);
+  height: var(--spine-height);
+}
+
+.book:hover,
+.book:focus-within {
+  z-index: 3;
+}
+
+.book-spine,
+.book-new {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  padding: 18px 0 14px;
+  border: 0;
+  cursor: pointer;
+  transition: transform var(--motion);
+}
+
+.book-spine {
+  color: var(--gilt);
+  background:
+    /* gilt bands near head and tail */
+    linear-gradient(
+      180deg,
+      transparent 0 8px,
+      var(--brass) 8px 9px,
+      transparent 9px 11px,
+      var(--brass) 11px 12px,
+      transparent 12px calc(100% - 12px),
+      var(--brass) calc(100% - 12px) calc(100% - 11px),
+      transparent calc(100% - 11px) calc(100% - 9px),
+      var(--brass) calc(100% - 9px) calc(100% - 8px),
+      transparent calc(100% - 8px)
+    ),
+    /* rounded spine catching the light */
+    linear-gradient(
+        90deg,
+        rgb(0 0 0 / 30%) 0,
+        rgb(255 255 255 / 10%) 28%,
+        rgb(255 255 255 / 4%) 55%,
+        rgb(0 0 0 / 35%) 100%
+      ),
+    var(--binding);
+  border-radius: 2px 2px 1px 1px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%);
+}
+
+.book:hover .book-spine,
+.book-spine:focus-visible,
+.book-new:hover,
+.book-new:focus-visible {
+  transform: translateY(-10px);
+}
+
+.book[data-highlighted] .book-spine {
+  animation: book-arrive 0.3s ease-out;
+}
+
+@keyframes book-arrive {
+  from {
+    transform: translateY(-14px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .book[data-highlighted] .book-spine {
+    animation: none;
+    outline: 2px solid var(--brass-bright);
+  }
+}
+
+/* Long titles wrap into a second column instead of an ellipsis. */
+.book-title {
+  writing-mode: vertical-rl;
+  max-height: calc(100% - 46px);
+  max-width: calc(100% - 8px);
+  overflow: hidden;
+  word-break: keep-all;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.06em;
+}
+
+.book-stage {
+  font-size: 11px;
+  color: rgb(255 248 234 / 60%);
+}
+
+/* The newest book's ribbon bookmark peeks out above its head. */
+.book-ribbon {
+  position: absolute;
+  top: -18px;
+  right: 9px;
+  width: 7px;
+  height: 22px;
+  background: var(--brass);
+  clip-path: polygon(0 0, 50% 22%, 100% 0, 100% 100%, 0 100%);
+  pointer-events: none;
+  transition: transform var(--motion);
+}
+
+.book:hover .book-ribbon,
+.book:focus-within .book-ribbon {
+  transform: translateY(-10px);
+}
+
+.book-slip {
+  position: absolute;
+  z-index: 2;
+  top: 18px;
+  left: calc(100% + 12px);
+  width: 220px;
+  padding: 10px 14px;
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  box-shadow: 0 6px 18px var(--wood-shadow);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--motion),
+    visibility var(--motion);
+}
+
+.book-slip[data-side='left'] {
+  left: auto;
+  right: calc(100% + 12px);
+}
+
+.book:hover .book-slip,
+.book:focus-within .book-slip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.book-slip-title {
+  margin-bottom: 4px;
+  color: var(--ink);
+  font-size: var(--size-body);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* The "+" book: a glassy blank waiting at the end of the row. */
+.book-new {
+  width: 58px;
+  height: 228px;
+  color: var(--brass-bright);
+  background: rgb(255 248 234 / 7%);
+  border: 1px dashed rgb(212 174 92 / 55%);
+  border-radius: 2px;
+}
+
+.book-new:hover {
+  background: rgb(255 248 234 / 13%);
+}
+
+.book-new-plus {
+  font-size: var(--size-display);
+  line-height: 1;
+}
+
+.book-new .book-title {
+  font-weight: 400;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: rgb(30 18 10 / 45%);
+}
+
+.new-book {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(420px, calc(100% - 32px));
+  padding: 24px 28px 22px;
+  background: var(--paper);
+  box-shadow: 0 18px 40px var(--wood-shadow);
+}
+
+.new-book h2 {
+  margin-bottom: 8px;
+  font-size: var(--size-title);
+}
+
+.new-book label {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.new-book input {
+  padding: 8px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--ink-soft);
+  background: transparent;
+  font-size: var(--size-lead);
+}
+
+.new-book input:focus-visible {
+  outline: none;
+  border-bottom-color: var(--brass);
+  box-shadow: 0 1px 0 var(--brass);
+}
+
+.new-book-error {
+  min-height: 1.6em;
+  color: var(--danger);
+  font-size: var(--size-small);
+}
+
+.new-book-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 8px;
+  border: 2px solid currentcolor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: -1px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
