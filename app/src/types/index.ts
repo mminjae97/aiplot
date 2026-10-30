@@ -292,10 +292,34 @@ export interface ApiError {
   hint: string | null
 }
 /**
- * GET /health. Model and VRAM fields arrive with the llama process (step 1, unit 6).
+ * GET /health. The server is up whenever this answers; llama says whether the model can be used (missing files → S0-1 first run, §12, §13).
  */
 export interface HealthResponse {
   status: 'ok'
+  llama: LlamaHealth
+  /**
+   * From nvidia-smi; null when it cannot be read.
+   */
+  vram: VramUsage | null
+}
+export interface LlamaHealth {
+  /**
+   * fake: AIPLOT_FAKE_LLM=1 fixtures, no model. missing_binary / missing_model: first run or files removed. starting: process up, model loading. ready: usable. error: stopped after 3 restarts or a start failure; message says why.
+   */
+  state: 'fake' | 'missing_binary' | 'missing_model' | 'starting' | 'ready' | 'error' | 'stopped'
+  /**
+   * Base profile id in use (config/profiles).
+   */
+  profile: string | null
+  /**
+   * Restarts of an unresponsive or crashed llama-server in this session (at most 3).
+   */
+  restarts: number
+  message: string | null
+}
+export interface VramUsage {
+  used_mb: number
+  total_mb: number
 }
 /**
  * event: progress. Units are the job's own (beats, bytes).

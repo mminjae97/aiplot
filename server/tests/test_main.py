@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from aiplot.generated.common.health import VramUsage
+from aiplot.llm import vram
 from aiplot.main import (
     DEV_PORT,
     LOG_RETENTION_DAYS,
@@ -22,11 +24,30 @@ TOKEN = "test-token"
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
 
 
-def test_health_ok(tmp_path: Path) -> None:
+def test_health_reports_fake_llm_and_vram(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(vram, "_cache", None)
+    monkeypatch.setattr(vram, "query", lambda: VramUsage(used_mb=6591, total_mb=8192))
     client = TestClient(create_app(token=TOKEN, db_path=tmp_path / "aiplot.db"))
     response = client.get("/api/v1/health", headers=AUTH)
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {
+        "status": "ok",
+        "llama": {"state": "fake", "profile": None, "restarts": 0, "message": None},
+        "vram": {"used_mb": 6591, "total_mb": 8192},
+    }
+
+
+def test_health_without_nvidia_smi(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(vram, "_cache", None)
+    monkeypatch.setattr(vram, "query", lambda: None)
+    client = TestClient(create_app(token=TOKEN, db_path=tmp_path / "aiplot.db"))
+    assert client.get("/api/v1/health", headers=AUTH).json()["vram"] is None
+
+
+def test_fake_llm_setting(tmp_path: Path) -> None:
+    env = {"AIPLOT_PORT": "9001", "AIPLOT_TOKEN": TOKEN, "AIPLOT_DATA_DIR": str(tmp_path)}
+    assert not load_settings(env, dev=False).fake_llm
+    assert load_settings(env | {"AIPLOT_FAKE_LLM": "1"}, dev=False).fake_llm
 
 
 @pytest.mark.parametrize(("dev", "status"), [(True, 200), (False, 404)])

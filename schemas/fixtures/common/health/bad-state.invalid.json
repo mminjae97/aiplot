@@ -1,0 +1,13 @@
+{
+ "status": "ok",
+ "llama": {
+  "state": "loading",
+  "profile": "qwen3-8b-uncensor-q5km",
+  "restarts": 0,
+  "message": null
+ },
+ "vram": {
+  "used_mb": 6591,
+  "total_mb": 8192
+ }
+}

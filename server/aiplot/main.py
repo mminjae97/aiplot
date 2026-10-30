@@ -17,6 +17,7 @@ from aiplot.api.auth import require_token
 from aiplot.api.errors import install_error_handlers
 from aiplot.db.migrate import MigrationError, init_db
 from aiplot.jobs.queue import JobQueue
+from aiplot.llm.runtime import LLAMA_LOGGER, LlmRuntime, fake_runtime, llama_runtime
 
 DEV_PORT = 8765
 API_PREFIX = "/api/v1"
@@ -30,20 +31,28 @@ class Settings:
     port: int
     token: str
     data_dir: Path
+    fake_llm: bool = False
 
     @property
     def db_path(self) -> Path:
         return self.data_dir / "data" / "aiplot.db"
 
 
-def create_app(*, token: str, db_path: Path, dev: bool = False) -> FastAPI:
+def create_app(
+    *, token: str, db_path: Path, dev: bool = False, llm: LlmRuntime | None = None
+) -> FastAPI:
+    """llm defaults to the fixture runtime so tests never need a GPU."""
     job_queue = JobQueue()
+    runtime = llm or fake_runtime(db_path.parent)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        # llama-server loads in the background: the API is up before the model is (§13).
+        runtime.start()
         job_queue.start()
         yield
         await job_queue.stop()
+        await runtime.stop()
 
     # Interactive API docs are a development aid only.
     app = FastAPI(
@@ -56,6 +65,7 @@ def create_app(*, token: str, db_path: Path, dev: bool = False) -> FastAPI:
     app.state.token = token
     app.state.db_path = db_path
     app.state.jobs = job_queue
+    app.state.llm = runtime
     install_error_handlers(app)
     api = APIRouter(prefix=API_PREFIX, dependencies=[Depends(require_token)])
     api.include_router(health.router)
@@ -110,12 +120,24 @@ def load_settings(env: Mapping[str, str], *, dev: bool) -> Settings:
         token = resolve_token(env_value(env, "AIPLOT_TOKEN"))
     except ValueError as exc:
         raise ValueError(f"invalid AIPLOT_TOKEN: {exc}") from exc
-    return Settings(port=port, token=token, data_dir=resolve_data_dir(env))
+    fake_llm = env_value(env, "AIPLOT_FAKE_LLM") == "1"
+    return Settings(port=port, token=token, data_dir=resolve_data_dir(env), fake_llm=fake_llm)
 
 
 def setup_logging(log_dir: Path, *, dev: bool) -> None:
-    """Daily-rotated server.log under the data dir (§17); console too in dev."""
+    """Daily-rotated logs per process under the data dir (§17): server.log, and llama.log for
+    llama-server's own output; console too in dev."""
     log_dir.mkdir(parents=True, exist_ok=True)
+    llama_handler = TimedRotatingFileHandler(
+        log_dir / "llama.log", when="midnight", backupCount=LOG_RETENTION_DAYS, encoding="utf-8"
+    )
+    llama_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+    llama = logging.getLogger(LLAMA_LOGGER)
+    for old in llama.handlers[:]:
+        llama.removeHandler(old)
+        old.close()
+    llama.addHandler(llama_handler)
+    llama.propagate = False
     file_handler = TimedRotatingFileHandler(
         log_dir / "server.log",
         when="midnight",
@@ -147,8 +169,10 @@ def main(argv: list[str] | None = None) -> None:
     except MigrationError:
         logger.exception("database migration failed")
         raise SystemExit(1) from None
+    data_dir = settings.data_dir
+    llm = fake_runtime(data_dir) if settings.fake_llm else llama_runtime(data_dir)
     uvicorn.run(
-        create_app(token=settings.token, db_path=settings.db_path, dev=args.dev),
+        create_app(token=settings.token, db_path=settings.db_path, dev=args.dev, llm=llm),
         host="127.0.0.1",
         port=settings.port,
         log_level="debug" if args.dev else "info",

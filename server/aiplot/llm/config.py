@@ -124,6 +124,23 @@ class Profile(StrictModel):
         return self
 
 
+class LlamaArchive(StrictModel):
+    file: str = Field(pattern=r"^[^/\\:]+\.zip$")
+    url: str = Field(pattern=r"^https://")
+    size: int = Field(gt=0)
+    sha256: Sha256
+
+
+class LlamaBuild(StrictModel):
+    """config/llama.yaml: the pinned llama.cpp server build (§2)."""
+
+    build: str = Field(pattern=r"^b[0-9]+$")
+    cuda: str = Field(pattern=r"^[0-9]+\.[0-9]+$")
+    dir: str = Field(pattern=r"^[^/\\:]+$")
+    executable: str = Field(pattern=r"^[^/\\:]+\.exe$")
+    archives: tuple[LlamaArchive, ...] = Field(strict=False, min_length=1)
+
+
 class RoleConfig(StrictModel):
     profile: str
     lora: str | None
@@ -146,7 +163,16 @@ class LlmConfig(StrictModel):
         for role, config in self.roles.items():
             if config.profile not in self.profiles:
                 raise ValueError(f"role {role}: unknown profile {config.profile!r}")
+        used = {config.profile for config in self.roles.values()}
+        if len(used) > 1:
+            # One llama-server holds one model in 8 GB VRAM; LoRAs vary per role, the base not.
+            raise ValueError(f"all roles must use one base profile, got {sorted(used)}")
         return self
+
+    @property
+    def base(self) -> Profile:
+        """The one base profile every role uses."""
+        return self.profiles[next(iter(self.roles.values())).profile]
 
     def profile_for(self, role: Role) -> Profile:
         return self.profiles[self.roles[role].profile]
@@ -168,6 +194,13 @@ def read_yaml(path: Path) -> object:
         return yaml.load(path.read_text(encoding="utf-8"), Loader=UniqueKeyLoader)
     except (OSError, yaml.YAMLError) as exc:
         raise ConfigError(f"{path.name}: {exc}") from exc
+
+
+def load_llama_build(config_dir: Path = CONFIG_DIR) -> LlamaBuild:
+    try:
+        return LlamaBuild.model_validate(read_yaml(config_dir / "llama.yaml"))
+    except ValueError as exc:
+        raise ConfigError(str(exc)) from exc
 
 
 def load_llm_config(config_dir: Path = CONFIG_DIR) -> LlmConfig:
