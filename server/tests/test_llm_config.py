@@ -64,9 +64,19 @@ def test_role_with_unknown_profile(config_dir: Path) -> None:
         load_llm_config(config_dir)
 
 
-@pytest.mark.parametrize("flag", ["-c", "--port", "-m", "--lora", "--no-jinja"])
-def test_server_args_reject_managed_flags(config_dir: Path, flag: str) -> None:
-    edit(config_dir / "profiles" / f"{Q4}.yaml", {"server_args": [flag, "1"]})
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["-c", "1"],
+        ["--port=9"],
+        ["-m", "x"],
+        ["-hf", "x"],
+        ["--cache-reuse", "256"],
+        ["--no-jinja"],
+    ],
+)
+def test_server_args_reject_managed_flags(config_dir: Path, args: list[str]) -> None:
+    edit(config_dir / "profiles" / f"{Q4}.yaml", {"server_args": args})
     with pytest.raises(ConfigError, match="server_args must not set"):
         load_llm_config(config_dir)
 
@@ -120,4 +130,23 @@ def test_gguf_pin_validated(config_dir: Path, gguf: dict[str, object]) -> None:
 def test_broken_yaml(config_dir: Path) -> None:
     (config_dir / "roles.yaml").write_text("roles: [", encoding="utf-8")
     with pytest.raises(ConfigError, match=r"roles\.yaml"):
+        load_llm_config(config_dir)
+
+
+def test_server_args_cannot_change_after_load() -> None:
+    profile = load_llm_config().profiles[Q4]
+    assert profile.server_args == ("-ngl", "99", "-fa", "on", "-np", "1", "--cache-ram", "1024")
+    hash(profile)
+
+
+@pytest.mark.parametrize(
+    ("file", "text"),
+    [
+        ("roles.yaml", "roles:\n  chat: {}\n  chat: {}\n"),
+        (f"profiles/{Q4}.yaml", "id: a\nid: b\n"),
+    ],
+)
+def test_duplicate_yaml_keys_rejected(config_dir: Path, file: str, text: str) -> None:
+    (config_dir / file).write_text(text, encoding="utf-8")
+    with pytest.raises(ConfigError, match="duplicate key"):
         load_llm_config(config_dir)

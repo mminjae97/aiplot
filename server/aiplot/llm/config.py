@@ -1,7 +1,8 @@
 """config/roles.yaml and config/profiles/*.yaml (§13), validated at load."""
 
+from collections.abc import Hashable
 from pathlib import Path
-from typing import Annotated, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -15,11 +16,18 @@ Role = Literal[
 ]
 Sha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 
-# Set from profile fields or by the process manager, never through server_args.
+# Set from profile fields, per request or by the process manager, or forbidden (runtime
+# downloads, KV shifting); never through server_args.
 MANAGED_FLAGS = frozenset(
     {
         "-m",
         "--model",
+        "-hf",
+        "--hf-repo",
+        "-hff",
+        "--hf-file",
+        "-mu",
+        "--model-url",
         "-c",
         "--ctx-size",
         "-ctk",
@@ -32,9 +40,28 @@ MANAGED_FLAGS = frozenset(
         "--lora-scaled",
         "--chat-template",
         "--chat-template-file",
+        "--chat-template-kwargs",
         "--no-jinja",
+        "--reasoning-format",
+        "--reasoning-budget",
+        "--cache-reuse",
     }
 )
+
+
+class UniqueKeyLoader(yaml.SafeLoader):
+    """safe_load that rejects repeated mapping keys instead of keeping the last one."""
+
+    def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> dict[Hashable, Any]:
+        seen: set[object] = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if key in seen:
+                raise yaml.constructor.ConstructorError(
+                    None, None, f"duplicate key {key!r}", key_node.start_mark
+                )
+            seen.add(key)
+        return super().construct_mapping(node, deep)
 
 
 class ConfigError(Exception):
@@ -79,12 +106,14 @@ class Profile(StrictModel):
     ctx: int = Field(gt=0)
     kv_type: Literal["f16", "q8_0"]
     lora_mode: Literal["hotswap", "merged"]
-    server_args: list[str]
+    # Tuple so a loaded profile cannot gain flags after validation; YAML gives a list.
+    server_args: tuple[str, ...] = Field(strict=False)
     sampling: ProfileSampling
 
     @model_validator(mode="after")
     def no_managed_flags(self) -> Self:
-        managed = sorted(MANAGED_FLAGS.intersection(self.server_args))
+        names = {arg.split("=", 1)[0] for arg in self.server_args}
+        managed = sorted(MANAGED_FLAGS & names)
         if managed:
             raise ValueError(f"server_args must not set {managed}")
         return self
@@ -131,7 +160,7 @@ def prompt_path(role: Role, version: int, prompts_dir: Path = PROMPTS_DIR) -> Pa
 
 def read_yaml(path: Path) -> object:
     try:
-        return yaml.safe_load(path.read_text(encoding="utf-8"))
+        return yaml.load(path.read_text(encoding="utf-8"), Loader=UniqueKeyLoader)
     except (OSError, yaml.YAMLError) as exc:
         raise ConfigError(f"{path.name}: {exc}") from exc
 
