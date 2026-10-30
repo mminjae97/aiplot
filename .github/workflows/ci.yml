@@ -91,3 +91,19 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run mypy aiplot tests
       - run: uv run pytest
+
+  training:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: training
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          working-directory: training
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy eval
