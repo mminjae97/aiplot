@@ -38,7 +38,7 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy eval
 uv run python eval/unit5/measure.py --url http://127.0.0.1:8796 --profile {id} --out eval/results/unit5-{id}.json   # llama-server started by hand
 uv run python eval/unit5/report.py pairs|metrics|votes ...
 cd app && npm i                               # dev/e2e start the server from server/.venv: run `uv sync` there first
-npm run dev | test | lint | typecheck | e2e | build
+npm run dev | test | lint | typecheck | e2e | build | wood   # wood: re-render the grain images after editing scripts/wood/*.svg
 ```
 Env: `AIPLOT_DATA_DIR` (override data dir), `AIPLOT_PORT`/`AIPLOT_TOKEN`, `AIPLOT_FAKE_LLM=1` (fixture LLM, no GPU; default in tests/CI), `AIPLOT_PARENT_PID` (Electron's PID; the server shuts down gracefully when it ends), `AIPLOT_DEV_ORIGIN` (--dev only: renderer origin allowed by CORS).
 Before finishing: lint + typecheck + tests for touched packages.
@@ -52,7 +52,7 @@ Before finishing: lint + typecheck + tests for touched packages.
 - Format changes: edit `schemas/` → codegen → commit generated. Card field change → bump `schema_version` + migration + backup import conversion.
 - Prompts: files only; never edit old version, add v{n+1}, update roles.yaml; store prompt version with every output; context blocks tagged `<원문> <참고 카드> <상태> <지시> <대화>`; JSON roles pass schema as llama.cpp `json_schema`.
 - DB changes only via migrations.
-- UI: one accent color per screen; irreversible = red, never default, strong ones require typing work title; warnings orange; never color-only meaning; motion only on state change 0.2–0.3s (respect reduced motion); waits >10s show progress, ETA, background option; themes light/dark/system (light default); manuscript 17px, line-height 1.7. Look: calm wooden study with paper books — tokens in `app/src/styles/base.css` (paper, sepia ink, oak/walnut, brass accent; wood grain = `app/src/assets/wood/*.svg`, alpha-only SVG noise stretched along the board and banded into growth rings over the theme's wood colour, one grain per plank, joints breaking the grain (bookcase back: 200px planks, faint joints); cover lettering ≥4.5:1 on every book colour); font 본고딕 Source Han Sans KR 2.005R Regular/Medium/Bold (bundled OTF + OFL in `app/src/assets/fonts/`).
+- UI: one accent color per screen; irreversible = red, never default, strong ones require typing work title; warnings orange; never color-only meaning; motion only on state change 0.2–0.3s (respect reduced motion); waits >10s show progress, ETA, background option; themes light/dark/system (light default); manuscript 17px, line-height 1.7. Look: calm wooden study with paper books — tokens in `app/src/styles/base.css` (paper, sepia ink, oak/walnut, brass accent; wood grain = `app/scripts/wood/*.svg` rendered to WebP 1x/2x in `app/src/assets/wood/` by `npm run wood` (live SVG filters repaint too slowly), alpha-only noise stretched along the board and banded into growth rings over the theme's wood colour, one grain per plank, joints breaking the grain (bookcase back: 200px planks, faint joints); cover lettering ≥4.5:1 on every book colour); font 본고딕 Source Han Sans KR 2.005R Regular/Medium/Bold (bundled OTF + OFL in `app/src/assets/fonts/`).
 
 ## 6 Prohibitions
 - Never edit card fields directly; change source notes and regenerate. Exceptions: region `map_x/map_y`; timeline node drag (LLM writes one line into notes, user confirms).

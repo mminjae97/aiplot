@@ -8,9 +8,10 @@
   place-items: center;
   padding: var(--desk-margin);
   container-type: size;
-  /* the walnut desk: horizontal planks from assets/wood */
+  /* the walnut desk: horizontal planks (images rendered from scripts/wood) */
   background:
-    url('../assets/wood/desk.svg') 0 0 / 1400px 1440px,
+    image-set(url('../assets/wood/desk.webp') 1x, url('../assets/wood/desk@2x.webp') 2x) 0 0 /
+      1400px 1440px,
     var(--wood-panel);
   background-attachment: local;
   overflow: auto;
