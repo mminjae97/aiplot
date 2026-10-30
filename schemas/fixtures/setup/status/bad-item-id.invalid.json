@@ -1,0 +1,15 @@
+{
+ "items": [
+  {
+   "id": "comfyui",
+   "status": "partial",
+   "path": "C:/Users/me/AppData/Local/Aiplot/models/Qwen3-8B-Uncensor-v2.i1-Q5_K_M.gguf",
+   "custom": false,
+   "total_bytes": 5851112992,
+   "present_bytes": 1200000000
+  }
+ ],
+ "remaining_bytes": 4651112992,
+ "free_bytes": 70000000000,
+ "job_id": "job_ab12"
+}

@@ -10,13 +10,15 @@ from aiplot.llm.fake import FakeClient
 from aiplot.llm.process import LlamaProcess, free_port
 from aiplot.llm.router import Router
 from aiplot.llm.winjob import KillOnCloseJob
+from aiplot.services.setup import Setup
 
 LLAMA_LOGGER = "llama"
 
 
 class LlmRuntime:
-    def __init__(self, router: Router, process: LlamaProcess | None = None) -> None:
+    def __init__(self, router: Router, setup: Setup, process: LlamaProcess | None = None) -> None:
         self.router = router
+        self.setup = setup
         self.process = process
 
     def start(self) -> None:
@@ -36,12 +38,14 @@ class LlmRuntime:
 def fake_runtime(data_dir: Path, config_dir: Path = CONFIG_DIR) -> LlmRuntime:
     """AIPLOT_FAKE_LLM=1: fixture replies, no model, no GPU (tests, CI, GPU-less dev)."""
     config = load_llm_config(config_dir)
-    return LlmRuntime(Router(config, FakeClient(), lora_dir=data_dir / "lora"))
+    setup = Setup(data_dir, load_llama_build(config_dir), config.base)
+    return LlmRuntime(Router(config, FakeClient(), lora_dir=data_dir / "lora"), setup)
 
 
 def llama_runtime(data_dir: Path, config_dir: Path = CONFIG_DIR) -> LlmRuntime:
     config = load_llm_config(config_dir)
     build = load_llama_build(config_dir)
+    # Setup points the process at the default or user-set files right away.
     process = LlamaProcess(
         binary=data_dir / "llama" / build.dir / build.executable,
         model=data_dir / "models" / config.base.gguf.file,
@@ -50,6 +54,6 @@ def llama_runtime(data_dir: Path, config_dir: Path = CONFIG_DIR) -> LlmRuntime:
         log=logging.getLogger(LLAMA_LOGGER),
         job=KillOnCloseJob(),
     )
-    client = LlamaClient(process.endpoint)
-    router = Router(config, client, lora_dir=data_dir / "lora")
-    return LlmRuntime(router, process)
+    setup = Setup(data_dir, build, config.base, process)
+    router = Router(config, LlamaClient(process.endpoint), lora_dir=data_dir / "lora")
+    return LlmRuntime(router, setup, process)

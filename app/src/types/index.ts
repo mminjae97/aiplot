@@ -477,3 +477,57 @@ export interface SimilarName {
    */
   card_id: CardId | null
 }
+/**
+ * PUT /setup/paths: use files the user already has instead of downloading. Send both keys; null means the default location under the data dir, and a value equal to the current one is kept without a new check. Starts a job that checks changed paths (model: size + sha256 against the profile; llama: `--version` reports the pinned build) before they are used.
+ */
+export interface SetupPathsRequest {
+  /**
+   * Full path of the base GGUF file.
+   */
+  model_path: string | null
+  /**
+   * Folder that holds llama-server.exe and its DLLs.
+   */
+  llama_dir: string | null
+}
+/**
+ * GET /setup: what the first-run screen (S0-1) needs. Files are downloaded at first run, never shipped (§2, §6).
+ */
+export interface SetupStatus {
+  items: SetupItem[]
+  /**
+   * Still to download for everything not installed.
+   */
+  remaining_bytes: number
+  /**
+   * Free space on the data dir's drive.
+   */
+  free_bytes: number
+  /**
+   * Download or path check running now, if any.
+   */
+  job_id: JobId | null
+}
+export interface SetupItem {
+  /**
+   * llama: llama.cpp server build. model: base GGUF.
+   */
+  id: 'llama' | 'model'
+  /**
+   * installed: usable. partial: a resumable download is on disk. missing: nothing yet.
+   */
+  status: 'installed' | 'partial' | 'missing'
+  /**
+   * Where the server looks (default under the data dir, or the path the user set).
+   */
+  path: string
+  /**
+   * True when the user pointed to an existing file or folder.
+   */
+  custom: boolean
+  /**
+   * Download size (llama: both archives).
+   */
+  total_bytes: number
+  present_bytes: number
+}
