@@ -8,5 +8,5 @@
     "tsBuildInfoFile": "node_modules/.tmp/tsconfig.web.tsbuildinfo"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx"],
-  "exclude": ["tests/e2e/**"]
+  "exclude": ["tests/e2e/**", "tests/electron/**"]
 }

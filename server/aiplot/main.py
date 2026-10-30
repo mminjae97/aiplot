@@ -3,6 +3,7 @@
 import argparse
 import logging
 import os
+import socket
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -23,6 +24,8 @@ from aiplot.parent import parse_pid, watch
 DEV_PORT = 8765
 API_PREFIX = "/api/v1"
 LOG_RETENTION_DAYS = 14
+# Read by app/electron/processes.ts; followed by the bound port.
+READY_LINE = "AIPLOT_READY"
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +79,16 @@ def create_app(
     api.include_router(works.router)
     app.include_router(api)
     return app
+
+
+class ReportingServer(uvicorn.Server):
+    """Prints READY_LINE on stdout once the socket is bound. Electron trusts the port only after
+    its own child says so, never a process that happens to answer there (§13)."""
+
+    async def startup(self, sockets: list[socket.socket] | None = None) -> None:
+        await super().startup(sockets)
+        if self.started:
+            print(f"{READY_LINE} {self.config.port}", flush=True)
 
 
 def env_value(env: Mapping[str, str], name: str) -> str | None:
@@ -185,7 +198,7 @@ def main(argv: list[str] | None = None) -> None:
         raise SystemExit(1) from None
     data_dir = settings.data_dir
     llm = fake_runtime(data_dir) if settings.fake_llm else llama_runtime(data_dir)
-    server = uvicorn.Server(
+    server = ReportingServer(
         uvicorn.Config(
             create_app(token=settings.token, db_path=settings.db_path, dev=args.dev, llm=llm),
             host="127.0.0.1",

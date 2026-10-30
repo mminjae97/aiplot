@@ -1,8 +1,14 @@
 import logging
+import os
+import socket
+import subprocess
+import sys
+import time
 from collections.abc import Iterator
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
+import httpx2 as httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -11,6 +17,7 @@ from aiplot.llm import vram
 from aiplot.main import (
     DEV_PORT,
     LOG_RETENTION_DAYS,
+    READY_LINE,
     create_app,
     load_settings,
     main,
@@ -154,3 +161,42 @@ def test_setup_logging_writes_daily_rotated_file(tmp_path: Path) -> None:
     assert (handler.when, handler.backupCount) == ("MIDNIGHT", LOG_RETENTION_DAYS)
     handler.flush()
     assert "기록 확인" in (log_dir / "server.log").read_text(encoding="utf-8")
+
+
+def free_port() -> int:
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port: int = s.getsockname()[1]
+        return port
+
+
+def test_ready_line_only_after_bind(tmp_path: Path) -> None:
+    """Electron's contract (§13): the child prints READY_LINE with its port once it listens."""
+    port = free_port()
+    env = os.environ | {
+        "AIPLOT_PORT": str(port),
+        "AIPLOT_TOKEN": TOKEN,
+        "AIPLOT_DATA_DIR": str(tmp_path),
+        "AIPLOT_FAKE_LLM": "1",
+        "PYTHONUNBUFFERED": "1",
+    }
+    child = subprocess.Popen(
+        [sys.executable, "-m", "aiplot.main"],
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    try:
+        assert child.stdout is not None
+        deadline = time.monotonic() + 60
+        line = ""
+        while time.monotonic() < deadline and not line.startswith(READY_LINE):
+            line = child.stdout.readline()
+            assert line or child.poll() is None, "server exited before it was ready"
+        assert line.split() == [READY_LINE, str(port)]
+        response = httpx.get(f"http://127.0.0.1:{port}/api/v1/health", headers=AUTH, timeout=5)
+        assert response.status_code == 200
+    finally:
+        child.terminate()
+        child.wait(timeout=30)

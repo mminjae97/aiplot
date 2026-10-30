@@ -72,6 +72,12 @@ jobs:
       - run: npm test
       # Electron downloads its binary lazily; fetch it before the e2e timeout starts.
       - run: node node_modules/electron/install.js
+      # e2e runs the real local server from server/.venv (fixture LLM, no GPU).
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          working-directory: server
+      - run: uv sync --locked
+        working-directory: server
       - run: npm run e2e
 
   server:
