@@ -164,9 +164,65 @@ test('new book takes a title and opens its contents', async () => {
   for (const item of strings.contents.groups.flatMap((g) => g.items)) {
     expect(screen.getAllByText(item).length).toBeGreaterThan(0)
   }
+  // Later stages say so in words, not only by a fainter colour.
+  expect(screen.getAllByText(strings.contents.laterStage)).toHaveLength(3)
 
   fireEvent.click(screen.getByRole('button', { name: strings.contents.back }))
   expect(await screen.findByRole('button', { name: /안개의 항구/ })).toBeTruthy()
+  // The book just made gets its short lift on the shelf.
+  expect(document.querySelector('.book[data-highlighted] .book-title')?.textContent).toBe(
+    '안개의 항구',
+  )
+})
+
+test('new book keeps focus inside and gives it back to the + book', async () => {
+  serve([])
+  window.aiplot = bridge(READY)
+  connectServer()
+  renderApp()
+  const plus = await screen.findByRole('button', { name: strings.library.newBook })
+  plus.focus()
+  fireEvent.click(plus)
+  expect(document.activeElement).toBe(screen.getByLabelText(strings.newBook.label))
+  // The shelf behind the dialog is inert, so Tab cannot reach it.
+  expect(plus.closest('[inert]')).not.toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: strings.newBook.cancel }))
+  await waitFor(() => {
+    expect(document.activeElement).toBe(plus)
+  })
+  expect(plus.closest('[inert]')).toBeNull()
+})
+
+test('closing the dialog before the server answers stays on the shelf', async () => {
+  let answer: (response: Response) => void = () => undefined
+  const { calls } = serve([])
+  const base = vi.mocked(fetch)
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, init: RequestInit = {}) =>
+      init.method === 'POST'
+        ? new Promise<Response>((resolve) => {
+            answer = resolve
+          })
+        : base(url, init),
+    ),
+  )
+  window.aiplot = bridge(READY)
+  connectServer()
+  renderApp()
+  fireEvent.click(await screen.findByRole('button', { name: strings.library.newBook }))
+  fireEvent.change(screen.getByLabelText(strings.newBook.label), { target: { value: '책' } })
+  fireEvent.click(screen.getByRole('button', { name: strings.newBook.create }))
+  fireEvent.keyDown(window, { key: 'Escape' })
+  await waitFor(() => {
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+  answer(
+    new Response(JSON.stringify(work('w_9', '책', '2026-10-30T10:00:00.000Z')), { status: 201 }),
+  )
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  expect(screen.queryByRole('heading', { name: strings.contents.heading })).toBeNull()
+  expect(calls.every((c) => c.method === 'GET')).toBe(true)
 })
 
 test('new book explains server title errors and closes with Escape', async () => {
@@ -191,6 +247,22 @@ test('new book explains server title errors and closes with Escape', async () =>
   await waitFor(() => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
+})
+
+test('server says the title is too long', async () => {
+  serve([], {
+    'POST /works': new Response(
+      JSON.stringify({ code: 'TITLE_TOO_LONG', message: 'over 100', hint: null }),
+      { status: 422 },
+    ),
+  })
+  window.aiplot = bridge(READY)
+  connectServer()
+  renderApp()
+  fireEvent.click(await screen.findByRole('button', { name: strings.library.newBook }))
+  fireEvent.change(screen.getByLabelText(strings.newBook.label), { target: { value: '책' } })
+  fireEvent.click(screen.getByRole('button', { name: strings.newBook.create }))
+  expect(await screen.findByText(strings.newBook.titleTooLong)).toBeTruthy()
 })
 
 test('library load error offers a retry', async () => {

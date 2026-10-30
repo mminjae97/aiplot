@@ -26,33 +26,36 @@ export function LibraryScreen() {
 
   return (
     <>
-      <TopBar />
-      <main className="library">
-        {works.isError && (
-          <p className="library-alert" role="alert">
-            {strings.library.loadFailed}{' '}
-            <button
-              type="button"
-              className="paper-button"
-              onClick={() => {
-                void works.refetch()
+      {/* inert keeps keyboard focus inside the dialog while it is open. */}
+      <div className="screen" inert={creating}>
+        <TopBar />
+        <main className="library">
+          {works.isError && (
+            <p className="library-alert" role="alert">
+              {strings.library.loadFailed}{' '}
+              <button
+                type="button"
+                className="paper-button"
+                onClick={() => {
+                  void works.refetch()
+                }}
+              >
+                {strings.library.retry}
+              </button>
+            </p>
+          )}
+          {works.data && (
+            <BookShelf
+              works={works.data.works}
+              highlight={highlight}
+              onOpen={openWork}
+              onNew={() => {
+                setCreating(true)
               }}
-            >
-              {strings.library.retry}
-            </button>
-          </p>
-        )}
-        {works.data && (
-          <BookShelf
-            works={works.data.works}
-            highlight={highlight}
-            onOpen={openWork}
-            onNew={() => {
-              setCreating(true)
-            }}
-          />
-        )}
-      </main>
+            />
+          )}
+        </main>
+      </div>
       {creating && <NewBookDialog onClose={close} onCreated={openWork} />}
     </>
   )

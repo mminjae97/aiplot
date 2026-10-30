@@ -5,7 +5,7 @@ export type Screen = { name: 'library' } | { name: 'contents'; workId: string }
 
 interface NavigationStore {
   screen: Screen
-  // A just-made or just-opened book gets a short highlight on the shelf (§12 S0).
+  // The book just made or opened gets a short lift when the shelf shows again (§12 S0).
   highlight: string | null
   open: (screen: Screen) => void
 }
@@ -14,6 +14,14 @@ export const useNavigation = create<NavigationStore>((set) => ({
   screen: { name: 'library' },
   highlight: null,
   open: (screen) => {
-    set({ screen, highlight: screen.name === 'contents' ? screen.workId : null })
+    set((store) => ({
+      screen,
+      highlight:
+        screen.name === 'contents'
+          ? screen.workId
+          : store.screen.name === 'contents'
+            ? store.screen.workId
+            : store.highlight,
+    }))
   },
 }))

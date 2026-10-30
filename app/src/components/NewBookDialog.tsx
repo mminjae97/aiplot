@@ -26,13 +26,13 @@ export function NewBookDialog({ onClose, onCreated }: Props) {
   const queryClient = useQueryClient()
   const create = useMutation({
     mutationFn: api.createWork,
-    onSuccess: async (work) => {
-      await queryClient.invalidateQueries({ queryKey: ['works'] })
-      onCreated(work)
-    },
+    // The new book joins the shelf even if the dialog was closed meanwhile.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['works'] }),
   })
 
   useEffect(() => {
+    // Back to where the user was once the dialog closes (the "+" book).
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
     input.current?.focus()
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose()
@@ -40,12 +40,15 @@ export function NewBookDialog({ onClose, onCreated }: Props) {
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
+      previous?.focus()
     }
   }, [onClose])
 
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!create.isPending) create.mutate({ title })
+    if (create.isPending) return
+    // Per-call callbacks are dropped after unmount: closing before the answer stays closed.
+    create.mutate({ title }, { onSuccess: onCreated })
   }
   // Checked here too so the common cases never wait on the server.
   const local =

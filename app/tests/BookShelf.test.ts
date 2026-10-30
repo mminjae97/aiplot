@@ -34,8 +34,11 @@ test('covers keep their order across boards, as many per board as fit, + book la
 })
 
 test('empty boards fill the visible height but never force a scroll', () => {
-  // A board takes half a cover of clear space + a cover + the board: 150 + 300 + 22.
+  // A board takes half a cover of clear space + a cover + the board: 150 + 300 + 22, and the
+  // bookcase keeps 40px below the last one.
   expect(packShelves([], 1440, 852)).toHaveLength(1)
+  expect(packShelves([], 1440, 983)).toHaveLength(1)
+  expect(packShelves([], 1440, 984)).toHaveLength(2)
   expect(packShelves([], 1440, 1000)).toHaveLength(2)
   expect(packShelves([], 1440, 1500)).toHaveLength(3)
 })

@@ -1,5 +1,5 @@
 /* Design tokens (§5): a calm wooden study, paper books, light by default. One accent per
-   screen; the library's is the brass of gilt spine lettering. */
+   screen; the library's is the brass of gilt cover lettering. */
 
 @font-face {
   font-family: 'Source Han Sans KR';
@@ -39,7 +39,7 @@
 
   --brass: #b08a3e;
   --brass-bright: #d4ae5c;
-  /* spine lettering: at least 4.5:1 on every cloth binding */
+  /* cover lettering: at least 4.5:1 on every book colour */
   --gilt: #e8c877;
 
   --danger: #9c2f24;
@@ -161,6 +161,11 @@ input {
 .paper-button:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* A screen's top bar and body; the body fills what the bar leaves. */
+.screen {
+  height: 100%;
 }
 
 /* Before the server is up: a quiet sheet of paper. */

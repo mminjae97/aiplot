@@ -55,19 +55,16 @@ export function ContentsPage({ workId }: Props) {
             {strings.contents.groups.map((group) => {
               const later = group.stage > stage
               return (
-                <div
-                  className="contents-group"
-                  key={group.stage}
-                  data-later={later || undefined}
-                  title={later ? strings.contents.laterStage : undefined}
-                >
+                <div className="contents-group" key={group.stage} data-later={later || undefined}>
                   <h3>{strings.stage[group.stage]}</h3>
                   <ol>
                     {group.items.map((item) => (
                       <li key={item}>
                         <span>{item}</span>
                         <span className="leader" aria-hidden="true" />
-                        <span className="status">{strings.contents.notStarted}</span>
+                        <span className="status">
+                          {later ? strings.contents.laterStage : strings.contents.notStarted}
+                        </span>
                       </li>
                     ))}
                   </ol>

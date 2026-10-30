@@ -15,7 +15,7 @@ Electron + React + TS (Vite via electron-vite); Zustand (UI state) + TanStack Qu
 ## 3 Layout
 ```
 app/electron/{main.ts (server lifecycle, OS dialogs, snapshots), preload.ts (port+token), processes.ts (health, restart ≤3)}
-app/src/{screens,components,api (REST+SSE),stores,strings (Korean UI text),types (GENERATED)}
+app/src/{screens,components,api (REST+SSE),stores,strings (Korean UI text),styles (design tokens + screen CSS),assets/fonts (bundled + OFL),types (GENERATED)}
 app/tests/ (+ e2e/)
 server/aiplot/{main.py,api/ (thin routers),services/,llm/ (router, profiles, LoRA registry, llama/comfy/fake clients),jobs/,db/ (+migrations/),generated/ (GENERATED)}
 server/{prompts/{role}/v{n}.md, config/{roles.yaml,profiles/*.yaml}, data/techniques/, data/style/{id}-v{n}.md (style framework), workflows/, tests/ (+fixtures/)}
@@ -52,7 +52,7 @@ Before finishing: lint + typecheck + tests for touched packages.
 - Format changes: edit `schemas/` → codegen → commit generated. Card field change → bump `schema_version` + migration + backup import conversion.
 - Prompts: files only; never edit old version, add v{n+1}, update roles.yaml; store prompt version with every output; context blocks tagged `<원문> <참고 카드> <상태> <지시> <대화>`; JSON roles pass schema as llama.cpp `json_schema`.
 - DB changes only via migrations.
-- UI: one accent color per screen; irreversible = red, never default, strong ones require typing work title; warnings orange; never color-only meaning; motion only on state change 0.2–0.3s (respect reduced motion); waits >10s show progress, ETA, background option; themes light/dark/system (light default); manuscript 17px, line-height 1.7. Look: calm wooden study with paper books — tokens in `app/src/styles/base.css` (paper, sepia ink, oak/walnut, brass accent; spine lettering ≥4.5:1 on every binding); font 본고딕 Source Han Sans KR 2.005R Regular/Medium/Bold (bundled OTF + OFL in `app/src/assets/fonts/`).
+- UI: one accent color per screen; irreversible = red, never default, strong ones require typing work title; warnings orange; never color-only meaning; motion only on state change 0.2–0.3s (respect reduced motion); waits >10s show progress, ETA, background option; themes light/dark/system (light default); manuscript 17px, line-height 1.7. Look: calm wooden study with paper books — tokens in `app/src/styles/base.css` (paper, sepia ink, oak/walnut, brass accent; cover lettering ≥4.5:1 on every book colour); font 본고딕 Source Han Sans KR 2.005R Regular/Medium/Bold (bundled OTF + OFL in `app/src/assets/fonts/`).
 
 ## 6 Prohibitions
 - Never edit card fields directly; change source notes and regenerate. Exceptions: region `map_x/map_y`; timeline node drag (LLM writes one line into notes, user confirms).

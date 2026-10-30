@@ -3,12 +3,13 @@ import { strings } from '../strings'
 import type { Work } from '../types'
 import { BOOK_WIDTH, BookItem, COVER_HEIGHT, COVER_WIDTH, SPINE_WIDTH } from './BookItem'
 
-// Room between covers on display.
 // Spacing follows the cover size: half its width between books, half its height of clear
 // space above each row.
 const GAP = COVER_WIDTH * 0.5
 const CLEAR = COVER_HEIGHT * 0.5
 const BOARD = 22
+// Below the last board.
+const BOTTOM = 40
 // Frame post plus the board's inner margin on each side.
 const SHELF_PADDING = 48
 // One board with its covers: top margin, cover plus lift, board.
@@ -39,7 +40,7 @@ export function packShelves(works: Work[], width: number, height: number): Slot[
     const slip = columns > 1 && column >= columns / 2 ? 'left' : 'right'
     shelves.at(-1)?.push({ ...item, slip })
   })
-  const fill = Math.max(1, Math.floor(height / SHELF_HEIGHT))
+  const fill = Math.max(1, Math.floor((height - BOTTOM) / SHELF_HEIGHT))
   while (shelves.length < fill) shelves.push([])
   return shelves
 }
@@ -85,43 +86,47 @@ export function BookShelf({ works, highlight, onOpen, onNew }: Props) {
     '--cover-gap': `${String(GAP)}px`,
     '--shelf-clear': `${String(CLEAR)}px`,
     '--board': `${String(BOARD)}px`,
+    '--bookcase-bottom': `${String(BOTTOM)}px`,
   } as CSSProperties
   return (
     <section className="bookcase" ref={ref} style={metrics} aria-label={strings.library.shelfLabel}>
-      {shelves.map((shelf, index) => (
-        <div className="shelf" key={index}>
-          <div className="shelf-row" style={row}>
-            <div className="shelf-books" role="list">
-              {shelf.map((slot) =>
-                slot.kind === 'work' ? (
-                  <div role="listitem" key={slot.work.id}>
-                    <BookItem
-                      work={slot.work}
-                      slip={slot.slip}
-                      newest={slot.work.id === newest}
-                      highlighted={slot.work.id === highlight}
-                      onOpen={onOpen}
-                    />
-                  </div>
-                ) : (
-                  <div role="listitem" key="new">
-                    <button type="button" className="book-new" onClick={onNew}>
-                      <span className="book-new-plus" aria-hidden="true">
-                        +
-                      </span>
-                      <span className="book-new-label">{strings.library.newBook}</span>
-                    </button>
-                  </div>
-                ),
+      {/* One list for every book; boards and rows are only layout. */}
+      <div role="list">
+        {shelves.map((shelf, index) => (
+          <div className="shelf" key={index}>
+            <div className="shelf-row" style={row}>
+              <div className="shelf-books">
+                {shelf.map((slot) =>
+                  slot.kind === 'work' ? (
+                    <div role="listitem" key={slot.work.id}>
+                      <BookItem
+                        work={slot.work}
+                        slip={slot.slip}
+                        newest={slot.work.id === newest}
+                        highlighted={slot.work.id === highlight}
+                        onOpen={onOpen}
+                      />
+                    </div>
+                  ) : (
+                    <div role="listitem" key="new">
+                      <button type="button" className="book-new" onClick={onNew}>
+                        <span className="book-new-plus" aria-hidden="true">
+                          +
+                        </span>
+                        <span className="book-new-label">{strings.library.newBook}</span>
+                      </button>
+                    </div>
+                  ),
+                )}
+              </div>
+              {index === 0 && works.length === 0 && (
+                <p className="shelf-tag">{strings.library.empty}</p>
               )}
             </div>
-            {index === 0 && works.length === 0 && (
-              <p className="shelf-tag">{strings.library.empty}</p>
-            )}
+            <div className="shelf-board" aria-hidden="true" />
           </div>
-          <div className="shelf-board" aria-hidden="true" />
-        </div>
-      ))}
+        ))}
+      </div>
     </section>
   )
 }
