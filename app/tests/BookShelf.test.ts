@@ -23,9 +23,9 @@ test('bindings are stable per work', () => {
 
 test('covers keep their order across boards, as many per board as fit, + book last', () => {
   const list = works(20)
-  // 1440 wide: (1440 - 96 + 28) / (150 + 28) = 7 per board.
+  // 1440 wide: (1440 - 96 + 75) / (150 + 75) = 6 per board, a gap of half a cover.
   const shelves = packShelves(list, 1440, 600)
-  expect(shelves.map((s) => s.length)).toEqual([7, 7, 7])
+  expect(shelves.map((s) => s.length)).toEqual([6, 6, 6, 3])
   expect(shelves.flat().map((s) => (s.kind === 'work' ? s.work.id : 'new'))).toEqual([
     ...list.map((w) => w.id),
     'new',
@@ -34,9 +34,10 @@ test('covers keep their order across boards, as many per board as fit, + book la
 })
 
 test('empty boards fill the visible height but never force a scroll', () => {
+  // A board takes half a cover of clear space + a cover + the board: 112.5 + 225 + 22.
   expect(packShelves([], 1440, 852)).toHaveLength(2)
   expect(packShelves([], 1440, 300)).toHaveLength(1)
-  expect(packShelves([], 1440, 1300)).toHaveLength(4)
+  expect(packShelves([], 1440, 1300)).toHaveLength(3)
 })
 
 test('slips open away from the nearer bookcase side', () => {

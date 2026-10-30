@@ -70,7 +70,7 @@
 .bookcase {
   position: relative;
   flex: 1;
-  padding: 24px 0 40px;
+  padding: 0 0 40px;
 }
 
 .bookcase::before,
@@ -102,7 +102,7 @@
 
 .shelf {
   position: relative;
-  margin-top: 28px;
+  padding-top: var(--shelf-clear);
 }
 
 .shelf-row {
@@ -114,12 +114,12 @@
 .shelf-books {
   display: flex;
   align-items: flex-end;
-  gap: 28px;
-  min-height: 247px;
+  gap: var(--cover-gap);
+  min-height: var(--cover-height);
 }
 
 .shelf-board {
-  height: 22px;
+  height: var(--board);
   margin: 0 16px;
   background:
     linear-gradient(
@@ -160,8 +160,8 @@
 /* Books stand cover out, all the same size (1:1.5), like a display shelf. */
 .book {
   position: relative;
-  width: 150px;
-  height: 225px;
+  width: var(--cover-width);
+  height: var(--cover-height);
 }
 
 .book:hover,
@@ -336,8 +336,8 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  width: 150px;
-  height: 225px;
+  width: var(--cover-width);
+  height: var(--cover-height);
   color: var(--brass-bright);
   background: rgb(255 248 234 / 7%);
   border: 1px dashed rgb(212 174 92 / 55%);

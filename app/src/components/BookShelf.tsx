@@ -4,11 +4,15 @@ import type { Work } from '../types'
 import { BookItem, COVER_HEIGHT, COVER_WIDTH } from './BookItem'
 
 // Room between covers on display.
-const GAP = 28
+// Spacing follows the cover size: half its width between books, half its height of clear
+// space above each row.
+const GAP = COVER_WIDTH * 0.5
+const CLEAR = COVER_HEIGHT * 0.5
+const BOARD = 22
 // Frame post plus the board's inner margin on each side.
 const SHELF_PADDING = 48
 // One board with its covers: top margin, cover plus lift, board.
-const SHELF_HEIGHT = COVER_HEIGHT + 90
+const SHELF_HEIGHT = CLEAR + COVER_HEIGHT + BOARD
 
 type Slot = ({ kind: 'work'; work: Work } | { kind: 'new' }) & {
   // Which side of the cover its info slip opens on, away from the bookcase edge.
@@ -35,7 +39,7 @@ export function packShelves(works: Work[], width: number, height: number): Slot[
     const slip = columns > 1 && column >= columns / 2 ? 'left' : 'right'
     shelves.at(-1)?.push({ ...item, slip })
   })
-  const fill = Math.max(1, Math.floor((height - 24) / SHELF_HEIGHT))
+  const fill = Math.max(1, Math.floor(height / SHELF_HEIGHT))
   while (shelves.length < fill) shelves.push([])
   return shelves
 }
@@ -73,8 +77,15 @@ export function BookShelf({ works, highlight, onOpen, onNew }: Props) {
   const row = {
     '--row-width': `${String(perShelf(size.width) * (COVER_WIDTH + GAP) - GAP)}px`,
   } as CSSProperties
+  const metrics = {
+    '--cover-width': `${String(COVER_WIDTH)}px`,
+    '--cover-height': `${String(COVER_HEIGHT)}px`,
+    '--cover-gap': `${String(GAP)}px`,
+    '--shelf-clear': `${String(CLEAR)}px`,
+    '--board': `${String(BOARD)}px`,
+  } as CSSProperties
   return (
-    <section className="bookcase" ref={ref} aria-label={strings.library.shelfLabel}>
+    <section className="bookcase" ref={ref} style={metrics} aria-label={strings.library.shelfLabel}>
       {shelves.map((shelf, index) => (
         <div className="shelf" key={index}>
           <div className="shelf-row" style={row}>
