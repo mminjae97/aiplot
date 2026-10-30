@@ -468,20 +468,25 @@
   }
 }
 
-/* Window buttons at the far right of the top bar: ink strokes on paper; only close turns red. */
+/* Window buttons at the far right of the top bar: round, a shade deeper than the bar, ink
+   strokes; only close turns red. */
 .window-controls {
   display: flex;
-  align-self: stretch;
+  align-items: center;
+  gap: 10px;
   margin-left: auto;
-  margin-right: -24px;
+  margin-right: -8px;
 }
 
 .window-controls button {
   display: grid;
   place-items: center;
-  width: 46px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
   border: 0;
-  background: none;
+  border-radius: 50%;
+  background: var(--control);
   color: var(--ink-soft);
   cursor: default;
   transition:
@@ -492,13 +497,13 @@
 .window-controls svg {
   fill: none;
   stroke: currentcolor;
-  stroke-width: 1;
-  shape-rendering: crispedges;
+  stroke-width: 1.2;
+  stroke-linecap: round;
 }
 
 .window-controls button:hover,
 .window-controls button:focus-visible {
-  background: var(--paper-edge);
+  background: var(--control-hover);
   color: var(--ink);
 }
 
@@ -506,8 +511,4 @@
 .window-controls .window-close:focus-visible {
   background: var(--danger);
   color: #fff8ea;
-}
-
-.window-controls button:focus-visible {
-  outline-offset: -3px;
 }
