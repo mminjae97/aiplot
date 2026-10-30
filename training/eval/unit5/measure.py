@@ -164,24 +164,34 @@ async def run_source(
     router: Router, turns: list[Message], notes: str
 ) -> tuple[dict[str, Any], str]:
     """source as the drafts flow runs it (§13): apply the edits; casual sentences or emptied
-    notes get one more generation, then the second result is kept."""
+    notes get one more generation, then the second result is kept (emptied twice = invalid,
+    notes unchanged). An LLM error (after the router's own JSON retry) ends the call.
+    total_s and usage cover every generation the user waits through."""
     attempts: list[dict[str, Any]] = []
     revised = notes
     for _ in range(2):
         result = await run_json(router, "source", turns, SourceOutput)
+        attempts.append(result)
         if "value" not in result:
-            attempts.append(result)
-            continue
+            break
         try:
             applied = apply_edits(notes, SourceOutput.model_validate(result["value"]))
         except EmptyNotesError:
-            attempts.append({**result, "emptied": True})
+            result["emptied"] = True
             continue
         revised = applied.notes
-        attempts.append({**result, "changed": applied.changed, "casual": applied.casual})
+        result.update(changed=applied.changed, casual=applied.casual)
         if not applied.casual:
             break
-    return {**attempts[-1], "attempts": len(attempts), "notes": revised}, revised
+    last = attempts[-1]
+    if last.get("emptied"):
+        last = {**last, "error": "LLM_INVALID_OUTPUT", "message": "notes emptied twice"}
+        last.pop("value", None)
+    usages = [a["usage"] for a in attempts if a.get("usage")]
+    usage = {key: sum(u[key] for u in usages) for key in usages[0]} if usages else last.get("usage")
+    total_s = round(sum(a.get("total_s") or 0 for a in attempts), 2)
+    combined = {**last, "attempts": len(attempts), "notes": revised}
+    return {**combined, "usage": usage, "total_s": total_s}, revised
 
 
 def elapsed(started: float) -> float:
