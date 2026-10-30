@@ -286,6 +286,21 @@ export interface ApiError {
 export interface HealthResponse {
   status: 'ok'
 }
+/**
+ * lora/{id}.json beside the adapter in the data dir. Written by training/, read by the server LoRA registry, which never loads an adapter whose base_sha256 differs from the profile's GGUF (§13).
+ */
+export interface LoraManifest {
+  id: string
+  /**
+   * Adapter file name in the same folder.
+   */
+  file: string
+  sha256: string
+  /**
+   * sha256 of the base GGUF the adapter was trained for.
+   */
+  base_sha256: string
+}
 export interface CharacterCardOutput {
   type: 'character'
   name: CardName
