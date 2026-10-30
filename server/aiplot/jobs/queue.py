@@ -8,6 +8,7 @@ any LLM stream it holds. Jobs live only in memory; their results are saved by th
 
 import asyncio
 import logging
+import re
 import secrets
 from collections.abc import AsyncIterator, Callable, Coroutine
 from dataclasses import dataclass, field
@@ -25,6 +26,7 @@ Status = Literal["queued", "running", "paused", "done", "failed", "cancelled"]
 LANE_SLOTS: dict[Lane, int] = {"llm": 1, "download": 1}
 TERMINAL: frozenset[Status] = frozenset({"done", "failed", "cancelled"})
 KEEP_FINISHED = 100
+ERROR_CODE = re.compile(r"[A-Z][A-Z0-9_]*")
 # Idle seconds before an SSE stream gets a keep-alive comment.
 HEARTBEAT_SEC = 15.0
 
@@ -33,6 +35,8 @@ class JobError(Exception):
     """Raised by a job function to fail with a code the UI maps to a state."""
 
     def __init__(self, code: str, message: str) -> None:
+        if not ERROR_CODE.fullmatch(code):
+            raise ValueError(f"error code must be UPPER_SNAKE: {code!r}")
         super().__init__(message)
         self.code = code
 
@@ -212,8 +216,15 @@ class JobQueue:
         queue = self._queues[lane]
         while True:
             job = await queue.get()
-            if job.status == "queued":
+            if job.status != "queued":
+                continue
+            try:
                 await self._run(job)
+            except Exception:
+                # Never let one job take the lane's worker down with it.
+                logger.exception("job %s (%s) failed outside its function", job.id, job.kind)
+                if job.status not in TERMINAL:
+                    self._fail(job, "INTERNAL_ERROR", "the job stopped on an unexpected error")
 
     async def _run(self, job: JobRecord) -> None:
         job.status = "running"

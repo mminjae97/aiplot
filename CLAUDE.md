@@ -176,7 +176,7 @@ Base `http://127.0.0.1:{port}/api/v1`, `Authorization: Bearer {token}` on every 
 - misc: POST /works/{workId}/export; POST /works/{workId}/backup; POST /backups/import; GET /health (model, VRAM); GET/PUT /settings
 SSE order (chapter job):
 ```
-progress {beat,total,etaSec}
+progress {done,total,etaSec,step}
 beat_start {beatId}
 sentence {beatId,text}
 beat_done {beatId,chars,version}

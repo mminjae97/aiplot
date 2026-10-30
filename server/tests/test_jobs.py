@@ -251,3 +251,27 @@ async def test_stop_cancels_running_job() -> None:
     await settle(job, "running")
     await q.stop()
     assert job.status == "cancelled"
+
+
+def test_job_error_code_must_be_upper_snake() -> None:
+    with pytest.raises(ValueError, match="UPPER_SNAKE"):
+        JobError("llm_down", "x")
+
+
+async def test_lane_survives_a_job_that_breaks_outside_its_body(jobs: JobQueue) -> None:
+    async def bad_code(ctx: JobContext) -> None:
+        raise JobError("llm_down", "x")
+
+    def not_a_coroutine(ctx: JobContext) -> Any:
+        raise RuntimeError("raised before any await")
+
+    async def fine(ctx: JobContext) -> None:
+        return None
+
+    broken = jobs.submit("chapter", bad_code)
+    sync_raiser = jobs.submit("chapter", not_a_coroutine)
+    after = jobs.submit("chapter", fine)
+    await settle(after, "done")
+    for job in (broken, sync_raiser):
+        error = job.view().error
+        assert (job.status, error and error.code) == ("failed", "INTERNAL_ERROR")

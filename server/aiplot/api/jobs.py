@@ -1,4 +1,8 @@
-"""Job status, SSE event stream, and pause / resume / cancel (§16)."""
+"""Job status, SSE event stream, and pause / resume / cancel (§16).
+
+Every route is async so it runs on the event loop thread: the queue's asyncio objects and its
+check-then-act state changes are not thread-safe.
+"""
 
 import json
 from collections.abc import AsyncIterator
@@ -28,12 +32,12 @@ def find(request: Request, job_id: str) -> JobRecord:
 
 
 @router.get("/jobs/{jobId}")
-def get_job(request: Request, jobId: str) -> Job:
+async def get_job(request: Request, jobId: str) -> Job:
     return find(request, jobId).view()
 
 
 @router.get("/works/{workId}/jobs")
-def list_work_jobs(request: Request, workId: str) -> JobList:
+async def list_work_jobs(request: Request, workId: str) -> JobList:
     return JobList(jobs=[job.view() for job in queue(request).for_work(workId)])
 
 
@@ -64,7 +68,7 @@ async def job_events(
 
 
 @router.post("/jobs/{jobId}/pause")
-def pause_job(request: Request, jobId: str) -> Job:
+async def pause_job(request: Request, jobId: str) -> Job:
     job = find(request, jobId)
     if not queue(request).pause(job):
         raise AppError(409, "JOB_NOT_RUNNING", f"job is {job.status}; only running jobs pause")
@@ -72,7 +76,7 @@ def pause_job(request: Request, jobId: str) -> Job:
 
 
 @router.post("/jobs/{jobId}/resume")
-def resume_job(request: Request, jobId: str) -> Job:
+async def resume_job(request: Request, jobId: str) -> Job:
     job = find(request, jobId)
     if not queue(request).resume(job):
         raise AppError(409, "JOB_NOT_PAUSED", f"job is {job.status} and not paused")
@@ -80,7 +84,7 @@ def resume_job(request: Request, jobId: str) -> Job:
 
 
 @router.post("/jobs/{jobId}/cancel")
-def cancel_job(request: Request, jobId: str) -> Job:
+async def cancel_job(request: Request, jobId: str) -> Job:
     job = find(request, jobId)
     if not queue(request).cancel(job):
         raise AppError(409, "JOB_FINISHED", f"job already {job.status}")
