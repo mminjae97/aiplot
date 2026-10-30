@@ -1,0 +1,23 @@
+{
+  "reasoning": "원문 0번 문장에 출신, 1번 문장에 말투 근거가 있다. 외형은 원문에 없다.",
+  "content": {
+    "type": "character",
+    "name": "테오",
+    "data": {
+      "theme": "잃어버린 가족을 찾는 귀환자",
+      "personality": {
+        "traits": ["과묵함", "집요함"],
+        "behaviors": [{ "situation": "위협을 받을 때", "action": "먼저 칼을 뽑는다" }]
+      },
+      "speech": {
+        "description": "짧고 건조한 반말",
+        "examples": ["됐어.", "따라와.", "그건 내 일이 아니야."]
+      },
+      "appearance": { "summary": "왼손에 흉터가 있는 20대 남성", "details": null },
+      "relations": [],
+      "origin_region_id": null
+    },
+    "evidence": { "theme": [0], "speech.description": [1] },
+    "ai_guess": ["appearance.summary"]
+  }
+}
