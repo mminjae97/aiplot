@@ -1,4 +1,5 @@
 import type { ServerState } from '../api/bridge'
+import { TopBar } from '../components/TopBar'
 import { strings } from '../strings'
 
 type Props = {
@@ -7,28 +8,35 @@ type Props = {
 
 /** Before the local server is up (§12 states): spinner, or the plain cause with "다시 시도". */
 export function ServerScreen({ state }: Props) {
+  // The top bar stays: it is the window's title bar (move, minimize, close).
   if (state?.status !== 'error') {
     return (
-      <main className="server-screen" aria-busy="true">
-        <p role="status">{strings.server.starting}</p>
-      </main>
+      <div className="screen">
+        <TopBar />
+        <main className="server-screen" aria-busy="true">
+          <p role="status">{strings.server.starting}</p>
+        </main>
+      </div>
     )
   }
   return (
-    <main className="server-screen">
-      <h1>{strings.server.errorTitle}</h1>
-      <p>{state.reason === 'missing' ? strings.server.missing : strings.server.failed}</p>
-      {state.reason === 'failed' && (
-        <button
-          type="button"
-          className="paper-button"
-          onClick={() => {
-            void window.aiplot.server.retry()
-          }}
-        >
-          {strings.server.retry}
-        </button>
-      )}
-    </main>
+    <div className="screen">
+      <TopBar />
+      <main className="server-screen">
+        <h1>{strings.server.errorTitle}</h1>
+        <p>{state.reason === 'missing' ? strings.server.missing : strings.server.failed}</p>
+        {state.reason === 'failed' && (
+          <button
+            type="button"
+            className="paper-button"
+            onClick={() => {
+              void window.aiplot.server.retry()
+            }}
+          >
+            {strings.server.retry}
+          </button>
+        )}
+      </main>
+    </div>
   )
 }
