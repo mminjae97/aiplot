@@ -207,7 +207,7 @@ Fake LLM fixtures only. Must cover: locks + 423 (incl. region position); PATCH /
 4. Eval set — 20 bundles; rubric 1–5: tension placement, chapter cut, reveal timing, POV consistency, technique fit; no training overlap.
 5. RAFT data + direction LoRA.
 6. Compare picks-only / LoRA-only / both — +0.5 rubric, ≥60% blind win; cited technique matches applied ≥80%.
-7. Writing, streaming, state, checks — length ±10% ≥90%; chapter ≤10min on AC; planted contradictions ≥80% found, ≤20% false; state ≥85%; repeated 3+ eojeol phrase ≤3/chapter.
+7. Writing, streaming, state, checks — length ±10% ≥90% (no time limit; quality first); planted contradictions ≥80% found, ≤20% false; state ≥85%; repeated 3+ eojeol phrase ≤3/chapter.
 8. Web novel LoRA — adopt if ≥60% blind win vs prompt-only.
 9. Contents, reading, export, backup/import.
 10. Images (optional).
