@@ -106,7 +106,7 @@ def test_failed_migration_rolls_back_whole_file(tmp_path: Path, conn: sqlite3.Co
             },
         )
     )
-    with pytest.raises(MigrationError, match=r"002_bad.sql"):
+    with pytest.raises(MigrationError, match=r"002_bad\.sql"):
         migrate(conn, migrations)
     assert user_version(conn) == 1
     assert "card" not in tables(conn)
@@ -117,6 +117,55 @@ def test_migrate_rejects_newer_database(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA user_version = 5")
     with pytest.raises(MigrationError, match="newer"):
         migrate(conn, [])
+
+
+PARENT_CHILD = (
+    "CREATE TABLE work (id TEXT PRIMARY KEY, title TEXT);"
+    "CREATE TABLE card (id TEXT PRIMARY KEY,"
+    " work_id TEXT NOT NULL REFERENCES work(id) ON DELETE CASCADE);"
+    "INSERT INTO work VALUES ('w_1', '첫 작품');"
+    "INSERT INTO card VALUES ('c_1', 'w_1');"
+)
+
+
+def test_parent_table_rebuild_keeps_child_rows(tmp_path: Path, conn: sqlite3.Connection) -> None:
+    rebuild = (
+        "CREATE TABLE work_new (id TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '');"
+        "INSERT INTO work_new SELECT id, title FROM work;"
+        "DROP TABLE work;"
+        "ALTER TABLE work_new RENAME TO work;"
+    )
+    migrations = discover(
+        write(tmp_path / "m", {"001_init.sql": PARENT_CHILD, "002_rebuild.sql": rebuild})
+    )
+    migrate(conn, migrations)
+    assert conn.execute("SELECT count(*) FROM card").fetchone()[0] == 1
+    assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+
+
+def test_migration_leaving_foreign_key_violation_is_rolled_back(
+    tmp_path: Path, conn: sqlite3.Connection
+) -> None:
+    migrations = discover(
+        write(
+            tmp_path / "m",
+            {"001_init.sql": PARENT_CHILD, "002_orphan.sql": "DELETE FROM work;"},
+        )
+    )
+    with pytest.raises(MigrationError, match="foreign key violation in table card"):
+        migrate(conn, migrations)
+    assert user_version(conn) == 1
+    assert conn.execute("SELECT count(*) FROM work").fetchone()[0] == 1
+    assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+
+
+def test_migration_ending_transaction_is_rejected(tmp_path: Path, conn: sqlite3.Connection) -> None:
+    migrations = discover(
+        write(tmp_path / "m", {"001_init.sql": "CREATE TABLE work (id TEXT); COMMIT;"})
+    )
+    with pytest.raises(MigrationError, match="must not end the transaction"):
+        migrate(conn, migrations)
+    assert not conn.in_transaction
 
 
 def test_init_db_creates_parent_dirs(tmp_path: Path) -> None:
@@ -152,6 +201,33 @@ def test_transaction_commits_and_rolls_back(conn: sqlite3.Connection) -> None:
         raise RuntimeError("abort")
     assert [row["v"] for row in conn.execute("SELECT v FROM t ORDER BY v")] == [1, 2]
     assert not conn.in_transaction
+
+
+def test_transaction_keeps_error_after_sqlite_rollback(conn: sqlite3.Connection) -> None:
+    conn.execute("CREATE TABLE t (v INTEGER UNIQUE)")
+    conn.execute("INSERT INTO t VALUES (1)")
+    with pytest.raises(sqlite3.IntegrityError), transaction(conn):
+        conn.execute("INSERT OR ROLLBACK INTO t VALUES (1)")
+    assert not conn.in_transaction
+
+
+def test_transaction_failed_commit_releases_lock(tmp_path: Path) -> None:
+    path = tmp_path / "aiplot.db"
+    conn = connect(path)
+    conn.execute("CREATE TABLE work (id TEXT PRIMARY KEY)")
+    conn.execute(
+        "CREATE TABLE card (id TEXT,"
+        " work_id TEXT REFERENCES work(id) DEFERRABLE INITIALLY DEFERRED)"
+    )
+    with pytest.raises(sqlite3.IntegrityError), transaction(conn):
+        conn.execute("INSERT INTO card VALUES ('c_1', 'w_missing')")
+    assert not conn.in_transaction
+    other = connect(path)
+    other.execute("PRAGMA busy_timeout = 0")
+    with transaction(other):
+        other.execute("INSERT INTO work VALUES ('w_1')")
+    other.close()
+    conn.close()
 
 
 def test_fts5_available(conn: sqlite3.Connection) -> None:

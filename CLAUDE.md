@@ -143,7 +143,7 @@ Roles (thinking, model):
 JSON roles low temp.
 
 ## 14 DB
-`data/aiplot.db`: WAL, foreign_keys on, autocommit + explicit `transaction()`, one connection per request; migrations run at server start, each file + user_version bump in one transaction (no BEGIN/COMMIT in files); DB newer than app → server exits.
+`data/aiplot.db`: WAL, foreign_keys on, autocommit + explicit `transaction()`, one connection per request; migrations run at server start, each file + user_version bump in one transaction (no BEGIN/COMMIT in files), foreign keys off during migrations and `foreign_key_check` before each commit; DB newer than app → server exits.
 - work(id,title,stage,locked_stage,last_item,updated_at)
 - card(id,work_id,type,name,source_notes,data,evidence,ai_guess,pinned_fields,status,schema_version) — JSON cols
 - character(card_id,theme,personality,speech,appearance_init,origin_region_id); region(card_id,parent_region_id,environment,sensory,map_x,map_y); main_story(card_id,theme,premise,ending); part(card_id,main_id,order,start,end); episode(card_id,part_id,order,structure,worldline_id,summary)

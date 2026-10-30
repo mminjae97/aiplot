@@ -26,7 +26,9 @@ def transaction(conn: sqlite3.Connection) -> Generator[sqlite3.Connection]:
     conn.execute("BEGIN IMMEDIATE")
     try:
         yield conn
+        conn.execute("COMMIT")
     except BaseException:
-        conn.execute("ROLLBACK")
+        # SQLite may already have rolled back (OR ROLLBACK, disk full); keep the original error.
+        if conn.in_transaction:
+            conn.execute("ROLLBACK")
         raise
-    conn.execute("COMMIT")

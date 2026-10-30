@@ -1,7 +1,9 @@
 """Migrations: migrations/NNN_name.sql applied in order, version tracked by PRAGMA user_version.
 
 NNN starts at 001 and is unique and contiguous. Each file runs in its own transaction together
-with its user_version bump, so a file must not contain BEGIN/COMMIT itself.
+with its user_version bump, so a file must not contain BEGIN/COMMIT itself. Foreign keys are off
+while migrations run (a PRAGMA inside a transaction is a no-op, and a table rebuild must not
+cascade deletes) and are checked before each commit.
 """
 
 import logging
@@ -54,18 +56,35 @@ def migrate(conn: sqlite3.Connection, migrations: list[Migration]) -> int:
     latest = len(migrations)
     if current > latest:
         raise MigrationError(f"database version {current} is newer than this app ({latest})")
-    for migration in migrations[current:]:
-        sql = migration.path.read_text(encoding="utf-8")
-        try:
-            conn.executescript(
-                f"BEGIN IMMEDIATE;\n{sql}\n;PRAGMA user_version = {migration.version};\nCOMMIT;"
-            )
-        except sqlite3.Error as exc:
-            if conn.in_transaction:
-                conn.execute("ROLLBACK")
-            raise MigrationError(f"{migration.path.name}: {exc}") from exc
-        logger.info("applied migration %s", migration.path.name)
+    conn.execute("PRAGMA foreign_keys = OFF")
+    try:
+        for migration in migrations[current:]:
+            apply(conn, migration)
+            logger.info("applied migration %s", migration.path.name)
+    finally:
+        conn.execute("PRAGMA foreign_keys = ON")
     return latest
+
+
+def apply(conn: sqlite3.Connection, migration: Migration) -> None:
+    name = migration.path.name
+    sql = migration.path.read_text(encoding="utf-8")
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        # autocommit=True: executescript adds no transaction control of its own.
+        conn.executescript(f"{sql}\n;PRAGMA user_version = {migration.version};")
+        if not conn.in_transaction:
+            raise MigrationError(f"{name}: must not end the transaction itself")
+        violation = conn.execute("PRAGMA foreign_key_check").fetchone()
+        if violation is not None:
+            raise MigrationError(f"{name}: foreign key violation in table {violation[0]}")
+        conn.execute("COMMIT")
+    except (sqlite3.Error, MigrationError) as exc:
+        if conn.in_transaction:
+            conn.execute("ROLLBACK")
+        if isinstance(exc, MigrationError):
+            raise
+        raise MigrationError(f"{name}: {exc}") from exc
 
 
 def init_db(path: Path) -> None:
