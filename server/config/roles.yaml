@@ -3,20 +3,22 @@
 # until measured in step 1 unit 5. JSON roles run at low temperature.
 roles:
   chat:
-    profile: qwen3-8b-uncensor-q4km
+    profile: qwen3-8b-uncensor-q5km
     lora: null
     prompt: 1
     thinking: false
+    # Unit 5: stops sentence and token loops (a Q5 chat looped to max_tokens without it).
+    sampling: { presence_penalty: 1.5 }
     max_tokens: 512
   source:
-    profile: qwen3-8b-uncensor-q4km
+    profile: qwen3-8b-uncensor-q5km
     lora: null
     prompt: 1
     thinking: true
     sampling: { temperature: 0.3 }
     max_tokens: 4096
   card:
-    profile: qwen3-8b-uncensor-q4km
+    profile: qwen3-8b-uncensor-q5km
     lora: null
     prompt: 1
     thinking: true

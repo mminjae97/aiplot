@@ -1,4 +1,4 @@
-# Candidate base (imatrix Q5_K_M); compared with Q4_K_M in step 1 unit 5.
+# Base (imatrix Q5_K_M), chosen over Q4_K_M by blind comparison in step 1 unit 5.
 id: qwen3-8b-uncensor-q5km
 gguf:
   file: Qwen3-8B-Uncensor-v2.i1-Q5_K_M.gguf

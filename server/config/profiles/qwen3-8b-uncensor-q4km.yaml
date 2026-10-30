@@ -1,4 +1,4 @@
-# Base model profile (§13). File name = id. Swapping the base needs only a profile + LoRAs.
+# Fallback base profile (§13). File name = id. Swapping the base needs only a profile + LoRAs.
 id: qwen3-8b-uncensor-q4km
 gguf:
   # Under {data dir}/models; verified by size + sha256 when downloaded.
