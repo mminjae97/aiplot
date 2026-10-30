@@ -14,10 +14,13 @@ from fastapi import APIRouter, Depends, FastAPI
 from aiplot.api import health
 from aiplot.api.auth import require_token
 from aiplot.api.errors import install_error_handlers
+from aiplot.db.migrate import MigrationError, init_db
 
 DEV_PORT = 8765
 API_PREFIX = "/api/v1"
 LOG_RETENTION_DAYS = 14
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -26,8 +29,12 @@ class Settings:
     token: str
     data_dir: Path
 
+    @property
+    def db_path(self) -> Path:
+        return self.data_dir / "data" / "aiplot.db"
 
-def create_app(*, token: str, dev: bool = False) -> FastAPI:
+
+def create_app(*, token: str, db_path: Path, dev: bool = False) -> FastAPI:
     # Interactive API docs are a development aid only.
     app = FastAPI(
         title="Aiplot",
@@ -36,6 +43,7 @@ def create_app(*, token: str, dev: bool = False) -> FastAPI:
         openapi_url="/openapi.json" if dev else None,
     )
     app.state.token = token
+    app.state.db_path = db_path
     install_error_handlers(app)
     api = APIRouter(prefix=API_PREFIX, dependencies=[Depends(require_token)])
     api.include_router(health.router)
@@ -121,8 +129,13 @@ def main(argv: list[str] | None = None) -> None:
     except ValueError as exc:
         parser.error(str(exc))
     setup_logging(settings.data_dir / "logs", dev=args.dev)
+    try:
+        init_db(settings.db_path)
+    except MigrationError:
+        logger.exception("database migration failed")
+        raise SystemExit(1) from None
     uvicorn.run(
-        create_app(token=settings.token, dev=args.dev),
+        create_app(token=settings.token, db_path=settings.db_path, dev=args.dev),
         host="127.0.0.1",
         port=settings.port,
         log_level="debug" if args.dev else "info",

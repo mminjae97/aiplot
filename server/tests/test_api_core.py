@@ -1,5 +1,7 @@
 """Token check and ApiError bodies across /api/v1."""
 
+from pathlib import Path
+
 import pytest
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.testclient import TestClient
@@ -12,8 +14,8 @@ TOKEN = "test-token"
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
 
 
-def app_with_probe_routes() -> FastAPI:
-    app = create_app(token=TOKEN)
+def app_with_probe_routes(db_path: Path) -> FastAPI:
+    app = create_app(token=TOKEN, db_path=db_path)
     probe = APIRouter(prefix=f"{API_PREFIX}/probe", dependencies=[Depends(require_token)])
 
     @probe.get("/locked")
@@ -33,8 +35,8 @@ def app_with_probe_routes() -> FastAPI:
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(app_with_probe_routes(), raise_server_exceptions=False)
+def client(tmp_path: Path) -> TestClient:
+    return TestClient(app_with_probe_routes(tmp_path / "aiplot.db"), raise_server_exceptions=False)
 
 
 @pytest.mark.parametrize(

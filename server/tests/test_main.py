@@ -22,16 +22,16 @@ TOKEN = "test-token"
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
 
 
-def test_health_ok() -> None:
-    client = TestClient(create_app(token=TOKEN))
+def test_health_ok(tmp_path: Path) -> None:
+    client = TestClient(create_app(token=TOKEN, db_path=tmp_path / "aiplot.db"))
     response = client.get("/api/v1/health", headers=AUTH)
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
 
 @pytest.mark.parametrize(("dev", "status"), [(True, 200), (False, 404)])
-def test_docs_only_in_dev(dev: bool, status: int) -> None:
-    client = TestClient(create_app(token=TOKEN, dev=dev))
+def test_docs_only_in_dev(tmp_path: Path, dev: bool, status: int) -> None:
+    client = TestClient(create_app(token=TOKEN, db_path=tmp_path / "aiplot.db", dev=dev))
     assert client.get("/docs").status_code == status
     assert client.get("/openapi.json").status_code == status
 
