@@ -154,14 +154,24 @@ function createWindow(): BrowserWindow {
   // keyboard moves (Win+Shift+arrow), which never send 'moved'; it only recomputes when the
   // window lands on another display.
   let displayId = screen.getDisplayMatching(win.getBounds()).id
+  // A mouse drag (Windows sends 'will-move' for those only) recomputes once, on 'moved', so
+  // the window never jumps under the cursor mid-drag.
+  let dragging = false
+  win.on('will-move', () => {
+    dragging = true
+  })
   win.on('move', () => {
-    if (win.isMinimized()) return
+    if (dragging || win.isMinimized()) return
     const id = screen.getDisplayMatching(win.getBounds()).id
     if (id === displayId) return
     displayId = id
     apply()
   })
-  win.on('moved', apply)
+  win.on('moved', () => {
+    dragging = false
+    displayId = screen.getDisplayMatching(win.getBounds()).id
+    apply()
+  })
   win.on('restore', apply)
   win.on('unmaximize', apply)
   const onDisplays = apply
