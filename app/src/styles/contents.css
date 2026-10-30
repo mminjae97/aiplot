@@ -1,12 +1,15 @@
 /* S1 contents: the book lies open on the walnut desk. */
 
-/* The open book fills the window with the same wooden margin at any window size. */
+/* The open book keeps a landscape 4:3 spread, as large as fits inside a 64px wooden margin;
+   a taller window adds margin above and below, a wider one at the sides. */
 .desk {
-  --desk-margin: 32px;
+  --desk-margin: 64px;
 
   height: calc(100% - 48px);
-  display: flex;
+  display: grid;
+  place-items: center;
   padding: var(--desk-margin);
+  container-type: size;
   background:
     repeating-linear-gradient(
       0deg,
@@ -20,10 +23,10 @@
 }
 
 .spread {
-  flex: 1;
+  width: min(100cqw, 100cqh * 4 / 3);
+  aspect-ratio: 4 / 3;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  min-height: 480px;
   background: var(--paper);
   box-shadow:
     0 2px 0 var(--paper-edge),
@@ -33,6 +36,8 @@
 
 .page {
   padding: 56px 52px;
+  overflow: auto;
+  scrollbar-width: none;
 }
 
 .page-left {
@@ -113,10 +118,6 @@
 }
 
 @media (max-width: 760px) {
-  .spread {
-    grid-template-columns: 1fr;
-  }
-
   .page {
     padding: 36px 28px;
   }
