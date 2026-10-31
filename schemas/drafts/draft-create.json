@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DraftCreate",
+  "description": "POST /works/{workId}/drafts: open the card drawer (§8). card_id = edit that card (its notes load, the chat starts empty); null = a new card. 423 STAGE_LOCKED once planning is locked.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type"],
+  "properties": {
+    "type": { "enum": ["world", "character", "region", "main_story", "part", "episode"] },
+    "card_id": { "anyOf": [{ "$ref": "../common/card-id.json" }, { "type": "null" }] },
+    "category": {
+      "description": "World book tab the new entry was started from: a hint for card generation, never asked in chat (§8).",
+      "anyOf": [{ "enum": ["rule", "faction", "history", "culture", "other"] }, { "type": "null" }]
+    },
+    "part_id": {
+      "description": "New episode: the part selected on the story screen; the episode is placed last in it.",
+      "anyOf": [{ "$ref": "../common/card-id.json" }, { "type": "null" }]
+    }
+  }
+}

@@ -14,13 +14,14 @@ import uvicorn
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from aiplot.api import cards, health, jobs, setup, works
+from aiplot.api import cards, drafts, health, jobs, setup, works
 from aiplot.api.auth import require_token
 from aiplot.api.errors import install_error_handlers
 from aiplot.db.migrate import MigrationError, init_db
 from aiplot.jobs.queue import JobQueue
 from aiplot.llm.runtime import LLAMA_LOGGER, LlmRuntime, fake_runtime, llama_runtime
 from aiplot.parent import parse_pid, watch
+from aiplot.services.drafts import DraftStore
 from aiplot.services.trash import Trash
 
 DEV_PORT = 8765
@@ -83,6 +84,8 @@ def create_app(
     app.state.jobs = job_queue
     # Deleted cards, kept a few seconds for 되돌리기 (§8).
     app.state.trash = Trash()
+    # Open card drawers (§8): memory only, never written to disk (§6).
+    app.state.drafts = DraftStore()
     app.state.llm = runtime
     install_error_handlers(app)
     if dev and dev_origin:
@@ -99,6 +102,7 @@ def create_app(
     api.include_router(setup.router)
     api.include_router(works.router)
     api.include_router(cards.router)
+    api.include_router(drafts.router)
     app.include_router(api)
     return app
 

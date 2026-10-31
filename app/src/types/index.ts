@@ -29,17 +29,8 @@ export type StoryStructure = FourStageStructure | FiveStageStructure
 export type ForeshadowingId = string
 export type WorldlineId = string
 export type CoverId = string
+export type DraftId = string
 export type JobId = string
-/**
- * data of the SSE events every job can send on GET /jobs/{jobId}/events; the SSE event name is the type (§16). Job kinds add their own events (e.g. chapter: beat_start, sentence).
- */
-export type JobLifecycleEvent =
-  | JobProgressEvent
-  | JobPausedEvent
-  | JobResumedEvent
-  | JobDoneEvent
-  | JobErrorEvent
-  | JobCancelledEvent
 /**
  * `card` role output (§13). The server constrains and validates with the variant for the requested type. Evidence indexes are the 0-based [n] numbers of the server-split note sentences in the prompt. The server then drops out-of-range indexes, unknown field paths and unknown card ids, assigns ms_/fs_ ids, sets placement fields from context and restores pinned fields (§13).
  */
@@ -50,6 +41,16 @@ export type CardOutput =
   | MainStoryCardOutput
   | PartCardOutput
   | EpisodeCardOutput
+/**
+ * data of the SSE events every job can send on GET /jobs/{jobId}/events; the SSE event name is the type (§16). Job kinds add their own events (e.g. chapter: beat_start, sentence).
+ */
+export type JobLifecycleEvent =
+  | JobProgressEvent
+  | JobPausedEvent
+  | JobResumedEvent
+  | JobDoneEvent
+  | JobErrorEvent
+  | JobCancelledEvent
 /**
  * Shown on the spine and cover; the server trims it.
  */
@@ -456,6 +457,107 @@ export interface VramUsage {
   total_mb: number
 }
 /**
+ * POST /works/{workId}/drafts: open the card drawer (§8). card_id = edit that card (its notes load, the chat starts empty); null = a new card. 423 STAGE_LOCKED once planning is locked.
+ */
+export interface DraftCreate {
+  type: 'world' | 'character' | 'region' | 'main_story' | 'part' | 'episode'
+  card_id?: CardId | null
+  /**
+   * World book tab the new entry was started from: a hint for card generation, never asked in chat (§8).
+   */
+  category?: ('rule' | 'faction' | 'history' | 'culture' | 'other') | null
+  /**
+   * New episode: the part selected on the story screen; the episode is placed last in it.
+   */
+  part_id?: CardId | null
+}
+/**
+ * PUT /drafts/{draftId}/source: the user edited the source notes directly (§8).
+ */
+export interface DraftSource {
+  notes: string
+}
+/**
+ * A card being made or edited in the drawer (§8). Lives in server memory only and is gone on DELETE, save or restart: conversations and unsaved drafts are never stored (§6).
+ */
+export interface Draft {
+  id: DraftId
+  work_id: WorkId
+  type: 'world' | 'character' | 'region' | 'main_story' | 'part' | 'episode'
+  /**
+   * The card being edited; null for a new card.
+   */
+  card_id: CardId | null
+  category: ('rule' | 'faction' | 'history' | 'culture' | 'other') | null
+  part_id: CardId | null
+  /**
+   * Source notes as the user and the source role left them.
+   */
+  notes: string
+  /**
+   * notes split by the server (§15); evidence, highlights and changed sentences use these 0-based indexes.
+   */
+  sentences: string[]
+  /**
+   * The conversation so far (memory only).
+   */
+  turns: DraftTurn[]
+  /**
+   * Field paths kept from the saved card when the card is generated again.
+   */
+  pinned: string[]
+  /**
+   * The last generated card, not saved yet; null before 카드 생성.
+   */
+  generated: CardOutput | null
+}
+export interface DraftTurn {
+  role: 'user' | 'ai'
+  text: string
+}
+export interface WorldCardOutput {
+  type: 'world'
+  name: CardName
+  data: WorldData
+  evidence: CardEvidence
+  ai_guess: AiGuessFields
+}
+export interface CharacterCardOutput {
+  type: 'character'
+  name: CardName
+  data: CharacterData
+  evidence: CardEvidence
+  ai_guess: AiGuessFields
+}
+export interface RegionCardOutput {
+  type: 'region'
+  name: CardName
+  data: RegionData
+  evidence: CardEvidence
+  ai_guess: AiGuessFields
+}
+export interface MainStoryCardOutput {
+  type: 'main_story'
+  name: CardName
+  data: MainStoryData
+  evidence: CardEvidence
+  ai_guess: AiGuessFields
+}
+export interface PartCardOutput {
+  type: 'part'
+  name: CardName
+  data: PartData
+  evidence: CardEvidence
+  ai_guess: AiGuessFields
+}
+export interface EpisodeCardOutput {
+  type: 'episode'
+  name: CardName
+  data: EpisodeData
+  evidence: CardEvidence
+  ai_guess: AiGuessFields
+}
+/**
  * event: progress. Units are the job's own (beats, bytes).
  */
 export interface JobProgressEvent {
@@ -548,48 +650,6 @@ export interface LoraManifest {
    * sha256 of the base GGUF the adapter was trained for.
    */
   base_sha256: string
-}
-export interface WorldCardOutput {
-  type: 'world'
-  name: CardName
-  data: WorldData
-  evidence: CardEvidence
-  ai_guess: AiGuessFields
-}
-export interface CharacterCardOutput {
-  type: 'character'
-  name: CardName
-  data: CharacterData
-  evidence: CardEvidence
-  ai_guess: AiGuessFields
-}
-export interface RegionCardOutput {
-  type: 'region'
-  name: CardName
-  data: RegionData
-  evidence: CardEvidence
-  ai_guess: AiGuessFields
-}
-export interface MainStoryCardOutput {
-  type: 'main_story'
-  name: CardName
-  data: MainStoryData
-  evidence: CardEvidence
-  ai_guess: AiGuessFields
-}
-export interface PartCardOutput {
-  type: 'part'
-  name: CardName
-  data: PartData
-  evidence: CardEvidence
-  ai_guess: AiGuessFields
-}
-export interface EpisodeCardOutput {
-  type: 'episode'
-  name: CardName
-  data: EpisodeData
-  evidence: CardEvidence
-  ai_guess: AiGuessFields
 }
 /**
  * `source` role output (§13). The model sees the notes as [n]-numbered sentences (server split, §15) and returns only edits; the server applies them, so sentences it does not name stay byte-identical. Changed sentences are the edited and added ones.

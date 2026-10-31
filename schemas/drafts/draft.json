@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Draft",
+  "description": "A card being made or edited in the drawer (§8). Lives in server memory only and is gone on DELETE, save or restart: conversations and unsaved drafts are never stored (§6).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "work_id", "type", "card_id", "category", "part_id", "notes", "sentences", "turns", "pinned", "generated"],
+  "properties": {
+    "id": { "$ref": "../common/draft-id.json" },
+    "work_id": { "$ref": "../common/work-id.json" },
+    "type": { "enum": ["world", "character", "region", "main_story", "part", "episode"] },
+    "card_id": {
+      "description": "The card being edited; null for a new card.",
+      "anyOf": [{ "$ref": "../common/card-id.json" }, { "type": "null" }]
+    },
+    "category": { "anyOf": [{ "enum": ["rule", "faction", "history", "culture", "other"] }, { "type": "null" }] },
+    "part_id": { "anyOf": [{ "$ref": "../common/card-id.json" }, { "type": "null" }] },
+    "notes": { "description": "Source notes as the user and the source role left them.", "type": "string" },
+    "sentences": {
+      "description": "notes split by the server (§15); evidence, highlights and changed sentences use these 0-based indexes.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "turns": {
+      "description": "The conversation so far (memory only).",
+      "type": "array",
+      "items": {
+        "title": "DraftTurn",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "text"],
+        "properties": {
+          "role": { "enum": ["user", "ai"] },
+          "text": { "type": "string" }
+        }
+      }
+    },
+    "pinned": {
+      "description": "Field paths kept from the saved card when the card is generated again.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "generated": {
+      "description": "The last generated card, not saved yet; null before 카드 생성.",
+      "anyOf": [{ "$ref": "../roles/card-output.json" }, { "type": "null" }]
+    }
+  }
+}

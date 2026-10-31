@@ -1,0 +1,16 @@
+{
+ "id": "dr_1a2b",
+ "work_id": "w_01",
+ "type": "character",
+ "card_id": null,
+ "category": null,
+ "part_id": null,
+ "notes": "테오는 북부 항구 출신이다. 말수가 적다.",
+ "sentences": ["테오는 북부 항구 출신이다.", "말수가 적다."],
+ "turns": [
+  {"role": "user", "text": "테오는 활을 써."},
+  {"role": "ai", "text": "활을 쓰는군요. 어디서 배웠나요?"}
+ ],
+ "pinned": [],
+ "generated": null
+}
