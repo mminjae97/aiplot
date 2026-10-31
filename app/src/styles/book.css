@@ -325,3 +325,9 @@
   background: transparent;
   color: transparent;
 }
+
+/* Focused, even at either end of the book (where it has nothing to turn to). */
+.book-turn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -8px;
+}

@@ -46,7 +46,9 @@ export function PlanningBook({ screen }: Props) {
     dir: null,
   })
   if (shown.key !== screenKey) {
-    setShown({ key: screenKey, index, dir: index >= shown.index ? 'next' : 'prev' })
+    // The same page asked for another way (a default made explicit) does not turn.
+    const dir = index === shown.index ? null : index > shown.index ? 'next' : 'prev'
+    setShown({ key: screenKey, index, dir })
   }
 
   const turnTo = (target: PlanningScreen) => {

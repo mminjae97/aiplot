@@ -140,6 +140,8 @@ export function StoryScreen({
   const page: Step = screen.step && (!loaded || isOpen(screen.step)) ? screen.step : furthest
   // A closed step is no page: its tab only shows why, over the page it was opened on.
   const [peek, setPeek] = useState<{ step: Step; on: Step } | null>(null)
+  // Gone once the page turns or the peeked step opens.
+  if (peek && (peek.on !== page || isOpen(peek.step))) setPeek(null)
   const step: Step = peek?.on === page ? peek.step : page
 
   const choose = (next: Step) => {
