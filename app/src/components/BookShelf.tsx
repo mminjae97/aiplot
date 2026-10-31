@@ -23,19 +23,16 @@ const SHELF_PADDING = 48
 // One board with its covers: top margin, cover plus lift, board.
 const SHELF_HEIGHT = CLEAR + COVER_HEIGHT + BOARD
 
-type Slot = ({ kind: 'work'; work: Work } | { kind: 'new' }) & {
-  // Which side of the cover its info slip opens on, away from the bookcase edge.
-  slip: 'left' | 'right'
-}
+type Slot = { kind: 'work'; work: Work } | { kind: 'new' }
 
 export function perShelf(width: number): number {
   const usable = Math.max(width - SHELF_PADDING * 2, BOOK_WIDTH)
   return Math.max(1, Math.floor((usable + GAP) / (BOOK_WIDTH + GAP)))
 }
 
-/** Stands covers left to right, newest first, as many per board as fit the width, and adds
- * empty boards until the bookcase fills the visible height, or one more below the last books
- * when they scroll. */
+/** Stands covers left to right, newest first, as many per board as fit the width; below the
+ * last books there is always one empty board (scrolling to it if need be), and more empty
+ * boards until the bookcase fills the visible height. */
 export function packShelves(works: Work[], width: number, height: number): Slot[][] {
   const columns = perShelf(width)
   const items = [
@@ -44,13 +41,11 @@ export function packShelves(works: Work[], width: number, height: number): Slot[
   ]
   const shelves: Slot[][] = []
   items.forEach((item, index) => {
-    const column = index % columns
-    if (column === 0) shelves.push([])
-    const slip = columns > 1 && column >= columns / 2 ? 'left' : 'right'
-    shelves.at(-1)?.push({ ...item, slip })
+    if (index % columns === 0) shelves.push([])
+    shelves.at(-1)?.push(item)
   })
   const fill = Math.max(1, Math.floor((height - BOTTOM) / SHELF_HEIGHT))
-  if (shelves.length > fill) shelves.push([])
+  shelves.push([])
   while (shelves.length < fill) shelves.push([])
   return shelves
 }
@@ -118,7 +113,6 @@ export function BookShelf({ works, highlight, onOpen, onMenu, onNew }: Props) {
                     <div role="listitem" key={slot.work.id}>
                       <ShelfBook
                         work={slot.work}
-                        slip={slot.slip}
                         newest={slot.work.id === newest}
                         highlighted={slot.work.id === highlight}
                         onOpen={onOpen}
@@ -126,17 +120,19 @@ export function BookShelf({ works, highlight, onOpen, onMenu, onNew }: Props) {
                       />
                     </div>
                   ) : (
-                    <div role="listitem" key="new">
+                    <div role="listitem" key="new" className="book-slot">
                       <button
                         type="button"
                         className="book-new"
                         aria-describedby={works.length === 0 ? 'shelf-empty-tag' : undefined}
                         onClick={onNew}
                       >
-                        <span className="book-new-plus" aria-hidden="true">
-                          +
+                        <span className="book-new-face">
+                          <span className="book-new-plus" aria-hidden="true">
+                            +
+                          </span>
+                          <span className="book-new-label">{strings.library.newBook}</span>
                         </span>
-                        <span className="book-new-label">{strings.library.newBook}</span>
                       </button>
                     </div>
                   ),

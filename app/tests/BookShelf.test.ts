@@ -36,37 +36,34 @@ test('covers keep their order across boards, as many per board as fit, + book la
   expect(packShelves(list, 300, 600)[0]).toHaveLength(1)
 })
 
-test('empty boards fill the visible height but never force a scroll', () => {
+test('empty boards fill the visible height', () => {
   // A board takes half a cover of clear space + a cover + the board: 150 + 300 + 22, and the
   // bookcase keeps 40px below the last one.
-  expect(packShelves([], 1440, 852)).toHaveLength(1)
-  expect(packShelves([], 1440, 983)).toHaveLength(1)
-  expect(packShelves([], 1440, 984)).toHaveLength(2)
-  expect(packShelves([], 1440, 1000)).toHaveLength(2)
   expect(packShelves([], 1440, 1500)).toHaveLength(3)
+  expect(packShelves(works(2), 1440, 1500).map((s) => s.length)).toEqual([3, 0, 0])
 })
 
-test('books that scroll end with one empty board', () => {
+test('the last books always have one empty board below them, scrolling if need be', () => {
+  // The + book alone, two boards' height: its board and an empty one.
+  expect(packShelves([], 1440, 984).map((s) => s.length)).toEqual([1, 0])
+  // Only the + book's board fits: the empty one is below, a scroll away.
+  expect(packShelves([], 1440, 852).map((s) => s.length)).toEqual([1, 0])
   // 1440 wide holds 4 per board; 8 works + the + book take 3 boards.
-  expect(packShelves(works(8), 1440, 1500)).toHaveLength(3)
+  expect(packShelves(works(8), 1440, 1500).map((s) => s.length)).toEqual([4, 4, 1, 0])
   expect(packShelves(works(8), 1440, 984).map((s) => s.length)).toEqual([4, 4, 1, 0])
-})
-
-test('slips open away from the nearer bookcase side', () => {
-  const [shelf] = packShelves(works(10), 1920, 852)
-  expect(shelf?.[0]?.slip).toBe('right')
-  expect(shelf?.at(-1)?.slip).toBe('left')
+  // Full screen 1920: 6 per board, 10 works + the + book fill both visible boards.
+  expect(packShelves(works(10), 1920, 984).map((s) => s.length)).toEqual([6, 5, 0])
 })
 
 test('an illustrated cover shows the illustration only', () => {
   const [work] = works(1)
   if (!work) throw new Error('no work')
-  const props = { work, slip: 'right' as const, newest: false, highlighted: false, onOpen: vi.fn() }
+  const props = { work, newest: false, highlighted: false, onOpen: vi.fn() }
   const { container, rerender } = render(createElement(BookItem, props))
   expect(container.querySelector('.book-title')?.textContent).toBe(work.title)
   rerender(createElement(BookItem, { ...props, cover: 'cover.png' }))
   expect(container.querySelector('.book-title')).toBeNull()
   expect(container.querySelector('img.book-art')?.getAttribute('src')).toBe('cover.png')
-  // The title still names the book for screen readers and in the slip.
+  // The title still names the book for screen readers.
   expect(screen.getByRole('button', { name: work.title })).toBeTruthy()
 })

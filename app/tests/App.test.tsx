@@ -157,7 +157,7 @@ test('empty library invites the first book once the server is ready', async () =
   })
 })
 
-test('books stand newest first with their info slip', async () => {
+test('books stand newest first; stage and date are read, not shown', async () => {
   serve([
     work('w_b', '둘째 책', '2026-10-30T09:00:00.000Z'),
     work('w_a', '첫 책', '2026-10-29T09:00:00.000Z'),
@@ -169,8 +169,12 @@ test('books stand newest first with their info slip', async () => {
   const titles = [...document.querySelectorAll('.book-title')].map((t) => t.textContent)
   expect(titles).toEqual(['둘째 책', '첫 책'])
   expect(screen.queryByText(strings.library.empty)).toBeNull()
-  const [slip] = screen.getAllByRole('tooltip', { hidden: true })
-  expect(slip?.textContent).toContain(strings.library.stageOf(strings.stage[1]))
+  expect(screen.queryByRole('tooltip', { hidden: true })).toBeNull()
+  const book = screen.getByRole('button', { name: '둘째 책' })
+  expect(book.getAttribute('aria-describedby')).toBe('about-w_b')
+  expect(document.getElementById('about-w_b')?.textContent).toContain(
+    strings.library.stageOf(strings.stage[1]),
+  )
 })
 
 test('new book takes a title and opens its contents', async () => {

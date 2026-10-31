@@ -26,7 +26,6 @@ type Props = {
   work: Work
   // Cover illustration (1:1.5); it replaces all cover text.
   cover?: string | null
-  slip: 'left' | 'right'
   newest: boolean
   highlighted: boolean
   onOpen: (work: Work) => void
@@ -42,22 +41,23 @@ function menuPoint(event: MouseEvent<HTMLElement>): MenuPoint {
   return { x: event.clientX, y: event.clientY }
 }
 
-export function BookItem({ work, cover, slip, newest, highlighted, onOpen, onMenu }: Props) {
+export function BookItem({ work, cover, newest, highlighted, onOpen, onMenu }: Props) {
   const stage = strings.stage[work.stage]
-  const slipId = `slip-${work.id}`
+  const aboutId = `about-${work.id}`
   return (
     <div
       className="book"
       style={bookStyle(colorOf(work))}
       data-highlighted={highlighted || undefined}
     >
-      {newest && <span className="book-ribbon" aria-hidden="true" />}
+      {/* Under the turned book: its shadow on the back panel and where it stands. */}
+      <span className="book-shadow" aria-hidden="true" />
       <button
         type="button"
         id={bookButtonId(work.id)}
         className="book-cover"
         aria-label={work.title}
-        aria-describedby={slipId}
+        aria-describedby={aboutId}
         onClick={() => {
           onOpen(work)
         }}
@@ -67,13 +67,19 @@ export function BookItem({ work, cover, slip, newest, highlighted, onOpen, onMen
           onMenu(work, menuPoint(event))
         }}
       >
-        <BookFront title={work.title} stage={stage} image={cover ?? null} />
+        {/* The button stays put (a click low on the cover still lands while the book lifts);
+            only the book inside it leans and lifts. */}
+        <span className="book-body">
+          {newest && <span className="book-ribbon" aria-hidden="true" />}
+          <BookFront title={work.title} stage={stage} image={cover ?? null} />
+        </span>
       </button>
-      <div className="book-slip" id={slipId} role="tooltip" data-side={slip}>
-        <p className="book-slip-title">{work.title}</p>
-        <p>{strings.library.stageOf(stage)}</p>
-        <p>{strings.library.modified(dateFormat.format(new Date(work.updated_at)))}</p>
-      </div>
+      <span className="book-stand" aria-hidden="true" />
+      {/* No slip on the shelf (it covered the neighbours); screen readers still hear these. */}
+      <span className="visually-hidden" id={aboutId}>
+        {strings.library.stageOf(stage)},{' '}
+        {strings.library.modified(dateFormat.format(new Date(work.updated_at)))}
+      </span>
     </div>
   )
 }
