@@ -47,6 +47,10 @@ class DraftState:
     turns: list[tuple[Literal["user", "ai"], str]] = field(default_factory=list)
     pinned: list[str] = field(default_factory=list)
     generated: CardOutput | None = None
+    # Cards @-mentioned so far: they stay in the roles' context.
+    refs: list[str] = field(default_factory=list)
+    # A turn or a generation is running (one at a time per draft).
+    busy: bool = False
     # Requests on one draft may overlap (thread pool): every read and change holds this, so
     # a response never mixes two versions (e.g. notes from one, sentences from another).
     lock: threading.Lock = field(default_factory=threading.Lock, repr=False)

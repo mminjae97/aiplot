@@ -42,6 +42,11 @@ export type CardOutput =
   | PartCardOutput
   | EpisodeCardOutput
 /**
+ * data of the SSE events of POST /drafts/{draftId}/messages; the SSE event name is the type. Order: reply* then source (unless the turn was the AI's opening), or error; always done last.
+ */
+export type DraftMessageEvent =
+  DraftReplyEvent | DraftSourceEvent | DraftErrorEvent | DraftDoneEvent
+/**
  * data of the SSE events every job can send on GET /jobs/{jobId}/events; the SSE event name is the type (§16). Job kinds add their own events (e.g. chapter: beat_start, sentence).
  */
 export type JobLifecycleEvent =
@@ -472,6 +477,18 @@ export interface DraftCreate {
   part_id?: CardId | null
 }
 /**
+ * POST /drafts/{draftId}/messages: one chat turn (§8). Empty text on a draft without turns lets the AI open with a question. The reply streams as SSE (DraftMessageEvent).
+ */
+export interface DraftMessage {
+  text: string
+  /**
+   * Cards the user @-mentioned in this turn; they stay in the draft's context.
+   *
+   * @maxItems 20
+   */
+  refs?: CardId[]
+}
+/**
  * PUT /drafts/{draftId}/source: the user edited the source notes directly (§8).
  */
 export interface DraftSource {
@@ -557,6 +574,44 @@ export interface EpisodeCardOutput {
   evidence: CardEvidence
   ai_guess: AiGuessFields
 }
+/**
+ * event: reply. The next piece of the AI's answer.
+ */
+export interface DraftReplyEvent {
+  text: string
+}
+/**
+ * event: source. The notes after this turn: changed = indexes of new or rewritten sentences (highlighted), questions for missing information, similar names to confirm as one entity (§8).
+ */
+export interface DraftSourceEvent {
+  notes: string
+  sentences: string[]
+  changed: number[]
+  /**
+   * @maxItems 3
+   */
+  questions: string[]
+  similar_names: SimilarName[]
+}
+export interface SimilarName {
+  mentioned: string
+  similar_to: string
+  /**
+   * Existing card named similar_to, or null if it is only in the notes.
+   */
+  card_id: CardId | null
+}
+/**
+ * event: error. The reply or the notes update failed; code maps to a UI state (LLM_* codes, NOTES_CHANGED when the user edited the notes meanwhile).
+ */
+export interface DraftErrorEvent {
+  code: string
+  message: string
+}
+/**
+ * event: done. Last event.
+ */
+export interface DraftDoneEvent {}
 /**
  * event: progress. Units are the job's own (beats, bytes).
  */
@@ -677,14 +732,6 @@ export interface SourceOutput {
 export interface SourceEdit {
   index: number
   text: string | null
-}
-export interface SimilarName {
-  mentioned: string
-  similar_to: string
-  /**
-   * Existing card named similar_to, or null if it is only in the notes.
-   */
-  card_id: CardId | null
 }
 /**
  * PUT /setup/paths: use files the user already has instead of downloading. Send both keys; null means the default location under the data dir, and a value equal to the current one is kept without a new check. Starts a job that checks changed paths (model: size + sha256 against the profile; llama: `--version` reports the pinned build) before they are used.

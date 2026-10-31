@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DraftMessageEvent",
+  "description": "data of the SSE events of POST /drafts/{draftId}/messages; the SSE event name is the type. Order: reply* then source (unless the turn was the AI's opening), or error; always done last.",
+  "oneOf": [
+    { "$ref": "#/$defs/reply" },
+    { "$ref": "#/$defs/source" },
+    { "$ref": "#/$defs/error" },
+    { "$ref": "#/$defs/done" }
+  ],
+  "$defs": {
+    "reply": {
+      "title": "DraftReplyEvent",
+      "description": "event: reply. The next piece of the AI's answer.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text"],
+      "properties": { "text": { "type": "string" } }
+    },
+    "source": {
+      "title": "DraftSourceEvent",
+      "description": "event: source. The notes after this turn: changed = indexes of new or rewritten sentences (highlighted), questions for missing information, similar names to confirm as one entity (§8).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["notes", "sentences", "changed", "questions", "similar_names"],
+      "properties": {
+        "notes": { "type": "string" },
+        "sentences": { "type": "array", "items": { "type": "string" } },
+        "changed": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+        "questions": { "type": "array", "maxItems": 3, "items": { "type": "string" } },
+        "similar_names": { "type": "array", "items": { "$ref": "../roles/source-output.json#/properties/similar_names/items" } }
+      }
+    },
+    "error": {
+      "title": "DraftErrorEvent",
+      "description": "event: error. The reply or the notes update failed; code maps to a UI state (LLM_* codes, NOTES_CHANGED when the user edited the notes meanwhile).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+        "message": { "type": "string" }
+      }
+    },
+    "done": {
+      "title": "DraftDoneEvent",
+      "description": "event: done. Last event.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    }
+  }
+}
