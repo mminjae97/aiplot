@@ -424,7 +424,7 @@ export interface IncompleteCard {
   name: string | null
 }
 /**
- * GET /works/{workId}/relations?kind=: relation rows of the work (§6: references come from relation tables). world: world card -> related card (함께 보기, §8). character: character -> character with the relation (관계도).
+ * GET /works/{workId}/relations?kind=: relation rows of the work (§6: references come from relation tables). world: world card -> related card (함께 보기, §8). character: character -> character with the relation (관계도). origin: character -> origin region (dex back).
  */
 export interface CardRelations {
   relations: CardRelation[]
@@ -433,7 +433,7 @@ export interface CardRelation {
   from_id: CardId
   to_id: CardId
   /**
-   * The relation text (character); null for world links.
+   * The relation text (character); null for world and origin links.
    */
   relation: string | null
 }

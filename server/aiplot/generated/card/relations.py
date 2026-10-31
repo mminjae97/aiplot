@@ -17,7 +17,7 @@ class CardRelation(BaseModel):
     to_id: card_id.CardId
     relation: Annotated[
         StrictStr | None,
-        Field(description="The relation text (character); null for world links."),
+        Field(description="The relation text (character); null for world and origin links."),
     ]
 
 

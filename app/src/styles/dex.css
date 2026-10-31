@@ -1,0 +1,283 @@
+/* S1-1 dex: character cards laid out on the walnut desk; a picked card grows to the middle
+   of the window and turns over. */
+
+.desk.dex-desk {
+  display: block;
+  /* Chromium aligns block children with justify-items too: let the dex fill the width. */
+  place-items: normal;
+  padding: 40px var(--desk-margin) var(--desk-margin);
+}
+
+.dex {
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+/* A paper label on the desk. */
+.dex-title {
+  display: inline-block;
+  padding: 6px 20px;
+  background: var(--paper);
+  box-shadow: 0 6px 16px var(--wood-shadow);
+  font-size: var(--size-title);
+}
+
+/* A paper slip under the label (readable on the desk in both themes). */
+.dex-note {
+  width: fit-content;
+  margin-top: 16px;
+  padding: 6px 14px;
+  background: var(--paper);
+  color: var(--ink-soft);
+}
+
+.dex-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 168px);
+  gap: 32px 28px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dex-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 168px;
+  padding: 8px 8px 10px;
+  border: 0;
+  background: var(--paper);
+  box-shadow:
+    0 1px 0 var(--paper-edge),
+    0 10px 22px var(--wood-shadow);
+  text-align: center;
+  cursor: pointer;
+  transition: transform var(--motion);
+}
+
+.dex-card:hover,
+.dex-card:focus-visible {
+  transform: translateY(-6px);
+}
+
+/* Portrait 7:9, as the generated images (896×1152); the fallback is the first letter in a
+   gilt frame on cloth. */
+.portrait {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 7 / 9;
+  outline: 1px solid currentcolor;
+  outline-offset: -7px;
+  font-size: 64px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.dex-name {
+  overflow: hidden;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Incomplete: a word on the card and a dashed name, never colour alone (§5). */
+.dex-tag {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  padding: 0 6px;
+  border: 1px solid var(--warning);
+  background: var(--paper);
+  color: var(--warning);
+  font-size: var(--size-small);
+}
+
+.dex-card[data-incomplete] .dex-name {
+  text-decoration: underline dashed var(--warning);
+  text-underline-offset: 4px;
+}
+
+.dex-card[data-highlight] {
+  animation: dex-arrive 0.3s ease-out;
+}
+
+@keyframes dex-arrive {
+  from {
+    box-shadow:
+      0 0 0 4px var(--brass-bright),
+      0 10px 22px var(--wood-shadow);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dex-card[data-highlight] {
+    animation: none;
+    outline: 2px solid var(--brass-bright);
+  }
+}
+
+/* The + card: translucent, as the library's + book. */
+.dex-card.dex-new {
+  height: 100%;
+  min-height: 236px;
+  background: rgb(255 248 234 / 7%);
+  border: 1px dashed rgb(212 174 92 / 55%);
+  box-shadow: none;
+  color: var(--brass-bright);
+}
+
+.dex-card.dex-new:hover {
+  background: rgb(255 248 234 / 13%);
+}
+
+.dex-new-plus {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 7 / 9;
+  font-size: var(--size-display);
+}
+
+/* The picked-up card. */
+.flip-frame {
+  perspective: 1600px;
+}
+
+.flip-card {
+  position: relative;
+  width: min(440px, calc(100vw - 48px));
+  height: min(600px, calc(100vh - var(--top-bar) - 48px));
+  transition: transform 0.3s ease-out;
+  transform-style: preserve-3d;
+}
+
+.flip-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  background: var(--paper);
+  box-shadow: 0 22px 48px var(--wood-shadow);
+  transition: transform 0.3s ease-out;
+}
+
+.flip-front {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  font-size: var(--size-lead);
+  text-align: center;
+}
+
+.flip-front .portrait {
+  flex: 1;
+  width: auto;
+  aspect-ratio: auto;
+  font-size: 160px;
+}
+
+.flip-back {
+  transform: rotateY(180deg);
+}
+
+.flip-card[data-flipped] .flip-front {
+  transform: rotateY(-180deg);
+}
+
+.flip-card[data-flipped] .flip-back {
+  transform: rotateY(0deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flip-card,
+  .flip-face {
+    transition: none;
+  }
+}
+
+.flip-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  padding: 2px 10px;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  cursor: pointer;
+}
+
+.dex-back {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 24px 28px 20px;
+}
+
+/* Room for 닫기 at the top right. */
+.dex-back-head {
+  padding-right: 56px;
+}
+
+.dex-back-head h2 {
+  font-size: var(--size-title);
+}
+
+.dex-incomplete {
+  color: var(--warning);
+}
+
+.dex-fields {
+  flex: 1;
+  margin-top: 12px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.dex-field + .dex-field {
+  margin-top: 12px;
+}
+
+.dex-field h3 {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.dex-undecided {
+  color: var(--ink-faint);
+}
+
+.dex-traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dex-traits li {
+  padding: 0 8px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 3px;
+  background: rgb(255 255 255 / 25%);
+}
+
+.dex-list,
+.dex-quotes {
+  margin: 2px 0 0;
+  padding-left: 18px;
+}
+
+.dex-quotes {
+  list-style: none;
+  padding-left: 0;
+}
+
+.dex-situation {
+  color: var(--ink-soft);
+}

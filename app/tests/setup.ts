@@ -8,3 +8,6 @@ configure({ asyncUtilTimeout: 5000 })
 afterEach(() => {
   cleanup()
 })
+
+// jsdom has no layout: scrolling into view is a no-op there (node tests have no DOM).
+if (typeof Element !== 'undefined') Element.prototype.scrollIntoView = () => undefined

@@ -351,7 +351,8 @@ test('the contents page opens the drawer from the planning items', async () => {
       <ContentsPage workId="w_1" />
     </QueryClientProvider>,
   )
-  fireEvent.click(await screen.findByRole('button', { name: '캐릭터' }))
+  // 세계관 and 캐릭터 open their screens; 지역 still opens the drawer until the map (unit 12).
+  fireEvent.click(await screen.findByRole('button', { name: '지역' }))
   expect(await screen.findByRole('dialog')).toBeTruthy()
   expect(document.querySelector('main.desk')?.hasAttribute('inert')).toBe(true)
   fireEvent.keyDown(window, { key: 'Escape' })

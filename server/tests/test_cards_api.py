@@ -242,6 +242,12 @@ def test_relations_come_from_the_relation_tables(
             {"from_id": "c_tide", "to_id": "c_teo", "relation": None},
         ]
     }
+    assert get(client, "/works/w_01/relations?kind=origin") == {
+        "relations": [
+            {"from_id": "c_mira", "to_id": "c_port", "relation": None},
+            {"from_id": "c_teo", "to_id": "c_port", "relation": None},
+        ]
+    }
     assert get(client, "/works/w_02/relations?kind=world") == {"relations": []}
     bad = client.get("/api/v1/works/w_01/relations?kind=region", headers=AUTH)
     assert error(bad) == (422, "VALIDATION_ERROR")
