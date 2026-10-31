@@ -4,13 +4,6 @@
 /* S1-1 dex: character cards laid out on the walnut desk; a picked card grows to the middle
    of the window and turns over. */
 
-.desk.dex-desk {
-  display: block;
-  /* Chromium aligns block children with justify-items too: let the dex fill the width. */
-  place-items: normal;
-  padding: 40px var(--desk-margin) var(--desk-margin);
-}
-
 .dex {
   max-width: 1240px;
   margin: 0 auto;

@@ -72,7 +72,10 @@ test('app starts the local server, opens the library and makes a book', async ()
 
     // The world book's bookmarks never run past the left page; from a 1920px display's
     // half-screen window up they fit on one line (smaller displays wrap them).
-    await win.getByRole('button', { name: '세계관' }).click()
+    await win
+      .getByRole('region', { name: strings.contents.heading })
+      .getByRole('button', { name: '세계관' })
+      .click()
     const tabs = win.getByRole('tablist', { name: strings.worldBook.tabs })
     await expect(tabs.getByRole('tab')).toHaveCount(6)
     const page = await win.locator('.world-book .page-left').boundingBox()
@@ -94,7 +97,11 @@ test('app starts the local server, opens the library and makes a book', async ()
     )
     expect(after).toEqual(boxes)
     expect((await heading.boundingBox())?.y).toBe(headingBefore?.y)
-    await win.getByRole('button', { name: strings.contents.toContents }).click()
+    // The contents is a page of the same book: its post-it note turns back to it.
+    await win
+      .getByRole('navigation', { name: strings.book.sections })
+      .getByRole('button', { name: strings.book.notes.contents })
+      .click()
     await expect(win.getByRole('heading', { name: strings.contents.heading })).toBeVisible()
     await win.getByRole('button', { name: strings.contents.back }).click()
     await expect(win.locator('.book-title', { hasText: '안개의 항구' })).toBeVisible()

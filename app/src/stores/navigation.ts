@@ -1,19 +1,28 @@
 import { create } from 'zustand'
 
+// The planning book's smallest pages (§8): a world book bookmark, a dex view, a story step.
+export type WorldTab = 'rule' | 'faction' | 'history' | 'culture' | 'other' | 'terms'
+export type DexView = 'cards' | 'graph'
+export type StoryStep = 'main' | 'parts' | 'episodes'
+
 // UI state only (§5): which screen is open. Server data stays in TanStack Query.
 export type Screen =
   | { name: 'library' }
-  | { name: 'contents'; workId: string }
   // S0-1 first run (§12)
   | { name: 'setup' }
+  | PlanningScreen
+
+/** The pages of one open book (S1 contents and S1-0…S1-3), turned like a book's pages. */
+export type PlanningScreen =
+  | { name: 'contents'; workId: string }
   // S1-0 world book (§8)
-  | { name: 'world'; workId: string }
+  | { name: 'world'; workId: string; tab?: WorldTab }
   // S1-1 dex (§8); cardId = the card to pick up on arrival (a world book link)
-  | { name: 'characters'; workId: string; cardId?: string }
+  | { name: 'characters'; workId: string; cardId?: string; view?: DexView }
   // S1-2 region map (§8)
   | { name: 'regions'; workId: string; cardId?: string }
   // S1-3 story (§8)
-  | { name: 'story'; workId: string }
+  | { name: 'story'; workId: string; step?: StoryStep }
 
 interface NavigationStore {
   screen: Screen

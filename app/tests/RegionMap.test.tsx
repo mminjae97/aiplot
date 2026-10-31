@@ -1,15 +1,11 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import type { ReactNode } from 'react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { ServerState } from '../src/api/bridge'
-import { ContentsPage } from '../src/screens/ContentsPage'
-import { RegionMapScreen } from '../src/screens/RegionMapScreen'
-import { WorldBookScreen } from '../src/screens/WorldBookScreen'
 import { useNavigation } from '../src/stores/navigation'
 import { useServer } from '../src/stores/server'
 import { strings } from '../src/strings'
 import type { Card, RegionCard, Work } from '../src/types'
+import { renderBook } from './bookHarness'
 import { NO_DIALOGS } from './serverFixtures'
 
 const READY: ServerState = {
@@ -115,11 +111,6 @@ function serve(options: { locked?: boolean } = {}) {
   return { calls }
 }
 
-function renderWith(node: ReactNode) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(<QueryClientProvider client={client}>{node}</QueryClientProvider>)
-}
-
 async function nodes(kind: 'region' | 'area') {
   await waitFor(() => {
     expect(document.querySelectorAll('.react-flow__node').length).toBeGreaterThan(0)
@@ -153,7 +144,7 @@ afterEach(() => {
 
 test('a token per region, the parent as an area, the episode count as a badge', async () => {
   serve()
-  renderWith(<RegionMapScreen workId="w_1" />)
+  renderBook({ name: 'regions', workId: 'w_1' })
   expect((await nodes('region')).map((node) => node.dataset.id)).toEqual(['c_port', 'c_capital'])
   expect((await nodes('area')).map((node) => node.dataset.id)).toEqual(['c_north'])
   const port = (await nodes('region'))[0]
@@ -165,7 +156,7 @@ test('a token per region, the parent as an area, the episode count as a badge', 
 
 test('Enter on a region turns its card: senses, journeys, parent and episodes', async () => {
   serve()
-  renderWith(<RegionMapScreen workId="w_1" />)
+  renderBook({ name: 'regions', workId: 'w_1' })
   const [port] = await nodes('region')
   if (!port) throw new Error('no node')
   fireEvent.keyDown(port, { key: 'Enter' })
@@ -180,7 +171,7 @@ test('Enter on a region turns its card: senses, journeys, parent and episodes', 
 
 test('the area name opens the parent region card', async () => {
   serve()
-  renderWith(<RegionMapScreen workId="w_1" />)
+  renderBook({ name: 'regions', workId: 'w_1' })
   await nodes('area')
   fireEvent.click(screen.getByRole('button', { name: strings.map.open('북부 왕국') }))
   expect(await screen.findByRole('dialog', { name: '북부 왕국' })).toBeTruthy()
@@ -188,7 +179,7 @@ test('the area name opens the parent region card', async () => {
 
 test('+ 새 지역 opens a new region drawer', async () => {
   const { calls } = serve()
-  renderWith(<RegionMapScreen workId="w_1" />)
+  renderBook({ name: 'regions', workId: 'w_1' })
   fireEvent.click(await screen.findByRole('button', { name: strings.map.newRegion }))
   await waitFor(() => {
     expect(calls.find((c) => c.method === 'POST' && c.path === '/works/w_1/drafts')?.body).toEqual({
@@ -199,7 +190,7 @@ test('+ 새 지역 opens a new region drawer', async () => {
 
 test('a locked planning stage reads only: no new region, edit and delete disabled', async () => {
   serve({ locked: true })
-  renderWith(<RegionMapScreen workId="w_1" />)
+  renderBook({ name: 'regions', workId: 'w_1' })
   expect(await screen.findByText(strings.map.hintLocked)).toBeTruthy()
   expect(screen.queryByRole('button', { name: strings.map.newRegion })).toBeNull()
   const [port] = await nodes('region')
@@ -216,11 +207,11 @@ test('a locked planning stage reads only: no new region, edit and delete disable
 
 test('the contents item and a world book link both open the map', async () => {
   serve()
-  const contents = renderWith(<ContentsPage workId="w_1" />)
+  const contents = renderBook({ name: 'contents', workId: 'w_1' })
   fireEvent.click(await screen.findByRole('button', { name: '지역' }))
   expect(useNavigation.getState().screen).toEqual({ name: 'regions', workId: 'w_1' })
   contents.unmount()
-  renderWith(<WorldBookScreen workId="w_1" />)
+  renderBook({ name: 'world', workId: 'w_1' })
   fireEvent.click(await screen.findByRole('button', { name: /조수 마법/ }))
   fireEvent.click(await screen.findByRole('button', { name: '북부 항구' }))
   expect(useNavigation.getState().screen).toEqual({
@@ -250,7 +241,7 @@ test('a parent loop in bad data draws plain tokens instead of hanging', async ()
         : base(url, init),
     ),
   )
-  renderWith(<RegionMapScreen workId="w_1" />)
+  renderBook({ name: 'regions', workId: 'w_1' })
   // port in north is kept; north in port would close the loop and is dropped.
   expect((await nodes('region')).map((node) => node.dataset.id)).toEqual(['c_port', 'c_capital'])
   expect((await nodes('area')).map((node) => node.dataset.id)).toEqual(['c_north'])

@@ -7,33 +7,19 @@ import { CharacterBack, CharacterFront } from '../components/CharacterCard'
 import { FlipCard } from '../components/FlipCard'
 import { RelationGraph } from '../components/RelationGraph'
 import { pairsOf } from '../components/relationLayout'
-import { TopBar } from '../components/TopBar'
-import { useNavigation } from '../stores/navigation'
+import { Overlay } from '../components/Overlay'
+import type { DexView, PlanningScreen } from '../stores/navigation'
 import { strings } from '../strings'
 import type { Card, CharacterCard } from '../types'
-
-type Props = {
-  workId: string
-  /** Pick this card up on arrival (a 함께 보기 link from the world book). */
-  cardId?: string
-}
+import { savedView, saveView } from './planningPages'
+import type { PageProps } from './PlanningBook'
 
 function isCharacter(card: Card): card is CharacterCard {
   return card.type === 'character'
 }
 
-type View = 'cards' | 'graph'
+type View = DexView
 const VIEWS: View[] = ['cards', 'graph']
-// 도감 | 관계도: the last one comes back (a per-viewer convenience; storage may be missing).
-const VIEW_KEY = 'aiplot.dex.view'
-
-function savedView(): View {
-  try {
-    return localStorage.getItem(VIEW_KEY) === 'graph' ? 'graph' : 'cards'
-  } catch {
-    return 'cards'
-  }
-}
 
 /** Gives the focus back to a card: its grid card or its graph node, else the + card or the
  * 관계도 tab (the node may be gone after the graph was laid out again). */
@@ -53,24 +39,21 @@ function focusCard(
   }
 }
 
-function saveView(view: View) {
-  try {
-    localStorage.setItem(VIEW_KEY, view)
-  } catch {
-    // Not remembered this time; the view itself still changes.
-  }
-}
-
 /** S1-1 dex (§8): every character as a card on the desk, a translucent + card last. A card
  * picked up grows to the middle and flips to all its fields. */
-export function CharacterDexScreen({ workId, cardId }: Props) {
+export function CharacterDexScreen({
+  screen,
+  turn,
+  onBusy,
+}: PageProps<Extract<PlanningScreen, { name: 'characters' }>>) {
+  const { workId, cardId } = screen
   const queryClient = useQueryClient()
-  const open = useNavigation((store) => store.open)
   const [picked, setPicked] = useState<{ id: string; origin: DOMRect | null } | null>(
     cardId ? { id: cardId, origin: null } : null,
   )
   const [drawer, setDrawer] = useState<DrawerRequest | null>(null)
-  const [view, setView] = useState<View>(savedView)
+  // 도감 and 관계도 are two pages of the book; the remembered one when none is asked for.
+  const view: View = screen.view ?? savedView()
   const tabRefs = useRef(new Map<View, HTMLButtonElement>())
   const [deleting, setDeleting] = useState<CharacterCard | null>(null)
   const [undo, setUndo] = useState<{ card: Card; until: string } | null>(null)
@@ -127,10 +110,13 @@ export function CharacterDexScreen({ workId, cardId }: Props) {
   }, [highlight, shown, view])
 
   const busy = drawer !== null || deleting !== null || current !== null
+  useEffect(() => {
+    onBusy(busy)
+  }, [busy, onBusy])
 
   const choose = (next: View) => {
-    setView(next)
     saveView(next)
+    turn({ name: 'characters', workId, view: next })
   }
   const onTabKey = (event: KeyboardEvent) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
@@ -152,16 +138,8 @@ export function CharacterDexScreen({ workId, cardId }: Props) {
   const graphKey = JSON.stringify([cards.map((card) => [card.id, card.name]), pairs])
   return (
     <>
-      <TopBar
-        onBack={() => {
-          open({ name: 'contents', workId })
-        }}
-        backLabel={strings.contents.toContents}
-        backDisabled={busy}
-        title={work.data?.title}
-      />
-      <main className="desk dex-desk" inert={busy}>
-        <section className="dex" data-view={view} aria-labelledby="dex-title">
+      <article className="spread spread-wide">
+        <section className="page-wide dex" data-view={view} aria-labelledby="dex-title">
           <div className="dex-head">
             <h2 id="dex-title" className="dex-title">
               {strings.dex.title}
@@ -286,80 +264,88 @@ export function CharacterDexScreen({ workId, cardId }: Props) {
             </div>
           )}
         </section>
-      </main>
-      {current && picked && (
-        <FlipCard
-          origin={picked.origin}
-          label={current.name ?? strings.drawer.untitled}
-          covered={deleting !== null}
-          onClose={() => {
-            setPicked(null)
-          }}
-          front={<CharacterFront card={current} />}
-          back={
-            <CharacterBack
-              card={current}
-              names={names}
-              relations={relations}
-              origins={origins.data?.relations ?? []}
-              locked={locked}
-              onEdit={() => {
-                returnTo.current = current.id
-                setPicked(null)
-                setDrawer({ workId, type: 'character', card_id: current.id })
-              }}
-              onDelete={() => {
-                setDeleting(current)
-              }}
-            />
-          }
-        />
-      )}
-      {drawer && (
-        <CardDrawer
-          request={drawer}
-          onClose={() => {
-            setDrawer(null)
-            const back = returnTo.current
-            returnTo.current = null
-            window.requestAnimationFrame(() => {
-              focusCard(view, back, cardRefs.current, addRef.current, tabRefs.current.get('graph'))
-            })
-          }}
-          onSaved={(card) => {
-            // After save: close and highlight the card (§8).
-            void queryClient.invalidateQueries({ queryKey: ['relations', workId] })
-            returnTo.current = card.id
-            setHighlight(card.id)
-          }}
-        />
-      )}
-      {deleting && (
-        <DeleteCardDialog
-          card={deleting}
-          onCancel={() => {
-            setDeleting(null)
-          }}
-          onDeleted={(until) => {
-            setUndo({ card: deleting, until })
-            setDeleting(null)
-            setPicked(null)
-          }}
-        />
-      )}
-      {undo && (
-        <UndoToast
-          card={undo.card}
-          until={undo.until}
-          onDone={() => {
-            setUndo(null)
-          }}
-          onRestored={(card) => {
-            setUndo(null)
-            setHighlight(card.id)
-          }}
-        />
-      )}
+      </article>
+      <Overlay>
+        {current && picked && (
+          <FlipCard
+            origin={picked.origin}
+            label={current.name ?? strings.drawer.untitled}
+            covered={deleting !== null}
+            onClose={() => {
+              setPicked(null)
+            }}
+            front={<CharacterFront card={current} />}
+            back={
+              <CharacterBack
+                card={current}
+                names={names}
+                relations={relations}
+                origins={origins.data?.relations ?? []}
+                locked={locked}
+                onEdit={() => {
+                  returnTo.current = current.id
+                  setPicked(null)
+                  setDrawer({ workId, type: 'character', card_id: current.id })
+                }}
+                onDelete={() => {
+                  setDeleting(current)
+                }}
+              />
+            }
+          />
+        )}
+        {drawer && (
+          <CardDrawer
+            request={drawer}
+            onClose={() => {
+              setDrawer(null)
+              const back = returnTo.current
+              returnTo.current = null
+              window.requestAnimationFrame(() => {
+                focusCard(
+                  view,
+                  back,
+                  cardRefs.current,
+                  addRef.current,
+                  tabRefs.current.get('graph'),
+                )
+              })
+            }}
+            onSaved={(card) => {
+              // After save: close and highlight the card (§8).
+              void queryClient.invalidateQueries({ queryKey: ['relations', workId] })
+              returnTo.current = card.id
+              setHighlight(card.id)
+            }}
+          />
+        )}
+        {deleting && (
+          <DeleteCardDialog
+            card={deleting}
+            onCancel={() => {
+              setDeleting(null)
+            }}
+            onDeleted={(until) => {
+              setUndo({ card: deleting, until })
+              setDeleting(null)
+              setPicked(null)
+            }}
+          />
+        )}
+        {undo && (
+          <UndoToast
+            card={undo.card}
+            until={undo.until}
+            onDone={() => {
+              setUndo(null)
+            }}
+            onRestored={(card) => {
+              setUndo(null)
+              setHighlight(card.id)
+            }}
+          />
+        )}
+      </Overlay>
     </>
   )
 }
