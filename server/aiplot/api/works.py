@@ -84,6 +84,23 @@ def delete_work(db: Db, request: Request, workId: str) -> None:
         raise work_not_found(workId) from exc
 
 
+@router.post("/works/{workId}/stage/advance")
+def advance_stage(db: Db, workId: str) -> Work:
+    """Locks the current stage (§11); the app warns first, listing incomplete cards."""
+    try:
+        return works.advance(db, workId)
+    except works.WorkNotFoundError as exc:
+        raise work_not_found(workId) from exc
+    except works.NoActiveEpisodeError as exc:
+        raise AppError(
+            409, "NO_ACTIVE_EPISODE", str(exc), "complete an episode, its part and the main story"
+        ) from exc
+    except works.StageNotReadyError as exc:
+        raise AppError(409, "STAGE_NOT_READY", str(exc)) from exc
+    except works.StageFinalError as exc:
+        raise AppError(409, "STAGE_FINAL", str(exc)) from exc
+
+
 @router.get("/works/{workId}/covers")
 def list_covers(db: Db, workId: str) -> CoverList:
     try:

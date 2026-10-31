@@ -279,8 +279,8 @@ def save(conn: sqlite3.Connection, card: Card) -> Card:
     """Card row + type table + its relation rows + status, in one transaction. card.status
     and a region's position are ignored (computed; the map owns the position)."""
     with transaction(conn):
-        if works_db.get(conn, card.work_id) is None:
-            raise WorkNotFoundError(card.work_id)
+        # Stage 1 data stays as it was once direction started (§6: 423 STAGE_LOCKED).
+        require_open(conn, card.work_id, 1)
         existing = db.get(conn, card.id)
         if existing is not None and (
             existing.work_id != card.work_id or existing.type != card.type
