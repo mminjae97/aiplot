@@ -19,6 +19,9 @@ const dateFormat = new Intl.DateTimeFormat('ko-KR', {
 
 export type MenuPoint = { x: number; y: number }
 
+/** The cover button's element id, for giving focus back after a menu or dialog. */
+export const bookButtonId = (workId: string) => `book-${workId}`
+
 type Props = {
   work: Work
   // Cover illustration (1:1.5); it replaces all cover text.
@@ -51,6 +54,7 @@ export function BookItem({ work, cover, slip, newest, highlighted, onOpen, onMen
       {newest && <span className="book-ribbon" aria-hidden="true" />}
       <button
         type="button"
+        id={bookButtonId(work.id)}
         className="book-cover"
         aria-label={work.title}
         aria-describedby={slipId}

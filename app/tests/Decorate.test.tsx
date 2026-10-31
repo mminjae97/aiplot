@@ -189,7 +189,7 @@ test('a cloth colour is saved and shown on the shelf', async () => {
   })
 })
 
-test('cancel leaves the book as it was', async () => {
+test('cancel leaves the book as it was and focus goes back to it', async () => {
   const { calls } = serve([book('w_a', '안개의 항구')])
   renderApp()
   const dialog = await openDecorate('안개의 항구')
@@ -197,6 +197,7 @@ test('cancel leaves the book as it was', async () => {
   fireEvent.click(within(dialog).getByRole('button', { name: strings.decorate.cancel }))
   expect(screen.queryByRole('dialog')).toBeNull()
   expect(calls.some((c) => c.method === 'PATCH')).toBe(false)
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: '안개의 항구' }))
 })
 
 test('an uploaded illustration becomes the cover', async () => {
@@ -246,8 +247,27 @@ test('removing the cover in use asks first and turns the book back to cloth', as
   fireEvent.click(remove)
   expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
   expect(within(dialog).getByText(strings.decorate.removeConfirm)).toBeTruthy()
+  // Focus never falls out of the dialog while the buttons swap: the safe choice first.
+  const keep = within(dialog).getByRole('button', { name: strings.decorate.removeNo })
+  expect(document.activeElement).toBe(keep)
+  fireEvent.click(keep)
+  expect(document.activeElement).toBe(
+    within(dialog).getByRole('button', {
+      name: `${strings.decorate.illustration(1)} ${strings.decorate.remove}`,
+    }),
+  )
+  fireEvent.click(
+    within(dialog).getByRole('button', {
+      name: `${strings.decorate.illustration(1)} ${strings.decorate.remove}`,
+    }),
+  )
   fireEvent.click(within(dialog).getByRole('button', { name: strings.decorate.removeYes }))
   expect(await within(dialog).findByText(strings.decorate.noIllustrations)).toBeTruthy()
+  await waitFor(() => {
+    expect(document.activeElement).toBe(
+      within(dialog).getByRole('button', { name: strings.decorate.upload }),
+    )
+  })
   expect(calls.find((c) => c.method === 'DELETE')?.path).toBe('/works/w_a/covers/cv_1')
   await waitFor(() => {
     expect(document.querySelector('.book .book-title')?.textContent).toBe('안개의 항구')

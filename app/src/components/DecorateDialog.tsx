@@ -31,6 +31,15 @@ type ChoiceProps = {
 function IllustrationChoice(props: ChoiceProps) {
   const { work, cover, index, checked, confirming, removing } = props
   const image = useCoverImage(work.id, cover.id)
+  const keep = useRef<HTMLButtonElement>(null)
+  const remove = useRef<HTMLButtonElement>(null)
+  const wasConfirming = useRef(confirming)
+  useEffect(() => {
+    // The pressed button is swapped out: focus the safe choice, then back to 지우기.
+    if (confirming) keep.current?.focus()
+    else if (wasConfirming.current) remove.current?.focus()
+    wasConfirming.current = confirming
+  }, [confirming])
   const label = strings.decorate.illustration(index + 1)
   return (
     <li className="decorate-illustration" data-checked={checked || undefined}>
@@ -49,7 +58,7 @@ function IllustrationChoice(props: ChoiceProps) {
       {confirming ? (
         <div className="decorate-confirm" role="group" aria-label={label}>
           <p>{strings.decorate.removeConfirm}</p>
-          <button type="button" className="paper-button" onClick={props.onKeep}>
+          <button ref={keep} type="button" className="paper-button" onClick={props.onKeep}>
             {strings.decorate.removeNo}
           </button>
           <button
@@ -66,6 +75,7 @@ function IllustrationChoice(props: ChoiceProps) {
         </div>
       ) : (
         <button
+          ref={remove}
           type="button"
           className="decorate-remove"
           aria-label={`${label} ${strings.decorate.remove}`}
@@ -84,6 +94,7 @@ export function DecorateDialog({ work, onClose }: Props) {
   const queryClient = useQueryClient()
   const first = useRef<HTMLInputElement>(null)
   const file = useRef<HTMLInputElement>(null)
+  const uploadButton = useRef<HTMLButtonElement>(null)
   // null keeps the default colour, stable per work id.
   const [color, setColor] = useState(work.color)
   const [mode, setMode] = useState<Mode>(work.cover_id ? 'illustration' : 'color')
@@ -115,6 +126,8 @@ export function DecorateDialog({ work, onClose }: Props) {
         queryClient.invalidateQueries({ queryKey: ['covers', work.id] }),
         queryClient.invalidateQueries({ queryKey: ['works'] }),
       ])
+      // Its item is gone; keep focus inside the dialog.
+      uploadButton.current?.focus()
     },
   })
   const save = useMutation({
@@ -124,7 +137,7 @@ export function DecorateDialog({ work, onClose }: Props) {
   })
 
   useEffect(() => {
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    // The library gives focus back to the book once the dialog is gone.
     first.current?.focus()
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose()
@@ -132,7 +145,6 @@ export function DecorateDialog({ work, onClose }: Props) {
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
-      previous?.focus()
     }
   }, [onClose])
 
@@ -272,6 +284,7 @@ export function DecorateDialog({ work, onClose }: Props) {
                   onChange={choose}
                 />
                 <button
+                  ref={uploadButton}
                   type="button"
                   className="paper-button"
                   disabled={upload.isPending}

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
-import type { MenuPoint } from '../components/BookItem'
+import { type MenuPoint, bookButtonId } from '../components/BookItem'
 import { BookMenu } from '../components/BookMenu'
 import { BookShelf } from '../components/BookShelf'
 import { DecorateDialog } from '../components/DecorateDialog'
@@ -22,15 +22,31 @@ export function LibraryScreen() {
   const close = useCallback(() => {
     setCreating(false)
   }, [])
-  const closeMenu = useCallback(() => {
+  // The book focus goes back to once its menu or 책 꾸미기 closes.
+  const returnTo = useRef<string | null>(null)
+  const menuFor = useRef<string | null>(null)
+  const openMenu = useCallback((work: Work, at: MenuPoint) => {
+    returnTo.current = null
+    menuFor.current = work.id
+    setMenu({ workId: work.id, at })
+  }, [])
+  const closeMenu = useCallback((refocus: boolean) => {
+    if (refocus) returnTo.current = menuFor.current
     setMenu(null)
+  }, [])
+  const openDecorate = useCallback((workId: string) => {
+    returnTo.current = workId
+    setDecorating(workId)
   }, [])
   const closeDecorate = useCallback(() => {
     setDecorating(null)
   }, [])
-  const openMenu = useCallback((work: Work, at: MenuPoint) => {
-    setMenu({ workId: work.id, at })
-  }, [])
+  useEffect(() => {
+    // After the commit that drops inert: an inert book cannot take focus.
+    if (menu !== null || decorating !== null || returnTo.current === null) return
+    document.getElementById(bookButtonId(returnTo.current))?.focus()
+    returnTo.current = null
+  }, [menu, decorating])
   const openWork = useCallback(
     (work: Work) => {
       open({ name: 'contents', workId: work.id })
@@ -82,7 +98,7 @@ export function LibraryScreen() {
           title={menuWork.title}
           at={menu.at}
           onDecorate={() => {
-            setDecorating(menuWork.id)
+            openDecorate(menuWork.id)
           }}
           onClose={closeMenu}
         />

@@ -6,7 +6,8 @@ type Props = {
   title: string
   at: MenuPoint
   onDecorate: () => void
-  onClose: () => void
+  /** refocus: closed from the keyboard, so focus goes back to the book. */
+  onClose: (refocus: boolean) => void
 }
 
 // Keeps the menu this far inside the window edges.
@@ -28,13 +29,12 @@ export function BookMenu({ title, at, onDecorate, onClose }: Props) {
   }, [at])
 
   useEffect(() => {
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
     menu.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
     const away = (event: Event) => {
-      if (!(event.target instanceof Node) || !menu.current?.contains(event.target)) onClose()
+      if (!(event.target instanceof Node) || !menu.current?.contains(event.target)) onClose(false)
     }
     const close = () => {
-      onClose()
+      onClose(false)
     }
     window.addEventListener('mousedown', away, true)
     window.addEventListener('contextmenu', away, true)
@@ -49,8 +49,6 @@ export function BookMenu({ title, at, onDecorate, onClose }: Props) {
       window.removeEventListener('resize', close)
       window.removeEventListener('blur', close)
       window.removeEventListener('wheel', close, { capture: true })
-      // Back to the book, unless the menu opened a dialog that took focus.
-      if (!document.activeElement || document.activeElement === document.body) previous?.focus()
     }
   }, [onClose])
 
@@ -67,7 +65,7 @@ export function BookMenu({ title, at, onDecorate, onClose }: Props) {
     else if (event.key === 'End') move(items.length - 1)
     else if (event.key === 'Escape' || event.key === 'Tab') {
       event.preventDefault()
-      onClose()
+      onClose(true)
     }
   }
 
@@ -86,7 +84,7 @@ export function BookMenu({ title, at, onDecorate, onClose }: Props) {
         role="menuitem"
         tabIndex={-1}
         onClick={() => {
-          onClose()
+          onClose(false)
           onDecorate()
         }}
       >
