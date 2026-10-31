@@ -387,6 +387,18 @@
   transform: translateY(-32px);
 }
 
+/* The focus ring follows the book, not the still button around it. */
+.book-cover:focus-visible,
+.book-new:focus-visible {
+  outline: none;
+}
+
+.book-cover:focus-visible .book-body,
+.book-new:focus-visible .book-new-face {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
 .book:hover .book-shadow,
 .book:has(.book-cover:focus-visible) .book-shadow {
   transform: translateY(-14px) scale(1.02);
