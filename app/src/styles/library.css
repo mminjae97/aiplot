@@ -228,7 +228,7 @@
    stand at the front of the board and its top leans back against the panel. Hover or focus
    lifts it off the stand, upright. */
 .bookcase {
-  --lean: 14deg;
+  --lean: 8deg;
 }
 
 .book,
