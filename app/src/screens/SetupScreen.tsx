@@ -296,6 +296,8 @@ export function SetupScreen() {
         <span className="spinner" aria-hidden="true" />
         <p>{strings.setup.loading}</p>
         <p className="setup-note">{strings.setup.loadingNote}</p>
+        {/* A wait over 10 s keeps a way out (§5); loading goes on without this screen. */}
+        <div className="setup-actions">{later}</div>
       </section>
     )
   } else if (state === 'ready' || state === 'fake') {
