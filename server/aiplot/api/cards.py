@@ -13,6 +13,7 @@ from aiplot.generated.card.card_list import CardList
 from aiplot.generated.card.card_references import CardReferences
 from aiplot.generated.card.completeness import Completeness
 from aiplot.generated.card.region_position import RegionPosition
+from aiplot.generated.card.relations import CardRelations
 from aiplot.services import cards, works
 from aiplot.services.trash import Trash
 
@@ -47,6 +48,15 @@ def list_cards(
 ) -> CardList:
     try:
         return CardList(cards=cards.list_cards(db, workId, type, q))
+    except works.WorkNotFoundError as exc:
+        raise work_not_found(workId) from exc
+
+
+@router.get("/works/{workId}/relations")
+def work_relations(db: Db, workId: str, kind: Literal["world", "character"]) -> CardRelations:
+    """함께 보기 (world -> card) and the character graph (character -> character)."""
+    try:
+        return CardRelations(relations=cards.relations(db, workId, kind))
     except works.WorkNotFoundError as exc:
         raise work_not_found(workId) from exc
 

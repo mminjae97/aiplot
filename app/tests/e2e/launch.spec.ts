@@ -69,6 +69,23 @@ test('app starts the local server, opens the library and makes a book', async ()
         return spread ? [Math.round(spread.width), Math.round(spread.height)] : null
       })
       .toEqual([pageWidth - 128, Math.round((pageWidth - 128) * 0.75)])
+
+    // The world book's bookmarks never run past the left page; from a 1920px display's
+    // half-screen window up they fit on one line (smaller displays wrap them).
+    await win.getByRole('button', { name: '세계관' }).click()
+    const tabs = win.getByRole('tablist', { name: strings.worldBook.tabs })
+    await expect(tabs.getByRole('tab')).toHaveCount(6)
+    const page = await win.locator('.world-book .page-left').boundingBox()
+    const boxes = await Promise.all(
+      (await tabs.getByRole('tab').all()).map((tab) => tab.boundingBox()),
+    )
+    if (min.half >= 960) {
+      expect(new Set(boxes.map((box) => Math.round(box?.y ?? -1))).size).toBe(1)
+    }
+    const right = Math.max(...boxes.map((box) => (box ? box.x + box.width : Infinity)))
+    expect(right).toBeLessThanOrEqual((page?.x ?? 0) + (page?.width ?? 0))
+    await win.getByRole('button', { name: strings.contents.toContents }).click()
+    await expect(win.getByRole('heading', { name: strings.contents.heading })).toBeVisible()
     await win.getByRole('button', { name: strings.contents.back }).click()
     await expect(win.locator('.book-title', { hasText: '안개의 항구' })).toBeVisible()
   } finally {

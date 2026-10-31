@@ -1,0 +1,6 @@
+{
+ "relations": [
+  {"from_id": "c_teo", "to_id": "c_mira", "relation": "소꿉친구"},
+  {"from_id": "c_tide", "to_id": "c_port", "relation": null}
+ ]
+}

@@ -31,6 +31,7 @@ from aiplot.generated.card.completeness import (
     IncompleteCard,
     MilestoneFulfilment,
 )
+from aiplot.generated.card.relations import CardRelation
 from aiplot.services.trash import Deleted, Trash
 from aiplot.services.works import WorkNotFoundError, require_open
 
@@ -493,3 +494,13 @@ def restore(conn: sqlite3.Connection, trash: Trash, card_id: str) -> Card:
     card = get(conn, card_id)
     assert card is not None
     return card
+
+
+def relations(conn: sqlite3.Connection, work_id: str, kind: str) -> list[CardRelation]:
+    """The work's world links or character relations, from the relation tables (§6)."""
+    if works_db.get(conn, work_id) is None:
+        raise WorkNotFoundError(work_id)
+    return [
+        CardRelation(from_id=a, to_id=b, relation=text)
+        for a, b, text in db.relations_of_work(conn, work_id, kind)
+    ]

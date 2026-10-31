@@ -93,7 +93,7 @@ export function ContentsPage({ workId }: Props) {
   const planning = stage === 1 && locked_stage === 0
   return (
     <>
-      <TopBar onBack={back} title={title} />
+      <TopBar onBack={back} backDisabled={drawer !== null} title={title} />
       {/* The open drawer is modal: the spread behind it takes no focus (the top bar stays). */}
       <main className="desk" inert={drawer !== null}>
         <article className="spread">
@@ -123,7 +123,8 @@ export function ContentsPage({ workId }: Props) {
                             aria-expanded={index === 3 ? choosingStory : undefined}
                             onClick={() => {
                               const type = ITEM_TYPES[index]
-                              if (type) setDrawer({ workId, type })
+                              if (type === 'world') open({ name: 'world', workId })
+                              else if (type) setDrawer({ workId, type })
                               else setChoosingStory((v) => !v)
                             }}
                           >

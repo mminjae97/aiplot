@@ -4,6 +4,7 @@ import { ContentsPage } from './screens/ContentsPage'
 import { LibraryScreen } from './screens/LibraryScreen'
 import { ServerScreen } from './screens/ServerScreen'
 import { SetupScreen } from './screens/SetupScreen'
+import { WorldBookScreen } from './screens/WorldBookScreen'
 import { useNavigation } from './stores/navigation'
 import { useServer } from './stores/server'
 
@@ -23,6 +24,9 @@ function Connected({ baseUrl }: { baseUrl: string }) {
   }, [health.data, open])
 
   if (screen.name === 'setup') return <SetupScreen />
+  if (screen.name === 'world') {
+    return <WorldBookScreen key={`${baseUrl}:${screen.workId}`} workId={screen.workId} />
+  }
   return screen.name === 'contents' ? (
     <ContentsPage key={`${baseUrl}:${screen.workId}`} workId={screen.workId} />
   ) : (
