@@ -1,21 +1,16 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { CardDrawer, type DrawerRequest } from '../components/CardDrawer'
 import { DeleteCardDialog, UndoToast } from '../components/CardDelete'
 import { FlipCard } from '../components/FlipCard'
 import { RegionBack, RegionFront } from '../components/RegionCard'
 import { RegionMap } from '../components/RegionMap'
-import { TopBar } from '../components/TopBar'
-import { useNavigation } from '../stores/navigation'
+import { Overlay } from '../components/Overlay'
+import type { PlanningScreen } from '../stores/navigation'
 import { strings } from '../strings'
 import type { Card, RegionCard } from '../types'
-
-type Props = {
-  workId: string
-  /** Pick this region up on arrival (a 함께 보기 link). */
-  cardId?: string
-}
+import type { PageProps } from './PlanningBook'
 
 function isRegion(card: Card): card is RegionCard {
   return card.type === 'region'
@@ -23,9 +18,12 @@ function isRegion(card: Card): card is RegionCard {
 
 /** S1-2 region map (§8): regions on a sheet of paper, lines as long as the journey, parents
  * as dashed areas; dragging a region saves its place (map_x/map_y only). */
-export function RegionMapScreen({ workId, cardId }: Props) {
+export function RegionMapScreen({
+  screen,
+  onBusy,
+}: PageProps<Extract<PlanningScreen, { name: 'regions' }>>) {
+  const { workId, cardId } = screen
   const queryClient = useQueryClient()
-  const open = useNavigation((store) => store.open)
   const [picked, setPicked] = useState<{ id: string; origin: DOMRect | null } | null>(
     cardId ? { id: cardId, origin: null } : null,
   )
@@ -85,18 +83,17 @@ export function RegionMapScreen({ workId, cardId }: Props) {
   ])
 
   const busy = drawer !== null || deleting !== null || current !== null
+  useEffect(() => {
+    onBusy(busy)
+    return () => {
+      // A page leaving the book never leaves it shut.
+      onBusy(false)
+    }
+  }, [busy, onBusy])
   return (
     <>
-      <TopBar
-        onBack={() => {
-          open({ name: 'contents', workId })
-        }}
-        backLabel={strings.contents.toContents}
-        backDisabled={busy}
-        title={work.data?.title}
-      />
-      <main className="desk dex-desk" inert={busy}>
-        <section className="dex" data-view="graph" aria-labelledby="map-title">
+      <article className="spread spread-wide">
+        <section className="page-wide dex" data-view="graph" aria-labelledby="map-title">
           <div className="dex-head">
             <h2 id="map-title" className="dex-title">
               {strings.map.title}
@@ -158,71 +155,73 @@ export function RegionMapScreen({ workId, cardId }: Props) {
             )}
           </div>
         </section>
-      </main>
-      {current && picked && (
-        <FlipCard
-          origin={picked.origin}
-          label={current.name ?? strings.drawer.untitled}
-          covered={deleting !== null}
-          onClose={() => {
-            setPicked(null)
-          }}
-          front={<RegionFront card={current} />}
-          back={
-            <RegionBack
-              card={current}
-              names={names}
-              links={links.data?.links ?? []}
-              parents={parents.data?.relations ?? []}
-              episodes={episodes.get(current.id) ?? []}
-              locked={locked}
-              onEdit={() => {
-                setPicked(null)
-                setDrawer({ workId, type: 'region', card_id: current.id })
-              }}
-              onDelete={() => {
-                setDeleting(current)
-              }}
-            />
-          }
-        />
-      )}
-      {drawer && (
-        <CardDrawer
-          request={drawer}
-          onClose={() => {
-            setDrawer(null)
-          }}
-          onSaved={() => {
-            void queryClient.invalidateQueries({ queryKey: ['relations', workId] })
-          }}
-        />
-      )}
-      {deleting && (
-        <DeleteCardDialog
-          card={deleting}
-          onCancel={() => {
-            setDeleting(null)
-          }}
-          onDeleted={(until) => {
-            setUndo({ card: deleting, until })
-            setDeleting(null)
-            setPicked(null)
-          }}
-        />
-      )}
-      {undo && (
-        <UndoToast
-          card={undo.card}
-          until={undo.until}
-          onDone={() => {
-            setUndo(null)
-          }}
-          onRestored={() => {
-            setUndo(null)
-          }}
-        />
-      )}
+      </article>
+      <Overlay>
+        {current && picked && (
+          <FlipCard
+            origin={picked.origin}
+            label={current.name ?? strings.drawer.untitled}
+            covered={deleting !== null}
+            onClose={() => {
+              setPicked(null)
+            }}
+            front={<RegionFront card={current} />}
+            back={
+              <RegionBack
+                card={current}
+                names={names}
+                links={links.data?.links ?? []}
+                parents={parents.data?.relations ?? []}
+                episodes={episodes.get(current.id) ?? []}
+                locked={locked}
+                onEdit={() => {
+                  setPicked(null)
+                  setDrawer({ workId, type: 'region', card_id: current.id })
+                }}
+                onDelete={() => {
+                  setDeleting(current)
+                }}
+              />
+            }
+          />
+        )}
+        {drawer && (
+          <CardDrawer
+            request={drawer}
+            onClose={() => {
+              setDrawer(null)
+            }}
+            onSaved={() => {
+              void queryClient.invalidateQueries({ queryKey: ['relations', workId] })
+            }}
+          />
+        )}
+        {deleting && (
+          <DeleteCardDialog
+            card={deleting}
+            onCancel={() => {
+              setDeleting(null)
+            }}
+            onDeleted={(until) => {
+              setUndo({ card: deleting, until })
+              setDeleting(null)
+              setPicked(null)
+            }}
+          />
+        )}
+        {undo && (
+          <UndoToast
+            card={undo.card}
+            until={undo.until}
+            onDone={() => {
+              setUndo(null)
+            }}
+            onRestored={() => {
+              setUndo(null)
+            }}
+          />
+        )}
+      </Overlay>
     </>
   )
 }

@@ -4,11 +4,11 @@ import { StrictMode } from 'react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { ServerState } from '../src/api/bridge'
 import { CardDrawer, type DrawerRequest } from '../src/components/CardDrawer'
-import { ContentsPage } from '../src/screens/ContentsPage'
 import { useNavigation } from '../src/stores/navigation'
 import { useServer } from '../src/stores/server'
 import { strings } from '../src/strings'
 import type { Draft, Work } from '../src/types'
+import { renderBook } from './bookHarness'
 import { NO_DIALOGS } from './serverFixtures'
 
 const READY: ServerState = {
@@ -346,12 +346,7 @@ test('the contents page opens each planning item screen', async () => {
         : base(url, init),
     ),
   )
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(
-    <QueryClientProvider client={client}>
-      <ContentsPage workId="w_1" />
-    </QueryClientProvider>,
-  )
+  renderBook({ name: 'contents', workId: 'w_1' })
   for (const [item, name] of [
     ['세계관', 'world'],
     ['캐릭터', 'characters'],

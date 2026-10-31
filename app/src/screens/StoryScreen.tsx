@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { type KeyboardEvent, useRef, useState } from 'react'
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { CardDrawer, type DrawerRequest } from '../components/CardDrawer'
 import { DeleteCardDialog, UndoToast } from '../components/CardDelete'
@@ -8,14 +8,15 @@ import { EpisodeBack, EpisodeFront } from '../components/EpisodeCard'
 import { EpisodeTimeline } from '../components/EpisodeTimeline'
 import { FlipCard } from '../components/FlipCard'
 import { timelineOf } from '../components/storyLayout'
-import { TopBar } from '../components/TopBar'
-import { useNavigation } from '../stores/navigation'
+import { Overlay } from '../components/Overlay'
+import type { PlanningScreen, StoryStep } from '../stores/navigation'
 import { strings } from '../strings'
 import type { Card, EpisodeCard, MainStoryCard, PartCard } from '../types'
+import { STORY_STEPS } from './planningPages'
+import type { PageProps } from './PlanningBook'
 
-type Props = { workId: string }
-type Step = 'main' | 'parts' | 'episodes'
-const STEPS: Step[] = ['main', 'parts', 'episodes']
+type Step = StoryStep
+const STEPS = STORY_STEPS
 
 function isMain(card: Card): card is MainStoryCard {
   return card.type === 'main_story'
@@ -30,10 +31,13 @@ function isEpisode(card: Card): card is EpisodeCard {
 /** S1-3 story (§8): ① the main story, ② its parts, ③ the episodes, each step opening once
  * the one before is done (parts need a saved main story; episodes need every milestone in
  * exactly one part). */
-export function StoryScreen({ workId }: Props) {
+export function StoryScreen({
+  screen,
+  turn,
+  onBusy,
+}: PageProps<Extract<PlanningScreen, { name: 'story' }>>) {
+  const { workId } = screen
   const queryClient = useQueryClient()
-  const open = useNavigation((store) => store.open)
-  const [chosen, setChosen] = useState<Step | null>(null)
   const [drawer, setDrawer] = useState<DrawerRequest | null>(null)
   const [deleting, setDeleting] = useState<Card | null>(null)
   const [undo, setUndo] = useState<{ card: Card; until: string } | null>(null)
@@ -130,11 +134,23 @@ export function StoryScreen({ workId }: Props) {
     parts.length > 0 &&
     milestones.every((milestone) => milestone.parts.length === 1)
   const isOpen = (step: Step) => step === 'main' || (step === 'parts' ? partsOpen : episodesOpen)
-  // Until the user picks a tab: the furthest open step.
-  const step: Step = chosen ?? (episodesOpen ? 'episodes' : partsOpen ? 'parts' : 'main')
+  // Each open step is a page of the book; without one asked for (or once the asked one has
+  // closed), the furthest open step.
+  const furthest: Step = episodesOpen ? 'episodes' : partsOpen ? 'parts' : 'main'
+  const page: Step = screen.step && (!loaded || isOpen(screen.step)) ? screen.step : furthest
+  // A closed step is no page: its tab only shows why, over the page it was opened on.
+  const [peek, setPeek] = useState<{ step: Step; on: Step } | null>(null)
+  // Gone once the page turns or the peeked step opens.
+  if (peek && (peek.on !== page || isOpen(peek.step))) setPeek(null)
+  const step: Step = peek?.on === page ? peek.step : page
 
   const choose = (next: Step) => {
-    setChosen(next)
+    if (isOpen(next)) {
+      setPeek(null)
+      turn({ name: 'story', workId, step: next })
+    } else {
+      setPeek({ step: next, on: page })
+    }
     tabRefs.current.get(next)?.focus()
   }
   const onTabKey = (event: KeyboardEvent) => {
@@ -160,6 +176,13 @@ export function StoryScreen({ workId }: Props) {
     episodes: strings.story.stepEpisodes,
   }
   const busy = drawer !== null || deleting !== null || current !== null
+  useEffect(() => {
+    onBusy(busy)
+    return () => {
+      // A page leaving the book never leaves it shut.
+      onBusy(false)
+    }
+  }, [busy, onBusy])
   const loadFailed =
     mains.isError ||
     partCards.isError ||
@@ -197,16 +220,8 @@ export function StoryScreen({ workId }: Props) {
 
   return (
     <>
-      <TopBar
-        onBack={() => {
-          open({ name: 'contents', workId })
-        }}
-        backLabel={strings.contents.toContents}
-        backDisabled={busy}
-        title={work.data?.title}
-      />
-      <main className="desk dex-desk" inert={busy}>
-        <section className="dex story" aria-labelledby="story-title">
+      <article className="spread spread-wide">
+        <section className="page-wide dex story" aria-labelledby="story-title">
           <div className="dex-head">
             <h2 id="story-title" className="dex-title">
               {strings.story.title}
@@ -427,94 +442,96 @@ export function StoryScreen({ workId }: Props) {
               ))}
           </div>
         </section>
-      </main>
-      {current && picked && (
-        <FlipCard
-          origin={picked.origin}
-          label={current.name ?? strings.drawer.untitled}
-          covered={deleting !== null}
-          onClose={() => {
-            setPicked(null)
-          }}
-          front={<EpisodeFront card={current} />}
-          back={
-            <EpisodeBack
-              card={current}
-              names={names}
-              characters={(cast.data?.relations ?? [])
-                .filter((row) => row.from_id === current.id)
-                .map((row) => row.to_id)}
-              completeness={completeness.data}
-              locked={locked}
-              onEdit={() => {
-                setPicked(null)
-                setDrawer({ workId, type: 'episode', card_id: current.id })
-              }}
-              onDelete={() => {
-                setDeleting(current)
-              }}
-            />
-          }
-        />
-      )}
-      {drawer && (
-        <CardDrawer
-          request={drawer}
-          onClose={() => {
-            setDrawer(null)
-          }}
-          onSaved={() => {
-            void queryClient.invalidateQueries({ queryKey: ['relations', workId] })
-          }}
-        />
-      )}
-      {deleting && (
-        <DeleteCardDialog
-          card={deleting}
-          asksReconnect={
-            // The server joins prev and next only when the episode has both.
-            isEpisode(deleting) &&
-            (links.data?.relations ?? []).some(
-              (row) => row.relation === 'order' && row.to_id === deleting.id,
-            ) &&
-            (links.data?.relations ?? []).some(
-              (row) => row.relation === 'order' && row.from_id === deleting.id,
-            )
-          }
-          partEpisodes={
-            isPart(deleting)
-              ? {
-                  count: (placement.data?.relations ?? []).filter(
-                    (row) => row.to_id === deleting.id,
-                  ).length,
-                  otherParts: parts
-                    .filter((part) => part.id !== deleting.id)
-                    .map((part) => ({ id: part.id, name: partName(part.id) })),
-                }
-              : undefined
-          }
-          onCancel={() => {
-            setDeleting(null)
-          }}
-          onDeleted={(until) => {
-            setUndo({ card: deleting, until })
-            setDeleting(null)
-            setPicked(null)
-          }}
-        />
-      )}
-      {undo && (
-        <UndoToast
-          card={undo.card}
-          until={undo.until}
-          onDone={() => {
-            setUndo(null)
-          }}
-          onRestored={() => {
-            setUndo(null)
-          }}
-        />
-      )}
+      </article>
+      <Overlay>
+        {current && picked && (
+          <FlipCard
+            origin={picked.origin}
+            label={current.name ?? strings.drawer.untitled}
+            covered={deleting !== null}
+            onClose={() => {
+              setPicked(null)
+            }}
+            front={<EpisodeFront card={current} />}
+            back={
+              <EpisodeBack
+                card={current}
+                names={names}
+                characters={(cast.data?.relations ?? [])
+                  .filter((row) => row.from_id === current.id)
+                  .map((row) => row.to_id)}
+                completeness={completeness.data}
+                locked={locked}
+                onEdit={() => {
+                  setPicked(null)
+                  setDrawer({ workId, type: 'episode', card_id: current.id })
+                }}
+                onDelete={() => {
+                  setDeleting(current)
+                }}
+              />
+            }
+          />
+        )}
+        {drawer && (
+          <CardDrawer
+            request={drawer}
+            onClose={() => {
+              setDrawer(null)
+            }}
+            onSaved={() => {
+              void queryClient.invalidateQueries({ queryKey: ['relations', workId] })
+            }}
+          />
+        )}
+        {deleting && (
+          <DeleteCardDialog
+            card={deleting}
+            asksReconnect={
+              // The server joins prev and next only when the episode has both.
+              isEpisode(deleting) &&
+              (links.data?.relations ?? []).some(
+                (row) => row.relation === 'order' && row.to_id === deleting.id,
+              ) &&
+              (links.data?.relations ?? []).some(
+                (row) => row.relation === 'order' && row.from_id === deleting.id,
+              )
+            }
+            partEpisodes={
+              isPart(deleting)
+                ? {
+                    count: (placement.data?.relations ?? []).filter(
+                      (row) => row.to_id === deleting.id,
+                    ).length,
+                    otherParts: parts
+                      .filter((part) => part.id !== deleting.id)
+                      .map((part) => ({ id: part.id, name: partName(part.id) })),
+                  }
+                : undefined
+            }
+            onCancel={() => {
+              setDeleting(null)
+            }}
+            onDeleted={(until) => {
+              setUndo({ card: deleting, until })
+              setDeleting(null)
+              setPicked(null)
+            }}
+          />
+        )}
+        {undo && (
+          <UndoToast
+            card={undo.card}
+            until={undo.until}
+            onDone={() => {
+              setUndo(null)
+            }}
+            onRestored={() => {
+              setUndo(null)
+            }}
+          />
+        )}
+      </Overlay>
     </>
   )
 }

@@ -1,11 +1,10 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { ServerState } from '../src/api/bridge'
-import { WorldBookScreen } from '../src/screens/WorldBookScreen'
 import { useServer } from '../src/stores/server'
 import { strings } from '../src/strings'
 import type { Card, WorldCard, Work } from '../src/types'
+import { renderBook } from './bookHarness'
 import { NO_DIALOGS } from './serverFixtures'
 
 const READY: ServerState = {
@@ -118,13 +117,8 @@ function serve(options: { locked?: boolean; references?: boolean } = {}) {
   return { calls }
 }
 
-function renderBook() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
-    <QueryClientProvider client={client}>
-      <WorldBookScreen workId="w_1" />
-    </QueryClientProvider>,
-  )
+function renderWorld() {
+  return renderBook({ name: 'world', workId: 'w_1' })
 }
 
 beforeEach(() => {
@@ -152,7 +146,7 @@ afterEach(() => {
 
 test('the index lists the open bookmark with page numbers across the whole book', async () => {
   serve()
-  renderBook()
+  renderWorld()
   const tabs = screen.getByRole('tablist', { name: strings.worldBook.tabs })
   expect(
     within(tabs)
@@ -175,7 +169,7 @@ test('the index lists the open bookmark with page numbers across the whole book'
 
 test('an entry shows its summary, rules with exceptions, terms and related cards', async () => {
   serve()
-  renderBook()
+  renderWorld()
   expect(screen.getByText(strings.worldBook.pick)).toBeTruthy()
   fireEvent.click(await screen.findByRole('button', { name: /조수 마법/ }))
   expect(screen.getByRole('heading', { name: '조수 마법' })).toBeTruthy()
@@ -194,7 +188,7 @@ test('an entry shows its summary, rules with exceptions, terms and related cards
 
 test('the glossary lists every term in 가나다 order and opens its entry', async () => {
   serve()
-  renderBook()
+  renderWorld()
   await screen.findByRole('button', { name: /조수 마법/ })
   fireEvent.click(screen.getByRole('tab', { name: '용어집' }))
   const index = screen.getByRole('tabpanel')
@@ -210,7 +204,7 @@ test('the glossary lists every term in 가나다 order and opens its entry', asy
 
 test('+ 새 설정 opens the drawer with the open bookmark as the category hint', async () => {
   const { calls } = serve()
-  renderBook()
+  renderWorld()
   await screen.findByRole('button', { name: /조수 마법/ })
   fireEvent.click(screen.getByRole('tab', { name: '세력·조직' }))
   fireEvent.click(screen.getByRole('button', { name: strings.worldBook.newEntry }))
@@ -225,7 +219,7 @@ test('+ 새 설정 opens the drawer with the open bookmark as the category hint'
 
 test('삭제 lists the referencing cards, deletes, and 되돌리기 brings the entry back', async () => {
   const { calls } = serve({ references: true })
-  renderBook()
+  renderWorld()
   fireEvent.click(await screen.findByRole('button', { name: /조수 마법/ }))
   fireEvent.click(screen.getByRole('button', { name: strings.worldBook.delete }))
   const dialog = screen.getByRole('alertdialog')
@@ -249,7 +243,7 @@ test('삭제 lists the referencing cards, deletes, and 되돌리기 brings the e
 
 test('Esc cancels the delete without touching the card', async () => {
   const { calls } = serve()
-  renderBook()
+  renderWorld()
   fireEvent.click(await screen.findByRole('button', { name: /조수 마법/ }))
   fireEvent.click(screen.getByRole('button', { name: strings.worldBook.delete }))
   expect(await screen.findByText(strings.cardDelete.unreferenced)).toBeTruthy()
@@ -260,7 +254,7 @@ test('Esc cancels the delete without touching the card', async () => {
 
 test('a locked planning stage reads only: no new entry, edit and delete disabled', async () => {
   serve({ locked: true })
-  renderBook()
+  renderWorld()
   expect(await screen.findByText(strings.worldBook.locked)).toBeTruthy()
   expect(screen.queryByRole('button', { name: strings.worldBook.newEntry })).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: /조수 마법/ }))
@@ -274,7 +268,7 @@ test('a locked planning stage reads only: no new entry, edit and delete disabled
 
 test('the bookmarks are one Tab stop; arrows, Home and End move between them', async () => {
   serve()
-  renderBook()
+  renderWorld()
   await screen.findByRole('button', { name: /조수 마법/ })
   const rule = screen.getByRole('tab', { name: '규칙·능력' })
   expect(screen.getAllByRole('tab').map((tab) => tab.tabIndex)).toEqual([0, -1, -1, -1, -1, -1])
@@ -290,9 +284,9 @@ test('the bookmarks are one Tab stop; arrows, Home and End move between them', a
 
 test('after a delete 되돌리기 takes the focus and the back button waits for dialogs', async () => {
   serve()
-  renderBook()
+  renderWorld()
   fireEvent.click(await screen.findByRole('button', { name: /조수 마법/ }))
-  const back = screen.getByRole('button', { name: strings.contents.toContents })
+  const back = screen.getByRole('button', { name: strings.contents.back })
   expect(back.hasAttribute('disabled')).toBe(false)
   fireEvent.click(screen.getByRole('button', { name: strings.worldBook.delete }))
   expect(back.hasAttribute('disabled')).toBe(true)
@@ -324,7 +318,7 @@ test('nothing can be edited before the work says whether planning is locked', as
         : base(url, init),
     ),
   )
-  renderBook()
+  renderWorld()
   await screen.findByRole('button', { name: /조수 마법/ })
   expect(screen.queryByRole('button', { name: strings.worldBook.newEntry })).toBeNull()
   expect(screen.queryByText(strings.worldBook.locked)).toBeNull()

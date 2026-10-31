@@ -50,8 +50,18 @@ export function useModalKeys(
     return () => {
       window.removeEventListener('keydown', onKey)
       stack.splice(stack.indexOf(token), 1)
+      // The page behind may still be inert for a frame or two (the book lifts it after the
+      // page says it is free): try again until it can take the focus.
       const back = before.current
-      if (back instanceof HTMLElement && back.isConnected) back.focus()
+      const restore = (tries: number) => {
+        if (!(back instanceof HTMLElement) || !back.isConnected) return
+        if (back.closest('[inert]') === null) back.focus()
+        else if (tries > 0)
+          requestAnimationFrame(() => {
+            restore(tries - 1)
+          })
+      }
+      restore(5)
     }
     // Bound once per open modal; the refs are stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps

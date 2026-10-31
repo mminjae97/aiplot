@@ -336,6 +336,18 @@ export const strings = {
     chooseEpisodes: '이 부에 에피소드가 있어요. 옮길지 함께 지울지 골라 주세요.',
     restoreFailed: '되돌리지 못했어요. 되돌릴 수 있는 시간이 지났어요.',
   },
+  book: {
+    prev: '이전 페이지',
+    next: '다음 페이지',
+    sections: '책갈피',
+    notes: {
+      contents: '목차',
+      world: '세계관',
+      characters: '캐릭터',
+      regions: '지역',
+      story: '스토리',
+    },
+  },
   story: {
     title: '스토리',
     steps: '단계',
@@ -437,7 +449,6 @@ export const strings = {
   },
   contents: {
     back: '← 서재',
-    toContents: '← 목차',
     heading: '목차',
     notStarted: '시작 전',
     laterStage: '앞 단계를 마치면 열려요',

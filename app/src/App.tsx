@@ -1,13 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { needsSetup, useHealth, useSetupWatcher } from './api/setup'
-import { CharacterDexScreen } from './screens/CharacterDexScreen'
-import { ContentsPage } from './screens/ContentsPage'
 import { LibraryScreen } from './screens/LibraryScreen'
-import { RegionMapScreen } from './screens/RegionMapScreen'
-import { StoryScreen } from './screens/StoryScreen'
+import { PlanningBook } from './screens/PlanningBook'
 import { ServerScreen } from './screens/ServerScreen'
 import { SetupScreen } from './screens/SetupScreen'
-import { WorldBookScreen } from './screens/WorldBookScreen'
 import { useNavigation } from './stores/navigation'
 import { useServer } from './stores/server'
 
@@ -27,35 +23,9 @@ function Connected({ baseUrl }: { baseUrl: string }) {
   }, [health.data, open])
 
   if (screen.name === 'setup') return <SetupScreen />
-  if (screen.name === 'characters') {
-    return (
-      <CharacterDexScreen
-        key={`${baseUrl}:${screen.workId}:${screen.cardId ?? ''}`}
-        workId={screen.workId}
-        cardId={screen.cardId}
-      />
-    )
-  }
-  if (screen.name === 'story') {
-    return <StoryScreen key={`${baseUrl}:${screen.workId}`} workId={screen.workId} />
-  }
-  if (screen.name === 'regions') {
-    return (
-      <RegionMapScreen
-        key={`${baseUrl}:${screen.workId}:${screen.cardId ?? ''}`}
-        workId={screen.workId}
-        cardId={screen.cardId}
-      />
-    )
-  }
-  if (screen.name === 'world') {
-    return <WorldBookScreen key={`${baseUrl}:${screen.workId}`} workId={screen.workId} />
-  }
-  return screen.name === 'contents' ? (
-    <ContentsPage key={`${baseUrl}:${screen.workId}`} workId={screen.workId} />
-  ) : (
-    <LibraryScreen />
-  )
+  if (screen.name === 'library') return <LibraryScreen />
+  // One open book for all its pages, so a turn animates instead of remounting the book.
+  return <PlanningBook key={`${baseUrl}:${screen.workId}`} screen={screen} />
 }
 
 export function App() {
