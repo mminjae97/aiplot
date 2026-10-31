@@ -551,7 +551,8 @@ def relations_of_work(
     """(from, to, relation) rows: world_relation (world -> card), char_relation, the
     character table's origin region (character -> region), the region table's parent
     (region -> parent), episode_region (episode -> region, 'main' for the main one) or the
-    episode table's part (episode -> part, its order within the part as text)."""
+    episode table's part (episode -> part, its order within the part as text), episode_link
+    (episode -> episode, 'order' or 'cause') or episode_character (episode -> character)."""
     if kind == "world":
         sql = (
             "SELECT world_id, world_relation.card_id, NULL FROM world_relation "
@@ -575,6 +576,18 @@ def relations_of_work(
             'SELECT episode.card_id, part_id, CAST(episode."order" AS TEXT) FROM episode '
             "JOIN card ON card.id = episode.card_id "
             'WHERE card.work_id = ? AND part_id IS NOT NULL ORDER BY episode."order", card.rowid'
+        )
+    elif kind == "episode_link":
+        sql = (
+            "SELECT from_id, to_id, kind FROM episode_link "
+            "JOIN card ON card.id = episode_link.from_id WHERE card.work_id = ? "
+            "ORDER BY card.rowid, episode_link.rowid"
+        )
+    elif kind == "episode_character":
+        sql = (
+            "SELECT episode_id, episode_character.card_id, NULL FROM episode_character "
+            "JOIN card ON card.id = episode_character.episode_id WHERE card.work_id = ? "
+            "ORDER BY card.rowid, episode_character.rowid"
         )
     elif kind == "episode_region":
         sql = (

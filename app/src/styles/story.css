@@ -152,3 +152,296 @@
 .card-delete-episodes label[data-danger] {
   color: var(--danger);
 }
+
+/* ③ Episodes: the timeline on the left, completeness on the right. */
+.story-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 20px;
+  height: 100%;
+  min-height: 0;
+}
+
+.story-timeline {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.story-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.story-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.timeline-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--paper-edge);
+  scrollbar-color: var(--ink-faint) transparent;
+  scrollbar-width: thin;
+}
+
+.timeline {
+  position: relative;
+}
+
+/* Part bands: alternate tints, the picked one (new episodes go there) outlined in brass. */
+.timeline-part {
+  position: absolute;
+  border-left: 1px dashed var(--paper-edge);
+  background: transparent;
+}
+
+.timeline-part[data-even] {
+  background: rgb(176 138 62 / 5%);
+}
+
+.timeline-part[data-selected] {
+  box-shadow: inset 0 0 0 2px var(--brass);
+}
+
+.timeline-part-name {
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  max-width: calc(100% - 16px);
+  overflow: hidden;
+  padding: 0 6px;
+  border: 0;
+  background: none;
+  color: var(--ink-soft);
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.timeline-part-name[aria-pressed='true'] {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--brass);
+  text-underline-offset: 4px;
+}
+
+/* The main line along the top, milestones as numbered dots on it. */
+.timeline-main {
+  position: absolute;
+  top: 26px;
+  height: 2px;
+  background: var(--ink-soft);
+}
+
+.timeline-main-name {
+  position: absolute;
+  top: 16px;
+  left: 12px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  font-weight: 700;
+}
+
+/* Milestones over one column: their dots side by side, their texts joined under them. */
+.timeline-milestones {
+  position: absolute;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 168px;
+  transform: translateX(-50%);
+}
+
+.timeline-milestone-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.timeline-milestone {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: #fff8ea;
+  font-size: var(--size-small);
+  font-weight: 700;
+}
+
+.timeline-milestone-text {
+  max-width: 168px;
+  overflow: hidden;
+  color: var(--ink);
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.timeline-lane {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--paper-edge);
+}
+
+.timeline-lane-name {
+  position: sticky;
+  left: 0;
+  display: block;
+  width: 128px;
+  padding: 6px 10px;
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.timeline-arrows {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.timeline-arrow {
+  fill: none;
+  stroke-width: 1.6;
+}
+
+.timeline-arrow-order {
+  stroke: var(--ink-soft);
+}
+
+.timeline-arrow-cause {
+  stroke: var(--brass);
+  stroke-dasharray: 5 4;
+}
+
+.timeline-head-order {
+  fill: var(--ink-soft);
+}
+
+.timeline-head-cause {
+  fill: var(--brass);
+}
+
+/* Another place the episode visits: a small ring in that lane. */
+.timeline-marker {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--ink-soft);
+  border-radius: 50%;
+  background: var(--paper);
+  transform: translate(-50%, -50%);
+}
+
+.timeline-node {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  padding: 0 22px 0 12px;
+  border: 1px solid var(--ink-soft);
+  border-left: 6px solid var(--ink-faint);
+  border-radius: 4px;
+  background: var(--paper);
+  box-shadow: 0 3px 8px rgb(38 22 12 / 22%);
+  font: inherit;
+  cursor: pointer;
+}
+
+.timeline-node[data-incomplete] {
+  border-style: dashed;
+  border-left-style: solid;
+}
+
+.timeline-node-name {
+  max-width: 100%;
+  overflow: hidden;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.timeline-node-milestone,
+.timeline-milestone-chip {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  color: #fff8ea;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.timeline-node-milestone {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+/* Completeness: missing things in orange words (§5). */
+.completeness {
+  overflow: auto;
+  padding: 4px 4px 4px 16px;
+  border-left: 1px solid var(--paper-edge);
+}
+
+.completeness h3 {
+  font-size: var(--size-lead);
+}
+
+.completeness h4 {
+  margin: 14px 0 4px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.completeness ol,
+.completeness ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.completeness-milestones li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  align-items: baseline;
+}
+
+.completeness-missing {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.completeness-by,
+.completeness-ok {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.card-delete-reconnect {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 8px 0;
+}
