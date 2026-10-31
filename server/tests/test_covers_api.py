@@ -126,6 +126,14 @@ def test_cover_must_belong_to_the_book(client: TestClient, theirs: bool) -> None
     assert len(covers_of(client, other["id"])) == (1 if theirs else 0)
 
 
+def test_rejected_cover_keeps_color_unchanged(client: TestClient) -> None:
+    work = create(client)
+    body = {"color": "#6e2c28", "cover_id": "cv_nope"}
+    response = client.patch(f"/api/v1/works/{work['id']}", headers=AUTH, json=body)
+    assert response.status_code == 404
+    assert client.get(f"/api/v1/works/{work['id']}", headers=AUTH).json()["color"] is None
+
+
 def test_deleting_cover_in_use_falls_back_to_cloth(client: TestClient, images: Path) -> None:
     work = create(client)
     cover = upload(client, work["id"])
