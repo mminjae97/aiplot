@@ -165,7 +165,10 @@ export function StoryScreen({ workId }: Props) {
     partCards.isError ||
     episodeCards.isError ||
     completeness.isError ||
-    placement.isError
+    placement.isError ||
+    settings.isError ||
+    links.isError ||
+    regions.isError
 
   const actions = (card: Card) =>
     !locked && (
