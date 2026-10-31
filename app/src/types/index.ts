@@ -1,10 +1,10 @@
 /* GENERATED from schemas/ by `npm run codegen` in schemas/. Do not edit. */
 
+export type CardId = string
 /**
  * Saved card (§15), discriminated by type. Card fields are never edited directly (§6).
  */
 export type Card = WorldCard | CharacterCard | RegionCard | MainStoryCard | PartCard | EpisodeCard
-export type CardId = string
 export type WorkId = string
 export type CardName = string | null
 /**
@@ -59,6 +59,19 @@ export type WorkTitle = string
  */
 export type BookColor = string | null
 
+/**
+ * DELETE /cards/{cardId}: what went (the card, and a part's episodes with ?episodes=delete); POST /cards/{cardId}/restore brings all of it back until restore_until (§8).
+ */
+export interface CardDeleted {
+  /**
+   * @minItems 1
+   */
+  deleted: [CardId, ...CardId[]]
+  /**
+   * ISO 8601 UTC; about 10 s after the delete.
+   */
+  restore_until: string
+}
 /**
  * GET /works/{workId}/cards?type=&q=: the work's cards in creation order; q matches the start of any word of the name (best matches first).
  */
