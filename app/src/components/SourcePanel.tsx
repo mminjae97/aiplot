@@ -6,6 +6,8 @@ type Props = {
   sentences: string[]
   /** Indexes of sentences the last turn wrote (§8: briefly highlighted). */
   changed: number[]
+  /** Evidence sentences of the card field the user picked (§8). */
+  evidence: number[]
   questions: string[]
   similarNames: SimilarName[]
   busy: boolean
@@ -25,6 +27,7 @@ export function SourcePanel({
   notes,
   sentences,
   changed,
+  evidence,
   questions,
   similarNames,
   busy,
@@ -100,7 +103,11 @@ export function SourcePanel({
             const fresh = changed.includes(index)
             return (
               // Index keys: a sentence is its place in the notes (evidence uses the same).
-              <li key={`${String(index)}:${sentence}`} data-changed={fresh || undefined}>
+              <li
+                key={`${String(index)}:${sentence}`}
+                data-changed={fresh || undefined}
+                data-evidence={evidence.includes(index) || undefined}
+              >
                 {sentence}
                 {fresh && <span className="visually-hidden"> ({strings.drawer.changedLabel})</span>}
               </li>

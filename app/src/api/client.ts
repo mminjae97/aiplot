@@ -1,11 +1,14 @@
 import { useServer } from '../stores/server'
 import type {
   ApiError,
+  Card,
   CardList,
+  CardReferences,
   Cover,
   CoverList,
   Draft,
   DraftCreate,
+  DraftGenerate,
   HealthResponse,
   Job,
   JobAccepted,
@@ -115,6 +118,15 @@ export const api = {
       body: JSON.stringify({ notes }),
     }),
   deleteDraft: (draftId: string) => request<null>(draft(draftId), { method: 'DELETE' }),
+  generateCard: (draftId: string, body: DraftGenerate) =>
+    request<JobAccepted>(`${draft(draftId)}/generate`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  saveDraft: (draftId: string) => request<Card>(`${draft(draftId)}/save`, { method: 'POST' }),
+  getCard: (cardId: string) => request<Card>(`/cards/${encodeURIComponent(cardId)}`),
+  cardReferences: (cardId: string) =>
+    request<CardReferences>(`/cards/${encodeURIComponent(cardId)}/references`),
   listWorks: () => request<WorkList>('/works'),
   getWork: (workId: string) => request<Work>(work(workId)),
   createWork: (body: WorkCreate) =>
