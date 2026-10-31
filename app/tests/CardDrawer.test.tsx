@@ -351,12 +351,8 @@ test('the contents page opens the drawer from the planning items', async () => {
       <ContentsPage workId="w_1" />
     </QueryClientProvider>,
   )
-  // 세계관 and 캐릭터 open their screens; 지역 still opens the drawer until the map (unit 12).
-  fireEvent.click(await screen.findByRole('button', { name: '지역' }))
-  expect(await screen.findByRole('dialog')).toBeTruthy()
-  expect(document.querySelector('main.desk')?.hasAttribute('inert')).toBe(true)
-  fireEvent.keyDown(window, { key: 'Escape' })
-  fireEvent.click(screen.getByRole('button', { name: '스토리' }))
+  // 세계관, 캐릭터 and 지역 open their screens; 스토리 still opens the drawer (unit 13).
+  fireEvent.click(await screen.findByRole('button', { name: '스토리' }))
   // No part yet (the list has answered): a new episode has nowhere to go.
   await waitFor(() => {
     expect(fetch).toHaveBeenCalledWith(
@@ -372,6 +368,7 @@ test('the contents page opens the drawer from the planning items', async () => {
   expect(
     await screen.findByText(`${strings.drawer.kind.main_story} · ${strings.drawer.new}`),
   ).toBeTruthy()
+  expect(document.querySelector('main.desk')?.hasAttribute('inert')).toBe(true)
 })
 
 test('Esc leaves the notes editor, never the drawer with unsaved text', async () => {

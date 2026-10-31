@@ -286,8 +286,17 @@ export function WorldBookScreen({ workId }: Props) {
                           >
                             {card.name}
                           </button>
+                        ) : card.type === 'region' ? (
+                          <button
+                            type="button"
+                            className="world-link"
+                            onClick={() => {
+                              open({ name: 'regions', workId, cardId: card.id })
+                            }}
+                          >
+                            {card.name}
+                          </button>
                         ) : (
-                          // The region map (step 1 unit 12) becomes a link once it exists.
                           <span>{card.name}</span>
                         )}
                         <span className="chat-mention-kind"> {strings.drawer.kind[card.type]}</span>

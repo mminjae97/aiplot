@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RegionLinks",
+  "description": "GET /works/{workId}/region-links: the work's region_link rows (§14) for the region map: lines labelled with travel time, as long as the journey.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["links"],
+  "properties": {
+    "links": {
+      "type": "array",
+      "items": {
+        "title": "RegionLinkRow",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from_id", "to_id", "travel", "direction"],
+        "properties": {
+          "from_id": { "$ref": "../common/card-id.json" },
+          "to_id": { "$ref": "../common/card-id.json" },
+          "travel": {
+            "description": "null when the journey is unknown.",
+            "anyOf": [{ "$ref": "region.json#/$defs/travel" }, { "type": "null" }]
+          },
+          "direction": { "description": "Where to_id lies from from_id, as written (e.g. 남).", "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

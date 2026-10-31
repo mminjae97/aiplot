@@ -1,0 +1,6 @@
+{
+ "links": [
+  {"from_id": "c_port", "to_id": "c_capital", "travel": {"value": 3, "unit": "day", "mode": "말"}, "direction": "남"},
+  {"from_id": "c_port", "to_id": "c_isle", "travel": null, "direction": null}
+ ]
+}

@@ -424,7 +424,25 @@ export interface IncompleteCard {
   name: string | null
 }
 /**
- * GET /works/{workId}/relations?kind=: relation rows of the work (§6: references come from relation tables). world: world card -> related card (함께 보기, §8). character: character -> character with the relation (관계도). origin: character -> origin region (dex back).
+ * GET /works/{workId}/region-links: the work's region_link rows (§14) for the region map: lines labelled with travel time, as long as the journey.
+ */
+export interface RegionLinks {
+  links: RegionLinkRow[]
+}
+export interface RegionLinkRow {
+  from_id: CardId
+  to_id: CardId
+  /**
+   * null when the journey is unknown.
+   */
+  travel: RegionTravel | null
+  /**
+   * Where to_id lies from from_id, as written (e.g. 남).
+   */
+  direction: string | null
+}
+/**
+ * GET /works/{workId}/relations?kind=: relation rows of the work (§6: references come from relation tables). world: world card -> related card (함께 보기, §8). character: character -> character with the relation (관계도). origin: character -> origin region (dex back). parent: region -> its parent region (map areas). episode_region: episode -> region, relation 'main' for locations.main (map badges).
  */
 export interface CardRelations {
   relations: CardRelation[]
@@ -433,7 +451,7 @@ export interface CardRelation {
   from_id: CardId
   to_id: CardId
   /**
-   * The relation text (character); null for world and origin links.
+   * The relation text (character), 'main' for an episode's main region; otherwise null.
    */
   relation: string | null
 }

@@ -12,6 +12,7 @@ from aiplot.generated.card.card_deleted import CardDeleted
 from aiplot.generated.card.card_list import CardList
 from aiplot.generated.card.card_references import CardReferences
 from aiplot.generated.card.completeness import Completeness
+from aiplot.generated.card.region_links import RegionLinks
 from aiplot.generated.card.region_position import RegionPosition
 from aiplot.generated.card.relations import CardRelations
 from aiplot.services import cards, works
@@ -54,11 +55,22 @@ def list_cards(
 
 @router.get("/works/{workId}/relations")
 def work_relations(
-    db: Db, workId: str, kind: Literal["world", "character", "origin"]
+    db: Db,
+    workId: str,
+    kind: Literal["world", "character", "origin", "parent", "episode_region"],
 ) -> CardRelations:
-    """함께 보기 (world -> card), the character graph and origin regions (character -> region)."""
+    """함께 보기, the character graph, origin regions, region parents and episode regions."""
     try:
         return CardRelations(relations=cards.relations(db, workId, kind))
+    except works.WorkNotFoundError as exc:
+        raise work_not_found(workId) from exc
+
+
+@router.get("/works/{workId}/region-links")
+def work_region_links(db: Db, workId: str) -> RegionLinks:
+    """The region map's lines with their travel times."""
+    try:
+        return RegionLinks(links=cards.region_links(db, workId))
     except works.WorkNotFoundError as exc:
         raise work_not_found(workId) from exc
 

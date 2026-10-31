@@ -16,7 +16,8 @@ type Props = { workId: string }
 
 // Until the world book, dex, map and story screens exist (step 1 units 11-13), the planning
 // items open the card drawer directly.
-const ITEM_TYPES = ['world', 'character', 'region'] as const
+// The planning items with their own screens; 스토리 still opens the drawer (unit 13).
+const ITEM_SCREENS = ['world', 'characters', 'regions'] as const
 
 function StoryChooser({ workId, onPick }: { workId: string; onPick: (r: DrawerRequest) => void }) {
   const mains = useQuery({
@@ -122,10 +123,8 @@ export function ContentsPage({ workId }: Props) {
                             className="contents-item"
                             aria-expanded={index === 3 ? choosingStory : undefined}
                             onClick={() => {
-                              const type = ITEM_TYPES[index]
-                              if (type === 'world') open({ name: 'world', workId })
-                              else if (type === 'character') open({ name: 'characters', workId })
-                              else if (type) setDrawer({ workId, type })
+                              const name = ITEM_SCREENS[index]
+                              if (name) open({ name, workId })
                               else setChoosingStory((v) => !v)
                             }}
                           >

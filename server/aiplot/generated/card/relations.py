@@ -17,7 +17,9 @@ class CardRelation(BaseModel):
     to_id: card_id.CardId
     relation: Annotated[
         StrictStr | None,
-        Field(description="The relation text (character); null for world and origin links."),
+        Field(
+            description="The relation text (character), 'main' for an episode's main region; otherwise null."
+        ),
     ]
 
 

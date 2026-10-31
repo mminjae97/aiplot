@@ -1,0 +1,5 @@
+{
+ "links": [
+  {"from_id": "c_port", "to_id": "c_capital", "travel": {"value": 0, "unit": "day", "mode": null}, "direction": null}
+ ]
+}
