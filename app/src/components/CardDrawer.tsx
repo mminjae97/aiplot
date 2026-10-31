@@ -2,8 +2,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ApiRequestError, api } from '../api/client'
 import { draftKey, sendTurn, withNotes } from '../api/drafts'
+import { streamJob } from '../api/sse'
 import { strings } from '../strings'
-import type { Draft, DraftCreate, DraftTurn, SimilarName } from '../types'
+import type { Card, Draft, DraftCreate, DraftTurn, SimilarName } from '../types'
+import { CardPreview } from './CardPreview'
 import { ChatPanel } from './ChatPanel'
 import { SourcePanel } from './SourcePanel'
 
@@ -12,18 +14,29 @@ export type DrawerRequest = DraftCreate & { workId: string }
 type Props = {
   request: DrawerRequest
   onClose: () => void
+  /** After 저장: the drawer closes and the screen can highlight the card (§8). */
+  onSaved?: (card: Card) => void
 }
 
 type Stage = 'idle' | 'replying' | 'organizing'
+
+// Waits longer than this show progress and a way out (§5).
+const LONG_WAIT_SEC = 10
 
 function errorText(code: string): string {
   return strings.drawer.errors[code] ?? strings.drawer.failed
 }
 
+function saveErrorText(code: string): string {
+  if (code === 'CARD_STALE') return strings.preview.stale
+  if (code === 'CARD_CONFLICT') return strings.preview.conflict
+  return strings.drawer.errors[code] ?? strings.preview.saveFailed
+}
+
 /** The card drawer (§8): chat and source notes on the left, the card on the right. Its
  * draft lives in server memory only: whenever the drawer goes (closed, or its screen left),
- * the draft is deleted and a running turn stops (§6). */
-export function CardDrawer({ request, onClose }: Props) {
+ * the draft is deleted and a running turn or generation stops (§6). */
+export function CardDrawer({ request, onClose, onSaved }: Props) {
   const queryClient = useQueryClient()
   const [draftId, setDraftId] = useState<string | null>(null)
   const [openError, setOpenError] = useState<string | null>(null)
@@ -36,21 +49,60 @@ export function CardDrawer({ request, onClose }: Props) {
   const [editing, setEditing] = useState<string | null>(null)
   const [notesFailed, setNotesFailed] = useState(false)
   const [savingNotes, setSavingNotes] = useState(false)
+  const [generating, setGenerating] = useState<{ jobId: string | null; seconds: number } | null>(
+    null,
+  )
+  const [genError, setGenError] = useState<string | null>(null)
+  const [pinned, setPinned] = useState<string[] | null>(null)
+  const [selected, setSelected] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
   const panel = useRef<HTMLDivElement>(null)
+  const keepWriting = useRef<HTMLButtonElement>(null)
   // Lifecycle, outside render: the draft once created, whether the drawer is still mounted,
-  // the running turn's stream.
+  // the running turn's and generation's streams.
   const life = useRef({ started: false, mounted: false, id: null as string | null })
   const stream = useRef<AbortController | null>(null)
-  // What the window's Esc listener (set up once) needs to read now.
-  const latest = useRef({ onClose, editing })
-  useLayoutEffect(() => {
-    latest.current = { onClose, editing }
-  })
+  const genStream = useRef<AbortController | null>(null)
 
   const draft = useQuery({
     queryKey: draftKey(draftId ?? ''),
     queryFn: () => api.getDraft(draftId ?? ''),
     enabled: draftId !== null,
+  })
+  const saved = useQuery({
+    queryKey: ['card', request.card_id ?? ''],
+    queryFn: () => api.getCard(request.card_id ?? ''),
+    enabled: request.card_id != null,
+  })
+  const cards = useQuery({
+    queryKey: ['cards', request.workId, 'all'],
+    queryFn: () => api.listCards(request.workId),
+  })
+  const current = draft.data
+  const generated = current?.generated ?? null
+  const nameChanged =
+    saved.data !== undefined && generated !== null && generated.name !== saved.data.name
+  const references = useQuery({
+    queryKey: ['card', request.card_id ?? '', 'references'],
+    queryFn: () => api.cardReferences(request.card_id ?? ''),
+    enabled: nameChanged,
+  })
+  const pins = pinned ?? current?.pinned ?? []
+
+  const requestClose = () => {
+    // A generated card not saved yet: ask first (§8 unsaved close asks to save).
+    if (generated !== null && !saving) setConfirming(true)
+    else onClose()
+  }
+  // What the window's key listener (set up once) needs to read now.
+  const latest = useRef({
+    requestClose,
+    editing,
+    confirming,
+    generate: (): void => undefined,
+    save: (): void => undefined,
   })
 
   const turn = async (id: string, text: string, refs: string[]) => {
@@ -100,6 +152,89 @@ export function CardDrawer({ request, onClose }: Props) {
     stream.current = null
   }
 
+  const generate = async () => {
+    if (draftId === null || generating !== null || stage !== 'idle' || editing !== null) return
+    if (!current?.notes.trim()) return
+    const controller = new AbortController()
+    genStream.current = controller
+    const alive = () => !controller.signal.aborted
+    setGenError(null)
+    setSaveError(null)
+    setGenerating({ jobId: null, seconds: 0 })
+    try {
+      const accepted = await api.generateCard(draftId, { pinned: pins })
+      if (!alive()) return
+      setGenerating((old) => old && { ...old, jobId: accepted.jobId })
+      // Set from the event callback, so kept in an object.
+      const outcome = { failure: null as string | null }
+      await streamJob(
+        accepted.jobId,
+        (event) => {
+          if (event.type === 'error') outcome.failure = (event.data as { code: string }).code
+          if (event.type === 'cancelled') outcome.failure = 'CANCELLED'
+        },
+        { signal: controller.signal },
+      )
+      if (!alive()) return
+      const failure = outcome.failure
+      if (failure !== null && failure !== 'CANCELLED') setGenError(errorText(failure))
+      const fresh = await api.getDraft(draftId)
+      if (!alive()) return
+      queryClient.setQueryData(draftKey(draftId), fresh)
+      setPinned(null)
+    } catch (err) {
+      if (alive()) {
+        setGenError(
+          err instanceof ApiRequestError
+            ? (strings.drawer.errors[err.code] ?? strings.preview.generateFailed)
+            : strings.preview.generateFailed,
+        )
+      }
+    } finally {
+      if (alive()) {
+        setGenerating(null)
+        genStream.current = null
+      }
+    }
+  }
+
+  const cancelGeneration = () => {
+    if (generating?.jobId) void api.cancelJob(generating.jobId).catch(() => undefined)
+  }
+
+  const save = async () => {
+    if (draftId === null || generated === null || saving || generating !== null) return
+    setSaving(true)
+    setSaveError(null)
+    try {
+      const card = await api.saveDraft(draftId)
+      // Saving closed the draft on the server already.
+      life.current.id = null
+      void queryClient.invalidateQueries({ queryKey: ['cards', request.workId] })
+      queryClient.setQueryData(['card', card.id], card)
+      onSaved?.(card)
+      onClose()
+    } catch (err) {
+      setSaveError(saveErrorText(err instanceof ApiRequestError ? err.code : ''))
+      setSaving(false)
+      setConfirming(false)
+    }
+  }
+
+  useLayoutEffect(() => {
+    latest.current = {
+      requestClose,
+      editing,
+      confirming,
+      generate: () => {
+        void generate()
+      },
+      save: () => {
+        void save()
+      },
+    }
+  })
+
   useEffect(() => {
     const state = life.current
     state.mounted = true
@@ -132,9 +267,11 @@ export function CardDrawer({ request, onClose }: Props) {
     return () => {
       state.mounted = false
       stream.current?.abort()
+      genStream.current?.abort()
       const id = state.id
       if (id !== null) {
         // StrictMode remounts at once, before any draft exists, so this is a real goodbye.
+        // Deleting the draft also stops its generation on the server.
         state.id = null
         queryClient.removeQueries({ queryKey: draftKey(id) })
         void api.deleteDraft(id).catch(() => undefined)
@@ -149,9 +286,19 @@ export function CardDrawer({ request, onClose }: Props) {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
     panel.current?.focus()
     const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || event.isComposing) return
-      // An open notes editor takes Esc for itself (SourcePanel); never lose its text.
-      if (latest.current.editing === null) latest.current.onClose()
+      if (event.isComposing) return
+      const now = latest.current
+      if (event.key === 'Escape') {
+        // An open notes editor takes Esc for itself (SourcePanel); never lose its text.
+        if (now.confirming) return
+        if (now.editing === null) now.requestClose()
+      } else if (event.key === 'Enter' && event.ctrlKey) {
+        event.preventDefault()
+        now.generate()
+      } else if ((event.key === 's' || event.key === 'S') && event.ctrlKey) {
+        event.preventDefault()
+        now.save()
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => {
@@ -159,6 +306,22 @@ export function CardDrawer({ request, onClose }: Props) {
       previous?.focus()
     }
   }, [])
+
+  const isGenerating = generating !== null
+  useEffect(() => {
+    if (!isGenerating) return
+    // Elapsed seconds for the long-wait note (§5).
+    const timer = window.setInterval(() => {
+      setGenerating((old) => old && { ...old, seconds: old.seconds + 1 })
+    }, 1000)
+    return () => {
+      window.clearInterval(timer)
+    }
+  }, [isGenerating])
+
+  useEffect(() => {
+    if (confirming) keepWriting.current?.focus()
+  }, [confirming])
 
   const saveNotes = async (notes: string) => {
     if (draftId === null) return
@@ -177,20 +340,24 @@ export function CardDrawer({ request, onClose }: Props) {
   }
 
   const send = (text: string, refs: string[]) => {
-    // Never while the notes are edited by hand: the turn would rewrite them underneath.
-    if (draftId !== null && editing === null) void turn(draftId, text, refs)
+    // Never while the notes are edited by hand or a card is being made from them.
+    if (draftId !== null && editing === null && generating === null) void turn(draftId, text, refs)
   }
 
   const kind = strings.drawer.kind[request.type]
-  const current = draft.data
   const turns: DraftTurn[] = current?.turns ?? []
   const category = request.category ? strings.drawer.category[request.category] : null
+  const cardNames = new Map((cards.data?.cards ?? []).map((card) => [card.id, card.name ?? '']))
+  const selectedEvidence =
+    selected !== null && generated !== null ? (generated.evidence[selected] ?? []) : []
+  const title = generated?.name ?? saved.data?.name ?? strings.drawer.untitled
+  const long = generating !== null && generating.seconds >= LONG_WAIT_SEC
 
   return (
     <div
       className="drawer-backdrop"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && editing === null) onClose()
+        if (event.target === event.currentTarget && editing === null && !confirming) requestClose()
       }}
     >
       <div
@@ -206,12 +373,12 @@ export function CardDrawer({ request, onClose }: Props) {
             {kind} · {request.card_id ? strings.drawer.edit : strings.drawer.new}
             {category && ` · ${category}`}
           </p>
-          <h2 id="drawer-title">{current?.generated?.name ?? strings.drawer.untitled}</h2>
+          <h2 id="drawer-title">{title}</h2>
           <button
             type="button"
             className="drawer-close"
             aria-label={strings.drawer.close}
-            onClick={onClose}
+            onClick={requestClose}
           >
             ×
           </button>
@@ -226,15 +393,16 @@ export function CardDrawer({ request, onClose }: Props) {
             {strings.drawer.opening}
           </p>
         ) : (
-          <div className="drawer-body">
+          <div className="drawer-body" inert={confirming}>
             <div className="drawer-left">
               <ChatPanel
                 workId={request.workId}
                 turns={turns}
                 pending={pending}
                 stage={stage}
-                // While the user edits the notes, a turn would rewrite them underneath.
-                locked={editing !== null}
+                // While the notes are edited by hand or a card is made from them, a turn
+                // would change them underneath.
+                locked={editing !== null || generating !== null}
                 error={error}
                 onSend={send}
               />
@@ -242,9 +410,10 @@ export function CardDrawer({ request, onClose }: Props) {
                 notes={current.notes}
                 sentences={current.sentences}
                 changed={changed}
+                evidence={selectedEvidence}
                 questions={questions}
                 similarNames={names}
-                busy={stage !== 'idle'}
+                busy={stage !== 'idle' || generating !== null}
                 editing={editing}
                 saving={savingNotes}
                 saveFailed={notesFailed}
@@ -268,11 +437,162 @@ export function CardDrawer({ request, onClose }: Props) {
               />
             </div>
             <section className="drawer-preview" aria-labelledby="preview-title">
-              <h3 id="preview-title" className="drawer-section-title">
-                {strings.drawer.previewTitle}
-              </h3>
-              <p className="notes-empty">{strings.drawer.previewEmpty}</p>
+              <div className="preview-head">
+                <h3 id="preview-title" className="drawer-section-title">
+                  {strings.drawer.previewTitle}
+                </h3>
+                <button
+                  type="button"
+                  className="paper-button"
+                  data-primary={generated === null || undefined}
+                  disabled={
+                    generating !== null ||
+                    stage !== 'idle' ||
+                    editing !== null ||
+                    !current.notes.trim()
+                  }
+                  aria-busy={generating !== null}
+                  aria-keyshortcuts="Control+Enter"
+                  onClick={() => {
+                    void generate()
+                  }}
+                >
+                  {generating !== null && !long && <span className="spinner" aria-hidden="true" />}
+                  {generated === null ? strings.preview.generate : strings.preview.regenerate}
+                </button>
+              </div>
+              {long && (
+                <div className="preview-progress" role="status">
+                  <span className="spinner" aria-hidden="true" />
+                  <p>
+                    {strings.preview.generating}
+                    <br />
+                    <span className="notes-empty">
+                      {strings.preview.elapsed(generating.seconds)}
+                    </span>
+                  </p>
+                  <button type="button" className="paper-button" onClick={cancelGeneration}>
+                    {strings.preview.cancel}
+                  </button>
+                </div>
+              )}
+              {genError && (
+                <p className="chat-error" role="alert">
+                  {genError}
+                </p>
+              )}
+              {generated === null ? (
+                <p className="notes-empty">
+                  {current.notes.trim() ? strings.drawer.previewEmpty : strings.preview.needNotes}
+                </p>
+              ) : (
+                <>
+                  <CardPreview
+                    card={generated}
+                    saved={saved.data ?? null}
+                    names={cardNames}
+                    pinned={pins}
+                    selected={selected}
+                    onPin={(path) => {
+                      setPinned(
+                        pins.includes(path) ? pins.filter((p) => p !== path) : [...pins, path],
+                      )
+                    }}
+                    onSelect={setSelected}
+                  />
+                  {nameChanged && (references.data?.references.length ?? 0) > 0 && (
+                    <div className="preview-references" role="note">
+                      <h4>{strings.preview.references}</h4>
+                      <p>{strings.preview.referencesNote}</p>
+                      <ul>
+                        {references.data?.references.map((ref) => (
+                          <li key={`${ref.card_id}:${ref.field}`}>
+                            {ref.name ?? strings.drawer.untitled}
+                            <span className="chat-mention-kind">
+                              {' '}
+                              {strings.drawer.kind[ref.type]}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {saveError && (
+                    <p className="chat-error" role="alert">
+                      {saveError}
+                    </p>
+                  )}
+                  <div className="preview-actions">
+                    <button
+                      type="button"
+                      className="paper-button"
+                      data-primary
+                      disabled={saving || generating !== null || stage !== 'idle'}
+                      aria-busy={saving}
+                      aria-keyshortcuts="Control+S"
+                      onClick={() => {
+                        void save()
+                      }}
+                    >
+                      {saving && <span className="spinner" aria-hidden="true" />}
+                      {strings.preview.save}
+                    </button>
+                  </div>
+                </>
+              )}
             </section>
+          </div>
+        )}
+        {confirming && <div className="drawer-scrim" aria-hidden="true" />}
+        {confirming && (
+          <div
+            className="drawer-confirm"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="drawer-confirm-title"
+            aria-describedby="drawer-confirm-body"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.stopPropagation()
+                setConfirming(false)
+              }
+            }}
+          >
+            <h3 id="drawer-confirm-title">{strings.preview.unsavedTitle}</h3>
+            <p id="drawer-confirm-body">{strings.preview.unsavedBody}</p>
+            <div className="preview-actions">
+              <button
+                type="button"
+                className="paper-button"
+                data-danger
+                onClick={() => {
+                  setConfirming(false)
+                  onClose()
+                }}
+              >
+                {strings.preview.discard}
+              </button>
+              <button
+                ref={keepWriting}
+                type="button"
+                className="paper-button"
+                onClick={() => {
+                  setConfirming(false)
+                }}
+              >
+                {strings.preview.keep}
+              </button>
+              <button
+                type="button"
+                className="paper-button"
+                data-primary
+                onClick={() => {
+                  void save()
+                }}
+              >
+                {strings.preview.save}
+              </button>
+            </div>
           </div>
         )}
       </div>

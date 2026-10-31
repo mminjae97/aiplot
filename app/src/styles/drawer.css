@@ -364,3 +364,189 @@ p.drawer-body {
   padding: 3px 10px;
   font-size: var(--size-small);
 }
+
+/* Card preview */
+.drawer-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.preview-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.preview-head .paper-button,
+.preview-progress .paper-button {
+  padding: 4px 12px;
+  font-size: var(--size-small);
+}
+
+.preview-hint {
+  color: var(--ink-faint);
+  font-size: var(--size-small);
+}
+
+.preview-progress {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--control);
+  border-radius: 6px;
+}
+
+.preview-progress p {
+  flex: 1;
+}
+
+.preview-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+}
+
+.preview-field {
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+
+.preview-field[data-selected] {
+  background: rgb(212 174 92 / 16%);
+}
+
+.preview-field dt {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.preview-field dd {
+  display: flex;
+  flex-direction: column;
+  margin: 2px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.preview-name {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.preview-name:hover,
+.preview-name[aria-pressed='true'] {
+  color: var(--brass);
+}
+
+.preview-badge {
+  padding: 0 6px;
+  border: 1px solid var(--ink-faint);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+
+.preview-pin {
+  margin-left: auto;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--ink-faint);
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0.5;
+}
+
+.preview-field:hover .preview-pin,
+.preview-pin:focus-visible,
+.preview-pin[aria-pressed='true'] {
+  opacity: 1;
+}
+
+.preview-pin[aria-pressed='true'] {
+  background: var(--control);
+  color: var(--ink);
+}
+
+.preview-undecided {
+  color: var(--warning);
+  font-size: var(--size-small);
+}
+
+.preview-field:not([data-empty]) .preview-undecided {
+  color: var(--ink-faint);
+}
+
+.preview-before {
+  color: var(--ink-faint);
+}
+
+.preview-references {
+  padding: 8px 10px;
+  border-left: 3px solid var(--warning);
+  background: rgb(184 100 28 / 8%);
+  font-size: var(--size-small);
+}
+
+.preview-references h4 {
+  margin: 0 0 2px;
+}
+
+.preview-references ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.preview-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Evidence of the picked field in the notes (§8). */
+.notes-sentences li[data-evidence] {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+/* Unsaved close: a card in the drawer's middle, the rest inert behind it. */
+.drawer {
+  position: relative;
+}
+
+.drawer-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: rgb(30 18 10 / 30%);
+}
+
+.drawer-confirm {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(420px, calc(100% - 32px));
+  padding: 22px 24px 18px;
+  background: var(--paper);
+  box-shadow: 0 18px 40px var(--wood-shadow);
+  transform: translate(-50%, -50%);
+}
+
+.drawer-confirm h3 {
+  font-size: var(--size-lead);
+}
