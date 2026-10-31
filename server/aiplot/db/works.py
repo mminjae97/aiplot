@@ -45,3 +45,24 @@ def set_title(conn: sqlite3.Connection, work_id: str, title: str) -> None:
 def delete(conn: sqlite3.Connection, work_id: str) -> None:
     # Its rows in other tables go with it (ON DELETE CASCADE).
     conn.execute("DELETE FROM work WHERE id = ?", (work_id,))
+
+
+def advance_stage(conn: sqlite3.Connection, work_id: str, stage: int, now: str) -> None:
+    """Moves to stage and locks every earlier one (§1, §11)."""
+    conn.execute(
+        "UPDATE work SET stage = ?, locked_stage = ?, updated_at = ? WHERE id = ?",
+        (stage, stage - 1, now, work_id),
+    )
+
+
+def active_episode_count(conn: sqlite3.Connection, work_id: str) -> int:
+    """Complete episodes whose part and the work's main story are complete too (§11)."""
+    row = conn.execute(
+        "SELECT count(*) FROM card AS e JOIN episode ON episode.card_id = e.id "
+        "JOIN card AS p ON p.id = episode.part_id "
+        "WHERE e.work_id = ? AND e.status = 'complete' AND p.status = 'complete' "
+        "AND EXISTS (SELECT 1 FROM card AS m WHERE m.work_id = e.work_id "
+        "AND m.type = 'main_story' AND m.status = 'complete')",
+        (work_id,),
+    ).fetchone()
+    return int(row[0])

@@ -29,6 +29,18 @@ class StageLockedError(PermissionError):
     """The stage is read-only once a later one started (§1, §11): 423 STAGE_LOCKED."""
 
 
+class NoActiveEpisodeError(ValueError):
+    """Direction works per episode: stage 2 needs at least one active episode."""
+
+
+class StageNotReadyError(ValueError):
+    """Stage 2 -> 3 needs every active episode's direction confirmed (step 3)."""
+
+
+class StageFinalError(ValueError):
+    """Writing is the last stage."""
+
+
 class TitleEmptyError(ValueError):
     pass
 
@@ -108,3 +120,23 @@ def require_open(conn: sqlite3.Connection, work_id: str, stage: int) -> Work:
     if work.locked_stage >= stage:
         raise StageLockedError(f"stage {stage} of {work_id} is locked")
     return work
+
+
+def advance(conn: sqlite3.Connection, work_id: str) -> Work:
+    """Starts the next stage and locks the earlier ones (§1, §11). Incomplete cards never
+    block it; they become inactive. Planning -> direction needs one active episode."""
+    with transaction(conn):
+        work = db.get(conn, work_id)
+        if work is None:
+            raise WorkNotFoundError(work_id)
+        if work.stage == 3:
+            raise StageFinalError("writing is the last stage")
+        if work.stage == 2:
+            # Direction plans and their confirmation arrive in step 3 (§20).
+            raise StageNotReadyError("every active episode's direction must be confirmed first")
+        if db.active_episode_count(conn, work_id) == 0:
+            raise NoActiveEpisodeError("no complete episode in a complete part and main story")
+        db.advance_stage(conn, work_id, 2, now())
+    advanced = db.get(conn, work_id)
+    assert advanced is not None
+    return advanced
