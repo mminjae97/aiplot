@@ -1,10 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { CardDrawer, type DrawerRequest } from '../components/CardDrawer'
 import { DeleteCardDialog, UndoToast } from '../components/CardDelete'
 import { CharacterBack, CharacterFront } from '../components/CharacterCard'
 import { FlipCard } from '../components/FlipCard'
+import { RelationGraph } from '../components/RelationGraph'
+import { pairsOf } from '../components/relationLayout'
 import { TopBar } from '../components/TopBar'
 import { useNavigation } from '../stores/navigation'
 import { strings } from '../strings'
@@ -20,6 +22,45 @@ function isCharacter(card: Card): card is CharacterCard {
   return card.type === 'character'
 }
 
+type View = 'cards' | 'graph'
+const VIEWS: View[] = ['cards', 'graph']
+// 도감 | 관계도: the last one comes back (a per-viewer convenience; storage may be missing).
+const VIEW_KEY = 'aiplot.dex.view'
+
+function savedView(): View {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'graph' ? 'graph' : 'cards'
+  } catch {
+    return 'cards'
+  }
+}
+
+/** Gives the focus back to a card: its grid card or its graph node, else the + card or the
+ * 관계도 tab (the node may be gone after the graph was laid out again). */
+function focusCard(
+  view: View,
+  id: string | null,
+  cards: Map<string, HTMLButtonElement>,
+  add: HTMLButtonElement | null,
+  graphTab: HTMLButtonElement | undefined,
+) {
+  if (view === 'graph') {
+    const node =
+      id === null ? null : document.querySelector<HTMLElement>(`.react-flow__node[data-id="${id}"]`)
+    ;(node ?? graphTab)?.focus()
+  } else {
+    ;((id === null ? undefined : cards.get(id)) ?? add)?.focus()
+  }
+}
+
+function saveView(view: View) {
+  try {
+    localStorage.setItem(VIEW_KEY, view)
+  } catch {
+    // Not remembered this time; the view itself still changes.
+  }
+}
+
 /** S1-1 dex (§8): every character as a card on the desk, a translucent + card last. A card
  * picked up grows to the middle and flips to all its fields. */
 export function CharacterDexScreen({ workId, cardId }: Props) {
@@ -29,6 +70,8 @@ export function CharacterDexScreen({ workId, cardId }: Props) {
     cardId ? { id: cardId, origin: null } : null,
   )
   const [drawer, setDrawer] = useState<DrawerRequest | null>(null)
+  const [view, setView] = useState<View>(savedView)
+  const tabRefs = useRef(new Map<View, HTMLButtonElement>())
   const [deleting, setDeleting] = useState<CharacterCard | null>(null)
   const [undo, setUndo] = useState<{ card: Card; until: string } | null>(null)
   // The card just saved or brought back: highlighted 0.3s (§8).
@@ -71,15 +114,42 @@ export function CharacterDexScreen({ workId, cardId }: Props) {
   useEffect(() => {
     if (highlight === null || !shown) return
     cardRefs.current.get(highlight)?.scrollIntoView({ block: 'nearest' })
+    // Back from the drawer or the undo toast with nothing focused: onto the card.
+    if (document.activeElement === document.body || document.activeElement === null) {
+      focusCard(view, highlight, cardRefs.current, addRef.current, tabRefs.current.get('graph'))
+    }
     const timer = window.setTimeout(() => {
       setHighlight(null)
     }, 300)
     return () => {
       window.clearTimeout(timer)
     }
-  }, [highlight, shown])
+  }, [highlight, shown, view])
 
   const busy = drawer !== null || deleting !== null || current !== null
+
+  const choose = (next: View) => {
+    setView(next)
+    saveView(next)
+  }
+  const onTabKey = (event: KeyboardEvent) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+    event.preventDefault()
+    const next =
+      event.key === 'Home'
+        ? 'cards'
+        : event.key === 'End'
+          ? 'graph'
+          : view === 'cards'
+            ? 'graph'
+            : 'cards'
+    choose(next)
+    tabRefs.current.get(next)?.focus()
+  }
+  const relations = links.data?.relations ?? []
+  const pairs = pairsOf(relations, new Set(cards.map((card) => card.id)))
+  // The graph is laid out afresh whenever its cards or lines change.
+  const graphKey = JSON.stringify([cards.map((card) => [card.id, card.name]), pairs])
   return (
     <>
       <TopBar
@@ -91,62 +161,130 @@ export function CharacterDexScreen({ workId, cardId }: Props) {
         title={work.data?.title}
       />
       <main className="desk dex-desk" inert={busy}>
-        <section className="dex" aria-labelledby="dex-title">
-          <h2 id="dex-title" className="dex-title">
-            {strings.dex.title}
-          </h2>
+        <section className="dex" data-view={view} aria-labelledby="dex-title">
+          <div className="dex-head">
+            <h2 id="dex-title" className="dex-title">
+              {strings.dex.title}
+            </h2>
+            <div className="dex-tabs" role="tablist" aria-label={strings.dex.views}>
+              {VIEWS.map((key) => (
+                <button
+                  key={key}
+                  ref={(node) => {
+                    if (node) tabRefs.current.set(key, node)
+                    else tabRefs.current.delete(key)
+                  }}
+                  id={`dex-tab-${key}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={view === key}
+                  aria-controls="dex-panel"
+                  tabIndex={view === key ? 0 : -1}
+                  className="dex-tab"
+                  onClick={() => {
+                    choose(key)
+                  }}
+                  onKeyDown={onTabKey}
+                >
+                  {key === 'cards' ? strings.dex.cardsTab : strings.dex.graphTab}
+                </button>
+              ))}
+            </div>
+          </div>
           {characters.isError && (
             <p className="library-alert" role="alert">
               {strings.dex.loadFailed}
             </p>
           )}
           {locked && work.data && <p className="dex-note">{strings.dex.locked}</p>}
-          {characters.isSuccess && cards.length === 0 && !locked && (
-            <p className="dex-note">{strings.dex.empty}</p>
-          )}
-          <ul className="dex-grid">
-            {cards.map((card) => (
-              <li key={card.id}>
-                <button
-                  ref={(node) => {
-                    if (node) cardRefs.current.set(card.id, node)
-                    else cardRefs.current.delete(card.id)
-                  }}
-                  type="button"
-                  className="dex-card"
-                  aria-label={strings.dex.flip(card.name ?? strings.drawer.untitled)}
-                  data-incomplete={card.status === 'incomplete' || undefined}
-                  data-highlight={highlight === card.id || undefined}
-                  onClick={(event) => {
-                    setPicked({ id: card.id, origin: event.currentTarget.getBoundingClientRect() })
-                  }}
-                >
-                  <CharacterFront card={card} />
-                  {card.status === 'incomplete' && (
-                    <span className="dex-tag">{strings.dex.incomplete}</span>
+          {view === 'graph' ? (
+            <div
+              id="dex-panel"
+              role="tabpanel"
+              aria-labelledby="dex-tab-graph"
+              className="dex-panel"
+            >
+              {characters.isSuccess && cards.length === 0 ? (
+                <p className="dex-note">{strings.dex.graphNoCards}</p>
+              ) : (
+                <>
+                  <p className="dex-note">
+                    {links.isSuccess && pairs.length === 0
+                      ? strings.dex.graphNoLinks
+                      : strings.dex.graphHint}
+                  </p>
+                  {/* Drawn once the lines are known too: no second layout when they arrive. */}
+                  {cards.length > 0 && (links.isSuccess || links.isError) && (
+                    <RelationGraph
+                      key={graphKey}
+                      cards={cards}
+                      relations={relations}
+                      onPick={(id, origin) => {
+                        setPicked({ id, origin })
+                      }}
+                    />
                   )}
-                </button>
-              </li>
-            ))}
-            {!locked && (
-              <li>
-                <button
-                  ref={addRef}
-                  type="button"
-                  className="dex-card dex-new"
-                  onClick={() => {
-                    returnTo.current = null
-                    setDrawer({ workId, type: 'character' })
-                  }}
-                >
-                  <span className="dex-new-plus" aria-hidden="true">
-                    +
-                  </span>
-                  <span className="dex-name">{strings.dex.newCard}</span>
-                </button>
-              </li>
-            )}
-          </ul>
+                </>
+              )}
+            </div>
+          ) : (
+            <div
+              id="dex-panel"
+              role="tabpanel"
+              aria-labelledby="dex-tab-cards"
+              className="dex-panel"
+            >
+              {characters.isSuccess && cards.length === 0 && !locked && (
+                <p className="dex-note">{strings.dex.empty}</p>
+              )}
+              <ul className="dex-grid">
+                {cards.map((card) => (
+                  <li key={card.id}>
+                    <button
+                      ref={(node) => {
+                        if (node) cardRefs.current.set(card.id, node)
+                        else cardRefs.current.delete(card.id)
+                      }}
+                      type="button"
+                      className="dex-card"
+                      aria-label={strings.dex.flip(card.name ?? strings.drawer.untitled)}
+                      data-incomplete={card.status === 'incomplete' || undefined}
+                      data-highlight={highlight === card.id || undefined}
+                      onClick={(event) => {
+                        setPicked({
+                          id: card.id,
+                          origin: event.currentTarget.getBoundingClientRect(),
+                        })
+                      }}
+                    >
+                      <CharacterFront card={card} />
+                      {card.status === 'incomplete' && (
+                        <span className="dex-tag">{strings.dex.incomplete}</span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+                {!locked && (
+                  <li>
+                    <button
+                      ref={addRef}
+                      type="button"
+                      className="dex-card dex-new"
+                      onClick={() => {
+                        returnTo.current = null
+                        setDrawer({ workId, type: 'character' })
+                      }}
+                    >
+                      <span className="dex-new-plus" aria-hidden="true">
+                        +
+                      </span>
+                      <span className="dex-name">{strings.dex.newCard}</span>
+                    </button>
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
         </section>
       </main>
       {current && picked && (
@@ -162,7 +300,7 @@ export function CharacterDexScreen({ workId, cardId }: Props) {
             <CharacterBack
               card={current}
               names={names}
-              relations={links.data?.relations ?? []}
+              relations={relations}
               origins={origins.data?.relations ?? []}
               locked={locked}
               onEdit={() => {
@@ -185,7 +323,7 @@ export function CharacterDexScreen({ workId, cardId }: Props) {
             const back = returnTo.current
             returnTo.current = null
             window.requestAnimationFrame(() => {
-              ;((back ? cardRefs.current.get(back) : undefined) ?? addRef.current)?.focus()
+              focusCard(view, back, cardRefs.current, addRef.current, tabRefs.current.get('graph'))
             })
           }}
           onSaved={(card) => {

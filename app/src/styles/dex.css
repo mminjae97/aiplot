@@ -1,3 +1,6 @@
+/* React Flow's structural rules only; the look below is ours. */
+@import '@xyflow/react/dist/base.css';
+
 /* S1-1 dex: character cards laid out on the walnut desk; a picked card grows to the middle
    of the window and turns over. */
 
@@ -235,6 +238,7 @@
   flex: 1;
   margin-top: 12px;
   overflow: auto;
+  scrollbar-color: var(--ink-faint) transparent;
   scrollbar-width: thin;
 }
 
@@ -280,4 +284,137 @@
 
 .dex-situation {
   color: var(--ink-soft);
+}
+
+/* 도감 | 관계도: two paper tabs beside the label. */
+.dex-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: end;
+}
+
+.dex-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.dex-tab {
+  padding: 6px 16px;
+  border: 0;
+  border-radius: 4px 4px 0 0;
+  background: rgb(255 248 234 / 14%);
+  /* light lettering on the bare wood in both themes */
+  color: #efe4cf;
+  cursor: pointer;
+  transition: background var(--motion);
+}
+
+.dex-tab:hover {
+  background: rgb(255 248 234 / 24%);
+}
+
+.dex-tab[aria-selected='true'] {
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* The graph view fills the desk under the label. */
+.dex[data-view='graph'] {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.dex[data-view='graph'] .dex-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 관계도 on a large sheet of paper. */
+.dex-graph {
+  flex: 1;
+  min-height: 320px;
+  margin-top: 16px;
+  background: var(--paper);
+  box-shadow: 0 14px 30px var(--wood-shadow);
+}
+
+.dex-graph .react-flow__node {
+  cursor: pointer;
+}
+
+.dex-graph .react-flow__node:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}
+
+.graph-node {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  width: 110px;
+}
+
+/* The same portrait as the card, as a 72px disc. */
+.graph-portrait {
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: 50%;
+  box-shadow: 0 4px 10px rgb(38 22 12 / 35%);
+}
+
+.graph-portrait .portrait {
+  height: 100%;
+  aspect-ratio: auto;
+  outline: none;
+  font-size: 30px;
+}
+
+.graph-name {
+  max-width: 100%;
+  overflow: hidden;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Lines meet at the portrait's centre (they are drawn shorter, outside the disc). */
+.graph-handle {
+  top: 36px;
+  left: 50%;
+  width: 1px;
+  min-width: 0;
+  height: 1px;
+  min-height: 0;
+  border: 0;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+}
+
+.dex-graph .graph-line {
+  stroke: var(--ink-soft);
+  stroke-width: 1.5;
+}
+
+.dex-graph .react-flow__arrowhead polyline {
+  stroke: var(--ink-soft);
+  fill: var(--ink-soft);
+}
+
+.graph-label {
+  position: absolute;
+  padding: 0 6px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: var(--size-small);
+  white-space: nowrap;
+  pointer-events: none;
 }

@@ -326,3 +326,66 @@ test('the highlight after a restore lasts 0.3s', async () => {
     expect(teo.hasAttribute('data-highlight')).toBe(false)
   })
 })
+
+test('도감 | 관계도: the last view comes back next time', async () => {
+  serve()
+  localStorage.removeItem('aiplot.dex.view')
+  const first = renderWith(<CharacterDexScreen workId="w_1" />)
+  await screen.findByRole('button', { name: strings.dex.flip('테오') })
+  const cardsTab = screen.getByRole('tab', { name: strings.dex.cardsTab })
+  expect(cardsTab.getAttribute('aria-selected')).toBe('true')
+  fireEvent.keyDown(cardsTab, { key: 'ArrowRight' })
+  expect(
+    screen.getByRole('tab', { name: strings.dex.graphTab }).getAttribute('aria-selected'),
+  ).toBe('true')
+  expect(document.activeElement?.textContent).toBe(strings.dex.graphTab)
+  expect(screen.getByText(strings.dex.graphHint)).toBeTruthy()
+  first.unmount()
+  renderWith(<CharacterDexScreen workId="w_1" />)
+  expect(
+    screen.getByRole('tab', { name: strings.dex.graphTab }).getAttribute('aria-selected'),
+  ).toBe('true')
+  localStorage.removeItem('aiplot.dex.view')
+})
+
+// Lines and labels need real layout (React Flow measures the nodes); they are checked by
+// tests/relationLayout.test.ts and by eye in the app.
+test('관계도: a node per character; Enter on a node opens its card', async () => {
+  serve()
+  localStorage.setItem('aiplot.dex.view', 'graph')
+  renderWith(<CharacterDexScreen workId="w_1" />)
+  await waitFor(() => {
+    expect(document.querySelectorAll('.react-flow__node')).toHaveLength(2)
+  })
+  const nodes = document.querySelectorAll<HTMLElement>('.react-flow__node')
+  expect([...nodes].map((node) => node.dataset.id)).toEqual(['c_teo', 'c_mira'])
+  const teo = [...nodes].find((node) => node.dataset.id === 'c_teo')
+  if (!teo) throw new Error('no node')
+  fireEvent.keyDown(teo, { key: 'Enter' })
+  expect(await screen.findByRole('dialog', { name: '테오' })).toBeTruthy()
+  localStorage.removeItem('aiplot.dex.view')
+})
+
+test('관계도: after 원문 수정 the focus comes back to the node', async () => {
+  serve()
+  localStorage.setItem('aiplot.dex.view', 'graph')
+  renderWith(<CharacterDexScreen workId="w_1" />)
+  await waitFor(() => {
+    expect(document.querySelector('.react-flow__node[data-id="c_teo"]')).not.toBeNull()
+  })
+  const teo = document.querySelector<HTMLElement>('.react-flow__node[data-id="c_teo"]')
+  if (!teo) throw new Error('no node')
+  fireEvent.keyDown(teo, { key: 'Enter' })
+  fireEvent.click(await screen.findByRole('button', { name: strings.dex.editSource }))
+  expect(await screen.findByRole('dialog')).toBeTruthy()
+  fireEvent.keyDown(window, { key: 'Escape' })
+  await waitFor(() => {
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+  await waitFor(() => {
+    expect(document.activeElement).toBe(
+      document.querySelector('.react-flow__node[data-id="c_teo"]'),
+    )
+  })
+  localStorage.removeItem('aiplot.dex.view')
+})
