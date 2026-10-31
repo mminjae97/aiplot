@@ -8,6 +8,7 @@ import type { Card, Draft, DraftCreate, DraftTurn, SimilarName } from '../types'
 import { CardPreview } from './CardPreview'
 import { ChatPanel } from './ChatPanel'
 import { SourcePanel } from './SourcePanel'
+import { TypeSection } from './TypeSection'
 
 export type DrawerRequest = DraftCreate & { workId: string }
 
@@ -58,6 +59,8 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
+  // The stage count picked for a part or an episode (§7): sent with every generation.
+  const [structure, setStructure] = useState<4 | 5 | null>(null)
   // The notes the shown card was generated from: once they change, the card is stale.
   const [generatedFrom, setGeneratedFrom] = useState<string | null>(null)
   const panel = useRef<HTMLDivElement>(null)
@@ -166,8 +169,9 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     stream.current = null
   }
 
-  const generate = async () => {
-    if (draftId === null || !canGenerate) return
+  /** True when a card came back (a failed or cancelled one changes nothing). */
+  const generate = async (count: 4 | 5 | null = structure): Promise<boolean> => {
+    if (draftId === null || !canGenerate) return false
     const controller = new AbortController()
     genStream.current = controller
     const alive = () => !controller.signal.aborted
@@ -175,8 +179,11 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     setSaveError(null)
     setGenerating({ jobId: null, seconds: 0 })
     try {
-      const accepted = await api.generateCard(draftId, { pinned: pins })
-      if (!alive()) return
+      const accepted = await api.generateCard(
+        draftId,
+        count === null ? { pinned: pins } : { pinned: pins, structure: count },
+      )
+      if (!alive()) return false
       setGenerating((old) => old && { ...old, jobId: accepted.jobId })
       // Set from the event callback, so kept in an object.
       const outcome = { done: false, failure: null as string | null }
@@ -189,15 +196,16 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
         },
         { signal: controller.signal },
       )
-      if (!alive()) return
+      if (!alive()) return false
       const failure = outcome.failure
       if (failure !== null && failure !== 'CANCELLED') setGenError(errorText(failure))
       // The stream ended without a result (dropped, or a restarted server).
       else if (!outcome.done && failure === null) setGenError(strings.preview.generateFailed)
       const fresh = await api.getDraft(draftId)
-      if (!alive()) return
+      if (!alive()) return false
       queryClient.setQueryData(draftKey(draftId), fresh)
       if (outcome.done) setGeneratedFrom(fresh.notes)
+      return outcome.done
     } catch (err) {
       if (alive()) {
         setGenError(
@@ -206,6 +214,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
             : strings.preview.generateFailed,
         )
       }
+      return false
     } finally {
       if (alive()) {
         setGenerating(null)
@@ -228,6 +237,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
       // Saving closed the draft on the server already.
       life.current.id = null
       void queryClient.invalidateQueries({ queryKey: ['cards', request.workId] })
+      void queryClient.invalidateQueries({ queryKey: ['completeness', request.workId] })
       queryClient.setQueryData(['card', card.id], card)
       onSaved?.(card)
       onClose()
@@ -511,6 +521,19 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                 </p>
               ) : (
                 <>
+                  <TypeSection
+                    workId={request.workId}
+                    cardId={request.card_id ?? null}
+                    card={generated}
+                    structure={structure}
+                    busy={!canGenerate}
+                    onStructure={(count) => {
+                      // The pick holds once a card with it came back; a failure keeps the old.
+                      void generate(count).then((ok) => {
+                        if (ok) setStructure(count)
+                      })
+                    }}
+                  />
                   <CardPreview
                     card={generated}
                     saved={saved.data ?? null}
