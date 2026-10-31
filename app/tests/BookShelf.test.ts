@@ -3,7 +3,6 @@ import { createElement } from 'react'
 import { expect, test, vi } from 'vitest'
 import { BookItem } from '../src/components/BookItem'
 import { bindingOf } from '../src/components/bookColor'
-import { BookFront } from '../src/components/BookFront'
 import { packShelves } from '../src/components/BookShelf'
 import type { Work } from '../src/types'
 
@@ -67,15 +66,4 @@ test('an illustrated cover shows the illustration only', () => {
   expect(container.querySelector('img.book-art')?.getAttribute('src')).toBe('cover.png')
   // The title still names the book for screen readers.
   expect(screen.getByRole('button', { name: work.title })).toBeTruthy()
-})
-
-test('chapters show small under the title once there are some', () => {
-  const { container, rerender } = render(
-    createElement(BookFront, { title: '안개의 항구', stage: '집필', image: null }),
-  )
-  expect(container.querySelector('.book-byline')).toBeNull()
-  rerender(
-    createElement(BookFront, { title: '안개의 항구', stage: '집필', image: null, chapters: 12 }),
-  )
-  expect(container.querySelector('.book-heading .book-byline')?.textContent).toBe('12화')
 })

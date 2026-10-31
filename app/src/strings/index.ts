@@ -28,7 +28,6 @@ export const strings = {
     shelfLabel: '책장',
     stageOf: (stage: string) => `${stage} 단계`,
     modified: (date: string) => `${date} 수정`,
-    chapters: (count: number) => `${String(count)}화`,
   },
   newBook: {
     title: '새 작품',

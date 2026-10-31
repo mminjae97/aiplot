@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Work",
-  "description": "A book in the library (§12 S0, §14 work). The cover's chapter count arrives with writing (step 7).",
+  "description": "A book in the library (§12 S0, §14 work).",
   "type": "object",
   "additionalProperties": false,
   "required": ["id", "title", "stage", "locked_stage", "last_item", "color", "cover_id", "updated_at"],

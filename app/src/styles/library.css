@@ -450,26 +450,12 @@
 
 /* The title's centre sits on the upper third line; extra lines grow both ways. It keeps
    18px clear of the inner gilt line on both sides (inner line at 18px). */
-.book-heading {
+.book-title {
   position: absolute;
   top: calc(100% / 3);
   left: 36px;
   right: 36px;
   transform: translateY(-50%);
-}
-
-/* Chapters, small at the title's lower right like an author's name; outside the title's
-   box so the title keeps its centre. */
-.book-byline {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-}
-
-.book-title {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
