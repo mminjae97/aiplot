@@ -667,9 +667,13 @@ export interface Work {
   updated_at: string
 }
 /**
- * PATCH /works/{workId}: 책 꾸미기 (§12 S0). Only the keys sent change (none sent → 422 VALIDATION_ERROR); decorating never moves the book on the shelf (updated_at kept).
+ * PATCH /works/{workId}: 제목 바꾸기 and 책 꾸미기 (§12 S0). Only the keys sent change (none sent → 422 VALIDATION_ERROR); the book keeps its place on the shelf (updated_at kept).
  */
 export interface WorkUpdate {
+  /**
+   * Raw input, checked like POST /works: whitespace collapsed, then 1..100 chars (TITLE_EMPTY, TITLE_TOO_LONG).
+   */
+  title?: string
   color?: BookColor
   /**
    * One of this book's covers (404 COVER_NOT_FOUND otherwise); null = cloth cover in the book colour.

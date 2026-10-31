@@ -36,3 +36,12 @@ def set_color(conn: sqlite3.Connection, work_id: str, color: str | None) -> None
 
 def set_cover(conn: sqlite3.Connection, work_id: str, cover_id: str | None) -> None:
     conn.execute("UPDATE work SET cover_id = ? WHERE id = ?", (cover_id, work_id))
+
+
+def set_title(conn: sqlite3.Connection, work_id: str, title: str) -> None:
+    conn.execute("UPDATE work SET title = ? WHERE id = ?", (title, work_id))
+
+
+def delete(conn: sqlite3.Connection, work_id: str) -> None:
+    # Its rows in other tables go with it (ON DELETE CASCADE).
+    conn.execute("DELETE FROM work WHERE id = ?", (work_id,))

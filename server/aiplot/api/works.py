@@ -1,4 +1,4 @@
-"""Library books: list, create, open, decorate (§16 works; the rest arrives in step 1 unit 8)."""
+"""Library books: list, create, open, rename and decorate, delete (§16 works)."""
 
 from pathlib import Path
 from typing import Annotated
@@ -28,6 +28,12 @@ def work_not_found(work_id: str) -> AppError:
     return AppError(404, "WORK_NOT_FOUND", f"no work {work_id}")
 
 
+def title_error(exc: works.TitleEmptyError | works.TitleTooLongError) -> AppError:
+    if isinstance(exc, works.TitleEmptyError):
+        return AppError(422, "TITLE_EMPTY", "the title is blank")
+    return AppError(422, "TITLE_TOO_LONG", f"the title is over {works.TITLE_MAX} chars")
+
+
 def cover_not_found(cover_id: str) -> AppError:
     return AppError(404, "COVER_NOT_FOUND", f"no cover {cover_id} in this work")
 
@@ -41,10 +47,8 @@ def list_works(db: Db) -> WorkList:
 def create_work(db: Db, body: WorkCreate) -> Work:
     try:
         return works.create(db, body.title)
-    except works.TitleEmptyError as exc:
-        raise AppError(422, "TITLE_EMPTY", "the title is blank") from exc
-    except works.TitleTooLongError as exc:
-        raise AppError(422, "TITLE_TOO_LONG", f"the title is over {works.TITLE_MAX} chars") from exc
+    except (works.TitleEmptyError, works.TitleTooLongError) as exc:
+        raise title_error(exc) from exc
 
 
 @router.get("/works/{workId}")
@@ -59,12 +63,25 @@ def get_work(db: Db, workId: str) -> Work:
 def update_work(db: Db, workId: str, body: WorkUpdate) -> Work:
     if not body.model_fields_set:
         raise AppError(422, "VALIDATION_ERROR", "body: send at least one field")
+    # The generated model lets an optional key be null; a title never is.
+    if "title" in body.model_fields_set and body.title is None:
+        raise AppError(422, "VALIDATION_ERROR", "body.title: must be a string")
     try:
-        return works.decorate(db, workId, body)
+        return works.update(db, workId, body)
+    except (works.TitleEmptyError, works.TitleTooLongError) as exc:
+        raise title_error(exc) from exc
     except works.WorkNotFoundError as exc:
         raise work_not_found(workId) from exc
     except works.CoverNotFoundError as exc:
         raise cover_not_found(str(exc)) from exc
+
+
+@router.delete("/works/{workId}", status_code=204)
+def delete_work(db: Db, request: Request, workId: str) -> None:
+    try:
+        works.delete(db, images_dir(request), workId)
+    except works.WorkNotFoundError as exc:
+        raise work_not_found(workId) from exc
 
 
 @router.get("/works/{workId}/covers")

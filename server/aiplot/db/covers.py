@@ -35,6 +35,11 @@ def path_of(conn: sqlite3.Connection, work_id: str, cover_id: str) -> str | None
     return str(row["path"]) if row else None
 
 
+def paths_of_work(conn: sqlite3.Connection, work_id: str) -> list[str]:
+    rows = conn.execute("SELECT path FROM work_cover WHERE work_id = ?", (work_id,)).fetchall()
+    return [str(row["path"]) for row in rows]
+
+
 def delete(conn: sqlite3.Connection, cover_id: str) -> None:
     # work.cover_id pointing here falls back to NULL (ON DELETE SET NULL).
     conn.execute("DELETE FROM work_cover WHERE id = ?", (cover_id,))
