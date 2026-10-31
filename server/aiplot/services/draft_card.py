@@ -73,14 +73,19 @@ def world_line(row: cards_db.CardRow, full: bool) -> str:
 
 
 def related_worlds(conn: sqlite3.Connection, card_id: str | None) -> set[str]:
-    """World cards the saved card is tied to: shown in full even when the list is long."""
+    """World cards the saved card is tied to, shown in full even when the list is long: a
+    world card's own related worlds, an episode's world cards, and for others the world
+    cards that name them."""
     if card_id is None:
         return set()
-    tied = {ref for ref, field in cards_db.references(conn, card_id) if field == "related"}
     row = cards_db.get(conn, card_id)
-    if row is not None and row.type == "episode":
-        tied |= set(row.data.get("world") or [])
-    return tied
+    if row is None:
+        return set()
+    if row.type == "world":
+        return set(row.data.get("related") or [])
+    if row.type == "episode":
+        return set(row.data.get("world") or [])
+    return {ref for ref, field in cards_db.references(conn, card_id) if field == "related"}
 
 
 def card_refs(conn: sqlite3.Connection, draft: DraftState) -> str:
@@ -203,8 +208,17 @@ def start(router: Router, jobs: JobQueue, db_path: Path, generation: Generation)
         return job.id
 
 
-def save(conn: sqlite3.Connection, store: DraftStore, draft_id: str) -> Card:
-    """Notes + card + relation rows in one transaction (cards.save); the drawer then closes."""
+def cancel(jobs: JobQueue, draft: DraftState) -> None:
+    """A closed draft's generation would only hold the single LLM slot (§13): stop it."""
+    job_id = running(jobs, draft)
+    job = jobs.get(job_id) if job_id else None
+    if job is not None:
+        jobs.cancel(job)
+
+
+def save(conn: sqlite3.Connection, store: DraftStore, jobs: JobQueue, draft_id: str) -> Card:
+    """Notes + card + relation rows in one transaction (cards.save); the drawer then closes.
+    Runs on the event loop (async route), so two saves of one draft never interleave."""
     draft = store.get(draft_id)
     with draft.lock:
         generated: CardOutput | None = draft.generated
@@ -229,4 +243,5 @@ def save(conn: sqlite3.Connection, store: DraftStore, draft_id: str) -> Card:
         value["position"] = None
     saved = cards.save(conn, cards.CARD.validate_python(value))
     store.remove(draft_id)
+    cancel(jobs, draft)
     return saved

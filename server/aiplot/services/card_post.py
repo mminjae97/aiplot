@@ -68,14 +68,22 @@ def get_path(value: dict[str, Any], path: str) -> Any:
     return current
 
 
-def set_path(value: dict[str, Any], path: str, item: Any) -> None:
+def set_path(
+    value: dict[str, Any], path: str, item: Any, shown: dict[str, Any] | None = None
+) -> None:
+    """Sets value[path]. When the parent object is undecided (null) in value, it is rebuilt
+    with only the pinned key filled: its other keys empty (null, or [] where shown has a list)."""
     keys = path.split(".")
     current = value
+    shape = shown
     for key in keys[:-1]:
+        parent = shape.get(key) if isinstance(shape, dict) else None
         if not isinstance(current.get(key), dict):
-            # The parent object is undecided (null): a pinned sub-field brings it back whole.
-            return
+            if not isinstance(parent, dict):
+                return
+            current[key] = {k: [] if isinstance(v, list) else None for k, v in parent.items()}
         current = current[key]
+        shape = parent
     current[keys[-1]] = item
 
 
@@ -85,17 +93,13 @@ def new_id(prefix: str) -> str:
 
 def keep_ids(items: list[dict[str, Any]], before: list[dict[str, Any]], prefix: str) -> None:
     """Items whose text is unchanged keep their id; the rest get a new server id (§13)."""
-    by_text: dict[str, str] = {}
+    by_text: dict[str, list[str]] = {}
     for item in before:
-        by_text.setdefault(item.get("text", ""), item["id"])
-    used: set[str] = set()
+        by_text.setdefault(item.get("text", ""), []).append(item["id"])
     for item in items:
+        # Two items with the same text keep one old id each, in order.
         same = by_text.get(item.get("text", ""))
-        if same is not None and same not in used:
-            item["id"] = same
-        else:
-            item["id"] = new_id(prefix)
-        used.add(item["id"])
+        item["id"] = same.pop(0) if same else new_id(prefix)
 
 
 def place_episode(
@@ -156,8 +160,7 @@ def process(
             if saved is not None:
                 data["order"] = saved_data.get("order")
             else:
-                parts = cards_db.ids_of(conn, work_id, ["part"])
-                data["order"] = len(parts) + 1
+                data["order"] = cards_db.last_part_order(conn, work_id) + 1
         case "episode":
             data["characters"] = scope.keep(data["characters"], "character")
             data["locations"]["main"] = scope.one(data["locations"]["main"], "region")
@@ -189,7 +192,8 @@ def process(
             if path == "name":
                 value["name"] = shown.get("name")
             elif path in field_paths(card_type):
-                set_path(data, path, get_path(shown.get("data") or {}, path))
+                shown_data = shown.get("data") or {}
+                set_path(data, path, get_path(shown_data, path), shown_data)
 
     paths = field_paths(card_type)
     value["evidence"] = {

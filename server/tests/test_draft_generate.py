@@ -349,3 +349,80 @@ def test_running_generation_is_reused() -> None:
 
     assert draft_card.running(Jobs("running"), Draft()) == "job_1"  # type: ignore[arg-type]
     assert draft_card.running(Jobs("done"), Draft()) is None  # type: ignore[arg-type]
+
+
+def test_a_pinned_field_comes_back_under_an_undecided_parent() -> None:
+    # No parent with pinnable sub-fields is nullable in today's schemas; set_path still
+    # rebuilds one with only the pinned key filled if a schema ever makes it so.
+    from aiplot.services.card_post import set_path
+
+    data: dict[str, Any] = {"speech": None}
+    shown = {"speech": {"description": "짧다", "examples": ["가자."]}}
+    set_path(data, "speech.examples", ["가자."], shown)
+    assert data == {"speech": {"description": None, "examples": ["가자."]}}
+    untouched: dict[str, Any] = {"speech": None}
+    set_path(untouched, "speech.examples", ["가자."], {"speech": None})
+    assert untouched == {"speech": None}
+
+
+def test_an_edited_world_card_keeps_its_related_worlds_whole(
+    client: TestClient, conn: sqlite3.Connection, llm: Scripted
+) -> None:
+    for n in range(40):
+        save(conn, fixture("world", id=f"c_w{n}", name=f"세계 {n}"))
+    world = fixture("world", id="c_tide")
+    world["data"] = {**world["data"], "related": ["c_w5"]}
+    save(conn, world)
+    llm.say("card", output("world", fixture("world")))
+    draft_id = open_draft(client, {"type": "world", "card_id": "c_tide"})
+    generate(client, draft_id)
+    refs = llm.requests[-1].messages[-1]["content"].split("<참고 카드>\n")[1]
+    assert "c_w5 세계관 세계 5: " in refs
+    assert "c_w6 세계관 세계 6 (규칙·능력)" in refs
+
+
+def test_new_parts_go_after_the_highest_order(
+    client: TestClient, conn: sqlite3.Connection, llm: Scripted
+) -> None:
+    story(conn)
+    third = fixture("part", id="c_part3")
+    save(conn, {**third, "data": {**third["data"], "order": 3}})
+    llm.say("card", output("part", fixture("part")))
+    draft_id = open_draft(client, {"type": "part"})
+    generate(client, draft_id)
+    assert generated(client, draft_id)["data"]["order"] == 4
+
+
+def test_items_with_the_same_text_keep_one_old_id_each() -> None:
+    from aiplot.services.card_post import keep_ids
+
+    before = [{"id": "ms_a", "text": "같다"}, {"id": "ms_b", "text": "같다"}]
+    items = [
+        {"id": "ms_1", "text": "같다"},
+        {"id": "ms_2", "text": "같다"},
+        {"id": "ms_3", "text": "같다"},
+    ]
+    keep_ids(items, before, "ms")
+    assert [i["id"] for i in items[:2]] == ["ms_a", "ms_b"]
+    assert items[2]["id"] not in ("ms_a", "ms_b", "ms_3")
+
+
+def test_closing_a_draft_stops_its_generation() -> None:
+    cancelled: list[str] = []
+
+    class Job:
+        id, status = "job_1", "running"
+
+    class Jobs:
+        def get(self, job_id: str) -> Job:
+            return Job()
+
+        def cancel(self, job: Job) -> bool:
+            cancelled.append(job.id)
+            return True
+
+    class Draft:
+        job_id = "job_1"
+
+    draft_card.cancel(Jobs(), Draft())  # type: ignore[arg-type]
+    assert cancelled == ["job_1"]

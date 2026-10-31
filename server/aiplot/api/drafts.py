@@ -92,12 +92,15 @@ def put_source(request: Request, draftId: str, body: DraftSource) -> Draft:
 
 
 @router.delete("/drafts/{draftId}", status_code=204)
-def delete_draft(request: Request, draftId: str) -> Response:
-    """Closing the drawer: the conversation and anything unsaved are gone (§6)."""
+async def delete_draft(request: Request, draftId: str) -> Response:
+    """Closing the drawer: the conversation and anything unsaved are gone (§6), and a running
+    generation stops. Async: cancelling touches the job queue on the event loop."""
     try:
+        draft = store(request).get(draftId)
         store(request).remove(draftId)
     except drafts.DraftNotFoundError as exc:
         raise draft_not_found(draftId) from exc
+    draft_card.cancel(request.app.state.jobs, draft)
     return Response(status_code=204)
 
 
@@ -122,10 +125,11 @@ async def generate(db: Db, request: Request, draftId: str, body: DraftGenerate) 
 
 
 @router.post("/drafts/{draftId}/save")
-def save(db: Db, request: Request, draftId: str) -> Card:
-    """저장: notes + card + relations in one transaction; the draft closes (§8)."""
+async def save(db: Db, request: Request, draftId: str) -> Card:
+    """저장: notes + card + relations in one transaction; the draft closes (§8). Async: one
+    save at a time on the event loop (a double click never makes two cards)."""
     try:
-        return draft_card.save(db, store(request), draftId)
+        return draft_card.save(db, store(request), request.app.state.jobs, draftId)
     except drafts.DraftNotFoundError as exc:
         raise draft_not_found(draftId) from exc
     except draft_card.NothingToSaveError as exc:
