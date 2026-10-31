@@ -375,22 +375,18 @@
   box-shadow: inset 2px 0 0 rgb(0 0 0 / 25%);
 }
 
-/* Lifted off the stand, upright, and drawn out in front of it. */
+/* Lifted up out of the stand, upright: the foot rises from behind the stand's front and
+   clears its top (the stand is 22px, 6px of it below the book). */
 .book:hover .book-cover,
 .book-cover:focus-visible,
 .book-slot:hover .book-new,
 .book-new:focus-visible {
-  transform: translateY(-16px);
-}
-
-.book:hover .book-cover,
-.book-cover:focus-visible {
-  z-index: 2;
+  transform: translateY(-32px);
 }
 
 .book:hover .book-shadow,
 .book:has(.book-cover:focus-visible) .book-shadow {
-  transform: translateY(-6px) scale(1.02);
+  transform: translateY(-14px) scale(1.02);
 }
 
 .book[data-highlighted] .book-cover {
