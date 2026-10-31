@@ -127,7 +127,6 @@ type Props = {
   onMove: (cardId: string, at: Point) => void
 }
 
-/** Region id -> its children among the drawn regions. */
 /** Region id -> its children among the drawn regions. A parent link that would close a loop
  * (A in B, B in A) is left out, so every area has leaves to wrap. */
 function childrenOf(cards: RegionCard[], parents: CardRelation[]) {
