@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { createElement } from 'react'
 import { expect, test, vi } from 'vitest'
-import { BookItem, bindingOf } from '../src/components/BookItem'
+import { BookItem } from '../src/components/BookItem'
+import { bindingOf } from '../src/components/bookColor'
 import { packShelves } from '../src/components/BookShelf'
 import type { Work } from '../src/types'
 
