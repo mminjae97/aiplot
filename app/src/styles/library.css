@@ -82,7 +82,7 @@
   /* how deep the side walls read in perspective (the boards' top faces narrow as much) */
   --wall-depth: 28px;
   /* the boards' top faces, seen from above */
-  --board-top: 34px;
+  --board-top: 40px;
   position: relative;
   flex: 1;
   padding: 0 0 var(--bookcase-bottom);
@@ -164,7 +164,7 @@
   position: relative;
   /* over the boards' top faces and the walls; the books stand toward the front edge */
   z-index: 4;
-  top: -10px;
+  top: -12px;
   width: var(--row-width);
   margin: 0 auto;
 }
@@ -239,14 +239,21 @@
 }
 
 /* Books are on display, all the same size (1:1.5): each one's foot rests on a stand at the
-   front of the board and its top leans back (about 14°) against the panel. The view looks
-   down along the books, so they face the viewer squarely and the case is what recedes: deep
-   top faces on the boards and stands. Hover or focus lifts a book off its stand. */
+   front of the board and its top leans back (--lean) against the panel. The view looks down
+   on the case (--view), so a book shows leaning back by the difference and the boards and
+   stands show their top faces. Hover or focus lifts a book off its stand, upright. */
+.bookcase {
+  --lean: 30deg;
+  --view: 15deg;
+}
+
 .book,
 .book-slot {
   position: relative;
   width: var(--book-width);
   height: var(--cover-height);
+  perspective: 1000px;
+  perspective-origin: 50% 20%;
 }
 
 .book:hover,
@@ -273,6 +280,8 @@
 
 .book .book-cover,
 .book-slot .book-new {
+  transform-origin: 50% 100%;
+  transform: rotateX(calc(var(--lean) - var(--view)));
   transition: transform 0.25s ease-out;
 }
 
@@ -299,8 +308,8 @@
   border-radius: 50%;
 }
 
-/* The display stand: a wooden ledge in front of the book's foot, its top face seen from
-   above, a brass lip along its front edge. */
+/* The display stand: a ledge of the same oak as the boards in front of the book's foot, its
+   top face seen from above. */
 .book-stand {
   position: absolute;
   z-index: 1;
@@ -309,18 +318,18 @@
   bottom: -6px;
   height: 22px;
   background:
+    /* top face (shaded toward the back), the lit front edge, the front face */
     linear-gradient(
       180deg,
-      rgb(0 0 0 / 30%) 0,
-      rgb(255 255 255 / 12%) 7px,
-      var(--brass-bright) 7px 9px,
-      var(--brass) 9px 11px,
-      transparent 11px 60%,
-      rgb(0 0 0 / 32%) 100%
+      rgb(0 0 0 / 34%) 0,
+      rgb(0 0 0 / 6%) 8px,
+      rgb(255 255 255 / 26%) 8px 9px,
+      transparent 9px 55%,
+      rgb(0 0 0 / 24%) 100%
     ),
     image-set(url('../assets/wood/board.webp') 1x, url('../assets/wood/board@2x.webp') 2x) 0 0 /
       1400px 60px,
-    var(--wood-board-edge);
+    var(--wood-board);
   border-radius: 2px 2px 1px 1px;
   box-shadow: 0 4px 6px -2px rgb(0 0 0 / 55%);
   pointer-events: none;
@@ -384,7 +393,7 @@
 
 @keyframes book-arrive {
   from {
-    transform: translateY(-24px);
+    transform: translateY(-24px) rotateX(calc(var(--lean) - var(--view)));
   }
 }
 
