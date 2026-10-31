@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CardList",
+  "description": "GET /works/{workId}/cards?type=&q=: the work's cards in creation order; q matches the start of any word of the name (best matches first).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["cards"],
+  "properties": {
+    "cards": { "type": "array", "items": { "$ref": "card.json" } }
+  }
+}

@@ -59,6 +59,12 @@ export type WorkTitle = string
  */
 export type BookColor = string | null
 
+/**
+ * GET /works/{workId}/cards?type=&q=: the work's cards in creation order; q matches the start of any word of the name (best matches first).
+ */
+export interface CardList {
+  cards: Card[]
+}
 export interface WorldCard {
   id: CardId
   work_id: WorkId
@@ -203,7 +209,13 @@ export interface RegionSensory {
  * Region map position (§8): the only directly editable card values; PATCH /cards/{cardId} body.
  */
 export interface RegionPosition {
+  /**
+   * Finite map units (no NaN or Infinity).
+   */
   map_x: number
+  /**
+   * Finite map units (no NaN or Infinity).
+   */
   map_y: number
 }
 export interface MainStoryCard {
@@ -341,6 +353,56 @@ export interface EpisodeForeshadowing {
 export interface ForeshadowingPlant {
   id: ForeshadowingId
   text: string
+}
+/**
+ * GET /cards/{cardId}/references: cards that point at this one, read from the relation tables (§6), for the delete confirmation and edit mode (§8).
+ */
+export interface CardReferences {
+  references: CardReference[]
+}
+export interface CardReference {
+  card_id: CardId
+  type: 'world' | 'character' | 'region' | 'main_story' | 'part' | 'episode'
+  name: string | null
+  /**
+   * Where the referencing card points at it, as a data path: relations, origin_region_id, parent_id, links, related, characters, locations.main, locations.others, world, links.prev, links.next, links.causes, part_id, fulfills, foreshadowing.payoffs.
+   */
+  field: string
+}
+/**
+ * GET /works/{workId}/completeness: what the completeness panel shows (§7, §8 S1-3), from the relation tables.
+ */
+export interface Completeness {
+  /**
+   * Every milestone of the main story, in order, with the parts and episodes that fulfil it (each must be in exactly one part).
+   */
+  milestones: MilestoneFulfilment[]
+  /**
+   * Every planted foreshadowing; payoff_episode_id null = not paid off yet.
+   */
+  foreshadowing: ForeshadowingStatus[]
+  /**
+   * Cards with a §15 required field missing.
+   */
+  incomplete: IncompleteCard[]
+}
+export interface MilestoneFulfilment {
+  id: MilestoneId
+  order: number
+  text: string
+  parts: CardId[]
+  episodes: CardId[]
+}
+export interface ForeshadowingStatus {
+  id: ForeshadowingId
+  text: string
+  plant_episode_id: CardId
+  payoff_episode_id: CardId | null
+}
+export interface IncompleteCard {
+  card_id: CardId
+  type: 'world' | 'character' | 'region' | 'main_story' | 'part' | 'episode'
+  name: string | null
 }
 /**
  * Error body for every non-2xx API response; each code maps to a UI state (§16).

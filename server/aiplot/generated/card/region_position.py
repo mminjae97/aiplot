@@ -2,12 +2,28 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, StrictFloat
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, Field, StrictFloat
 
 
 class RegionPosition(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    map_x: StrictFloat
-    map_y: StrictFloat
+    map_x: Annotated[
+        StrictFloat,
+        Field(
+            description="Finite map units (no NaN or Infinity).",
+            ge=-1000000000.0,
+            le=1000000000.0,
+        ),
+    ]
+    map_y: Annotated[
+        StrictFloat,
+        Field(
+            description="Finite map units (no NaN or Infinity).",
+            ge=-1000000000.0,
+            le=1000000000.0,
+        ),
+    ]

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CardReferences",
+  "description": "GET /cards/{cardId}/references: cards that point at this one, read from the relation tables (§6), for the delete confirmation and edit mode (§8).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["references"],
+  "properties": {
+    "references": {
+      "type": "array",
+      "items": {
+        "title": "CardReference",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["card_id", "type", "name", "field"],
+        "properties": {
+          "card_id": { "$ref": "../common/card-id.json" },
+          "type": { "enum": ["world", "character", "region", "main_story", "part", "episode"] },
+          "name": { "type": ["string", "null"] },
+          "field": {
+            "description": "Where the referencing card points at it, as a data path: relations, origin_region_id, parent_id, links, related, characters, locations.main, locations.others, world, links.prev, links.next, links.causes, part_id, fulfills, foreshadowing.payoffs.",
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

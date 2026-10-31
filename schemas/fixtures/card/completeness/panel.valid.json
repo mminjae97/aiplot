@@ -1,0 +1,11 @@
+{
+ "milestones": [
+  {"id": "ms_1", "order": 1, "text": "귀환", "parts": ["c_part1"], "episodes": []}
+ ],
+ "foreshadowing": [
+  {"id": "fs_scar", "text": "흉터", "plant_episode_id": "c_ep1", "payoff_episode_id": null}
+ ],
+ "incomplete": [
+  {"card_id": "c_teo", "type": "character", "name": null}
+ ]
+}

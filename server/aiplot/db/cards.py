@@ -444,3 +444,92 @@ def replace_payoffs(conn: sqlite3.Connection, episode_id: str, ids: list[str]) -
         "UPDATE foreshadowing SET payoff_episode_id = ? WHERE id = ?",
         [(episode_id, fid) for fid in ids],
     )
+
+
+# References and completeness ------------------------------------------------------------
+
+# (sql, field): each selects the ids of cards that point at ? through that field.
+REFERENCE_QUERIES = [
+    ("SELECT from_id FROM char_relation WHERE to_id = ?", "relations"),
+    ("SELECT card_id FROM character WHERE origin_region_id = ?", "origin_region_id"),
+    ("SELECT card_id FROM region WHERE parent_region_id = ?", "parent_id"),
+    ("SELECT from_id FROM region_link WHERE to_id = ?", "links"),
+    ("SELECT world_id FROM world_relation WHERE card_id = ?", "related"),
+    ("SELECT episode_id FROM episode_character WHERE card_id = ?", "characters"),
+    ("SELECT episode_id FROM episode_region WHERE card_id = ? AND main = 1", "locations.main"),
+    ("SELECT episode_id FROM episode_region WHERE card_id = ? AND main = 0", "locations.others"),
+    ("SELECT episode_id FROM episode_world WHERE card_id = ?", "world"),
+    ("SELECT to_id FROM episode_link WHERE from_id = ? AND kind = 'order'", "links.prev"),
+    ("SELECT from_id FROM episode_link WHERE to_id = ? AND kind = 'order'", "links.next"),
+    ("SELECT from_id FROM episode_link WHERE to_id = ? AND kind = 'cause'", "links.causes"),
+    ("SELECT card_id FROM episode WHERE part_id = ?", "part_id"),
+    (
+        "SELECT milestone_fill.card_id FROM milestone_fill "
+        "JOIN milestone ON milestone.id = milestone_fill.milestone_id WHERE milestone.main_id = ?",
+        "fulfills",
+    ),
+    (
+        "SELECT payoff_episode_id FROM foreshadowing "
+        "WHERE plant_episode_id = ? AND payoff_episode_id IS NOT NULL",
+        "foreshadowing.payoffs",
+    ),
+]
+
+
+def references(conn: sqlite3.Connection, card_id: str) -> list[tuple[str, str]]:
+    """(referencing card id, field) for every relation row that points at the card."""
+    found: list[tuple[str, str]] = []
+    for sql, field in REFERENCE_QUERIES:
+        for row in conn.execute(sql, (card_id,)).fetchall():
+            if row[0] != card_id and (row[0], field) not in found:
+                found.append((row[0], field))
+    return found
+
+
+@dataclass(frozen=True)
+class MilestoneRow:
+    id: str
+    order: int
+    text: str
+    parts: list[str]
+    episodes: list[str]
+
+
+def milestones_of_work(conn: sqlite3.Connection, work_id: str) -> list[MilestoneRow]:
+    rows = conn.execute(
+        'SELECT milestone.id, milestone."order", milestone.text FROM milestone '
+        "JOIN card ON card.id = milestone.main_id WHERE card.work_id = ? "
+        'ORDER BY milestone."order", milestone.rowid',
+        (work_id,),
+    ).fetchall()
+    result = []
+    for row in rows:
+        fills = conn.execute(
+            "SELECT card.id, card.type FROM milestone_fill "
+            "JOIN card ON card.id = milestone_fill.card_id "
+            "WHERE milestone_fill.milestone_id = ? ORDER BY card.rowid",
+            (row["id"],),
+        ).fetchall()
+        result.append(
+            MilestoneRow(
+                id=row["id"],
+                order=row["order"],
+                text=row["text"],
+                parts=[f["id"] for f in fills if f["type"] == "part"],
+                episodes=[f["id"] for f in fills if f["type"] == "episode"],
+            )
+        )
+    return result
+
+
+def foreshadowing_of_work(
+    conn: sqlite3.Connection, work_id: str
+) -> list[tuple[str, str, str, str | None]]:
+    """(id, text, plant episode, payoff episode or None), in planting order."""
+    rows = conn.execute(
+        "SELECT foreshadowing.id, foreshadowing.text, plant_episode_id, payoff_episode_id "
+        "FROM foreshadowing JOIN card ON card.id = foreshadowing.plant_episode_id "
+        "WHERE card.work_id = ? ORDER BY card.rowid, foreshadowing.rowid",
+        (work_id,),
+    ).fetchall()
+    return [(r[0], r[1], r[2], r[3]) for r in rows]
