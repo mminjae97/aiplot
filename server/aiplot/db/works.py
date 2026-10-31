@@ -4,7 +4,7 @@ import sqlite3
 
 from aiplot.generated.works.work import Work
 
-COLUMNS = "id, title, stage, locked_stage, last_item, updated_at"
+COLUMNS = "id, title, stage, locked_stage, last_item, color, cover_id, updated_at"
 
 
 def to_work(row: sqlite3.Row) -> Work:
@@ -28,3 +28,11 @@ def list_recent(conn: sqlite3.Connection) -> list[Work]:
         f"SELECT {COLUMNS} FROM work ORDER BY updated_at DESC, rowid DESC"
     ).fetchall()
     return [to_work(row) for row in rows]
+
+
+def set_color(conn: sqlite3.Connection, work_id: str, color: str | None) -> None:
+    conn.execute("UPDATE work SET color = ? WHERE id = ?", (color, work_id))
+
+
+def set_cover(conn: sqlite3.Connection, work_id: str, cover_id: str | None) -> None:
+    conn.execute("UPDATE work SET cover_id = ? WHERE id = ?", (cover_id, work_id))

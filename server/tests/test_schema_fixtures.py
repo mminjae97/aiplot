@@ -1,6 +1,7 @@
 """Generated Pydantic types must agree with every shared schema fixture (also checked by Ajv).
 
-fixtures/<schema path>/<name>.valid.json must parse and round-trip unchanged;
+fixtures/<schema path>/<name>.valid.json must parse and round-trip unchanged (omitted
+optional keys stay omitted);
 <name>.invalid.json must be rejected. The type is the schema's top-level title in the
 generated module for that schema path.
 """
@@ -45,7 +46,8 @@ def test_fixture(path: Path) -> None:
     adapter = adapter_for(path)
     data = load(path)
     if path.name.endswith(".valid.json"):
-        assert adapter.dump_python(adapter.validate_python(data), mode="json") == data
+        dump = adapter.dump_python(adapter.validate_python(data), mode="json", exclude_unset=True)
+        assert dump == data
     else:
         assert path.name.endswith(".invalid.json")
         with pytest.raises(ValidationError):

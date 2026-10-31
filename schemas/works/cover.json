@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Cover",
+  "description": "A cover illustration uploaded for one book (§12 책 꾸미기): WebP, portrait 1:1.5, cropped by the app. GET /works/{workId}/covers/{coverId}/image serves the file.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "work_id", "created_at"],
+  "properties": {
+    "id": { "$ref": "../common/cover-id.json" },
+    "work_id": { "$ref": "../common/work-id.json" },
+    "created_at": { "description": "ISO 8601 UTC.", "type": "string" }
+  }
+}

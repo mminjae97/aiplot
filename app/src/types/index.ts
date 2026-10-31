@@ -28,6 +28,7 @@ export type MilestoneId = string
 export type StoryStructure = FourStageStructure | FiveStageStructure
 export type ForeshadowingId = string
 export type WorldlineId = string
+export type CoverId = string
 export type JobId = string
 /**
  * data of the SSE events every job can send on GET /jobs/{jobId}/events; the SSE event name is the type (§16). Job kinds add their own events (e.g. chapter: beat_start, sentence).
@@ -53,6 +54,10 @@ export type CardOutput =
  * Shown on the spine and cover; the server trims it.
  */
 export type WorkTitle = string
+/**
+ * Spine and cloth cover colour, lowercase #rrggbb; null = the app's default, stable per work id.
+ */
+export type BookColor = string | null
 
 export interface WorldCard {
   id: CardId
@@ -601,6 +606,23 @@ export interface SetupItem {
   present_bytes: number
 }
 /**
+ * GET /works/{workId}/covers: the book's uploaded covers, oldest first.
+ */
+export interface CoverList {
+  covers: Cover[]
+}
+/**
+ * A cover illustration uploaded for one book (§12 책 꾸미기): WebP, portrait 1:1.5, cropped by the app. GET /works/{workId}/covers/{coverId}/image serves the file.
+ */
+export interface Cover {
+  id: CoverId
+  work_id: WorkId
+  /**
+   * ISO 8601 UTC.
+   */
+  created_at: string
+}
+/**
  * POST /works: "새로 만들기" asks for the title only (§12 S0).
  */
 export interface WorkCreate {
@@ -634,8 +656,23 @@ export interface Work {
    */
   last_item:
     ('world' | 'characters' | 'regions' | 'story' | 'direction' | 'writing' | 'reading') | null
+  color: BookColor
+  /**
+   * Cover illustration on the front; null = cloth cover in the book colour.
+   */
+  cover_id: CoverId | null
   /**
    * ISO 8601 UTC.
    */
   updated_at: string
+}
+/**
+ * PATCH /works/{workId}: 책 꾸미기 (§12 S0). Only the keys sent change (none sent → 422 VALIDATION_ERROR); decorating never moves the book on the shelf (updated_at kept).
+ */
+export interface WorkUpdate {
+  color?: BookColor
+  /**
+   * One of this book's covers (404 COVER_NOT_FOUND otherwise); null = cloth cover in the book colour.
+   */
+  cover_id?: CoverId | null
 }

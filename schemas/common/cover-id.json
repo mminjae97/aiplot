@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CoverId",
+  "type": "string",
+  "pattern": "^cv_[0-9A-Za-z]+$"
+}

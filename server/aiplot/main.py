@@ -77,6 +77,8 @@ def create_app(
     )
     app.state.token = token
     app.state.db_path = db_path
+    # {data}/images beside {data}/data/aiplot.db (§3 runtime data).
+    app.state.images_dir = db_path.parent.parent / "images"
     app.state.jobs = job_queue
     app.state.llm = runtime
     install_error_handlers(app)

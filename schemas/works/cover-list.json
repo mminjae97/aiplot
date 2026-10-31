@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CoverList",
+  "description": "GET /works/{workId}/covers: the book's uploaded covers, oldest first.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["covers"],
+  "properties": {
+    "covers": { "type": "array", "items": { "$ref": "cover.json" } }
+  }
+}

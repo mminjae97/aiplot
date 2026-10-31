@@ -65,6 +65,8 @@ function work(id: string, title: string, updated: string): Work {
     stage: 1,
     locked_stage: 0,
     last_item: null,
+    color: null,
+    cover_id: null,
     updated_at: updated,
   }
 }
