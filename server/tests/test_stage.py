@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from aiplot.db.connection import connect
 from aiplot.db.migrate import init_db
 from aiplot.main import create_app
+from aiplot.services.works import StageLockedError
 from tests.test_card_delete import episode
 from tests.test_cards import fixture, region, save, story
 
@@ -96,6 +97,12 @@ def test_every_stage_one_write_is_locked(client: TestClient, conn: sqlite3.Conne
     for method, path, body in calls:
         response = client.request(method, path, headers=AUTH, json=body)
         assert error(response) == (423, "STAGE_LOCKED"), path
+    # Saving a card (drafts, unit 9) is a stage-1 write too.
+    for value in (fixture("world", id="c_new"), episode("c_e1", characters=[])):
+        with pytest.raises(StageLockedError):
+            save(conn, value)
+    assert conn.execute("SELECT count(*) FROM card WHERE id = 'c_new'").fetchone()[0] == 0
+    assert conn.execute("SELECT status FROM card WHERE id = 'c_e1'").fetchone()[0] == "complete"
     # Reading stays open, and so does decorating the book.
     assert client.get("/api/v1/works/w_01/cards", headers=AUTH).status_code == 200
     renamed = client.patch("/api/v1/works/w_01", headers=AUTH, json={"title": "새 제목"})
