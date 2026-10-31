@@ -77,6 +77,9 @@ const EP = {
   data: { foreshadowing: { plants: [], payoffs: [] } },
 } as unknown as Card
 
+const PORT = { ...base, id: 'c_port', type: 'region', name: '북부 항구' } as unknown as Card
+const TEO = { ...base, id: 'c_teo', type: 'character', name: '테오' } as unknown as Card
+
 type Call = { method: string; path: string }
 type State = { main?: boolean; parts?: Card[]; assigned?: Record<string, string[]> }
 
@@ -119,9 +122,17 @@ function serve(state: State = {}) {
         return json({ cards: state.main === false ? [] : [MAIN] })
       if (path === '/works/w_1/cards?type=part') return json({ cards: parts })
       if (path === '/works/w_1/cards?type=episode') return json({ cards: [EP] })
-      if (path === '/works/w_1/cards') return json({ cards: [MAIN, ...parts, EP] })
+      if (path === '/works/w_1/cards') return json({ cards: [MAIN, ...parts, EP, PORT, TEO] })
       if (path === '/works/w_1/relations?kind=episode_part')
         return json({ relations: [{ from_id: 'c_ep1', to_id: 'c_p1', relation: '1' }] })
+      if (path === '/works/w_1/relations?kind=episode_link')
+        return json({ relations: [{ from_id: 'c_ep1', to_id: 'c_ep2', relation: 'order' }] })
+      if (path === '/works/w_1/relations?kind=episode_region')
+        return json({ relations: [{ from_id: 'c_ep1', to_id: 'c_port', relation: 'main' }] })
+      if (path === '/works/w_1/relations?kind=episode_character')
+        return json({ relations: [{ from_id: 'c_ep1', to_id: 'c_teo', relation: null }] })
+      if (path === '/works/w_1/cards?type=region') return json({ cards: [PORT] })
+      if (method === 'POST' && path === '/works/w_1/drafts') return json({}, 500)
       if (path === '/works/w_1/completeness') return json(completeness)
       if (path.endsWith('/references')) return json({ references: [] })
       if (method === 'DELETE')
@@ -195,21 +206,51 @@ test('milestones show their part; an unassigned one keeps the episodes closed', 
   expect(screen.getByText(strings.story.needParts)).toBeTruthy()
 })
 
-test('every milestone in one part opens the episodes, grouped by the episode table', async () => {
-  serve({
+test('every milestone in one part opens the timeline: parts, lanes, nodes, completeness', async () => {
+  const { calls } = serve({
     parts: [part('c_p2', 2, '남쪽으로'), part('c_p1', 1, '항구')],
     assigned: { ms_1: ['c_p1'], ms_2: ['c_p2'] },
   })
   renderStory()
-  expect(await screen.findByText('1화 귀환')).toBeTruthy()
-  expect(tab(strings.story.stepEpisodes).getAttribute('aria-selected')).toBe('true')
-  const panel = screen.getByRole('tabpanel')
   expect(
-    within(panel)
-      .getAllByRole('heading', { level: 3 })
-      .map((h) => h.textContent),
-  ).toEqual(['제1부 · 항구', '제2부 · 남쪽으로'])
-  expect(within(panel).getAllByRole('button', { name: strings.story.newEpisode })).toHaveLength(2)
+    await screen.findByRole('button', { name: strings.story.openEpisode('1화 귀환') }),
+  ).toBeTruthy()
+  expect(tab(strings.story.stepEpisodes).getAttribute('aria-selected')).toBe('true')
+  // Part bands in order; the last part takes new episodes until another is picked.
+  const first = screen.getByRole('button', { name: '제1부 · 항구' })
+  expect(
+    screen.getByRole('button', { name: '제2부 · 남쪽으로' }).getAttribute('aria-pressed'),
+  ).toBe('true')
+  expect(screen.getByText('북부 항구', { selector: '.timeline-lane-name' })).toBeTruthy()
+  fireEvent.click(first)
+  expect(first.getAttribute('aria-pressed')).toBe('true')
+  fireEvent.click(screen.getByRole('button', { name: strings.story.newEpisodeIn('제1부 · 항구') }))
+  await waitFor(() => {
+    expect(calls.some((c) => c.method === 'POST' && c.path === '/works/w_1/drafts')).toBe(true)
+  })
+  const panel = screen.getByRole('complementary', { name: strings.story.completeness })
+  expect(within(panel).getAllByText(strings.story.noFulfilment)).toHaveLength(2)
+})
+
+test('an episode node turns its card; deleting it offers to join its neighbours', async () => {
+  const { calls } = serve({
+    parts: [part('c_p1', 1, '항구')],
+    assigned: { ms_1: ['c_p1'], ms_2: ['c_p1'] },
+  })
+  renderStory()
+  fireEvent.click(
+    await screen.findByRole('button', { name: strings.story.openEpisode('1화 귀환') }),
+  )
+  const card = await screen.findByRole('dialog', { name: '1화 귀환' })
+  expect(within(card).getByText('테오')).toBeTruthy()
+  fireEvent.click(within(card).getByRole('button', { name: strings.story.delete }))
+  const dialog = await screen.findByRole('alertdialog')
+  const join = within(dialog).getByRole('checkbox', { name: strings.story.reconnect })
+  expect(join).toHaveProperty('checked', true)
+  fireEvent.click(within(dialog).getByRole('button', { name: strings.cardDelete.delete }))
+  await waitFor(() => {
+    expect(calls.find((c) => c.method === 'DELETE')?.path).toBe('/cards/c_ep1?reconnect=true')
+  })
 })
 
 test('deleting a part with episodes asks, moving them to another part by default', async () => {

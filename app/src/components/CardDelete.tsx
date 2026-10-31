@@ -9,6 +9,8 @@ type ConfirmProps = {
   card: Card
   /** A part's episodes (§7): the dialog asks to move them to another part or delete them. */
   partEpisodes?: { count: number; otherParts: { id: string; name: string }[] }
+  /** An episode in a chain (§8): offer to join its prev and next once it is gone. */
+  asksReconnect?: boolean
   onCancel: () => void
   /** The delete went through; it can be undone until `until` (ISO). */
   onDeleted: (until: string) => void
@@ -16,7 +18,13 @@ type ConfirmProps = {
 
 /** 삭제 (§8): names the cards that point at this one, then deletes at once. Red, never the
  * default; the toast that follows can undo it for a few seconds. */
-export function DeleteCardDialog({ card, partEpisodes, onCancel, onDeleted }: ConfirmProps) {
+export function DeleteCardDialog({
+  card,
+  partEpisodes,
+  asksReconnect = false,
+  onCancel,
+  onDeleted,
+}: ConfirmProps) {
   const queryClient = useQueryClient()
   const keep = useRef<HTMLButtonElement>(null)
   const box = useRef<HTMLDivElement>(null)
@@ -27,6 +35,7 @@ export function DeleteCardDialog({ card, partEpisodes, onCancel, onDeleted }: Co
   // A part id to move to, or 'delete'; move is the default whenever there is a part to
   // move to (it keeps the episodes).
   const [episodesTo, setEpisodesTo] = useState<string>(firstOther ?? 'delete')
+  const [reconnect, setReconnect] = useState(true)
   const references = useQuery({
     queryKey: ['card', card.id, 'references'],
     queryFn: () => api.cardReferences(card.id),
@@ -38,10 +47,12 @@ export function DeleteCardDialog({ card, partEpisodes, onCancel, onDeleted }: Co
     setBusy(true)
     setFailed(null)
     try {
-      const deleted = await api.deleteCard(
-        card.id,
-        asksEpisodes ? { episodes: episodesTo === 'delete' ? 'delete' : `move:${episodesTo}` } : {},
-      )
+      const deleted = await api.deleteCard(card.id, {
+        ...(asksEpisodes
+          ? { episodes: episodesTo === 'delete' ? 'delete' : `move:${episodesTo}` }
+          : {}),
+        ...(asksReconnect && reconnect ? { reconnect: true } : {}),
+      })
       await queryClient.invalidateQueries({ queryKey: ['cards', card.work_id] })
       void queryClient.invalidateQueries({ queryKey: ['relations', card.work_id] })
       void queryClient.invalidateQueries({ queryKey: ['completeness', card.work_id] })
@@ -141,6 +152,18 @@ export function DeleteCardDialog({ card, partEpisodes, onCancel, onDeleted }: Co
                 {strings.cardDelete.deleteEpisodes}
               </label>
             </fieldset>
+          )}
+          {asksReconnect && (
+            <label className="card-delete-reconnect">
+              <input
+                type="checkbox"
+                checked={reconnect}
+                onChange={(event) => {
+                  setReconnect(event.target.checked)
+                }}
+              />
+              {strings.story.reconnect}
+            </label>
           )}
           <p>{strings.cardDelete.undoNote}</p>
         </div>

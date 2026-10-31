@@ -57,7 +57,16 @@ def list_cards(
 def work_relations(
     db: Db,
     workId: str,
-    kind: Literal["world", "character", "origin", "parent", "episode_region", "episode_part"],
+    kind: Literal[
+        "world",
+        "character",
+        "origin",
+        "parent",
+        "episode_region",
+        "episode_part",
+        "episode_link",
+        "episode_character",
+    ],
 ) -> CardRelations:
     """함께 보기, the character graph, origin regions, region parents, episode regions and
     the parts episodes belong to."""

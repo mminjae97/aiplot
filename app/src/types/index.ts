@@ -442,7 +442,7 @@ export interface RegionLinkRow {
   direction: string | null
 }
 /**
- * GET /works/{workId}/relations?kind=: relation rows of the work (§6: references come from relation tables). world: world card -> related card (함께 보기, §8). character: character -> character with the relation (관계도). origin: character -> origin region (dex back). parent: region -> its parent region (map areas). episode_region: episode -> region, relation 'main' for locations.main (map badges). episode_part: episode -> its part, relation = its order within the part (story).
+ * GET /works/{workId}/relations?kind=: relation rows of the work (§6: references come from relation tables). world: world card -> related card (함께 보기, §8). character: character -> character with the relation (관계도). origin: character -> origin region (dex back). parent: region -> its parent region (map areas). episode_region: episode -> region, relation 'main' for locations.main (map badges). episode_part: episode -> its part, relation = its order within the part (story). episode_link: episode -> episode, relation 'order' (comes right before) or 'cause'. episode_character: episode -> character (timeline card back).
  */
 export interface CardRelations {
   relations: CardRelation[]

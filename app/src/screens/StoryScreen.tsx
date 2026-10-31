@@ -3,6 +3,11 @@ import { type KeyboardEvent, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { CardDrawer, type DrawerRequest } from '../components/CardDrawer'
 import { DeleteCardDialog, UndoToast } from '../components/CardDelete'
+import { CompletenessPanel } from '../components/CompletenessPanel'
+import { EpisodeBack, EpisodeFront } from '../components/EpisodeCard'
+import { EpisodeTimeline } from '../components/EpisodeTimeline'
+import { FlipCard } from '../components/FlipCard'
+import { timelineOf } from '../components/storyLayout'
 import { TopBar } from '../components/TopBar'
 import { useNavigation } from '../stores/navigation'
 import { strings } from '../strings'
@@ -32,6 +37,8 @@ export function StoryScreen({ workId }: Props) {
   const [drawer, setDrawer] = useState<DrawerRequest | null>(null)
   const [deleting, setDeleting] = useState<Card | null>(null)
   const [undo, setUndo] = useState<{ card: Card; until: string } | null>(null)
+  const [picked, setPicked] = useState<{ id: string; origin: DOMRect | null } | null>(null)
+  const [chosenPart, setPart] = useState<string | null>(null)
   const tabRefs = useRef(new Map<Step, HTMLButtonElement>())
 
   const work = useQuery({ queryKey: ['works', workId], queryFn: () => api.getWork(workId) })
@@ -50,6 +57,26 @@ export function StoryScreen({ workId }: Props) {
   const placement = useQuery({
     queryKey: ['relations', workId, 'episode_part'],
     queryFn: () => api.relations(workId, 'episode_part'),
+  })
+  const links = useQuery({
+    queryKey: ['relations', workId, 'episode_link'],
+    queryFn: () => api.relations(workId, 'episode_link'),
+  })
+  const settings = useQuery({
+    queryKey: ['relations', workId, 'episode_region'],
+    queryFn: () => api.relations(workId, 'episode_region'),
+  })
+  const cast = useQuery({
+    queryKey: ['relations', workId, 'episode_character'],
+    queryFn: () => api.relations(workId, 'episode_character'),
+  })
+  const regions = useQuery({
+    queryKey: ['cards', workId, 'region'],
+    queryFn: () => api.listCards(workId, { type: 'region' }),
+  })
+  const all = useQuery({
+    queryKey: ['cards', workId, 'all'],
+    queryFn: () => api.listCards(workId),
   })
   const completeness = useQuery({
     queryKey: ['completeness', workId],
@@ -72,6 +99,26 @@ export function StoryScreen({ workId }: Props) {
       ? `${strings.story.partLabel(order + 1)}${part.data.title ? ` · ${part.data.title}` : ''}`
       : strings.drawer.untitled
   }
+
+  const names = new Map(
+    (all.data?.cards ?? []).flatMap((card) => (card.name ? [[card.id, card.name] as const] : [])),
+  )
+  const episodeById = new Map(episodes.map((card) => [card.id, card]))
+  const timeline = timelineOf({
+    parts: parts.map((part) => ({ id: part.id, label: partName(part.id) })),
+    placement: placement.data?.relations ?? [],
+    settings: settings.data?.relations ?? [],
+    links: links.data?.relations ?? [],
+    milestones,
+    regions: new Map(
+      (regions.data?.cards ?? []).map((card) => [card.id, card.name ?? strings.drawer.untitled]),
+    ),
+    nowhere: strings.story.nowhere,
+  })
+  // New episodes go to the part picked on the timeline; until then, the last part.
+  const selectedPart = parts.find((part) => part.id === chosenPart)?.id ?? parts.at(-1)?.id ?? null
+  const current = picked ? (episodeById.get(picked.id) ?? null) : null
+  if (picked && episodeCards.isSuccess && current === null) setPicked(null)
 
   // Nothing is decided (open steps, empty states) before the cards and milestones are in.
   const loaded = mains.isSuccess && partCards.isSuccess && completeness.isSuccess
@@ -112,7 +159,7 @@ export function StoryScreen({ workId }: Props) {
     parts: strings.story.stepParts,
     episodes: strings.story.stepEpisodes,
   }
-  const busy = drawer !== null || deleting !== null
+  const busy = drawer !== null || deleting !== null || current !== null
   const loadFailed =
     mains.isError ||
     partCards.isError ||
@@ -327,51 +374,78 @@ export function StoryScreen({ workId }: Props) {
                   {partsOpen ? strings.story.needParts : strings.story.needMain}
                 </p>
               ) : (
-                <ol className="story-parts">
-                  {parts.map((part, index) => {
-                    const inPart = (placement.data?.relations ?? [])
-                      .filter((row) => row.to_id === part.id)
-                      .flatMap((row) => episodes.find((card) => card.id === row.from_id) ?? [])
-                    return (
-                      <li key={part.id} className="story-part">
-                        <h3>{partName(part.id, index)}</h3>
-                        {inPart.length === 0 ? (
-                          <p className="dex-undecided">{strings.story.noEpisodes}</p>
-                        ) : (
-                          <ol className="story-episodes">
-                            {inPart.map((episode) => (
-                              <li key={episode.id}>
-                                <span>{episode.name ?? strings.drawer.untitled}</span>
-                                {episode.status === 'incomplete' && (
-                                  <span className="dex-incomplete">
-                                    {' '}
-                                    · {strings.dex.incomplete}
-                                  </span>
-                                )}
-                                {actions(episode)}
-                              </li>
-                            ))}
-                          </ol>
-                        )}
-                        {!locked && (
-                          <button
-                            type="button"
-                            className="paper-button story-add"
-                            onClick={() => {
-                              setDrawer({ workId, type: 'episode', part_id: part.id })
-                            }}
-                          >
-                            {strings.story.newEpisode}
-                          </button>
-                        )}
-                      </li>
-                    )
-                  })}
-                </ol>
+                <div className="story-board">
+                  <div className="story-timeline">
+                    <div className="story-toolbar">
+                      {!locked && (
+                        <button
+                          type="button"
+                          className="paper-button"
+                          disabled={selectedPart === null}
+                          title={selectedPart === null ? strings.story.selectPartFirst : undefined}
+                          onClick={() => {
+                            if (selectedPart) {
+                              setDrawer({ workId, type: 'episode', part_id: selectedPart })
+                            }
+                          }}
+                        >
+                          {strings.story.newEpisodeIn(
+                            selectedPart ? partName(selectedPart) : strings.drawer.kind.part,
+                          )}
+                        </button>
+                      )}
+                      <span className="story-legend">
+                        <span>{strings.story.legendOrder}</span>
+                        <span>{strings.story.legendCause}</span>
+                        <span>{strings.story.legendMarker}</span>
+                      </span>
+                    </div>
+                    <EpisodeTimeline
+                      timeline={timeline}
+                      episodes={episodeById}
+                      milestones={milestones}
+                      selectedPart={selectedPart}
+                      onSelectPart={setPart}
+                      onPick={(id, origin) => {
+                        setPicked({ id, origin })
+                      }}
+                    />
+                  </div>
+                  <CompletenessPanel completeness={completeness.data} names={names} />
+                </div>
               ))}
           </div>
         </section>
       </main>
+      {current && picked && (
+        <FlipCard
+          origin={picked.origin}
+          label={current.name ?? strings.drawer.untitled}
+          covered={deleting !== null}
+          onClose={() => {
+            setPicked(null)
+          }}
+          front={<EpisodeFront card={current} />}
+          back={
+            <EpisodeBack
+              card={current}
+              names={names}
+              characters={(cast.data?.relations ?? [])
+                .filter((row) => row.from_id === current.id)
+                .map((row) => row.to_id)}
+              completeness={completeness.data}
+              locked={locked}
+              onEdit={() => {
+                setPicked(null)
+                setDrawer({ workId, type: 'episode', card_id: current.id })
+              }}
+              onDelete={() => {
+                setDeleting(current)
+              }}
+            />
+          }
+        />
+      )}
       {drawer && (
         <CardDrawer
           request={drawer}
@@ -386,6 +460,14 @@ export function StoryScreen({ workId }: Props) {
       {deleting && (
         <DeleteCardDialog
           card={deleting}
+          asksReconnect={
+            isEpisode(deleting) &&
+            (links.data?.relations ?? []).some(
+              (row) =>
+                row.relation === 'order' &&
+                (row.from_id === deleting.id || row.to_id === deleting.id),
+            )
+          }
           partEpisodes={
             isPart(deleting)
               ? {
@@ -404,6 +486,7 @@ export function StoryScreen({ workId }: Props) {
           onDeleted={(until) => {
             setUndo({ card: deleting, until })
             setDeleting(null)
+            setPicked(null)
           }}
         />
       )}

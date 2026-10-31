@@ -307,3 +307,29 @@ def test_episode_parts_come_from_the_episode_table(
     save(conn, fixture("episode", id="c_ep1"))
     rows = get(client, "/works/w_01/relations?kind=episode_part")["relations"]
     assert rows == [{"from_id": "c_ep1", "to_id": "c_part1", "relation": "1"}]
+
+
+def test_episode_links_and_characters_come_from_the_relation_tables(
+    client: TestClient, conn: sqlite3.Connection
+) -> None:
+    story(conn)
+    save(conn, fixture("episode", id="c_ep1"))
+    second = fixture("episode", id="c_ep2", name="2화")
+    second["data"] = {
+        **second["data"],
+        "links": {"prev": "c_ep1", "next": None, "causes": ["c_ep1"]},
+        "foreshadowing": {"plants": [], "payoffs": []},
+        "characters": ["c_mira"],
+    }
+    save(conn, second)
+    links = get(client, "/works/w_01/relations?kind=episode_link")["relations"]
+    assert sorted((r["from_id"], r["to_id"], r["relation"]) for r in links) == [
+        ("c_ep1", "c_ep2", "order"),
+        ("c_ep2", "c_ep1", "cause"),
+    ]
+    people = get(client, "/works/w_01/relations?kind=episode_character")["relations"]
+    assert sorted((r["from_id"], r["to_id"]) for r in people) == [
+        ("c_ep1", "c_mira"),
+        ("c_ep1", "c_teo"),
+        ("c_ep2", "c_mira"),
+    ]

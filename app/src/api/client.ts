@@ -132,7 +132,15 @@ export const api = {
   completeness: (workId: string) => request<Completeness>(`${work(workId)}/completeness`),
   relations: (
     workId: string,
-    kind: 'world' | 'character' | 'origin' | 'parent' | 'episode_region' | 'episode_part',
+    kind:
+      | 'world'
+      | 'character'
+      | 'origin'
+      | 'parent'
+      | 'episode_region'
+      | 'episode_part'
+      | 'episode_link'
+      | 'episode_character',
   ) => request<CardRelations>(`${work(workId)}/relations?kind=${kind}`),
   regionLinks: (workId: string) => request<RegionLinks>(`${work(workId)}/region-links`),
   /** PATCH /cards/{cardId}: a region's map position, the only directly edited values (§6). */
@@ -142,13 +150,15 @@ export const api = {
       body: JSON.stringify({ map_x: mapX, map_y: mapY }),
     }),
   /** DELETE /cards/{cardId}; a part with episodes needs `episodes` (move:{partId} | delete). */
-  deleteCard: (cardId: string, options: { episodes?: string } = {}) =>
-    request<CardDeleted>(
-      `/cards/${encodeURIComponent(cardId)}${
-        options.episodes ? `?episodes=${encodeURIComponent(options.episodes)}` : ''
-      }`,
-      { method: 'DELETE' },
-    ),
+  deleteCard: (cardId: string, options: { episodes?: string; reconnect?: boolean } = {}) => {
+    const query = new URLSearchParams()
+    if (options.episodes) query.set('episodes', options.episodes)
+    if (options.reconnect) query.set('reconnect', 'true')
+    const search = query.size > 0 ? `?${query.toString()}` : ''
+    return request<CardDeleted>(`/cards/${encodeURIComponent(cardId)}${search}`, {
+      method: 'DELETE',
+    })
+  },
   restoreCard: (cardId: string) =>
     request<Card>(`/cards/${encodeURIComponent(cardId)}/restore`, { method: 'POST' }),
   cardReferences: (cardId: string) =>
