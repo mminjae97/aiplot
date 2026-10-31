@@ -1,0 +1,13 @@
+{
+ "id": "dr_1a2b",
+ "work_id": "w_01",
+ "type": "character",
+ "card_id": null,
+ "category": null,
+ "part_id": null,
+ "notes": "",
+ "sentences": [],
+ "turns": [{"role": "system", "text": "x"}],
+ "pinned": [],
+ "generated": null
+}
