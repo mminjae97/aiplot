@@ -12,7 +12,7 @@ export function ServerScreen({ state }: Props) {
   if (state?.status !== 'error') {
     return (
       <div className="screen">
-        <TopBar />
+        <TopBar showSetup={false} />
         <main className="server-screen" aria-busy="true">
           <p role="status">{strings.server.starting}</p>
         </main>
@@ -21,7 +21,7 @@ export function ServerScreen({ state }: Props) {
   }
   return (
     <div className="screen">
-      <TopBar />
+      <TopBar showSetup={false} />
       <main className="server-screen">
         <h1>{strings.server.errorTitle}</h1>
         <p>{state.reason === 'missing' ? strings.server.missing : strings.server.failed}</p>

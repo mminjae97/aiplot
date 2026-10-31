@@ -1,5 +1,18 @@
 import { useServer } from '../stores/server'
-import type { ApiError, Cover, CoverList, Work, WorkCreate, WorkList, WorkUpdate } from '../types'
+import type {
+  ApiError,
+  Cover,
+  CoverList,
+  HealthResponse,
+  Job,
+  JobAccepted,
+  SetupPathsRequest,
+  SetupStatus,
+  Work,
+  WorkCreate,
+  WorkList,
+  WorkUpdate,
+} from '../types'
 
 const API_PREFIX = '/api/v1'
 
@@ -29,7 +42,7 @@ function isApiError(value: unknown): value is ApiError {
   )
 }
 
-async function send(path: string, init: RequestInit): Promise<Response> {
+export async function send(path: string, init: RequestInit): Promise<Response> {
   const server = useServer.getState().state
   if (server?.status !== 'ready') {
     throw new ApiRequestError(0, {
@@ -69,7 +82,19 @@ async function requestBlob(path: string): Promise<Blob> {
 
 const work = (workId: string) => `/works/${encodeURIComponent(workId)}`
 
+const job = (jobId: string) => `/jobs/${encodeURIComponent(jobId)}`
+
 export const api = {
+  health: () => request<HealthResponse>('/health'),
+  setup: () => request<SetupStatus>('/setup'),
+  startDownload: () => request<JobAccepted>('/setup/download', { method: 'POST' }),
+  setPaths: (body: SetupPathsRequest) =>
+    request<JobAccepted>('/setup/paths', { method: 'PUT', body: JSON.stringify(body) }),
+  retryLlama: () => request<null>('/setup/retry', { method: 'POST' }),
+  getJob: (jobId: string) => request<Job>(job(jobId)),
+  pauseJob: (jobId: string) => request<Job>(`${job(jobId)}/pause`, { method: 'POST' }),
+  resumeJob: (jobId: string) => request<Job>(`${job(jobId)}/resume`, { method: 'POST' }),
+  cancelJob: (jobId: string) => request<Job>(`${job(jobId)}/cancel`, { method: 'POST' }),
   listWorks: () => request<WorkList>('/works'),
   getWork: (workId: string) => request<Work>(work(workId)),
   createWork: (body: WorkCreate) =>

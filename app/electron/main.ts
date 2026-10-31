@@ -1,7 +1,17 @@
 import { join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, ipcMain, screen, session, type IpcMainInvokeEvent } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  screen,
+  session,
+  type IpcMainInvokeEvent,
+  type OpenDialogOptions,
+} from 'electron'
 import type { ServerState } from '../src/api/bridge'
+import { strings } from '../src/strings'
 import { type ServerCommand, ServerSupervisor } from './processes'
 import { minimumWindowSize, type Size } from './windowSize'
 // The user's logo (app/build/icon.png) trimmed to its rounded square; bundled for the window.
@@ -249,6 +259,21 @@ if (!app.requestSingleInstanceLock()) {
         appWindow(event).close()
       })
       ipcMain.handle('window:is-maximized', (event) => appWindow(event).isMaximized())
+      // Files the user already has (S0-1); the server checks them before use.
+      const pick = async (event: IpcMainInvokeEvent, options: OpenDialogOptions) => {
+        const result = await dialog.showOpenDialog(appWindow(event), options)
+        return result.canceled ? null : (result.filePaths[0] ?? null)
+      }
+      ipcMain.handle('dialog:pick-model', (event) =>
+        pick(event, {
+          title: strings.setup.pickModelTitle,
+          properties: ['openFile'],
+          filters: [{ name: 'GGUF', extensions: ['gguf'] }],
+        }),
+      )
+      ipcMain.handle('dialog:pick-folder', (event) =>
+        pick(event, { title: strings.setup.pickFolderTitle, properties: ['openDirectory'] }),
+      )
       server.start()
       mainWindow = createWindow()
     })
