@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { needsSetup, useHealth, useSetupWatcher } from './api/setup'
+import { CharacterDexScreen } from './screens/CharacterDexScreen'
 import { ContentsPage } from './screens/ContentsPage'
 import { LibraryScreen } from './screens/LibraryScreen'
 import { ServerScreen } from './screens/ServerScreen'
@@ -24,6 +25,15 @@ function Connected({ baseUrl }: { baseUrl: string }) {
   }, [health.data, open])
 
   if (screen.name === 'setup') return <SetupScreen />
+  if (screen.name === 'characters') {
+    return (
+      <CharacterDexScreen
+        key={`${baseUrl}:${screen.workId}:${screen.cardId ?? ''}`}
+        workId={screen.workId}
+        cardId={screen.cardId}
+      />
+    )
+  }
   if (screen.name === 'world') {
     return <WorldBookScreen key={`${baseUrl}:${screen.workId}`} workId={screen.workId} />
   }

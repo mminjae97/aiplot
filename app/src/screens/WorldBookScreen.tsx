@@ -276,8 +276,18 @@ export function WorldBookScreen({ workId }: Props) {
                           >
                             {card.name}
                           </button>
+                        ) : card.type === 'character' ? (
+                          <button
+                            type="button"
+                            className="world-link"
+                            onClick={() => {
+                              open({ name: 'characters', workId, cardId: card.id })
+                            }}
+                          >
+                            {card.name}
+                          </button>
                         ) : (
-                          // The dex and the map (step 1 units 11-12) become links once they exist.
+                          // The region map (step 1 unit 12) becomes a link once it exists.
                           <span>{card.name}</span>
                         )}
                         <span className="chat-mention-kind"> {strings.drawer.kind[card.type]}</span>

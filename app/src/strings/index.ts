@@ -338,6 +338,18 @@ export const strings = {
     undo: '되돌리기',
     restoreFailed: '되돌리지 못했어요. 되돌릴 수 있는 시간이 지났어요.',
   },
+  dex: {
+    title: '캐릭터 도감',
+    newCard: '새 캐릭터',
+    empty: '아직 캐릭터가 없어요. + 카드를 눌러 첫 캐릭터를 만들어 보세요.',
+    incomplete: '미완성',
+    close: '닫기',
+    flip: (name: string) => `${name} 카드 뒤집어 보기`,
+    editSource: '원문 수정',
+    delete: '삭제',
+    locked: '기획 단계가 잠겨 있어 읽기만 할 수 있어요.',
+    loadFailed: '캐릭터를 불러오지 못했어요.',
+  },
   worldBook: {
     title: '세계관',
     tabs: '분류',

@@ -124,6 +124,7 @@ export function ContentsPage({ workId }: Props) {
                             onClick={() => {
                               const type = ITEM_TYPES[index]
                               if (type === 'world') open({ name: 'world', workId })
+                              else if (type === 'character') open({ name: 'characters', workId })
                               else if (type) setDrawer({ workId, type })
                               else setChoosingStory((v) => !v)
                             }}

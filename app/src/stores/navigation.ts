@@ -8,6 +8,8 @@ export type Screen =
   | { name: 'setup' }
   // S1-0 world book (§8)
   | { name: 'world'; workId: string }
+  // S1-1 dex (§8); cardId = the card to pick up on arrival (a world book link)
+  | { name: 'characters'; workId: string; cardId?: string }
 
 interface NavigationStore {
   screen: Screen
