@@ -1,8 +1,11 @@
 import { useServer } from '../stores/server'
 import type {
   ApiError,
+  CardList,
   Cover,
   CoverList,
+  Draft,
+  DraftCreate,
   HealthResponse,
   Job,
   JobAccepted,
@@ -83,6 +86,7 @@ async function requestBlob(path: string): Promise<Blob> {
 const work = (workId: string) => `/works/${encodeURIComponent(workId)}`
 
 const job = (jobId: string) => `/jobs/${encodeURIComponent(jobId)}`
+const draft = (draftId: string) => `/drafts/${encodeURIComponent(draftId)}`
 
 export const api = {
   health: () => request<HealthResponse>('/health'),
@@ -95,6 +99,22 @@ export const api = {
   pauseJob: (jobId: string) => request<Job>(`${job(jobId)}/pause`, { method: 'POST' }),
   resumeJob: (jobId: string) => request<Job>(`${job(jobId)}/resume`, { method: 'POST' }),
   cancelJob: (jobId: string) => request<Job>(`${job(jobId)}/cancel`, { method: 'POST' }),
+  listCards: (workId: string, filter: { type?: string; q?: string } = {}) => {
+    const query = new URLSearchParams()
+    if (filter.type) query.set('type', filter.type)
+    if (filter.q) query.set('q', filter.q)
+    const suffix = query.size > 0 ? `?${query.toString()}` : ''
+    return request<CardList>(`${work(workId)}/cards${suffix}`)
+  },
+  createDraft: (workId: string, body: DraftCreate) =>
+    request<Draft>(`${work(workId)}/drafts`, { method: 'POST', body: JSON.stringify(body) }),
+  getDraft: (draftId: string) => request<Draft>(draft(draftId)),
+  putSource: (draftId: string, notes: string) =>
+    request<Draft>(`${draft(draftId)}/source`, {
+      method: 'PUT',
+      body: JSON.stringify({ notes }),
+    }),
+  deleteDraft: (draftId: string) => request<null>(draft(draftId), { method: 'DELETE' }),
   listWorks: () => request<WorkList>('/works'),
   getWork: (workId: string) => request<Work>(work(workId)),
   createWork: (body: WorkCreate) =>

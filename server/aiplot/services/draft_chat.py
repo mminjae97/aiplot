@@ -15,6 +15,7 @@ from aiplot.db import cards as cards_db
 from aiplot.generated.drafts.message_events import (
     DraftDoneEvent,
     DraftErrorEvent,
+    DraftRepliedEvent,
     DraftReplyEvent,
     DraftSourceEvent,
 )
@@ -165,6 +166,7 @@ async def events(router: Router, turn: Turn) -> AsyncIterator[tuple[str, BaseMod
     if not turn.text:
         # The AI's opening question: nothing to fold into the notes yet.
         return
+    yield "replied", DraftRepliedEvent(text=reply)
     messages = context.source_turns(turn.notes, turn.names, draft.type, turn.text, reply)
     try:
         revised, output = await revise(router, messages, turn.notes)

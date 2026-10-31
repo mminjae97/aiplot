@@ -1,0 +1,366 @@
+/* The card drawer (§8): a sheet of paper over the dimmed screen, about 70% wide. Chat and
+   source notes on the left, the card on the right. */
+
+.drawer-backdrop {
+  position: fixed;
+  inset: var(--top-bar) 0 0;
+  z-index: 10;
+  display: flex;
+  justify-content: flex-end;
+  background: rgb(30 18 10 / 45%);
+}
+
+.drawer {
+  display: flex;
+  flex-direction: column;
+  width: min(70%, 1180px);
+  min-width: min(720px, 100%);
+  height: 100%;
+  background: var(--paper);
+  box-shadow: -18px 0 40px var(--wood-shadow);
+  animation: drawer-in 0.25s ease-out;
+}
+
+.drawer:focus {
+  outline: none;
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(40px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer {
+    animation: none;
+  }
+}
+
+.drawer-head {
+  position: relative;
+  padding: 18px 64px 14px 28px;
+  border-bottom: 1px solid var(--paper-edge);
+}
+
+.drawer-kind {
+  color: var(--brass);
+  font-size: var(--size-small);
+  font-weight: 700;
+}
+
+.drawer-head h2 {
+  font-size: var(--size-title);
+  overflow-wrap: anywhere;
+}
+
+.drawer-close {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--control);
+  color: var(--ink-soft);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.drawer-close:hover {
+  background: var(--control-hover);
+  color: var(--ink);
+}
+
+.drawer-body {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  min-height: 0;
+  padding: 0;
+}
+
+p.drawer-body {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+}
+
+.drawer-left {
+  display: grid;
+  grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr);
+  min-height: 0;
+  border-right: 1px solid var(--paper-edge);
+}
+
+.drawer-section-title {
+  margin-bottom: 8px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  font-weight: 700;
+}
+
+.drawer-preview {
+  padding: 18px 28px;
+  overflow-y: auto;
+}
+
+/* Chat */
+.chat {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 16px 24px 12px 28px;
+  border-bottom: 1px solid var(--paper-edge);
+}
+
+.chat-log {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0 4px 0 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.chat-log li {
+  max-width: 88%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  white-space: pre-wrap;
+}
+
+.chat-log li[data-role='ai'] {
+  align-self: flex-start;
+  background: var(--control);
+}
+
+.chat-log li[data-role='user'] {
+  align-self: flex-end;
+  border: 1px solid var(--paper-edge);
+}
+
+.chat-who {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.chat-status,
+.chat-error {
+  margin-top: 8px;
+  font-size: var(--size-small);
+}
+
+.chat-status {
+  color: var(--ink-soft);
+}
+
+.chat-error {
+  padding: 6px 10px;
+  border-left: 3px solid var(--danger);
+  color: var(--danger);
+}
+
+.chat-input {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-top: 10px;
+}
+
+.chat-input textarea {
+  flex: 1;
+  min-height: 52px;
+  padding: 8px 10px;
+  border: 1px solid var(--ink-faint);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 35%);
+  font: inherit;
+  resize: vertical;
+}
+
+.chat-input textarea:focus-visible {
+  outline: none;
+  border-color: var(--brass);
+  box-shadow: 0 0 0 1px var(--brass);
+}
+
+.chat-mentions {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  z-index: 2;
+  min-width: 220px;
+  margin: 0;
+  padding: 4px 0;
+  background: var(--paper);
+  box-shadow: 0 8px 22px var(--wood-shadow);
+  list-style: none;
+}
+
+.chat-mentions li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+
+.chat-mentions li[aria-selected='true'] {
+  background: var(--paper-edge);
+}
+
+.chat-mention-kind {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+/* Source notes */
+.notes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  padding: 14px 24px 16px 28px;
+  overflow-y: auto;
+}
+
+.notes-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.notes-head .paper-button,
+.notes-name .paper-button,
+.notes-actions .paper-button {
+  padding: 3px 10px;
+  font-size: var(--size-small);
+}
+
+.notes-sentences {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  line-height: 1.7;
+}
+
+.notes-sentences li {
+  display: inline;
+}
+
+.notes-sentences li + li::before {
+  content: ' ';
+}
+
+/* Sentences the last turn wrote: a brass underline and tint until the next turn, arriving
+   with a short glow (§8; motion 0.3 s, §5). */
+.notes-sentences li[data-changed] {
+  background: rgb(212 174 92 / 18%);
+  text-decoration: underline 2px var(--brass);
+  text-underline-offset: 3px;
+  animation: sentence-fresh 0.3s ease-out;
+}
+
+@keyframes sentence-fresh {
+  from {
+    background: rgb(212 174 92 / 55%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notes-sentences li[data-changed] {
+    animation: none;
+  }
+}
+
+.notes-empty {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.notes-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notes-edit textarea {
+  min-height: 160px;
+  padding: 8px 10px;
+  border: 1px solid var(--ink-faint);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 35%);
+  font: inherit;
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.notes-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.notes-name {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border-left: 3px solid var(--warning);
+  background: rgb(184 100 28 / 8%);
+  font-size: var(--size-small);
+}
+
+.notes-name p {
+  flex: 1 1 100%;
+}
+
+.notes-questions h4 {
+  margin: 0 0 4px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.notes-questions ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: var(--size-small);
+}
+
+/* Contents: until the planning screens exist, items open the drawer. */
+.contents-item {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.contents-item:hover {
+  color: var(--brass);
+}
+
+.story-chooser {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.story-chooser .paper-button {
+  padding: 3px 10px;
+  font-size: var(--size-small);
+}

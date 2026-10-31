@@ -16,6 +16,13 @@ class DraftReplyEvent(BaseModel):
     text: StrictStr
 
 
+class DraftRepliedEvent(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    text: StrictStr
+
+
 type ChangedItem = Annotated[StrictInt, Field(ge=0)]
 
 
@@ -45,9 +52,9 @@ class DraftSourceEvent(BaseModel):
 
 
 type DraftMessageEvent = Annotated[
-    DraftReplyEvent | DraftSourceEvent | DraftErrorEvent | DraftDoneEvent,
+    DraftReplyEvent | DraftRepliedEvent | DraftSourceEvent | DraftErrorEvent | DraftDoneEvent,
     Field(
-        description="data of the SSE events of POST /drafts/{draftId}/messages; the SSE event name is the type. Order: reply* then source (unless the turn was the AI's opening), or error; always done last.",
+        description="data of the SSE events of POST /drafts/{draftId}/messages; the SSE event name is the type. Order: reply*, then (unless the turn was the AI's opening) replied and source, or error at any point; always done last. The event name tells them apart (reply and replied share a shape), hence anyOf.",
         title="DraftMessageEvent",
     ),
 ]
