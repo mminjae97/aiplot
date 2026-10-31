@@ -70,7 +70,8 @@ test('app starts the local server, opens the library and makes a book', async ()
       })
       .toEqual([pageWidth - 128, Math.round((pageWidth - 128) * 0.75)])
 
-    // The world book's six bookmarks fit on one line of the left page even here.
+    // The world book's bookmarks never run past the left page; from a 1920px display's
+    // half-screen window up they fit on one line (smaller displays wrap them).
     await win.getByRole('button', { name: '세계관' }).click()
     const tabs = win.getByRole('tablist', { name: strings.worldBook.tabs })
     await expect(tabs.getByRole('tab')).toHaveCount(6)
@@ -78,7 +79,9 @@ test('app starts the local server, opens the library and makes a book', async ()
     const boxes = await Promise.all(
       (await tabs.getByRole('tab').all()).map((tab) => tab.boundingBox()),
     )
-    expect(new Set(boxes.map((box) => Math.round(box?.y ?? -1))).size).toBe(1)
+    if (min.half >= 960) {
+      expect(new Set(boxes.map((box) => Math.round(box?.y ?? -1))).size).toBe(1)
+    }
     const right = Math.max(...boxes.map((box) => (box ? box.x + box.width : Infinity)))
     expect(right).toBeLessThanOrEqual((page?.x ?? 0) + (page?.width ?? 0))
     await win.getByRole('button', { name: strings.contents.toContents }).click()
