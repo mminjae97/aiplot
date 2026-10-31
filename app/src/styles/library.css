@@ -81,6 +81,8 @@
 .bookcase {
   /* how deep the side walls read in perspective (the boards' top faces narrow as much) */
   --wall-depth: 28px;
+  /* the boards' top faces, seen from above */
+  --board-top: 34px;
   position: relative;
   flex: 1;
   padding: 0 0 var(--bookcase-bottom);
@@ -145,12 +147,24 @@
   pointer-events: none;
 }
 
+/* Where the panel meets the board, deep at the back of the compartment, it lies in shadow. */
+.shelf::after {
+  content: '';
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--board) + var(--board-top));
+  height: 60px;
+  background: linear-gradient(180deg, transparent, rgb(0 0 0 / 24%));
+  pointer-events: none;
+}
+
 /* Above the board's top face, which the books stand on (a little in from its front edge). */
 .shelf-row {
   position: relative;
-  /* over the boards' top faces and the walls */
+  /* over the boards' top faces and the walls; the books stand toward the front edge */
   z-index: 4;
-  top: -5px;
+  top: -10px;
   width: var(--row-width);
   margin: 0 auto;
 }
@@ -191,9 +205,9 @@
   left: 0;
   right: 0;
   bottom: 100%;
-  height: 14px;
+  height: var(--board-top);
   background:
-    linear-gradient(180deg, rgb(0 0 0 / 38%), rgb(0 0 0 / 8%) 70%, rgb(255 255 255 / 10%)),
+    linear-gradient(180deg, rgb(0 0 0 / 42%), rgb(0 0 0 / 10%) 65%, rgb(255 255 255 / 10%)),
     image-set(url('../assets/wood/board.webp') 1x, url('../assets/wood/board@2x.webp') 2x) 0 0 /
       1400px 60px,
     var(--wood-board);
@@ -224,20 +238,15 @@
   background: var(--paper-edge);
 }
 
-/* Books are on display, all the same size (1:1.5), facing out: each one's foot rests on a
-   stand at the front of the board and its top leans back against the panel. Hover or focus
-   lifts it off the stand, upright. */
-.bookcase {
-  --lean: 11deg;
-}
-
+/* Books are on display, all the same size (1:1.5): each one's foot rests on a stand at the
+   front of the board and its top leans back (about 14°) against the panel. The view looks
+   down along the books, so they face the viewer squarely and the case is what recedes: deep
+   top faces on the boards and stands. Hover or focus lifts a book off its stand. */
 .book,
 .book-slot {
   position: relative;
   width: var(--book-width);
   height: var(--cover-height);
-  perspective: 900px;
-  perspective-origin: 50% 40%;
 }
 
 .book:hover,
@@ -262,19 +271,16 @@
   background: none;
 }
 
-/* Leaning back about its foot: the top recedes toward the panel. */
 .book .book-cover,
 .book-slot .book-new {
-  transform-origin: 50% 100%;
-  transform: rotateX(var(--lean));
   transition: transform 0.25s ease-out;
 }
 
-/* The book's shadow on the panel, highest where its top touches it, and the darker patch
-   where its foot stands. */
+/* The book's shadow: close around the top, where it touches the panel, and the darker patch
+   on the board where its foot stands. */
 .book-shadow {
   position: absolute;
-  inset: 4px -4px 6px 10px;
+  inset: 2px -6px 4px 8px;
   background: rgb(0 0 0 / 40%);
   filter: blur(9px);
   border-radius: 6px;
@@ -293,23 +299,24 @@
   border-radius: 50%;
 }
 
-/* The display stand: a wooden ledge with a brass lip in front of the book's foot, holding it
-   at the front of the board. */
+/* The display stand: a wooden ledge in front of the book's foot, its top face seen from
+   above, a brass lip along its front edge. */
 .book-stand {
   position: absolute;
   z-index: 1;
   left: -8px;
   right: -8px;
-  bottom: -3px;
-  height: 18px;
+  bottom: -6px;
+  height: 22px;
   background:
     linear-gradient(
       180deg,
-      var(--brass-bright) 0 2px,
-      var(--brass) 2px 4px,
-      rgb(255 255 255 / 14%) 4px 5px,
-      transparent 5px 60%,
-      rgb(0 0 0 / 30%) 100%
+      rgb(0 0 0 / 30%) 0,
+      rgb(255 255 255 / 12%) 7px,
+      var(--brass-bright) 7px 9px,
+      var(--brass) 9px 11px,
+      transparent 11px 60%,
+      rgb(0 0 0 / 32%) 100%
     ),
     image-set(url('../assets/wood/board.webp') 1x, url('../assets/wood/board@2x.webp') 2x) 0 0 /
       1400px 60px,
@@ -377,7 +384,7 @@
 
 @keyframes book-arrive {
   from {
-    transform: translateY(-24px) rotateX(var(--lean));
+    transform: translateY(-24px);
   }
 }
 
