@@ -128,14 +128,28 @@ type Props = {
 }
 
 /** Region id -> its children among the drawn regions. */
+/** Region id -> its children among the drawn regions. A parent link that would close a loop
+ * (A in B, B in A) is left out, so every area has leaves to wrap. */
 function childrenOf(cards: RegionCard[], parents: CardRelation[]) {
   const drawn = new Set(cards.map((card) => card.id))
-  const children = new Map<string, string[]>()
+  const parentOf = new Map<string, string>()
   for (const row of parents) {
     if (row.from_id === row.to_id || !drawn.has(row.from_id) || !drawn.has(row.to_id)) continue
-    children.set(row.to_id, [...(children.get(row.to_id) ?? []), row.from_id])
+    let up: string | undefined = row.to_id
+    while (up !== undefined && up !== row.from_id) up = parentOf.get(up)
+    if (up === row.from_id) continue
+    parentOf.set(row.from_id, row.to_id)
+  }
+  const children = new Map<string, string[]>()
+  for (const [child, parent] of parentOf) {
+    children.set(parent, [...(children.get(parent) ?? []), child])
   }
   return children
+}
+
+/** Is `id` inside `ancestor` (at any depth)? */
+function inside(id: string, ancestor: string, children: ReadonlyMap<string, string[]>): boolean {
+  return (children.get(ancestor) ?? []).some((kid) => kid === id || inside(id, kid, children))
 }
 
 /** Recomputes the areas around the tokens where they now stand. */
@@ -158,13 +172,16 @@ export function RegionMap({ cards, links, parents, episodes, locked, onPick, onM
   const flow = useRef<ReactFlowInstance<MapNode, JourneyEdge> | null>(null)
   const [children] = useState(() => childrenOf(cards, parents))
   const [edges] = useState<JourneyEdge[]>(() =>
-    linesOf(links, new Set(cards.map((card) => card.id))).map((line) => ({
-      id: line.id,
-      type: 'journey',
-      source: line.a,
-      target: line.b,
-      data: { label: travelText(line.travel) },
-    })),
+    linesOf(links, new Set(cards.map((card) => card.id)))
+      // A region and the area it lies in: no line from inside to the area's own centre.
+      .filter((line) => !inside(line.a, line.b, children) && !inside(line.b, line.a, children))
+      .map((line) => ({
+        id: line.id,
+        type: 'journey',
+        source: line.a,
+        target: line.b,
+        data: { label: travelText(line.travel) },
+      })),
   )
   const [nodes, setNodes] = useState<MapNode[]>(() => {
     const leaves = cards.filter((card) => !children.has(card.id))

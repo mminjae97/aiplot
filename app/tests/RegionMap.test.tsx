@@ -229,3 +229,29 @@ test('the contents item and a world book link both open the map', async () => {
     cardId: 'c_port',
   })
 })
+
+test('a parent loop in bad data draws plain tokens instead of hanging', async () => {
+  serve()
+  const base = vi.mocked(fetch)
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, init?: RequestInit) =>
+      url.endsWith('/relations?kind=parent')
+        ? Promise.resolve(
+            new Response(
+              JSON.stringify({
+                relations: [
+                  { from_id: 'c_port', to_id: 'c_north', relation: null },
+                  { from_id: 'c_north', to_id: 'c_port', relation: null },
+                ],
+              }),
+            ),
+          )
+        : base(url, init),
+    ),
+  )
+  renderWith(<RegionMapScreen workId="w_1" />)
+  // port in north is kept; north in port would close the loop and is dropped.
+  expect((await nodes('region')).map((node) => node.dataset.id)).toEqual(['c_port', 'c_capital'])
+  expect((await nodes('area')).map((node) => node.dataset.id)).toEqual(['c_north'])
+})

@@ -33,6 +33,8 @@ export function RegionMapScreen({ workId, cardId }: Props) {
   const [deleting, setDeleting] = useState<RegionCard | null>(null)
   const [undo, setUndo] = useState<{ card: Card; until: string } | null>(null)
   const [moveFailed, setMoveFailed] = useState(false)
+  // Bumped when a move could not be saved: the map is drawn again from what is saved.
+  const [revision, setRevision] = useState(0)
 
   const work = useQuery({ queryKey: ['works', workId], queryFn: () => api.getWork(workId) })
   const regions = useQuery({
@@ -71,7 +73,8 @@ export function RegionMapScreen({ workId, cardId }: Props) {
   // A link to a region that is not (or no longer) here picks nothing up, now or later.
   if (picked && regions.isSuccess && current === null) setPicked(null)
 
-  const ready = regions.isSuccess && links.isSuccess && parents.isSuccess && settings.isSuccess
+  const ready =
+    regions.isSuccess && all.isSuccess && links.isSuccess && parents.isSuccess && settings.isSuccess
   // Laid out afresh whenever the regions, their lines, parents or episodes change; a saved
   // move alone does not (the token is already where it was dropped).
   const mapKey = JSON.stringify([
@@ -130,7 +133,7 @@ export function RegionMapScreen({ workId, cardId }: Props) {
                 )}
                 {ready && work.data && (
                   <RegionMap
-                    key={`${mapKey}:${String(locked)}`}
+                    key={`${mapKey}:${String(locked)}:${String(revision)}`}
                     cards={cards}
                     links={links.data.links}
                     parents={parents.data.relations}
@@ -146,6 +149,7 @@ export function RegionMapScreen({ workId, cardId }: Props) {
                         .then(() => queryClient.invalidateQueries({ queryKey: ['cards', workId] }))
                         .catch(() => {
                           setMoveFailed(true)
+                          setRevision((n) => n + 1)
                         })
                     }}
                   />
