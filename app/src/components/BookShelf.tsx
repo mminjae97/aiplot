@@ -127,10 +127,12 @@ export function BookShelf({ works, highlight, onOpen, onMenu, onNew }: Props) {
                         aria-describedby={works.length === 0 ? 'shelf-empty-tag' : undefined}
                         onClick={onNew}
                       >
-                        <span className="book-new-plus" aria-hidden="true">
-                          +
+                        <span className="book-new-face">
+                          <span className="book-new-plus" aria-hidden="true">
+                            +
+                          </span>
+                          <span className="book-new-label">{strings.library.newBook}</span>
                         </span>
-                        <span className="book-new-label">{strings.library.newBook}</span>
                       </button>
                     </div>
                   ),

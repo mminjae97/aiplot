@@ -67,8 +67,12 @@ export function BookItem({ work, cover, newest, highlighted, onOpen, onMenu }: P
           onMenu(work, menuPoint(event))
         }}
       >
-        {newest && <span className="book-ribbon" aria-hidden="true" />}
-        <BookFront title={work.title} stage={stage} image={cover ?? null} />
+        {/* The button stays put (a click low on the cover still lands while the book lifts);
+            only the book inside it leans and lifts. */}
+        <span className="book-body">
+          {newest && <span className="book-ribbon" aria-hidden="true" />}
+          <BookFront title={work.title} stage={stage} image={cover ?? null} />
+        </span>
       </button>
       <span className="book-stand" aria-hidden="true" />
       {/* No slip on the shelf (it covered the neighbours); screen readers still hear these. */}

@@ -252,8 +252,6 @@
   position: relative;
   width: var(--book-width);
   height: var(--cover-height);
-  perspective: 1000px;
-  perspective-origin: 50% 20%;
 }
 
 .book:hover,
@@ -261,6 +259,8 @@
   z-index: 3;
 }
 
+/* The buttons never move: the book inside leans and lifts, so the click target stays under
+   the pointer. */
 .book-cover,
 .book-new {
   position: relative;
@@ -269,17 +269,20 @@
   height: 100%;
   padding: 0;
   border: 0;
+  background: none;
   cursor: pointer;
-  transition: transform var(--motion);
+  /* the book inside leans in this perspective */
+  perspective: 1000px;
+  perspective-origin: 50% 20%;
 }
 
 /* A hardcover: the spine at the left, the 1:1.5 front beside it. */
-.book-cover {
-  background: none;
-}
-
-.book .book-cover,
-.book-slot .book-new {
+.book-body,
+.book-new-face {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
   transform-origin: 50% 100%;
   transform: rotateX(calc(var(--lean) - var(--view)));
   transition: transform 0.25s ease-out;
@@ -377,10 +380,10 @@
 
 /* Lifted up out of the stand, upright: the foot rises from behind the stand's front and
    clears its top (the stand is 22px, 6px of it below the book). */
-.book:hover .book-cover,
-.book-cover:focus-visible,
-.book-slot:hover .book-new,
-.book-new:focus-visible {
+.book:hover .book-body,
+.book-cover:focus-visible .book-body,
+.book-slot:hover .book-new-face,
+.book-new:focus-visible .book-new-face {
   transform: translateY(-32px);
 }
 
@@ -389,7 +392,7 @@
   transform: translateY(-14px) scale(1.02);
 }
 
-.book[data-highlighted] .book-cover {
+.book[data-highlighted] .book-body {
   animation: book-arrive 0.3s ease-out;
 }
 
@@ -400,15 +403,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .book .book-cover,
-  .book-slot .book-new,
+  .book-body,
+  .book-new-face,
   .book-shadow {
     transition: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .book[data-highlighted] .book-cover {
+  .book[data-highlighted] .book-body {
     animation: none;
     outline: 2px solid var(--brass-bright);
   }
@@ -488,21 +491,19 @@
 }
 
 /* The "+" book: a glassy blank cover waiting at the end of the row. */
-.book-new {
+.book-new-face {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  width: var(--book-width);
-  height: var(--cover-height);
   color: var(--brass-bright);
   background: rgb(255 248 234 / 7%);
   border: 1px dashed rgb(212 174 92 / 55%);
   border-radius: 1px 3px 3px 1px;
 }
 
-.book-new:hover {
+.book-slot:hover .book-new-face {
   background: rgb(255 248 234 / 13%);
 }
 
