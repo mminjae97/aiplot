@@ -400,16 +400,24 @@ export function StoryScreen({ workId }: Props) {
                         <span>{strings.story.legendMarker}</span>
                       </span>
                     </div>
-                    <EpisodeTimeline
-                      timeline={timeline}
-                      episodes={episodeById}
-                      milestones={milestones}
-                      selectedPart={selectedPart}
-                      onSelectPart={setPart}
-                      onPick={(id, origin) => {
-                        setPicked({ id, origin })
-                      }}
-                    />
+                    {/* Drawn once its places, links and regions are in: no lane jumps. */}
+                    {placement.isSuccess &&
+                    settings.isSuccess &&
+                    links.isSuccess &&
+                    regions.isSuccess ? (
+                      <EpisodeTimeline
+                        timeline={timeline}
+                        episodes={episodeById}
+                        milestones={milestones}
+                        selectedPart={selectedPart}
+                        onSelectPart={setPart}
+                        onPick={(id, origin) => {
+                          setPicked({ id, origin })
+                        }}
+                      />
+                    ) : (
+                      <span className="spinner" aria-hidden="true" />
+                    )}
                   </div>
                   <CompletenessPanel completeness={completeness.data} names={names} />
                 </div>
@@ -461,11 +469,13 @@ export function StoryScreen({ workId }: Props) {
         <DeleteCardDialog
           card={deleting}
           asksReconnect={
+            // The server joins prev and next only when the episode has both.
             isEpisode(deleting) &&
             (links.data?.relations ?? []).some(
-              (row) =>
-                row.relation === 'order' &&
-                (row.from_id === deleting.id || row.to_id === deleting.id),
+              (row) => row.relation === 'order' && row.to_id === deleting.id,
+            ) &&
+            (links.data?.relations ?? []).some(
+              (row) => row.relation === 'order' && row.from_id === deleting.id,
             )
           }
           partEpisodes={

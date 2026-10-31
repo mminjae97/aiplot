@@ -126,7 +126,12 @@ function serve(state: State = {}) {
       if (path === '/works/w_1/relations?kind=episode_part')
         return json({ relations: [{ from_id: 'c_ep1', to_id: 'c_p1', relation: '1' }] })
       if (path === '/works/w_1/relations?kind=episode_link')
-        return json({ relations: [{ from_id: 'c_ep1', to_id: 'c_ep2', relation: 'order' }] })
+        return json({
+          relations: [
+            { from_id: 'c_ep0', to_id: 'c_ep1', relation: 'order' },
+            { from_id: 'c_ep1', to_id: 'c_ep2', relation: 'order' },
+          ],
+        })
       if (path === '/works/w_1/relations?kind=episode_region')
         return json({ relations: [{ from_id: 'c_ep1', to_id: 'c_port', relation: 'main' }] })
       if (path === '/works/w_1/relations?kind=episode_character')

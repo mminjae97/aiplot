@@ -64,7 +64,7 @@ test('a lane per region used, in region order; other places leave markers', () =
   const laneOf = new Map(timeline.nodes.map((node) => [node.episodeId, node.lane]))
   expect(laneOf.get('c_e4')).toBe(0)
   expect(laneOf.get('c_e1')).toBe(1)
-  expect(timeline.markers).toEqual([{ episodeId: 'c_e2', column: 1, lane: 2 }])
+  expect(timeline.markers).toEqual([{ episodeId: 'c_e2', column: 1, lane: 2, row: 0 }])
 })
 
 test('episodes without a main place get the 장소 미정 lane', () => {
@@ -95,4 +95,21 @@ test('an episode takes its first milestone; a milestone sits over its first epis
     [1, 1],
     [2, 3],
   ])
+})
+
+test('simultaneous episodes in the same place stack in their cell', () => {
+  const timeline = timelineOf({
+    parts: [{ id: 'c_p1', label: '제1부' }],
+    placement: [row('c_a', 'c_p1', '1'), row('c_b', 'c_p1', '1')],
+    settings: [row('c_a', 'c_port', 'main'), row('c_b', 'c_port', 'main')],
+    links: [],
+    milestones: [],
+    regions: new Map([['c_port', '북부 항구']]),
+    nowhere: '장소 미정',
+  })
+  expect(timeline.nodes.map((node) => [node.episodeId, node.column, node.lane, node.row])).toEqual([
+    ['c_a', 0, 0, 0],
+    ['c_b', 0, 0, 1],
+  ])
+  expect(timeline.lanes).toEqual([{ id: 'c_port', label: '북부 항구', rows: 2 }])
 })

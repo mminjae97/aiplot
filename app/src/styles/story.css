@@ -254,9 +254,23 @@
   font-weight: 700;
 }
 
-.timeline-milestone {
+/* Milestones over one column: their dots side by side, their texts joined under them. */
+.timeline-milestones {
   position: absolute;
   top: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 168px;
+  transform: translateX(-50%);
+}
+
+.timeline-milestone-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.timeline-milestone {
   display: grid;
   place-items: center;
   width: 22px;
@@ -265,20 +279,15 @@
   color: #fff8ea;
   font-size: var(--size-small);
   font-weight: 700;
-  transform: translateX(-50%);
 }
 
 .timeline-milestone-text {
-  position: absolute;
-  top: 24px;
-  left: 50%;
-  max-width: 150px;
+  max-width: 168px;
   overflow: hidden;
   color: var(--ink);
   font-weight: 500;
   white-space: nowrap;
   text-overflow: ellipsis;
-  transform: translateX(-50%);
 }
 
 .timeline-lane {

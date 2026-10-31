@@ -6,7 +6,9 @@ import type { Timeline } from './storyLayout'
 const GUTTER = 136
 const COLUMN = 176
 const HEAD = 112
-const LANE = 96
+// A lane holds one row per episode stacked in its busiest cell, plus a margin.
+const ROW = 72
+const LANE_PAD = 24
 const NODE_WIDTH = 144
 const NODE_HEIGHT = 58
 
@@ -16,7 +18,6 @@ const INKS = ['#8b3a32', '#2f5d4a', '#2f4a73', '#7a5a1e', '#5a4170', '#3c6470', 
 export const inkOf = (index: number) => INKS[index % INKS.length] ?? '#5a4a3a'
 
 const cx = (column: number) => GUTTER + column * COLUMN + COLUMN / 2
-const cy = (lane: number) => HEAD + lane * LANE + LANE / 2
 
 type Props = {
   timeline: Timeline
@@ -39,8 +40,23 @@ export function EpisodeTimeline({
   onPick,
 }: Props) {
   const width = GUTTER + Math.max(timeline.columns, 1) * COLUMN + 24
-  const height = HEAD + Math.max(timeline.lanes.length, 1) * LANE + 24
+  // Lane tops: each lane as tall as its stack.
+  const tops: number[] = []
+  let bottom = HEAD
+  for (const lane of timeline.lanes) {
+    tops.push(bottom)
+    bottom += lane.rows * ROW + LANE_PAD
+  }
+  const height = Math.max(bottom, HEAD + ROW + LANE_PAD) + 24
+  const cy = (lane: number, row: number) =>
+    (tops[lane] ?? HEAD) + LANE_PAD / 2 + row * ROW + ROW / 2
   const at = new Map(timeline.nodes.map((node) => [node.episodeId, node]))
+  // Milestones sharing a column sit side by side, their texts joined under them.
+  const byColumn = new Map<number, number[]>()
+  milestones.forEach((_, index) => {
+    const column = timeline.milestoneColumns.get(index)
+    if (column !== undefined) byColumn.set(column, [...(byColumn.get(column) ?? []), index])
+  })
 
   return (
     <div className="timeline-scroll">
@@ -74,27 +90,35 @@ export function EpisodeTimeline({
         {/* The main line, with each milestone over the part (or first episode) that has it. */}
         <div className="timeline-main" style={{ width: width - GUTTER - 24, left: GUTTER }} />
         <span className="timeline-main-name">{strings.drawer.kind.main_story}</span>
-        {milestones.map((milestone, index) => {
-          const column = timeline.milestoneColumns.get(index)
-          if (column === undefined) return null
-          return (
-            <span
-              key={milestone.id}
-              className="timeline-milestone"
-              style={{ left: cx(column), background: inkOf(index) }}
-              title={milestone.text}
-            >
-              {index + 1}
-              <span className="timeline-milestone-text">{milestone.text}</span>
+        {[...byColumn].map(([column, indexes]) => (
+          <div
+            key={column}
+            className="timeline-milestones"
+            style={{ left: cx(column) }}
+            title={indexes.map((index) => milestones[index]?.text ?? '').join(' · ')}
+          >
+            <span className="timeline-milestone-dots">
+              {indexes.map((index) => (
+                <span
+                  key={index}
+                  className="timeline-milestone"
+                  style={{ background: inkOf(index) }}
+                >
+                  {index + 1}
+                </span>
+              ))}
             </span>
-          )
-        })}
+            <span className="timeline-milestone-text">
+              {indexes.map((index) => milestones[index]?.text ?? '').join(' · ')}
+            </span>
+          </div>
+        ))}
 
         {timeline.lanes.map((lane, index) => (
           <div
             key={lane.id ?? 'nowhere'}
             className="timeline-lane"
-            style={{ top: HEAD + index * LANE, height: LANE }}
+            style={{ top: tops[index], height: lane.rows * ROW + LANE_PAD }}
           >
             <span className="timeline-lane-name">{lane.label}</span>
           </div>
@@ -129,17 +153,25 @@ export function EpisodeTimeline({
             const from = at.get(arrow.from)
             const to = at.get(arrow.to)
             if (!from || !to) return null
-            const forward = cx(to.column) >= cx(from.column)
-            const x1 = cx(from.column) + (forward ? NODE_WIDTH / 2 : -NODE_WIDTH / 2)
-            const x2 = cx(to.column) + (forward ? -NODE_WIDTH / 2 : NODE_WIDTH / 2)
-            const y1 = cy(from.lane)
-            const y2 = cy(to.lane)
-            const bend = Math.max(30, Math.abs(x2 - x1) / 2) * (forward ? 1 : -1)
+            const y1 = cy(from.lane, from.row)
+            const y2 = cy(to.lane, to.row)
+            let d: string
+            if (from.column === to.column) {
+              // Same column (simultaneous): a short bow out to the right, edge to edge.
+              const x = cx(from.column) + NODE_WIDTH / 2
+              d = `M ${String(x)} ${String(y1)} C ${String(x + 28)} ${String(y1)}, ${String(x + 28)} ${String(y2)}, ${String(x)} ${String(y2)}`
+            } else {
+              const forward = to.column > from.column
+              const x1 = cx(from.column) + (forward ? NODE_WIDTH / 2 : -NODE_WIDTH / 2)
+              const x2 = cx(to.column) + (forward ? -NODE_WIDTH / 2 : NODE_WIDTH / 2)
+              const bend = Math.max(30, Math.abs(x2 - x1) / 2) * (forward ? 1 : -1)
+              d = `M ${String(x1)} ${String(y1)} C ${String(x1 + bend)} ${String(y1)}, ${String(x2 - bend)} ${String(y2)}, ${String(x2)} ${String(y2)}`
+            }
             return (
               <path
                 key={`${arrow.from}|${arrow.to}|${arrow.kind}`}
                 className={`timeline-arrow timeline-arrow-${arrow.kind}`}
-                d={`M ${String(x1)} ${String(y1)} C ${String(x1 + bend)} ${String(y1)}, ${String(x2 - bend)} ${String(y2)}, ${String(x2)} ${String(y2)}`}
+                d={d}
                 markerEnd={`url(#arrow-${arrow.kind})`}
               />
             )
@@ -150,7 +182,7 @@ export function EpisodeTimeline({
           <span
             key={`${marker.episodeId}|${String(marker.lane)}`}
             className="timeline-marker"
-            style={{ left: cx(marker.column), top: cy(marker.lane) }}
+            style={{ left: cx(marker.column), top: cy(marker.lane, marker.row) }}
             title={episodes.get(marker.episodeId)?.name ?? undefined}
           />
         ))}
@@ -169,7 +201,7 @@ export function EpisodeTimeline({
               aria-label={strings.story.openEpisode(name)}
               style={{
                 left: cx(node.column) - NODE_WIDTH / 2,
-                top: cy(node.lane) - NODE_HEIGHT / 2,
+                top: cy(node.lane, node.row) - NODE_HEIGHT / 2,
                 width: NODE_WIDTH,
                 height: NODE_HEIGHT,
                 borderLeftColor: milestone === undefined ? undefined : inkOf(milestone),

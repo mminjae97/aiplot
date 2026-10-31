@@ -4,8 +4,10 @@
 import type { CardRelation, MilestoneFulfilment } from '../types'
 
 export type TimelinePart = { id: string; label: string }
-export type Lane = { id: string | null; label: string }
-export type Placed = { episodeId: string; column: number; lane: number }
+/** `rows`: how many episodes stack in its busiest column (simultaneous, same place). */
+export type Lane = { id: string | null; label: string; rows: number }
+/** `row`: the episode's place in its lane's stack within that column. */
+export type Placed = { episodeId: string; column: number; lane: number; row: number }
 export type Span = { partId: string; label: string; first: number; last: number }
 export type Arrow = { from: string; to: string; kind: 'order' | 'cause' }
 
@@ -70,18 +72,26 @@ export function timelineOf(input: Input): Timeline {
   const used = new Set([...mainOf.values(), ...[...othersOf.values()].flat()])
   const lanes: Lane[] = [...input.regions]
     .filter(([id]) => used.has(id))
-    .map(([id, label]) => ({ id, label }))
+    .map(([id, label]) => ({ id, label, rows: 1 }))
   const homeless = [...columnOf.keys()].some((id) => !mainOf.has(id))
-  if (homeless) lanes.push({ id: null, label: input.nowhere })
+  if (homeless) lanes.push({ id: null, label: input.nowhere, rows: 1 })
   const laneOf = (region: string | null) => lanes.findIndex((lane) => lane.id === region)
 
   const nodes: Placed[] = []
   const markers: Placed[] = []
+  // Simultaneous episodes in the same place stack in their cell instead of covering each other.
+  const filled = new Map<string, number>()
   for (const [episodeId, at] of columnOf) {
-    nodes.push({ episodeId, column: at, lane: laneOf(mainOf.get(episodeId) ?? null) })
+    const lane = laneOf(mainOf.get(episodeId) ?? null)
+    const cell = `${String(at)}|${String(lane)}`
+    const row = filled.get(cell) ?? 0
+    filled.set(cell, row + 1)
+    const home = lanes[lane]
+    if (home) home.rows = Math.max(home.rows, row + 1)
+    nodes.push({ episodeId, column: at, lane, row })
     for (const region of othersOf.get(episodeId) ?? []) {
       if (region === mainOf.get(episodeId)) continue
-      markers.push({ episodeId, column: at, lane: laneOf(region) })
+      markers.push({ episodeId, column: at, lane: laneOf(region), row: 0 })
     }
   }
 
