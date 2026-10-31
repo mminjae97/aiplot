@@ -7,6 +7,7 @@ import { useNavigation } from '../src/stores/navigation'
 import { connectServer, useServer } from '../src/stores/server'
 import { strings } from '../src/strings'
 import type { Work } from '../src/types'
+import { FAKE_HEALTH, NO_DIALOGS, SETUP_IDLE } from './serverFixtures'
 
 let listeners: ((state: ServerState) => void)[] = []
 const retry = vi.fn(() => Promise.resolve())
@@ -29,6 +30,7 @@ function bridge(initial: ServerState): AiplotBridge {
         }
       },
     },
+    dialog: NO_DIALOGS,
     window: {
       ...windowCalls,
       isMaximized: () => Promise.resolve(false),
@@ -86,6 +88,8 @@ function serve(initial: Work[], overrides: Partial<Record<string, Response>> = {
     if (override) return Promise.resolve(override)
     const json = (data: unknown, status = 200) =>
       Promise.resolve(new Response(JSON.stringify(data), { status }))
+    if (path === '/health') return json(FAKE_HEALTH)
+    if (path === '/setup') return json(SETUP_IDLE)
     if (method === 'GET' && path === '/works') return json({ works })
     if (method === 'POST' && path === '/works') {
       const { title } = body as { title: string }
@@ -147,7 +151,10 @@ test('empty library invites the first book once the server is ready', async () =
   })
   expect(await screen.findByText(strings.library.empty)).toBeTruthy()
   expect(screen.getByRole('button', { name: strings.library.newBook })).toBeTruthy()
-  expect(calls[0]).toMatchObject({ method: 'GET', path: '/works', auth: 'Bearer tok' })
+  expect(calls.find((c) => c.path === '/works')).toMatchObject({
+    method: 'GET',
+    auth: 'Bearer tok',
+  })
 })
 
 test('books stand newest first with their info slip', async () => {

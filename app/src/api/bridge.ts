@@ -26,6 +26,11 @@ export interface AiplotBridge {
     /** Returns the unsubscribe function. */
     onMaximizedChange(listener: (maximized: boolean) => void): () => void
   }
+  /** OS dialogs for files the user already has (S0-1); null when cancelled. */
+  dialog: {
+    pickModel(): Promise<string | null>
+    pickFolder(): Promise<string | null>
+  }
 }
 
 declare global {

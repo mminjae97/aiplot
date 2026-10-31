@@ -31,6 +31,10 @@ const bridge: AiplotBridge = {
       }
     },
   },
+  dialog: {
+    pickModel: () => ipcRenderer.invoke('dialog:pick-model') as Promise<string | null>,
+    pickFolder: () => ipcRenderer.invoke('dialog:pick-folder') as Promise<string | null>,
+  },
 }
 
 contextBridge.exposeInMainWorld('aiplot', bridge)

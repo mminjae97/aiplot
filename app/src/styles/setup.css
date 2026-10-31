@@ -1,0 +1,238 @@
+/* S0-1 first run: one sheet of paper on the walnut desk. */
+
+.setup {
+  height: calc(100% - var(--top-bar));
+  display: grid;
+  place-items: start center;
+  padding: 48px 24px;
+  background:
+    image-set(url('../assets/wood/desk.webp') 1x, url('../assets/wood/desk@2x.webp') 2x) 0 0 /
+      1400px 1440px,
+    var(--wood-panel);
+  background-attachment: local;
+  overflow-y: auto;
+}
+
+.setup-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: min(760px, 100%);
+  padding: 44px 52px 40px;
+  background: var(--paper);
+  box-shadow:
+    0 2px 0 var(--paper-edge),
+    0 22px 40px var(--wood-shadow);
+}
+
+.setup-sheet h1 {
+  font-size: var(--size-title);
+}
+
+.setup-sheet h2 {
+  margin-bottom: 6px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  font-weight: 700;
+}
+
+.setup-lead {
+  color: var(--ink-soft);
+}
+
+.setup-about {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  padding: 16px 0;
+  border-top: 1px solid var(--paper-edge);
+  border-bottom: 1px solid var(--paper-edge);
+}
+
+.setup-about ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: var(--size-small);
+}
+
+.setup-files ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.setup-files li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  column-gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px dotted var(--paper-edge);
+}
+
+.setup-file-name {
+  font-weight: 500;
+}
+
+.setup-file-size {
+  color: var(--ink-soft);
+}
+
+/* The status reads in words; the colour only repeats it. */
+.setup-files li[data-status='installed'] .setup-file-status {
+  color: var(--brass);
+}
+
+.setup-file-path {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: var(--ink-faint);
+  font-size: var(--size-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.setup-space,
+.setup-note {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.setup-warning {
+  padding: 8px 12px;
+  border-left: 3px solid var(--warning);
+  color: var(--warning);
+}
+
+.setup-error {
+  padding: 8px 12px;
+  border-left: 3px solid var(--danger);
+  color: var(--danger);
+}
+
+.setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.setup-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setup-step {
+  font-weight: 500;
+}
+
+/* A brass fill on a paper track; the numbers below say the same in words. */
+.setup-progress progress {
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--paper-edge);
+}
+
+.setup-progress progress::-webkit-progress-bar {
+  background: var(--paper-edge);
+}
+
+.setup-progress progress::-webkit-progress-value {
+  background: var(--brass);
+  transition: width var(--motion);
+}
+
+.setup-numbers {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.setup-paths {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.setup-path {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.setup-path label {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.setup-path-row {
+  display: flex;
+  gap: 8px;
+}
+
+.setup-path-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--ink-soft);
+  background: transparent;
+}
+
+.setup-path-row input:focus-visible {
+  outline: none;
+  border-bottom-color: var(--brass);
+  box-shadow: 0 1px 0 var(--brass);
+}
+
+.setup-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.setup-status .setup-actions {
+  align-self: stretch;
+}
+
+.setup-done {
+  font-size: var(--size-lead);
+  font-weight: 700;
+}
+
+/* A background download in the top bar: a paper tab that opens S0-1 again. */
+.top-bar .setup-chip {
+  margin-left: auto;
+  padding: 3px 12px;
+  border: 1px solid var(--brass);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  cursor: pointer;
+}
+
+.top-bar .setup-chip[data-failed] {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.top-bar .setup-chip + .window-controls {
+  margin-left: 16px;
+}
+
+@media (max-width: 720px) {
+  .setup-about {
+    grid-template-columns: 1fr;
+  }
+}

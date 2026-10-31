@@ -8,6 +8,7 @@ import { useNavigation } from '../src/stores/navigation'
 import { connectServer, useServer } from '../src/stores/server'
 import { strings } from '../src/strings'
 import type { Cover, Work } from '../src/types'
+import { FAKE_HEALTH, NO_DIALOGS, SETUP_IDLE } from './serverFixtures'
 
 // jsdom has no canvas: the crop is tested by its maths (bookColor.test.ts); here it passes a
 // fixed WebP through.
@@ -30,6 +31,7 @@ function bridge(): AiplotBridge {
       retry: () => Promise.resolve(),
       onChange: () => () => undefined,
     },
+    dialog: NO_DIALOGS,
     window: {
       minimize: () => Promise.resolve(),
       toggleMaximize: () => Promise.resolve(),
@@ -69,6 +71,8 @@ function serve(initial: Work[]) {
       calls.push({ method, path, body })
       const json = (data: unknown, status = 200) =>
         Promise.resolve(new Response(JSON.stringify(data), { status }))
+      if (path === '/health') return json(FAKE_HEALTH)
+      if (path === '/setup') return json(SETUP_IDLE)
       if (path === '/works') return json({ works })
       const match = /^\/works\/(w_\w+)(?:\/covers(?:\/(cv_\w+))?(\/image)?)?$/.exec(path)
       const found = works.find((w) => w.id === match?.[1])

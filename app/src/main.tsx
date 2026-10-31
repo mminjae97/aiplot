@@ -6,6 +6,7 @@ import './styles/base.css'
 import { DESK_MARGIN, TOP_BAR_HEIGHT } from './styles/metrics'
 import './styles/library.css'
 import './styles/contents.css'
+import './styles/setup.css'
 import { connectServer } from './stores/server'
 
 const container = document.getElementById('root')

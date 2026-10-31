@@ -1,7 +1,11 @@
 import { create } from 'zustand'
 
 // UI state only (§5): which screen is open. Server data stays in TanStack Query.
-export type Screen = { name: 'library' } | { name: 'contents'; workId: string }
+export type Screen =
+  | { name: 'library' }
+  | { name: 'contents'; workId: string }
+  // S0-1 first run (§12)
+  | { name: 'setup' }
 
 interface NavigationStore {
   screen: Screen
