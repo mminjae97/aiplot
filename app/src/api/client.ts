@@ -129,7 +129,7 @@ export const api = {
   saveDraft: (draftId: string) => request<Card>(`${draft(draftId)}/save`, { method: 'POST' }),
   getCard: (cardId: string) => request<Card>(`/cards/${encodeURIComponent(cardId)}`),
   completeness: (workId: string) => request<Completeness>(`${work(workId)}/completeness`),
-  relations: (workId: string, kind: 'world' | 'character') =>
+  relations: (workId: string, kind: 'world' | 'character' | 'origin') =>
     request<CardRelations>(`${work(workId)}/relations?kind=${kind}`),
   deleteCard: (cardId: string) =>
     request<CardDeleted>(`/cards/${encodeURIComponent(cardId)}`, { method: 'DELETE' }),

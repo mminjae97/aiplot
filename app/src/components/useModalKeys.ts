@@ -15,13 +15,15 @@ export function useModalKeys(
   first?: RefObject<HTMLElement | null>,
 ) {
   const close = useRef(onClose)
+  // Where the focus was before the modal; kept in a ref so StrictMode's re-run keeps it.
+  const before = useRef<Element | null>(null)
   useEffect(() => {
     close.current = onClose
   }, [onClose])
 
   useEffect(() => {
     const token = {}
-    const before = document.activeElement
+    before.current ??= document.activeElement
     stack.push(token)
     ;(first?.current ?? box.current)?.focus()
     const onKey = (event: KeyboardEvent) => {
@@ -48,7 +50,8 @@ export function useModalKeys(
     return () => {
       window.removeEventListener('keydown', onKey)
       stack.splice(stack.indexOf(token), 1)
-      if (before instanceof HTMLElement && before.isConnected) before.focus()
+      const back = before.current
+      if (back instanceof HTMLElement && back.isConnected) back.focus()
     }
     // Bound once per open modal; the refs are stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps

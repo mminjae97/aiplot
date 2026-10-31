@@ -25,7 +25,8 @@ export function FlipCard({ origin, label, front, back, covered = false, onClose 
   // middle while the faces turn. Reduced motion makes both instant (styles/dex.css).
   useLayoutEffect(() => {
     const node = card.current
-    if (!node) return
+    // Once: StrictMode's second run would measure the moving card and cancel the growth.
+    if (!node || node.dataset.flipped) return
     if (origin) {
       const end = node.getBoundingClientRect()
       node.style.transition = 'none'

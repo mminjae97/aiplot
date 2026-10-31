@@ -218,6 +218,11 @@
   padding: 24px 28px 20px;
 }
 
+/* Room for 닫기 at the top right. */
+.dex-back-head {
+  padding-right: 56px;
+}
+
 .dex-back-head h2 {
   font-size: var(--size-title);
 }

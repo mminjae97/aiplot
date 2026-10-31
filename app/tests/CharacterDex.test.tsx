@@ -74,7 +74,8 @@ const TEO = character('c_teo', '테오', {
   appearance: { summary: '왼손에 흉터가 있는 20대 남성', details: null },
   // What the data says is not what the screen shows: relations come from char_relation.
   relations: [{ target_id: 'c_ghost', relation: '유령' }],
-  origin_region_id: 'c_port',
+  // Likewise the origin: the character table's column says 북부 항구.
+  origin_region_id: null,
 })
 const MIRA = character('c_mira', '미라', { theme: '항구의 의사' }, 'incomplete')
 const PORT = { id: 'c_port', type: 'region', name: '북부 항구' } as unknown as Card
@@ -107,6 +108,8 @@ function serve(options: { locked?: boolean } = {}) {
       if (path === '/works/w_1/cards') return json({ cards: [...characters, PORT, TIDE] })
       if (path === '/works/w_1/relations?kind=character')
         return json({ relations: [{ from_id: 'c_teo', to_id: 'c_mira', relation: '소꿉친구' }] })
+      if (path === '/works/w_1/relations?kind=origin')
+        return json({ relations: [{ from_id: 'c_teo', to_id: 'c_port', relation: null }] })
       if (path === '/works/w_1/relations?kind=world')
         return json({ relations: [{ from_id: 'c_tide', to_id: 'c_teo', relation: null }] })
       if (path === '/cards/c_teo/references') return json({ references: [] })
@@ -181,9 +184,9 @@ test('a picked card turns to every field; relations from the relation table', as
     '짧고 건조한 반말',
     '“그건 내 일이 아니야.”',
     '왼손에 흉터가 있는 20대 남성',
-    '북부 항구',
   ])
     expect(within(card).getByText(text)).toBeTruthy()
+  expect(await within(card).findByText('북부 항구')).toBeTruthy()
   expect(within(card).getByText('위협을 받을 때').parentElement?.textContent).toBe(
     '위협을 받을 때 → 먼저 칼을 뽑는다',
   )
@@ -294,4 +297,32 @@ test('함께 보기 opens the dex with that character picked up', async () => {
   })
   renderWith(<CharacterDexScreen workId="w_1" cardId="c_teo" />)
   expect(await screen.findByRole('dialog', { name: '테오' })).toBeTruthy()
+})
+
+test('a link to a card that is not in the dex picks nothing up', async () => {
+  serve()
+  renderWith(<CharacterDexScreen workId="w_1" cardId="c_gone" />)
+  await screen.findByRole('button', { name: strings.dex.flip('테오') })
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(
+    screen.getByRole('button', { name: strings.contents.toContents }).hasAttribute('disabled'),
+  ).toBe(false)
+})
+
+test('the highlight after a restore lasts 0.3s', async () => {
+  serve()
+  renderWith(<CharacterDexScreen workId="w_1" />)
+  fireEvent.click(await screen.findByRole('button', { name: strings.dex.flip('테오') }))
+  fireEvent.click(screen.getByRole('button', { name: strings.dex.delete }))
+  fireEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: strings.cardDelete.delete,
+    }),
+  )
+  fireEvent.click(await screen.findByRole('button', { name: strings.cardDelete.undo }))
+  const teo = await screen.findByRole('button', { name: strings.dex.flip('테오') })
+  expect(teo.hasAttribute('data-highlight')).toBe(true)
+  await waitFor(() => {
+    expect(teo.hasAttribute('data-highlight')).toBe(false)
+  })
 })

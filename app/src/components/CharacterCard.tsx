@@ -34,6 +34,8 @@ type BackProps = {
   names: Map<string, string>
   /** char_relation rows of the work (§6: references come from relation tables). */
   relations: CardRelation[]
+  /** Origin regions (character table), character -> region. */
+  origins: CardRelation[]
   locked: boolean
   onEdit: () => void
   onDelete: () => void
@@ -54,12 +56,21 @@ function Field({ path, value, children }: { path: string; value: unknown; childr
 
 /** The back: every field (§8), required ones shown as 아직 정해지지 않음 while empty; then
  * 원문 수정 on the left and the red 삭제 on the right. */
-export function CharacterBack({ card, names, relations, locked, onEdit, onDelete }: BackProps) {
+export function CharacterBack({
+  card,
+  names,
+  relations,
+  origins,
+  locked,
+  onEdit,
+  onDelete,
+}: BackProps) {
   const { data } = card
   const ties = relations
     .filter((link) => link.from_id === card.id && names.has(link.to_id))
     .map((link) => ({ name: names.get(link.to_id) ?? '', relation: link.relation }))
-  const origin = data.origin_region_id ? names.get(data.origin_region_id) : undefined
+  const originId = origins.find((link) => link.from_id === card.id)?.to_id
+  const origin = originId ? names.get(originId) : undefined
   return (
     <div className="dex-back">
       <header className="dex-back-head">

@@ -53,8 +53,8 @@ def list_cards(
 
 
 @router.get("/works/{workId}/relations")
-def work_relations(db: Db, workId: str, kind: Literal["world", "character"]) -> CardRelations:
-    """함께 보기 (world -> card) and the character graph (character -> character)."""
+def work_relations(db: Db, workId: str, kind: Literal["world", "character", "origin"]) -> CardRelations:
+    """함께 보기 (world -> card), the character graph and origin regions (character -> region)."""
     try:
         return CardRelations(relations=cards.relations(db, workId, kind))
     except works.WorkNotFoundError as exc:

@@ -548,12 +548,19 @@ def last_part_order(conn: sqlite3.Connection, work_id: str) -> int:
 def relations_of_work(
     conn: sqlite3.Connection, work_id: str, kind: str
 ) -> list[tuple[str, str, str | None]]:
-    """(from, to, relation) rows: world_relation (world -> card) or char_relation."""
+    """(from, to, relation) rows: world_relation (world -> card), char_relation, or the
+    character table's origin region (character -> region)."""
     if kind == "world":
         sql = (
             "SELECT world_id, world_relation.card_id, NULL FROM world_relation "
             "JOIN card ON card.id = world_relation.world_id WHERE card.work_id = ? "
             "ORDER BY card.rowid, world_relation.rowid"
+        )
+    elif kind == "origin":
+        sql = (
+            "SELECT card_id, origin_region_id, NULL FROM character "
+            "JOIN card ON card.id = character.card_id "
+            "WHERE card.work_id = ? AND origin_region_id IS NOT NULL ORDER BY card.rowid"
         )
     else:
         sql = (
