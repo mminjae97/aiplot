@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { ServerState } from '../src/api/bridge'
 import { CardDrawer, type DrawerRequest } from '../src/components/CardDrawer'
 import { ContentsPage } from '../src/screens/ContentsPage'
+import { useNavigation } from '../src/stores/navigation'
 import { useServer } from '../src/stores/server'
 import { strings } from '../src/strings'
 import type { Draft, Work } from '../src/types'
@@ -324,7 +325,7 @@ test('editing a card opens without the AI speaking first', async () => {
   expect(calls.some((c) => c.path === '/drafts/dr_1/messages')).toBe(false)
 })
 
-test('the contents page opens the drawer from the planning items', async () => {
+test('the contents page opens each planning item screen', async () => {
   serve(turnOf)
   const work: Work = {
     id: 'w_1',
@@ -351,24 +352,15 @@ test('the contents page opens the drawer from the planning items', async () => {
       <ContentsPage workId="w_1" />
     </QueryClientProvider>,
   )
-  // 세계관, 캐릭터 and 지역 open their screens; 스토리 still opens the drawer (unit 13).
-  fireEvent.click(await screen.findByRole('button', { name: '스토리' }))
-  // No part yet (the list has answered): a new episode has nowhere to go.
-  await waitFor(() => {
-    expect(fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:9100/api/v1/works/w_1/cards?type=part',
-      expect.anything(),
-    )
-  })
-  expect(screen.getByRole('button', { name: strings.drawer.temporary.newEpisode })).toHaveProperty(
-    'disabled',
-    true,
-  )
-  fireEvent.click(screen.getByRole('button', { name: strings.drawer.temporary.mainStory }))
-  expect(
-    await screen.findByText(`${strings.drawer.kind.main_story} · ${strings.drawer.new}`),
-  ).toBeTruthy()
-  expect(document.querySelector('main.desk')?.hasAttribute('inert')).toBe(true)
+  for (const [item, name] of [
+    ['세계관', 'world'],
+    ['캐릭터', 'characters'],
+    ['지역', 'regions'],
+    ['스토리', 'story'],
+  ] as const) {
+    fireEvent.click(await screen.findByRole('button', { name: item }))
+    expect(useNavigation.getState().screen).toEqual({ name, workId: 'w_1' })
+  }
 })
 
 test('Esc leaves the notes editor, never the drawer with unsaved text', async () => {

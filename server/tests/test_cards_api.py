@@ -298,3 +298,12 @@ def test_region_map_rows_come_from_the_relation_tables(
     assert get(client, "/works/w_02/region-links") == {"links": []}
     missing = client.get("/api/v1/works/w_nope/region-links", headers=AUTH)
     assert error(missing) == (404, "WORK_NOT_FOUND")
+
+
+def test_episode_parts_come_from_the_episode_table(
+    client: TestClient, conn: sqlite3.Connection
+) -> None:
+    story(conn)
+    save(conn, fixture("episode", id="c_ep1"))
+    rows = get(client, "/works/w_01/relations?kind=episode_part")["relations"]
+    assert rows == [{"from_id": "c_ep1", "to_id": "c_part1", "relation": "1"}]

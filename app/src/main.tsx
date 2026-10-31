@@ -11,6 +11,7 @@ import './styles/drawer.css'
 import './styles/worldbook.css'
 import './styles/dex.css'
 import './styles/map.css'
+import './styles/story.css'
 import { connectServer } from './stores/server'
 
 const container = document.getElementById('root')
