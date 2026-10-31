@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DraftMessage",
+  "description": "POST /drafts/{draftId}/messages: one chat turn (§8). Empty text on a draft without turns lets the AI open with a question. The reply streams as SSE (DraftMessageEvent).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["text"],
+  "properties": {
+    "text": { "type": "string", "maxLength": 4000 },
+    "refs": {
+      "description": "Cards the user @-mentioned in this turn; they stay in the draft's context.",
+      "type": "array",
+      "maxItems": 20,
+      "items": { "$ref": "../common/card-id.json" }
+    }
+  }
+}
