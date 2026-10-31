@@ -136,13 +136,23 @@ def test_notes_edits_and_close(client: TestClient) -> None:
 def test_drafts_are_never_written_to_disk(
     client: TestClient, conn: sqlite3.Connection, tmp_path: Path
 ) -> None:
+    db_files = {"aiplot.db", "aiplot.db-wal", "aiplot.db-shm"}
+
     def files() -> dict[str, int]:
-        # The database files themselves are compared by content (dump), not size.
+        # The database is compared by content (dump and bytes below), every other file by size.
         return {
             str(p.relative_to(tmp_path)): p.stat().st_size
             for p in tmp_path.rglob("*")
-            if p.is_file() and "aiplot.db" not in p.name
+            if p.is_file() and p.name not in db_files
         }
+
+    def database_bytes() -> bytes:
+        # WAL mode (§14): a committed write may still sit in the -wal file.
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        folder = tmp_path / "data"
+        return b"".join(
+            (folder / name).read_bytes() for name in db_files if (folder / name).exists()
+        )
 
     save(conn, fixture("character"))
     before, before_files = dump(conn), files()
@@ -153,7 +163,10 @@ def test_drafts_are_never_written_to_disk(
     opened(client, {"type": "world"})
     assert dump(conn) == before
     assert files() == before_files
-    assert "비밀" not in (tmp_path / "data" / "aiplot.db").read_bytes().decode("utf-8", "ignore")
+    assert "비밀 설정".encode() not in database_bytes()
+    # The check itself sees a committed write.
+    conn.execute("UPDATE card SET source_notes = '비밀 설정 확인' WHERE id = 'c_teo'")
+    assert "비밀 설정 확인".encode() in database_bytes()
 
 
 def test_drafts_need_token(client: TestClient) -> None:

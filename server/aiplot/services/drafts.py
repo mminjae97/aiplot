@@ -47,21 +47,26 @@ class DraftState:
     turns: list[tuple[Literal["user", "ai"], str]] = field(default_factory=list)
     pinned: list[str] = field(default_factory=list)
     generated: CardOutput | None = None
+    # Requests on one draft may overlap (thread pool): every read and change holds this, so
+    # a response never mixes two versions (e.g. notes from one, sentences from another).
+    lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def view(self) -> Draft:
-        return Draft(
-            id=self.id,
-            work_id=self.work_id,
-            type=self.type,
-            card_id=self.card_id,
-            category=self.category,
-            part_id=self.part_id,
-            notes=self.notes,
-            sentences=split_sentences(self.notes),
-            turns=[DraftTurn(role=role, text=text) for role, text in self.turns],
-            pinned=list(self.pinned),
-            generated=self.generated,
-        )
+        with self.lock:
+            notes = self.notes
+            return Draft(
+                id=self.id,
+                work_id=self.work_id,
+                type=self.type,
+                card_id=self.card_id,
+                category=self.category,
+                part_id=self.part_id,
+                notes=notes,
+                sentences=split_sentences(notes),
+                turns=[DraftTurn(role=role, text=text) for role, text in self.turns],
+                pinned=list(self.pinned),
+                generated=self.generated,
+            )
 
 
 class DraftStore:
@@ -128,5 +133,6 @@ def create(conn: sqlite3.Connection, store: DraftStore, work_id: str, body: Draf
 def set_notes(store: DraftStore, draft_id: str, notes: str) -> Draft:
     """The user edited the notes themselves (§8)."""
     draft = store.get(draft_id)
-    draft.notes = notes
+    with draft.lock:
+        draft.notes = notes
     return draft.view()
