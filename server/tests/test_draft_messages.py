@@ -174,18 +174,26 @@ def test_the_last_turns_follow_the_context(client: TestClient, llm: Scripted) ->
     for text in ("하나.", "둘.", "셋.", "넷."):
         events(turn(client, draft_id, text))
     messages = llm.requests[-2].messages
-    # System, then the last 6 turns (the new one included), starting on a user turn (§8).
-    assert [m["role"] for m in messages] == [
-        "system",
-        "user",
-        "assistant",
-        "user",
-        "assistant",
-        "user",
-    ]
+    # System, the context, then the last 6 turns (the new one included), kept whole even when
+    # the window starts with the AI.
+    assert [m["role"] for m in messages] == ["system", "user"] + ["assistant", "user"] * 3
     assert messages[1]["content"].startswith("<원문>")
-    assert messages[1]["content"].endswith("둘.")
+    assert messages[1]["content"].endswith("</지시>")
+    assert messages[3]["content"] == "둘."
     assert messages[-1]["content"] == "넷."
+
+
+def test_the_answer_to_the_opening_keeps_its_question(client: TestClient, llm: Scripted) -> None:
+    draft_id = open_draft(client, {"type": "character"})
+    events(turn(client, draft_id, ""))
+    events(turn(client, draft_id, "열일곱 살이야."))
+    messages = llm.requests[-2].messages
+    assert [m["role"] for m in messages] == ["system", "user", "assistant", "user"]
+    assert messages[1]["content"].startswith("<원문>") and messages[1]["content"].endswith(
+        "</지시>"
+    )
+    assert messages[2]["content"] == REPLY
+    assert messages[3]["content"] == "열일곱 살이야."
 
 
 def test_casual_or_emptied_notes_get_one_more_try(client: TestClient, llm: Scripted) -> None:
@@ -207,6 +215,14 @@ def test_casual_or_emptied_notes_get_one_more_try(client: TestClient, llm: Scrip
         ("done", {}),
     ]
     assert draft(client, draft_id)["notes"] == before
+
+
+def test_a_casual_result_stands_when_the_extra_try_fails(client: TestClient, llm: Scripted) -> None:
+    draft_id = open_draft(client, {"type": "character"}, NOTES)
+    llm.say("source", source(added=["테오는 활을 써"]), "not json")
+    found = events(turn(client, draft_id, "활을 써."))
+    assert found[-2][0] == "source"
+    assert found[-2][1]["notes"].endswith("테오는 활을 써.")
 
 
 def test_similar_names_keep_only_real_pairs(
@@ -282,6 +298,12 @@ def test_one_turn_at_a_time_and_refusals(client: TestClient, conn: sqlite3.Conne
     drafts_of(client).get(draft_id).busy = True
     assert error(turn(client, draft_id, "안녕.")) == (409, "DRAFT_BUSY")
     drafts_of(client).get(draft_id).busy = False
+    # Accepted turns never mark the draft before the stream starts.
+    from aiplot.services import draft_chat
+
+    with connect(Path(client.app.state.db_path)) as other:  # type: ignore[attr-defined]
+        draft_chat.prepare(other, drafts_of(client).get(draft_id), "안녕.", [])
+    assert drafts_of(client).get(draft_id).busy is False
     assert error(turn(client, "dr_nope", "안녕.")) == (404, "DRAFT_NOT_FOUND")
     conn.execute("UPDATE work SET stage = 2, locked_stage = 1")
     assert error(turn(client, draft_id, "안녕.")) == (423, "STAGE_LOCKED")

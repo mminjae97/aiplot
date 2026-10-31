@@ -51,7 +51,8 @@ class Turn:
 
 def prepare(conn: sqlite3.Connection, draft: DraftState, text: str, refs: list[str]) -> Turn:
     """Everything the turn needs from the database; refuses a locked stage (423) and a turn
-    while another runs (409)."""
+    while another runs (409). The draft is marked busy only once the stream starts (converse),
+    so a client gone before that never leaves it stuck."""
     require_open(conn, draft.work_id, 1)
     text = text.strip()
     with draft.lock:
@@ -64,19 +65,14 @@ def prepare(conn: sqlite3.Connection, draft: DraftState, text: str, refs: list[s
         turns = [*draft.turns, *([("user", text)] if text else [])]
         draft_refs = list(draft.refs)
         generated = draft.generated
-        draft.busy = True
-    try:
-        rows = cards_db.list_for_work(conn, draft.work_id)
-        chat = context.chat_turns(
-            notes,
-            context.ref_lines(conn, context.mentioned(conn, draft.work_id, draft_refs)),
-            draft.type,
-            context.missing(draft.type, generated),
-            turns,
-        )
-    except BaseException:
-        release(draft)
-        raise
+    rows = cards_db.list_for_work(conn, draft.work_id)
+    chat = context.chat_turns(
+        notes,
+        context.ref_lines(conn, context.mentioned(conn, draft.work_id, draft_refs)),
+        draft.type,
+        context.missing(draft.type, generated),
+        turns,
+    )
     return Turn(
         draft=draft,
         text=text,
@@ -98,7 +94,13 @@ async def revise(
     """source with the §13 retries; an LLM error (after the router's own JSON retry) ends it."""
     kept: tuple[RevisedNotes, SourceOutput] | None = None
     for _ in range(SOURCE_ATTEMPTS):
-        output = (await router.complete_json("source", messages, SourceOutput)).value
+        try:
+            output = (await router.complete_json("source", messages, SourceOutput)).value
+        except LlmError:
+            # A usable (casual) first result stands if the extra try fails.
+            if kept is not None:
+                break
+            raise
         try:
             applied = apply_edits(notes, output)
         except EmptyNotesError:
@@ -128,12 +130,21 @@ def name_checks(turn: Turn, pairs: list[SimilarName]) -> list[SimilarName]:
 async def converse(router: Router, turn: Turn) -> AsyncIterator[tuple[str, BaseModel]]:
     """(event name, data) pairs in the order the client reads them, ending with done. A client
     that goes away closes the stream, which stops generation (§13) and frees the draft."""
+    draft = turn.draft
+    with draft.lock:
+        taken = draft.busy
+        draft.busy = True
+    if taken:
+        # Another turn started between prepare and now.
+        yield "error", DraftErrorEvent(code="DRAFT_BUSY", message="the AI is still answering")
+        yield "done", DraftDoneEvent()
+        return
     try:
         async for event in events(router, turn):
             yield event
         yield "done", DraftDoneEvent()
     finally:
-        release(turn.draft)
+        release(draft)
 
 
 async def events(router: Router, turn: Turn) -> AsyncIterator[tuple[str, BaseModel]]:

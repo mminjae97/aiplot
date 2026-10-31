@@ -158,7 +158,9 @@ def chat_turns(
     missing_items: list[str],
     turns: list[tuple[str, str]],
 ) -> list[Message]:
-    """Context blocks first, then the last turns; the blocks lead the first user message."""
+    """Context blocks first, then the last turns. The blocks lead the first user message; when
+    the window starts with the AI (its opening question), they stand alone before it, so the
+    question the user answers is never dropped."""
     todo = ", ".join(missing_items) if missing_items else "없음"
     context = "\n".join(
         [
@@ -168,15 +170,13 @@ def chat_turns(
         ]
     )
     recent = turns[-CHAT_TURNS:]
-    # Start on a user turn so the roles alternate after the context.
-    while recent and recent[0][0] != "user":
+    if not recent or recent[0][0] != "user":
+        messages: list[Message] = [{"role": "user", "content": context}]
+    else:
+        messages = [{"role": "user", "content": f"{context}\n\n{recent[0][1]}"}]
         recent = recent[1:]
-    if not recent:
-        return [{"role": "user", "content": context}]
-    messages: list[Message] = []
-    for n, (role, text) in enumerate(recent):
-        content = f"{context}\n\n{text}" if n == 0 else text
-        messages.append({"role": "user" if role == "user" else "assistant", "content": content})
+    for role, text in recent:
+        messages.append({"role": "user" if role == "user" else "assistant", "content": text})
     return messages
 
 
