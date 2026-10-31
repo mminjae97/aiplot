@@ -76,6 +76,10 @@ export function WorldBookScreen({
   const busy = drawer !== null || deleting !== null
   useEffect(() => {
     onBusy(busy)
+    return () => {
+      // A page leaving the book never leaves it shut.
+      onBusy(false)
+    }
   }, [busy, onBusy])
 
   // Tab pattern: one Tab stop, arrows/Home/End move and open the bookmark.

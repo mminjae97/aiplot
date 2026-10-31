@@ -188,7 +188,10 @@ test('a picked card turns to every field; relations from the relation table', as
   expect(document.activeElement?.textContent).toBe(strings.dex.close)
   fireEvent.keyDown(window, { key: 'Escape' })
   expect(screen.queryByRole('dialog')).toBeNull()
-  expect(document.activeElement).toBe(teo)
+  // Once the book is no longer shut (a frame later), the focus is back on the card.
+  await waitFor(() => {
+    expect(document.activeElement).toBe(teo)
+  })
 })
 
 test('an incomplete card shows its empty required fields as undecided', async () => {

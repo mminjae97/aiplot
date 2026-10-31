@@ -314,13 +314,13 @@
   right: 0;
 }
 
-.book-turn:hover,
+.book-turn:not([aria-disabled='true']):hover,
 .book-turn:focus-visible {
   background: rgb(255 248 234 / 5%);
   color: rgb(255 248 234 / 70%);
 }
 
-.book-turn:disabled {
+.book-turn[aria-disabled='true'] {
   cursor: default;
   background: transparent;
   color: transparent;

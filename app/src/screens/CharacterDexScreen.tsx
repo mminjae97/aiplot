@@ -112,6 +112,10 @@ export function CharacterDexScreen({
   const busy = drawer !== null || deleting !== null || current !== null
   useEffect(() => {
     onBusy(busy)
+    return () => {
+      // A page leaving the book never leaves it shut.
+      onBusy(false)
+    }
   }, [busy, onBusy])
 
   const choose = (next: View) => {

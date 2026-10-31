@@ -134,11 +134,21 @@ export function StoryScreen({
     parts.length > 0 &&
     milestones.every((milestone) => milestone.parts.length === 1)
   const isOpen = (step: Step) => step === 'main' || (step === 'parts' ? partsOpen : episodesOpen)
-  // Each step is a page of the book; without one asked for, the furthest open step.
-  const step: Step = screen.step ?? (episodesOpen ? 'episodes' : partsOpen ? 'parts' : 'main')
+  // Each open step is a page of the book; without one asked for (or once the asked one has
+  // closed), the furthest open step.
+  const furthest: Step = episodesOpen ? 'episodes' : partsOpen ? 'parts' : 'main'
+  const page: Step = screen.step && (!loaded || isOpen(screen.step)) ? screen.step : furthest
+  // A closed step is no page: its tab only shows why, over the page it was opened on.
+  const [peek, setPeek] = useState<{ step: Step; on: Step } | null>(null)
+  const step: Step = peek?.on === page ? peek.step : page
 
   const choose = (next: Step) => {
-    turn({ name: 'story', workId, step: next })
+    if (isOpen(next)) {
+      setPeek(null)
+      turn({ name: 'story', workId, step: next })
+    } else {
+      setPeek({ step: next, on: page })
+    }
     tabRefs.current.get(next)?.focus()
   }
   const onTabKey = (event: KeyboardEvent) => {
@@ -166,6 +176,10 @@ export function StoryScreen({
   const busy = drawer !== null || deleting !== null || current !== null
   useEffect(() => {
     onBusy(busy)
+    return () => {
+      // A page leaving the book never leaves it shut.
+      onBusy(false)
+    }
   }, [busy, onBusy])
   const loadFailed =
     mains.isError ||

@@ -95,8 +95,12 @@ export function pageOf(screen: PlanningScreen, steps: StorySteps): Page {
       return { name: 'characters', view: screen.view ?? savedView() }
     case 'regions':
       return { name: 'regions' }
-    case 'story':
-      return { name: 'story', step: screen.step ?? steps.furthest }
+    case 'story': {
+      // A step that is (or has become) closed is no page: the story opens at its furthest.
+      const asked = screen.step
+      const open = asked !== undefined && (!steps.loaded || steps.open[asked])
+      return { name: 'story', step: open ? asked : steps.furthest }
+    }
   }
 }
 

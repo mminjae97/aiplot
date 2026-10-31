@@ -37,16 +37,16 @@ export function PlanningBook({ screen }: Props) {
   const index = pages.findIndex((item) => samePage(item, page))
   const before = index > 0 ? pages[index - 1] : undefined
   const after = index >= 0 && index < pages.length - 1 ? pages[index + 1] : undefined
-  const pageKey = JSON.stringify(page)
-
-  // A turning leaf plays whenever the page changes, forward or back by the reading order.
+  // A turning leaf plays when the reader turns to another page (forward or back by the
+  // reading order), not when a default page settles as the data arrives.
+  const screenKey = JSON.stringify(screen)
   const [shown, setShown] = useState<{ key: string; index: number; dir: 'next' | 'prev' | null }>({
-    key: pageKey,
+    key: screenKey,
     index,
     dir: null,
   })
-  if (shown.key !== pageKey) {
-    setShown({ key: pageKey, index, dir: index >= shown.index ? 'next' : 'prev' })
+  if (shown.key !== screenKey) {
+    setShown({ key: screenKey, index, dir: index >= shown.index ? 'next' : 'prev' })
   }
 
   const turnTo = (target: PlanningScreen) => {
@@ -55,7 +55,12 @@ export function PlanningBook({ screen }: Props) {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (busy) return
+      // Not while held, with a modifier, or while typing.
+      const target = event.target
+      const typing =
+        target instanceof HTMLElement &&
+        (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+      if (busy || event.repeat || event.ctrlKey || event.altKey || event.metaKey || typing) return
       if (event.key === 'PageDown' && after) {
         event.preventDefault()
         open(screenOf(after, workId))
@@ -87,7 +92,8 @@ export function PlanningBook({ screen }: Props) {
           className="book-turn"
           data-side="prev"
           aria-label={strings.book.prev}
-          disabled={!before}
+          // aria-disabled, not disabled: the button keeps the focus at the first page.
+          aria-disabled={!before}
           onClick={() => {
             if (before) open(screenOf(before, workId))
           }}
@@ -129,7 +135,7 @@ export function PlanningBook({ screen }: Props) {
           className="book-turn"
           data-side="next"
           aria-label={strings.book.next}
-          disabled={!after}
+          aria-disabled={!after}
           onClick={() => {
             if (after) open(screenOf(after, workId))
           }}

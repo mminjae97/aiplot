@@ -93,12 +93,12 @@ test('the desk beside the book turns one smallest page at a time, in reading ord
   serve({ main: true })
   renderBook({ name: 'contents', workId: 'w_1' })
   expect(await screen.findByRole('heading', { name: strings.contents.heading })).toBeTruthy()
-  expect(prev().hasAttribute('disabled')).toBe(true)
+  expect(prev().getAttribute('aria-disabled') === 'true').toBe(true)
   const seen: unknown[] = []
   // contents → 6 bookmarks → 도감 → 관계도 → map → story ① → ② (③ stays closed).
   for (let i = 0; i < 11; i += 1) {
     await waitFor(() => {
-      expect(next().hasAttribute('disabled')).toBe(false)
+      expect(next().getAttribute('aria-disabled') === 'true').toBe(false)
     })
     fireEvent.click(next())
     seen.push(at())
@@ -117,7 +117,7 @@ test('the desk beside the book turns one smallest page at a time, in reading ord
     { name: 'story', workId: 'w_1', step: 'parts' },
   ])
   // Episodes are not open (no part yet): the last page.
-  expect(next().hasAttribute('disabled')).toBe(true)
+  expect(next().getAttribute('aria-disabled') === 'true').toBe(true)
   fireEvent.click(prev())
   expect(at()).toEqual({ name: 'story', workId: 'w_1', step: 'main' })
 })
@@ -126,7 +126,7 @@ test('the open bookmark of the world book turns to the next category; the glossa
   serve()
   renderBook({ name: 'world', workId: 'w_1', tab: 'terms' })
   await waitFor(() => {
-    expect(next().hasAttribute('disabled')).toBe(false)
+    expect(next().getAttribute('aria-disabled') === 'true').toBe(false)
   })
   fireEvent.click(next())
   expect(at()).toEqual({ name: 'characters', workId: 'w_1', view: 'cards' })
@@ -181,4 +181,15 @@ test('while a drawer is open the book takes no input and pages do not turn', asy
   )
   fireEvent.keyDown(window, { key: 'PageDown' })
   expect(at()).toEqual({ name: 'world', workId: 'w_1' })
+})
+
+test('a closed story step only explains itself; the book keeps its page and can turn', async () => {
+  serve({ main: true })
+  renderBook({ name: 'story', workId: 'w_1', step: 'parts' })
+  fireEvent.click(await screen.findByRole('tab', { name: strings.story.stepEpisodes }))
+  expect(await screen.findByText(strings.story.needParts)).toBeTruthy()
+  expect(at()).toEqual({ name: 'story', workId: 'w_1', step: 'parts' })
+  expect(prev().getAttribute('aria-disabled')).toBe('false')
+  fireEvent.click(prev())
+  expect(at()).toEqual({ name: 'story', workId: 'w_1', step: 'main' })
 })
