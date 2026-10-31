@@ -8,6 +8,7 @@ import type { Card, Draft, DraftCreate, DraftTurn, SimilarName } from '../types'
 import { CardPreview } from './CardPreview'
 import { ChatPanel } from './ChatPanel'
 import { SourcePanel } from './SourcePanel'
+import { TypeSection } from './TypeSection'
 
 export type DrawerRequest = DraftCreate & { workId: string }
 
@@ -58,6 +59,8 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
+  // The stage count picked for a part or an episode (§7): sent with every generation.
+  const [structure, setStructure] = useState<4 | 5 | null>(null)
   // The notes the shown card was generated from: once they change, the card is stale.
   const [generatedFrom, setGeneratedFrom] = useState<string | null>(null)
   const panel = useRef<HTMLDivElement>(null)
@@ -166,7 +169,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     stream.current = null
   }
 
-  const generate = async () => {
+  const generate = async (count: 4 | 5 | null = structure) => {
     if (draftId === null || !canGenerate) return
     const controller = new AbortController()
     genStream.current = controller
@@ -175,7 +178,10 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     setSaveError(null)
     setGenerating({ jobId: null, seconds: 0 })
     try {
-      const accepted = await api.generateCard(draftId, { pinned: pins })
+      const accepted = await api.generateCard(
+        draftId,
+        count === null ? { pinned: pins } : { pinned: pins, structure: count },
+      )
       if (!alive()) return
       setGenerating((old) => old && { ...old, jobId: accepted.jobId })
       // Set from the event callback, so kept in an object.
@@ -511,6 +517,17 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                 </p>
               ) : (
                 <>
+                  <TypeSection
+                    workId={request.workId}
+                    cardId={request.card_id ?? null}
+                    card={generated}
+                    structure={structure}
+                    busy={!canGenerate}
+                    onStructure={(count) => {
+                      setStructure(count)
+                      void generate(count)
+                    }}
+                  />
                   <CardPreview
                     card={generated}
                     saved={saved.data ?? null}

@@ -4,6 +4,7 @@ import type {
   Card,
   CardList,
   CardReferences,
+  Completeness,
   Cover,
   CoverList,
   Draft,
@@ -125,6 +126,7 @@ export const api = {
     }),
   saveDraft: (draftId: string) => request<Card>(`${draft(draftId)}/save`, { method: 'POST' }),
   getCard: (cardId: string) => request<Card>(`/cards/${encodeURIComponent(cardId)}`),
+  completeness: (workId: string) => request<Completeness>(`${work(workId)}/completeness`),
   cardReferences: (cardId: string) =>
     request<CardReferences>(`/cards/${encodeURIComponent(cardId)}/references`),
   listWorks: () => request<WorkList>('/works'),

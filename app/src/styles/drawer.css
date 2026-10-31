@@ -557,3 +557,142 @@ p.drawer-body {
   color: var(--warning);
   font-size: var(--size-small);
 }
+
+/* Type sections (§8): rules and terms, a voice, the stage count, a part's milestones. */
+.type-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 6px;
+}
+
+.type-section h4 {
+  margin: 4px 0 0;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.type-rules,
+.type-milestones,
+.type-speech {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.type-exception {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.type-exception span {
+  padding: 0 6px;
+  border: 1px solid var(--ink-faint);
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.type-terms {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.type-terms div {
+  display: contents;
+}
+
+.type-terms dt {
+  font-weight: 700;
+}
+
+.type-terms dd {
+  margin: 0;
+}
+
+.type-speech {
+  padding-left: 0;
+  list-style: none;
+}
+
+.type-speech-note {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.type-speaker {
+  margin-right: 8px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.type-structure {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.type-structure-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--ink-faint);
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--size-small);
+  text-align: left;
+  cursor: pointer;
+}
+
+.type-structure-option[aria-pressed='true'] {
+  border-color: var(--brass);
+  box-shadow: 0 0 0 1px var(--brass);
+}
+
+/* The recommendation glows; a thick border instead when motion is reduced (as in §9). */
+.type-structure-option[data-recommended] {
+  box-shadow:
+    0 0 0 1px var(--brass),
+    0 0 12px rgb(212 174 92 / 55%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .type-structure-option[data-recommended] {
+    box-shadow: 0 0 0 3px var(--brass);
+  }
+}
+
+.type-structure-option em {
+  color: var(--brass);
+  font-style: normal;
+  font-weight: 700;
+}
+
+.type-milestones li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.type-milestone-state {
+  flex: none;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.type-milestones li[data-state='mine'] .type-milestone-state {
+  color: var(--brass);
+  font-weight: 700;
+}
+
+.type-milestones li[data-state='none'] .type-milestone-state {
+  color: var(--warning);
+}
