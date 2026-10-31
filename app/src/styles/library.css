@@ -448,6 +448,17 @@
   box-shadow: 0 1px 0 var(--brass);
 }
 
+.delete-book-what {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.delete-book-warning {
+  color: var(--danger);
+}
+
 .new-book-error {
   min-height: 1.6em;
   color: var(--danger);

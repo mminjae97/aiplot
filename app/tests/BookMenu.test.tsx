@@ -94,7 +94,21 @@ function serve(initial: Work[]) {
         if (found.cover_id === coverId) found.cover_id = null
         return Promise.resolve(new Response(null, { status: 204 }))
       }
-      if (method === 'PATCH') Object.assign(found, body)
+      if (method === 'DELETE') {
+        works.splice(works.indexOf(found), 1)
+        return Promise.resolve(new Response(null, { status: 204 }))
+      }
+      if (method === 'PATCH') {
+        const patch = { ...(body as Partial<Work>) }
+        if (patch.title !== undefined) {
+          // Cleaned like the server does.
+          patch.title = patch.title.split(/\s+/).filter(Boolean).join(' ')
+          if (patch.title === '') {
+            return json({ code: 'TITLE_EMPTY', message: 'blank', hint: null }, 422)
+          }
+        }
+        Object.assign(found, patch)
+      }
       return json(found)
     }),
   )
@@ -110,12 +124,16 @@ function renderApp() {
   )
 }
 
-async function openDecorate(title: string) {
+async function choose(title: string, item: string) {
   fireEvent.contextMenu(await screen.findByRole('button', { name: title }), {
     clientX: 300,
     clientY: 200,
   })
-  fireEvent.click(screen.getByRole('menuitem', { name: strings.bookMenu.decorate }))
+  fireEvent.click(screen.getByRole('menuitem', { name: item }))
+}
+
+async function openDecorate(title: string) {
+  await choose(title, strings.bookMenu.decorate)
   return screen.getByRole('dialog', { name: strings.decorate.title })
 }
 
@@ -131,7 +149,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-test('right-click opens the book menu; not-ready items say so and Escape closes', async () => {
+test('right-click opens the book menu; backup says not ready and Escape closes', async () => {
   serve([book('w_a', '안개의 항구')])
   renderApp()
   const cover = await screen.findByRole('button', { name: '안개의 항구' })
@@ -141,11 +159,11 @@ test('right-click opens the book menu; not-ready items say so and Escape closes'
   const items = within(menu).getAllByRole('menuitem')
   expect(items.map((i) => i.textContent)).toEqual([
     strings.bookMenu.decorate,
-    `${strings.bookMenu.rename}${strings.bookMenu.later}`,
+    strings.bookMenu.rename,
     `${strings.bookMenu.backup}${strings.bookMenu.later}`,
-    `${strings.bookMenu.delete}${strings.bookMenu.later}`,
+    strings.bookMenu.delete,
   ])
-  expect(items.slice(1).every((i) => i.getAttribute('aria-disabled') === 'true')).toBe(true)
+  expect(items.map((i) => i.getAttribute('aria-disabled'))).toEqual([null, null, 'true', null])
   expect(document.activeElement).toBe(items[0])
   fireEvent.keyDown(menu, { key: 'ArrowDown' })
   expect(document.activeElement).toBe(items[1])
@@ -306,4 +324,82 @@ test('a file that is not a picture explains itself', async () => {
   })
   expect(await within(dialog).findByText(strings.decorate.notImage)).toBeTruthy()
   expect(calls.some((c) => c.method === 'POST')).toBe(false)
+})
+
+test('rename keeps the book in place and focus on it', async () => {
+  const { calls } = serve([book('w_b', '둘째 책'), book('w_a', '안개의 항구')])
+  renderApp()
+  await choose('안개의 항구', strings.bookMenu.rename)
+  const dialog = screen.getByRole('dialog', { name: strings.rename.title })
+  const input = within(dialog).getByLabelText<HTMLInputElement>(strings.rename.label)
+  expect(input.value).toBe('안개의 항구')
+  fireEvent.change(input, { target: { value: '   ' } })
+  const save = within(dialog).getByRole('button', { name: strings.rename.save })
+  expect(save).toHaveProperty('disabled', true)
+  fireEvent.change(input, { target: { value: '안개 낀  항구' } })
+  fireEvent.click(save)
+  await waitFor(() => {
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+  expect(calls.find((c) => c.method === 'PATCH')).toMatchObject({
+    path: '/works/w_a',
+    body: { title: '안개 낀  항구' },
+  })
+  const renamed = await screen.findByRole('button', { name: '안개 낀 항구' })
+  const titles = [...document.querySelectorAll('.book-title')].map((t) => t.textContent)
+  expect(titles).toEqual(['둘째 책', '안개 낀 항구'])
+  expect(document.activeElement).toBe(renamed)
+})
+
+test('an unchanged title just closes', async () => {
+  const { calls } = serve([book('w_a', '안개의 항구')])
+  renderApp()
+  await choose('안개의 항구', strings.bookMenu.rename)
+  fireEvent.click(screen.getByRole('button', { name: strings.rename.save }))
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(calls.some((c) => c.method === 'PATCH')).toBe(false)
+})
+
+test('delete names what goes, needs the title typed, and is never the default', async () => {
+  const { calls, covers } = serve([book('w_b', '둘째 책'), book('w_a', '안개의 항구')])
+  covers.push({ id: 'cv_1', work_id: 'w_a', created_at: '2026-10-31T10:00:00.000Z' })
+  renderApp()
+  await choose('안개의 항구', strings.bookMenu.delete)
+  const dialog = screen.getByRole('alertdialog', { name: strings.deleteBook.title })
+  expect(within(dialog).getByText(strings.deleteBook.question('안개의 항구'))).toBeTruthy()
+  expect(await within(dialog).findByText(strings.deleteBook.covers(1))).toBeTruthy()
+  expect(within(dialog).getByText(strings.deleteBook.irreversible)).toBeTruthy()
+  const input = within(dialog).getByLabelText(strings.deleteBook.confirmLabel)
+  // Focus starts in the title field, not on the red button.
+  expect(document.activeElement).toBe(input)
+  const remove = within(dialog).getByRole('button', { name: strings.deleteBook.delete })
+  expect(remove).toHaveProperty('disabled', true)
+  fireEvent.change(input, { target: { value: '안개의' } })
+  expect(remove).toHaveProperty('disabled', true)
+  // Enter with a wrong title does nothing.
+  fireEvent.submit(input)
+  expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
+  fireEvent.change(input, { target: { value: ' 안개의  항구 ' } })
+  fireEvent.click(remove)
+  await waitFor(() => {
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+  })
+  expect(calls.find((c) => c.method === 'DELETE')?.path).toBe('/works/w_a')
+  await waitFor(() => {
+    expect(screen.queryByRole('button', { name: '안개의 항구' })).toBeNull()
+  })
+  expect(screen.getByRole('button', { name: '둘째 책' })).toBeTruthy()
+  // The shelf is usable again and focus lands on the + book.
+  expect(document.querySelector('main')?.hasAttribute('inert')).toBe(false)
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: strings.library.newBook }))
+})
+
+test('cancelling delete keeps the book', async () => {
+  const { calls } = serve([book('w_a', '안개의 항구')])
+  renderApp()
+  await choose('안개의 항구', strings.bookMenu.delete)
+  fireEvent.keyDown(window, { key: 'Escape' })
+  expect(screen.queryByRole('alertdialog')).toBeNull()
+  expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: '안개의 항구' }))
 })
