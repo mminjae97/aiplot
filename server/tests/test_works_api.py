@@ -100,6 +100,20 @@ def test_rename_rejects(client: TestClient, title: str, code: str) -> None:
     assert client.get(f"/api/v1/works/{work['id']}", headers=AUTH).json() == work
 
 
+def test_rename_rejects_null_title(client: TestClient) -> None:
+    work = create(client, "안개의 항구")
+    response = client.patch(f"/api/v1/works/{work['id']}", headers=AUTH, json={"title": None})
+    assert (response.status_code, response.json()["code"]) == (422, "VALIDATION_ERROR")
+
+
+def test_unknown_cover_rolls_back_the_title(client: TestClient) -> None:
+    work = create(client, "안개의 항구")
+    body = {"title": "새 제목", "cover_id": "cv_nope"}
+    response = client.patch(f"/api/v1/works/{work['id']}", headers=AUTH, json=body)
+    assert (response.status_code, response.json()["code"]) == (404, "COVER_NOT_FOUND")
+    assert client.get(f"/api/v1/works/{work['id']}", headers=AUTH).json() == work
+
+
 def test_rename_missing_work(client: TestClient) -> None:
     response = client.patch("/api/v1/works/w_nope", headers=AUTH, json={"title": "책"})
     assert (response.status_code, response.json()["code"]) == (404, "WORK_NOT_FOUND")
