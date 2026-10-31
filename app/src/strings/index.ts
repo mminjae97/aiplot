@@ -53,7 +53,7 @@ export const strings = {
     cover: '표지 타입',
     coverColor: '색상',
     coverIllustration: '일러스트',
-    color: '컬러',
+    color: '색상',
     custom: '직접 고르기',
     illustrations: '이 책의 일러스트',
     noIllustrations: '아직 올린 일러스트가 없어요.',
