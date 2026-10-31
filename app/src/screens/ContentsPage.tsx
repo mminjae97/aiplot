@@ -94,7 +94,8 @@ export function ContentsPage({ workId }: Props) {
   return (
     <>
       <TopBar onBack={back} title={title} />
-      <main className="desk">
+      {/* The open drawer is modal: the spread behind it takes no focus (the top bar stays). */}
+      <main className="desk" inert={drawer !== null}>
         <article className="spread">
           <section className="page page-left">
             <h2 className="work-title">{title}</h2>

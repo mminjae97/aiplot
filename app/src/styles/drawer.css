@@ -262,16 +262,18 @@ p.drawer-body {
   content: ' ';
 }
 
-/* Sentences the last turn wrote: a brass underline that stays, a glow that fades (§8). */
+/* Sentences the last turn wrote: a brass underline and tint until the next turn, arriving
+   with a short glow (§8; motion 0.3 s, §5). */
 .notes-sentences li[data-changed] {
+  background: rgb(212 174 92 / 18%);
   text-decoration: underline 2px var(--brass);
   text-underline-offset: 3px;
-  animation: sentence-fresh 2s ease-out;
+  animation: sentence-fresh 0.3s ease-out;
 }
 
 @keyframes sentence-fresh {
   from {
-    background: rgb(212 174 92 / 45%);
+    background: rgb(212 174 92 / 55%);
   }
 }
 

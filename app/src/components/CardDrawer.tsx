@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ApiRequestError, api } from '../api/client'
 import { draftKey, sendTurn, withNotes } from '../api/drafts'
 import { strings } from '../strings'
@@ -21,18 +21,31 @@ function errorText(code: string): string {
 }
 
 /** The card drawer (§8): chat and source notes on the left, the card on the right. Its
- * draft lives in server memory only and goes when the drawer closes (§6). */
+ * draft lives in server memory only: whenever the drawer goes (closed, or its screen left),
+ * the draft is deleted and a running turn stops (§6). */
 export function CardDrawer({ request, onClose }: Props) {
   const queryClient = useQueryClient()
   const [draftId, setDraftId] = useState<string | null>(null)
+  const [openError, setOpenError] = useState<string | null>(null)
   const [stage, setStage] = useState<Stage>('idle')
   const [pending, setPending] = useState<{ user: string; reply: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [changed, setChanged] = useState<number[]>([])
   const [questions, setQuestions] = useState<string[]>([])
   const [names, setNames] = useState<SimilarName[]>([])
-  const started = useRef(false)
+  const [editing, setEditing] = useState<string | null>(null)
+  const [notesFailed, setNotesFailed] = useState(false)
+  const [savingNotes, setSavingNotes] = useState(false)
   const panel = useRef<HTMLDivElement>(null)
+  // Lifecycle, outside render: the draft once created, whether the drawer is still mounted,
+  // the running turn's stream.
+  const life = useRef({ started: false, mounted: false, id: null as string | null })
+  const stream = useRef<AbortController | null>(null)
+  // What the window's Esc listener (set up once) needs to read now.
+  const latest = useRef({ onClose, editing })
+  useLayoutEffect(() => {
+    latest.current = { onClose, editing }
+  })
 
   const draft = useQuery({
     queryKey: draftKey(draftId ?? ''),
@@ -40,91 +53,128 @@ export function CardDrawer({ request, onClose }: Props) {
     enabled: draftId !== null,
   })
 
-  const turn = useCallback(
-    async (id: string, text: string, refs: string[]) => {
-      setStage('replying')
-      setPending({ user: text, reply: '' })
-      setError(null)
-      try {
-        await sendTurn(
-          id,
-          { text, refs },
-          {
-            onReply: (piece) => {
-              setPending((old) => old && { ...old, reply: old.reply + piece })
-            },
-            onReplied: () => {
-              setStage('organizing')
-            },
-            onSource: (update) => {
-              queryClient.setQueryData<Draft>(draftKey(id), (old) => old && withNotes(old, update))
-              setChanged(update.changed)
-              setQuestions(update.questions)
-              setNames(update.similar_names)
-            },
-            onError: (code) => {
-              setError(errorText(code))
-            },
+  const turn = async (id: string, text: string, refs: string[]) => {
+    const controller = new AbortController()
+    stream.current = controller
+    setStage('replying')
+    setPending({ user: text, reply: '' })
+    setError(null)
+    setChanged([])
+    setQuestions([])
+    setNames([])
+    const alive = () => !controller.signal.aborted
+    try {
+      await sendTurn(
+        id,
+        { text, refs },
+        {
+          onReply: (piece) => {
+            if (alive()) setPending((old) => old && { ...old, reply: old.reply + piece })
           },
-        )
-      } catch (err) {
-        setError(errorText(err instanceof ApiRequestError ? err.code : ''))
-      } finally {
-        await queryClient.invalidateQueries({ queryKey: draftKey(id) })
-        setPending(null)
-        setStage('idle')
-      }
-    },
-    [queryClient],
-  )
-
-  const open = useMutation({
-    mutationFn: () => {
-      const { workId, ...body } = request
-      return api.createDraft(workId, body)
-    },
-    onSuccess: (created) => {
-      queryClient.setQueryData(draftKey(created.id), created)
-      setDraftId(created.id)
-      // A new card: the AI asks first (§12 empty cards → the LLM asks first).
-      if (created.card_id === null && created.turns.length === 0) void turn(created.id, '', [])
-    },
-  })
-
-  useEffect(() => {
-    // Once per drawer, StrictMode's second effect run included.
-    if (started.current) return
-    started.current = true
-    open.mutate()
-  }, [open])
-
-  const close = useCallback(() => {
-    if (draftId !== null) {
-      queryClient.removeQueries({ queryKey: draftKey(draftId) })
-      // The server forgets the conversation (§6); a failure only leaves it in memory.
-      void api.deleteDraft(draftId).catch(() => undefined)
+          onReplied: () => {
+            if (alive()) setStage('organizing')
+          },
+          onSource: (update) => {
+            if (!alive()) return
+            queryClient.setQueryData<Draft>(draftKey(id), (old) => old && withNotes(old, update))
+            setChanged(update.changed)
+            setQuestions(update.questions)
+            setNames(update.similar_names)
+          },
+          onError: (code) => {
+            if (alive()) setError(errorText(code))
+          },
+        },
+        controller.signal,
+      )
+    } catch (err) {
+      if (alive()) setError(errorText(err instanceof ApiRequestError ? err.code : ''))
     }
-    onClose()
-  }, [draftId, onClose, queryClient])
+    if (!alive()) return
+    // The turns as the server keeps them, swapped in with the pending ones in one render.
+    const fresh = await api.getDraft(id).catch(() => null)
+    if (!alive()) return
+    if (fresh) queryClient.setQueryData(draftKey(id), fresh)
+    setPending(null)
+    setStage('idle')
+    stream.current = null
+  }
 
   useEffect(() => {
+    const state = life.current
+    state.mounted = true
+    if (!state.started) {
+      // Once per drawer, StrictMode's second effect run included.
+      state.started = true
+      const { workId, ...body } = request
+      api
+        .createDraft(workId, body)
+        .then((created) => {
+          if (!state.mounted) {
+            // Gone before the draft existed: never leave it behind.
+            void api.deleteDraft(created.id).catch(() => undefined)
+            return
+          }
+          state.id = created.id
+          queryClient.setQueryData(draftKey(created.id), created)
+          setDraftId(created.id)
+          // A new card: the AI asks first (§12 empty cards → the LLM asks first).
+          if (created.card_id === null && created.turns.length === 0) {
+            void turn(created.id, '', [])
+          }
+        })
+        .catch((err: unknown) => {
+          if (state.mounted) {
+            setOpenError(err instanceof ApiRequestError ? err.code : 'OPEN_FAILED')
+          }
+        })
+    }
+    return () => {
+      state.mounted = false
+      stream.current?.abort()
+      const id = state.id
+      if (id !== null) {
+        // StrictMode remounts at once, before any draft exists, so this is a real goodbye.
+        state.id = null
+        queryClient.removeQueries({ queryKey: draftKey(id) })
+        void api.deleteDraft(id).catch(() => undefined)
+      }
+    }
+    // The drawer opens one draft for its lifetime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    // Focus moves in once, and back to where it came from when the drawer goes.
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
     panel.current?.focus()
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close()
+      if (event.key !== 'Escape' || event.isComposing) return
+      // An open notes editor takes Esc for itself (SourcePanel); never lose its text.
+      if (latest.current.editing === null) latest.current.onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
+      previous?.focus()
     }
-  }, [close])
+  }, [])
 
-  const saveNotes = useMutation({
-    mutationFn: (notes: string) => api.putSource(draftId ?? '', notes),
-    onSuccess: (updated) => {
+  const saveNotes = async (notes: string) => {
+    if (draftId === null) return
+    setSavingNotes(true)
+    setNotesFailed(false)
+    try {
+      const updated = await api.putSource(draftId, notes)
       queryClient.setQueryData(draftKey(updated.id), updated)
       setChanged([])
-    },
-  })
+      setEditing(null)
+    } catch {
+      setNotesFailed(true)
+    } finally {
+      setSavingNotes(false)
+    }
+  }
 
   const send = (text: string, refs: string[]) => {
     if (draftId !== null) void turn(draftId, text, refs)
@@ -139,7 +189,7 @@ export function CardDrawer({ request, onClose }: Props) {
     <div
       className="drawer-backdrop"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) close()
+        if (event.target === event.currentTarget && editing === null) onClose()
       }}
     >
       <div
@@ -160,16 +210,14 @@ export function CardDrawer({ request, onClose }: Props) {
             type="button"
             className="drawer-close"
             aria-label={strings.drawer.close}
-            onClick={close}
+            onClick={onClose}
           >
             ×
           </button>
         </header>
-        {open.isError ? (
+        {openError !== null ? (
           <p className="chat-error drawer-body" role="alert">
-            {open.error instanceof ApiRequestError
-              ? errorText(open.error.code)
-              : strings.drawer.openFailed}
+            {strings.drawer.errors[openError] ?? strings.drawer.openFailed}
           </p>
         ) : !current ? (
           <p className="drawer-body" role="status">
@@ -184,6 +232,8 @@ export function CardDrawer({ request, onClose }: Props) {
                 turns={turns}
                 pending={pending}
                 stage={stage}
+                // While the user edits the notes, a turn would rewrite them underneath.
+                locked={editing !== null}
                 error={error}
                 onSend={send}
               />
@@ -194,10 +244,15 @@ export function CardDrawer({ request, onClose }: Props) {
                 questions={questions}
                 similarNames={names}
                 busy={stage !== 'idle'}
-                saving={saveNotes.isPending}
-                saveFailed={saveNotes.isError}
+                editing={editing}
+                saving={savingNotes}
+                saveFailed={notesFailed}
+                onEdit={(text) => {
+                  setNotesFailed(false)
+                  setEditing(text)
+                }}
                 onSave={(notes) => {
-                  saveNotes.mutate(notes)
+                  void saveNotes(notes)
                 }}
                 onSameName={(pair) => {
                   setNames((old) => old.filter((p) => p !== pair))

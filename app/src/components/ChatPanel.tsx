@@ -1,5 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { type KeyboardEvent, type SubmitEvent, useEffect, useRef, useState } from 'react'
+import {
+  type KeyboardEvent,
+  type SubmitEvent,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { api } from '../api/client'
 import { strings } from '../strings'
 import type { Card, DraftTurn } from '../types'
@@ -10,12 +17,23 @@ type Props = {
   /** The answer still arriving, and the user's words it answers. */
   pending: { user: string; reply: string } | null
   stage: 'idle' | 'replying' | 'organizing'
+  /** No sending (e.g. while the notes are edited by hand). */
+  locked: boolean
   error: string | null
   onSend: (text: string, refs: string[]) => void
 }
 
 // The @ word being typed just before the caret, if any.
 const MENTION = /@([^\s@]*)$/
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** True when the message still names the card as a whole @word (not @레오 in @레오나). */
+function mentions(message: string, name: string): boolean {
+  return new RegExp(`@${escapeRegExp(name)}(?=$|[\\s.,!?…'"’”」』)])`).test(message)
+}
 
 function Mentions({
   cards,
@@ -49,19 +67,23 @@ function Mentions({
 }
 
 /** The drawer's chat (§8): turns, the reply as it streams, @ mentions of other cards. */
-export function ChatPanel({ workId, turns, pending, stage, error, onSend }: Props) {
+export function ChatPanel({ workId, turns, pending, stage, locked, error, onSend }: Props) {
   const [text, setText] = useState('')
   const [refs, setRefs] = useState<{ id: string; name: string }[]>([])
   const [mention, setMention] = useState<string | null>(null)
   const [active, setActive] = useState(0)
   const input = useRef<HTMLTextAreaElement>(null)
   const log = useRef<HTMLOListElement>(null)
-  const busy = stage !== 'idle'
+  // After a pick, where the caret goes once the new text is in the textarea.
+  const caret = useRef<number | null>(null)
+  const busy = stage !== 'idle' || locked
   const found = useQuery({
     queryKey: ['cards', workId, 'mention', mention ?? ''],
     queryFn: () => api.listCards(workId, { q: mention ?? '' }),
     enabled: mention !== null,
     staleTime: 5000,
+    // The last list stays while the next word's arrives.
+    placeholderData: (previous) => previous,
   })
   const options =
     mention === null ? [] : (found.data?.cards ?? []).filter((card) => card.name).slice(0, 6)
@@ -79,10 +101,19 @@ export function ChatPanel({ workId, turns, pending, stage, error, onSend }: Prop
     setActive(0)
   }
 
+  useLayoutEffect(() => {
+    if (caret.current !== null) {
+      input.current?.setSelectionRange(caret.current, caret.current)
+      caret.current = null
+    }
+  }, [text])
+
   const pick = (card: Card) => {
-    const caret = input.current?.selectionStart ?? text.length
-    const before = text.slice(0, caret).replace(MENTION, `@${card.name ?? ''} `)
-    setText(before + text.slice(caret))
+    const at = input.current?.selectionStart ?? text.length
+    const after = text.slice(at).replace(/^\s+/, '')
+    const before = text.slice(0, at).replace(MENTION, `@${card.name ?? ''} `)
+    caret.current = before.length
+    setText(before + after)
     setRefs((old) => [
       ...old.filter((r) => r.id !== card.id),
       { id: card.id, name: card.name ?? '' },
@@ -98,13 +129,18 @@ export function ChatPanel({ workId, turns, pending, stage, error, onSend }: Prop
     // Only cards still named in the message count as mentioned.
     onSend(
       message,
-      refs.filter((r) => message.includes(`@${r.name}`)).map((r) => r.id),
+      refs.filter((r) => mentions(message, r.name)).map((r) => r.id),
     )
     setText('')
     setRefs([])
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    // Keys that finish a Korean syllable belong to the input method, not to us.
+    if (event.nativeEvent.isComposing) {
+      if (event.key === 'Escape') event.stopPropagation()
+      return
+    }
     if (options.length > 0 && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
       event.preventDefault()
       const step = event.key === 'ArrowDown' ? 1 : -1
@@ -123,7 +159,7 @@ export function ChatPanel({ workId, turns, pending, stage, error, onSend }: Prop
       setMention(null)
       return
     }
-    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+    if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
       submit()
     }

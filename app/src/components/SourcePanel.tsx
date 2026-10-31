@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { strings } from '../strings'
 import type { SimilarName } from '../types'
 
@@ -10,8 +9,12 @@ type Props = {
   questions: string[]
   similarNames: SimilarName[]
   busy: boolean
+  /** The notes being edited by hand; null when not editing (owned by the drawer, which
+   * keeps Esc and outside clicks from closing over unsaved text). */
+  editing: string | null
   saving: boolean
   saveFailed: boolean
+  onEdit: (text: string | null) => void
   onSave: (notes: string) => void
   onSameName: (pair: SimilarName) => void
   onDismissName: (pair: SimilarName) => void
@@ -25,14 +28,14 @@ export function SourcePanel({
   questions,
   similarNames,
   busy,
+  editing,
   saving,
   saveFailed,
+  onEdit,
   onSave,
   onSameName,
   onDismissName,
 }: Props) {
-  const [editing, setEditing] = useState<string | null>(null)
-
   return (
     <section className="notes" aria-labelledby="notes-title">
       <div className="notes-head">
@@ -45,7 +48,7 @@ export function SourcePanel({
             className="paper-button"
             disabled={busy}
             onClick={() => {
-              setEditing(notes)
+              onEdit(notes)
             }}
           >
             {strings.drawer.editNotes}
@@ -58,7 +61,6 @@ export function SourcePanel({
           onSubmit={(event) => {
             event.preventDefault()
             onSave(editing)
-            setEditing(null)
           }}
         >
           <textarea
@@ -66,7 +68,13 @@ export function SourcePanel({
             value={editing}
             maxLength={20000}
             onChange={(event) => {
-              setEditing(event.target.value)
+              onEdit(event.target.value)
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== 'Escape' || event.nativeEvent.isComposing) return
+              // Esc leaves an untouched editor; it never throws typed text away.
+              event.stopPropagation()
+              if (editing === notes) onEdit(null)
             }}
           />
           <div className="notes-actions">
@@ -74,7 +82,7 @@ export function SourcePanel({
               type="button"
               className="paper-button"
               onClick={() => {
-                setEditing(null)
+                onEdit(null)
               }}
             >
               {strings.drawer.cancelNotes}

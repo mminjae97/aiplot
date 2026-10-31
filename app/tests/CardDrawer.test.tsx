@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { ServerState } from '../src/api/bridge'
 import { CardDrawer, type DrawerRequest } from '../src/components/CardDrawer'
@@ -91,6 +92,7 @@ function serve(turnEvents: (text: string) => [string, unknown][]) {
         }
         return Promise.resolve(sse(events))
       }
+      if (path.startsWith('/works/w_1/cards?type=')) return json({ cards: [] })
       if (path.startsWith('/works/w_1/cards')) {
         return json({
           cards: [
@@ -128,15 +130,27 @@ function turnOf(text: string): [string, unknown][] {
   ]
 }
 
+/** The editor opens once the running turn is over (the button waits for it). */
+async function editButton(): Promise<HTMLElement> {
+  const button = screen.getByRole('button', { name: strings.drawer.editNotes })
+  await waitFor(() => {
+    expect(button).toHaveProperty('disabled', false)
+  })
+  return button
+}
+
 function renderDrawer(request: DrawerRequest = { workId: 'w_1', type: 'character' }) {
   const onClose = vi.fn()
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(
-    <QueryClientProvider client={client}>
-      <CardDrawer request={request} onClose={onClose} />
-    </QueryClientProvider>,
+  // StrictMode, as the app runs: effects run twice, the drawer still opens one draft.
+  const view = render(
+    <StrictMode>
+      <QueryClientProvider client={client}>
+        <CardDrawer request={request} onClose={onClose} />
+      </QueryClientProvider>
+    </StrictMode>,
   )
-  return { onClose }
+  return { onClose, unmount: view.unmount }
 }
 
 beforeEach(() => {
@@ -170,6 +184,7 @@ test('a new card opens with the AI asking first', async () => {
   expect(
     within(dialog).getByText(`${strings.drawer.kind.character} · ${strings.drawer.new}`),
   ).toBeTruthy()
+  expect(calls.filter((c) => c.method === 'POST' && c.path === '/works/w_1/drafts')).toHaveLength(1)
   expect(
     calls.filter((c) => c.method === 'POST' && c.path === '/drafts/dr_1/messages'),
   ).toHaveLength(1)
@@ -249,7 +264,7 @@ test('the notes can be edited directly', async () => {
   const { calls } = serve(turnOf)
   renderDrawer()
   await screen.findByText(REPLY)
-  fireEvent.click(screen.getByRole('button', { name: strings.drawer.editNotes }))
+  fireEvent.click(await editButton())
   fireEvent.change(screen.getByLabelText(strings.drawer.editNotesLabel), {
     target: { value: '테오는 활을 쓴다. 말수가 적다.' },
   })
@@ -274,15 +289,24 @@ test('an error says why and the conversation goes on', async () => {
   fireEvent.change(screen.getByLabelText(strings.drawer.inputLabel), { target: { value: '안녕.' } })
   fireEvent.keyDown(screen.getByLabelText(strings.drawer.inputLabel), { key: 'Enter' })
   expect(await screen.findByText(strings.drawer.errors.LLM_UNAVAILABLE ?? '')).toBeTruthy()
-  expect(screen.getByRole('button', { name: strings.drawer.send })).toHaveProperty('disabled', true)
+  // The drawer is ready for the next turn.
+  fireEvent.change(screen.getByLabelText(strings.drawer.inputLabel), { target: { value: '다시.' } })
+  await waitFor(() => {
+    expect(screen.getByRole('button', { name: strings.drawer.send })).toHaveProperty(
+      'disabled',
+      false,
+    )
+  })
 })
 
 test('closing forgets the draft on the server', async () => {
   const { calls } = serve(turnOf)
-  const { onClose } = renderDrawer()
+  const { onClose, unmount } = renderDrawer()
   await screen.findByText(REPLY)
   fireEvent.keyDown(window, { key: 'Escape' })
   expect(onClose).toHaveBeenCalledOnce()
+  // The screen takes the drawer away on close; that is when the draft goes.
+  unmount()
   await waitFor(() => {
     expect(calls.some((c) => c.method === 'DELETE' && c.path === '/drafts/dr_1')).toBe(true)
   })
@@ -329,10 +353,87 @@ test('the contents page opens the drawer from the planning items', async () => {
   )
   fireEvent.click(await screen.findByRole('button', { name: '캐릭터' }))
   expect(await screen.findByRole('dialog')).toBeTruthy()
+  expect(document.querySelector('main.desk')?.hasAttribute('inert')).toBe(true)
   fireEvent.keyDown(window, { key: 'Escape' })
   fireEvent.click(screen.getByRole('button', { name: '스토리' }))
+  // No part yet (the list has answered): a new episode has nowhere to go.
+  await waitFor(() => {
+    expect(fetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:9100/api/v1/works/w_1/cards?type=part',
+      expect.anything(),
+    )
+  })
   expect(screen.getByRole('button', { name: strings.drawer.temporary.newEpisode })).toHaveProperty(
     'disabled',
     true,
   )
+  fireEvent.click(screen.getByRole('button', { name: strings.drawer.temporary.mainStory }))
+  expect(
+    await screen.findByText(`${strings.drawer.kind.main_story} · ${strings.drawer.new}`),
+  ).toBeTruthy()
+})
+
+test('Esc leaves the notes editor, never the drawer with unsaved text', async () => {
+  serve(turnOf)
+  const { onClose } = renderDrawer()
+  await screen.findByText(REPLY)
+  fireEvent.click(await editButton())
+  const editor = screen.getByLabelText(strings.drawer.editNotesLabel)
+  // While editing by hand, the chat waits (a turn would rewrite the notes underneath).
+  expect(screen.getByRole('button', { name: strings.drawer.send })).toHaveProperty('disabled', true)
+  fireEvent.change(editor, { target: { value: '고치는 중이다.' } })
+  fireEvent.keyDown(editor, { key: 'Escape' })
+  fireEvent.keyDown(window, { key: 'Escape' })
+  fireEvent.mouseDown(document.querySelector('.drawer-backdrop') as Element)
+  expect(onClose).not.toHaveBeenCalled()
+  expect(screen.getByLabelText<HTMLTextAreaElement>(strings.drawer.editNotesLabel).value).toBe(
+    '고치는 중이다.',
+  )
+  fireEvent.click(screen.getByRole('button', { name: strings.drawer.cancelNotes }))
+  // An untouched editor goes with Esc.
+  fireEvent.click(await editButton())
+  fireEvent.keyDown(screen.getByLabelText(strings.drawer.editNotesLabel), { key: 'Escape' })
+  expect(screen.queryByLabelText(strings.drawer.editNotesLabel)).toBeNull()
+  fireEvent.keyDown(window, { key: 'Escape' })
+  expect(onClose).toHaveBeenCalledOnce()
+})
+
+test('leaving the screen without closing still forgets the draft', async () => {
+  const { calls } = serve(turnOf)
+  const { unmount } = renderDrawer()
+  await screen.findByText(REPLY)
+  unmount()
+  await waitFor(() => {
+    expect(calls.some((c) => c.method === 'DELETE' && c.path === '/drafts/dr_1')).toBe(true)
+  })
+})
+
+test('a drawer gone before its draft exists deletes it when it arrives', async () => {
+  const { calls } = serve(turnOf)
+  const { unmount } = renderDrawer()
+  unmount()
+  await waitFor(() => {
+    expect(calls.some((c) => c.method === 'DELETE' && c.path === '/drafts/dr_1')).toBe(true)
+  })
+  // Nobody is there to hear the AI's opening.
+  expect(calls.some((c) => c.path === '/drafts/dr_1/messages')).toBe(false)
+})
+
+test('a mention counts only as the whole @name', async () => {
+  const { calls } = serve(turnOf)
+  renderDrawer()
+  await screen.findByText(REPLY)
+  const input = screen.getByLabelText<HTMLTextAreaElement>(strings.drawer.inputLabel)
+  input.setSelectionRange(0, 0)
+  fireEvent.change(input, { target: { value: '@레' } })
+  await screen.findAllByRole('option')
+  fireEvent.keyDown(input, { key: 'Enter' })
+  fireEvent.change(input, { target: { value: '@레오나와 만난다.' } })
+  fireEvent.keyDown(input, { key: 'Enter' })
+  await waitFor(() => {
+    expect(calls.filter((c) => c.path === '/drafts/dr_1/messages').at(-1)?.body).toEqual({
+      text: '@레오나와 만난다.',
+      refs: [],
+    })
+  })
 })
