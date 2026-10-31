@@ -4,7 +4,7 @@
   "description": "A book in the library (§12 S0, §14 work). Fields for the cover (main theme, chapters) arrive with the units that create them.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "title", "stage", "locked_stage", "last_item", "updated_at"],
+  "required": ["id", "title", "stage", "locked_stage", "last_item", "color", "cover_id", "updated_at"],
   "properties": {
     "id": { "$ref": "../common/work-id.json" },
     "title": { "$ref": "#/$defs/title" },
@@ -13,6 +13,11 @@
     "last_item": {
       "description": "Contents item opened last, highlighted on S1 (§12).",
       "anyOf": [{ "enum": ["world", "characters", "regions", "story", "direction", "writing", "reading"] }, { "type": "null" }]
+    },
+    "color": { "$ref": "#/$defs/color" },
+    "cover_id": {
+      "description": "Cover illustration on the front; null = cloth cover in the book colour.",
+      "anyOf": [{ "$ref": "../common/cover-id.json" }, { "type": "null" }]
     },
     "updated_at": { "description": "ISO 8601 UTC.", "type": "string" }
   },
@@ -23,6 +28,11 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 100
+    },
+    "color": {
+      "title": "BookColor",
+      "description": "Spine and cloth cover colour, lowercase #rrggbb; null = the app's default, stable per work id.",
+      "anyOf": [{ "type": "string", "pattern": "^#[0-9a-f]{6}$" }, { "type": "null" }]
     }
   }
 }

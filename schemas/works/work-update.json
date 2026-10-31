@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkUpdate",
+  "description": "PATCH /works/{workId}: 책 꾸미기 (§12 S0). Only the keys sent change (none sent → 422 VALIDATION_ERROR); decorating never moves the book on the shelf (updated_at kept).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "color": { "$ref": "work.json#/$defs/color" },
+    "cover_id": {
+      "description": "One of this book's covers (404 COVER_NOT_FOUND otherwise); null = cloth cover in the book colour.",
+      "anyOf": [{ "$ref": "../common/cover-id.json" }, { "type": "null" }]
+    }
+  }
+}

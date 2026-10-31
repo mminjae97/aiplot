@@ -12,6 +12,8 @@ function works(n: number): Work[] {
     stage: 1,
     locked_stage: 0,
     last_item: null,
+    color: null,
+    cover_id: null,
     updated_at: '2026-10-30T09:00:00.000Z',
   }))
 }

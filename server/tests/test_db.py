@@ -177,6 +177,19 @@ def test_init_db_creates_parent_dirs(tmp_path: Path) -> None:
     check.close()
 
 
+def test_cover_migration_keeps_books_on_cloth(conn: sqlite3.Connection) -> None:
+    shipped = discover()
+    migrate(conn, shipped[:1])
+    conn.execute("INSERT INTO work (id, title, updated_at) VALUES ('w_1', '책', '2026-10-31')")
+    migrate(conn, shipped)
+    row = conn.execute("SELECT color, cover_id FROM work WHERE id = 'w_1'").fetchone()
+    assert (row["color"], row["cover_id"]) == (None, None)
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("UPDATE work SET color = '#ABCDEF'")
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("UPDATE work SET cover_id = 'cv_missing'")
+
+
 def test_connect_pragmas(conn: sqlite3.Connection) -> None:
     assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
     assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
