@@ -54,7 +54,8 @@
   /* square at the bottom, so the longer end continues it without a nick at the corners */
   border-radius: 0;
   background: var(--brass);
-  color: #fff8ea;
+  /* dark ink on brass: 4.5:1 or more in both themes (§5) */
+  color: #2a1f12;
 }
 
 /* The longer end hangs over the page below; it takes no room. */
