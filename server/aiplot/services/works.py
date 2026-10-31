@@ -25,6 +25,10 @@ class CoverNotFoundError(LookupError):
     pass
 
 
+class StageLockedError(PermissionError):
+    """The stage is read-only once a later one started (§1, §11): 423 STAGE_LOCKED."""
+
+
 class TitleEmptyError(ValueError):
     pass
 
@@ -94,3 +98,13 @@ def delete(conn: sqlite3.Connection, images_dir: Path, work_id: str) -> None:
         except OSError:
             # The book is gone; only a stray file is left.
             logger.warning("could not remove cover file %s", relative, exc_info=True)
+
+
+def require_open(conn: sqlite3.Connection, work_id: str, stage: int) -> Work:
+    """The work, if data of this stage may still change."""
+    work = db.get(conn, work_id)
+    if work is None:
+        raise WorkNotFoundError(work_id)
+    if work.locked_stage >= stage:
+        raise StageLockedError(f"stage {stage} of {work_id} is locked")
+    return work

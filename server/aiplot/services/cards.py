@@ -23,7 +23,14 @@ from aiplot.generated.card.card import (
     RegionCard,
     WorldCard,
 )
-from aiplot.services.works import WorkNotFoundError
+from aiplot.generated.card.card_references import CardReference
+from aiplot.generated.card.completeness import (
+    Completeness,
+    ForeshadowingStatus,
+    IncompleteCard,
+    MilestoneFulfilment,
+)
+from aiplot.services.works import WorkNotFoundError, require_open
 
 CARD = TypeAdapter(Card)
 SCHEMA_VERSION = 1
@@ -310,3 +317,79 @@ def from_row(conn: sqlite3.Connection, row: db.CardRow) -> Card:
 def get(conn: sqlite3.Connection, card_id: str) -> Card | None:
     row = db.get(conn, card_id)
     return None if row is None else from_row(conn, row)
+
+
+class CardNotFoundError(LookupError):
+    pass
+
+
+class NotARegionError(ValueError):
+    """Only a region's map position is edited directly (§6)."""
+
+
+def require(conn: sqlite3.Connection, card_id: str) -> db.CardRow:
+    row = db.get(conn, card_id)
+    if row is None:
+        raise CardNotFoundError(card_id)
+    return row
+
+
+def list_cards(
+    conn: sqlite3.Connection, work_id: str, card_type: str | None, query: str | None
+) -> list[Card]:
+    if works_db.get(conn, work_id) is None:
+        raise WorkNotFoundError(work_id)
+    if query is not None and query.strip():
+        rows = db.search_names(conn, work_id, query, card_type)
+    else:
+        rows = db.list_for_work(conn, work_id, card_type)
+    return [from_row(conn, row) for row in rows]
+
+
+def references(conn: sqlite3.Connection, card_id: str) -> list[CardReference]:
+    require(conn, card_id)
+    result = []
+    for ref_id, field in db.references(conn, card_id):
+        ref = db.get(conn, ref_id)
+        if ref is not None:
+            result.append(
+                CardReference.model_validate(
+                    {"card_id": ref.id, "type": ref.type, "name": ref.name, "field": field}
+                )
+            )
+    return result
+
+
+def set_position(conn: sqlite3.Connection, card_id: str, x: float, y: float) -> Card:
+    """The map moves a region (§8); locked once stage 1 is (423)."""
+    with transaction(conn):
+        row = require(conn, card_id)
+        if row.type != "region":
+            raise NotARegionError(f"{card_id} is a {row.type}")
+        require_open(conn, row.work_id, 1)
+        db.set_region_position(conn, card_id, x, y)
+    card = get(conn, card_id)
+    assert card is not None
+    return card
+
+
+def completeness(conn: sqlite3.Connection, work_id: str) -> Completeness:
+    if works_db.get(conn, work_id) is None:
+        raise WorkNotFoundError(work_id)
+    return Completeness(
+        milestones=[
+            MilestoneFulfilment(
+                id=m.id, order=m.order, text=m.text, parts=m.parts, episodes=m.episodes
+            )
+            for m in db.milestones_of_work(conn, work_id)
+        ],
+        foreshadowing=[
+            ForeshadowingStatus(id=fid, text=text, plant_episode_id=plant, payoff_episode_id=payoff)
+            for fid, text, plant, payoff in db.foreshadowing_of_work(conn, work_id)
+        ],
+        incomplete=[
+            IncompleteCard.model_validate({"card_id": row.id, "type": row.type, "name": row.name})
+            for row in db.list_for_work(conn, work_id)
+            if row.status == "incomplete"
+        ],
+    )

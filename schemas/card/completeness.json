@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Completeness",
+  "description": "GET /works/{workId}/completeness: what the completeness panel shows (§7, §8 S1-3), from the relation tables.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["milestones", "foreshadowing", "incomplete"],
+  "properties": {
+    "milestones": {
+      "description": "Every milestone of the main story, in order, with the parts and episodes that fulfil it (each must be in exactly one part).",
+      "type": "array",
+      "items": {
+        "title": "MilestoneFulfilment",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "order", "text", "parts", "episodes"],
+        "properties": {
+          "id": { "$ref": "../common/milestone-id.json" },
+          "order": { "type": "integer", "minimum": 1 },
+          "text": { "type": "string" },
+          "parts": { "type": "array", "items": { "$ref": "../common/card-id.json" } },
+          "episodes": { "type": "array", "items": { "$ref": "../common/card-id.json" } }
+        }
+      }
+    },
+    "foreshadowing": {
+      "description": "Every planted foreshadowing; payoff_episode_id null = not paid off yet.",
+      "type": "array",
+      "items": {
+        "title": "ForeshadowingStatus",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "text", "plant_episode_id", "payoff_episode_id"],
+        "properties": {
+          "id": { "$ref": "../common/foreshadowing-id.json" },
+          "text": { "type": "string" },
+          "plant_episode_id": { "$ref": "../common/card-id.json" },
+          "payoff_episode_id": { "anyOf": [{ "$ref": "../common/card-id.json" }, { "type": "null" }] }
+        }
+      }
+    },
+    "incomplete": {
+      "description": "Cards with a §15 required field missing.",
+      "type": "array",
+      "items": {
+        "title": "IncompleteCard",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["card_id", "type", "name"],
+        "properties": {
+          "card_id": { "$ref": "../common/card-id.json" },
+          "type": { "enum": ["world", "character", "region", "main_story", "part", "episode"] },
+          "name": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}
