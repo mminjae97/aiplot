@@ -6,6 +6,7 @@ import type {
   CardDeleted,
   CardReferences,
   CardRelations,
+  RegionLinks,
   Completeness,
   Cover,
   CoverList,
@@ -129,8 +130,17 @@ export const api = {
   saveDraft: (draftId: string) => request<Card>(`${draft(draftId)}/save`, { method: 'POST' }),
   getCard: (cardId: string) => request<Card>(`/cards/${encodeURIComponent(cardId)}`),
   completeness: (workId: string) => request<Completeness>(`${work(workId)}/completeness`),
-  relations: (workId: string, kind: 'world' | 'character' | 'origin') =>
-    request<CardRelations>(`${work(workId)}/relations?kind=${kind}`),
+  relations: (
+    workId: string,
+    kind: 'world' | 'character' | 'origin' | 'parent' | 'episode_region',
+  ) => request<CardRelations>(`${work(workId)}/relations?kind=${kind}`),
+  regionLinks: (workId: string) => request<RegionLinks>(`${work(workId)}/region-links`),
+  /** PATCH /cards/{cardId}: a region's map position, the only directly edited values (§6). */
+  moveRegion: (cardId: string, mapX: number, mapY: number) =>
+    request<Card>(`/cards/${encodeURIComponent(cardId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ map_x: mapX, map_y: mapY }),
+    }),
   deleteCard: (cardId: string) =>
     request<CardDeleted>(`/cards/${encodeURIComponent(cardId)}`, { method: 'DELETE' }),
   restoreCard: (cardId: string) =>

@@ -253,3 +253,48 @@ def test_relations_come_from_the_relation_tables(
     assert error(bad) == (422, "VALIDATION_ERROR")
     missing = client.get("/api/v1/works/w_nope/relations?kind=world", headers=AUTH)
     assert error(missing) == (404, "WORK_NOT_FOUND")
+
+
+def test_region_map_rows_come_from_the_relation_tables(
+    client: TestClient, conn: sqlite3.Connection
+) -> None:
+    story(conn)
+    save(conn, region("c_capital", "왕도"))
+    save(
+        conn,
+        region(
+            "c_harbor",
+            "등대 부두",
+            parent_id="c_port",
+            links=[
+                {
+                    "target_id": "c_capital",
+                    "travel": {"value": 3, "unit": "day", "mode": "말"},
+                    "direction": "남",
+                },
+                {"target_id": "c_isle", "travel": None, "direction": None},
+                {"target_id": "c_ghost", "travel": None, "direction": "북"},
+            ],
+        ),
+    )
+    save(conn, fixture("episode", id="c_ep1"))
+    assert get(client, "/works/w_01/region-links") == {
+        "links": [
+            {
+                "from_id": "c_harbor",
+                "to_id": "c_capital",
+                "travel": {"value": 3, "unit": "day", "mode": "말"},
+                "direction": "남",
+            },
+            {"from_id": "c_harbor", "to_id": "c_isle", "travel": None, "direction": None},
+        ]
+    }
+    assert get(client, "/works/w_01/relations?kind=parent") == {
+        "relations": [{"from_id": "c_harbor", "to_id": "c_port", "relation": None}]
+    }
+    assert get(client, "/works/w_01/relations?kind=episode_region") == {
+        "relations": [{"from_id": "c_ep1", "to_id": "c_port", "relation": "main"}]
+    }
+    assert get(client, "/works/w_02/region-links") == {"links": []}
+    missing = client.get("/api/v1/works/w_nope/region-links", headers=AUTH)
+    assert error(missing) == (404, "WORK_NOT_FOUND")

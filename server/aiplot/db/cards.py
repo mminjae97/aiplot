@@ -548,8 +548,9 @@ def last_part_order(conn: sqlite3.Connection, work_id: str) -> int:
 def relations_of_work(
     conn: sqlite3.Connection, work_id: str, kind: str
 ) -> list[tuple[str, str, str | None]]:
-    """(from, to, relation) rows: world_relation (world -> card), char_relation, or the
-    character table's origin region (character -> region)."""
+    """(from, to, relation) rows: world_relation (world -> card), char_relation, the
+    character table's origin region (character -> region), the region table's parent
+    (region -> parent) or episode_region (episode -> region, 'main' for the main one)."""
     if kind == "world":
         sql = (
             "SELECT world_id, world_relation.card_id, NULL FROM world_relation "
@@ -562,6 +563,19 @@ def relations_of_work(
             "JOIN card ON card.id = character.card_id "
             "WHERE card.work_id = ? AND origin_region_id IS NOT NULL ORDER BY card.rowid"
         )
+    elif kind == "parent":
+        sql = (
+            "SELECT card_id, parent_region_id, NULL FROM region "
+            "JOIN card ON card.id = region.card_id "
+            "WHERE card.work_id = ? AND parent_region_id IS NOT NULL ORDER BY card.rowid"
+        )
+    elif kind == "episode_region":
+        sql = (
+            "SELECT episode_id, episode_region.card_id, "
+            "CASE WHEN main = 1 THEN 'main' END FROM episode_region "
+            "JOIN card ON card.id = episode_region.episode_id WHERE card.work_id = ? "
+            "ORDER BY card.rowid, episode_region.rowid"
+        )
     else:
         sql = (
             "SELECT from_id, to_id, relation FROM char_relation "
@@ -569,3 +583,13 @@ def relations_of_work(
             "ORDER BY card.rowid, char_relation.rowid"
         )
     return [(r[0], r[1], r[2]) for r in conn.execute(sql, (work_id,)).fetchall()]
+
+
+def region_links_of_work(conn: sqlite3.Connection, work_id: str) -> list[sqlite3.Row]:
+    """region_link rows whose from-region belongs to the work, in creation order."""
+    return conn.execute(
+        "SELECT from_id, to_id, travel_value, travel_unit, travel_mode, direction "
+        "FROM region_link JOIN card ON card.id = region_link.from_id WHERE card.work_id = ? "
+        "ORDER BY card.rowid, region_link.rowid",
+        (work_id,),
+    ).fetchall()

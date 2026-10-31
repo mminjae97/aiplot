@@ -3,6 +3,7 @@ import { needsSetup, useHealth, useSetupWatcher } from './api/setup'
 import { CharacterDexScreen } from './screens/CharacterDexScreen'
 import { ContentsPage } from './screens/ContentsPage'
 import { LibraryScreen } from './screens/LibraryScreen'
+import { RegionMapScreen } from './screens/RegionMapScreen'
 import { ServerScreen } from './screens/ServerScreen'
 import { SetupScreen } from './screens/SetupScreen'
 import { WorldBookScreen } from './screens/WorldBookScreen'
@@ -28,6 +29,15 @@ function Connected({ baseUrl }: { baseUrl: string }) {
   if (screen.name === 'characters') {
     return (
       <CharacterDexScreen
+        key={`${baseUrl}:${screen.workId}:${screen.cardId ?? ''}`}
+        workId={screen.workId}
+        cardId={screen.cardId}
+      />
+    )
+  }
+  if (screen.name === 'regions') {
+    return (
+      <RegionMapScreen
         key={`${baseUrl}:${screen.workId}:${screen.cardId ?? ''}`}
         workId={screen.workId}
         cardId={screen.cardId}
