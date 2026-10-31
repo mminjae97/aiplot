@@ -47,10 +47,18 @@ export function DeleteCardDialog({ card, partEpisodes, onCancel, onDeleted }: Co
       void queryClient.invalidateQueries({ queryKey: ['completeness', card.work_id] })
       onDeleted(deleted.restore_until)
     } catch (err) {
+      const code = err instanceof ApiRequestError ? err.code : ''
+      // The part has episodes the screen did not know of yet: read them again, so the dialog
+      // asks where they go.
+      if (code === 'PART_HAS_EPISODES') {
+        void queryClient.invalidateQueries({ queryKey: ['relations', card.work_id] })
+      }
       setFailed(
-        err instanceof ApiRequestError && err.code === 'STAGE_LOCKED'
+        code === 'STAGE_LOCKED'
           ? (strings.drawer.errors.STAGE_LOCKED ?? strings.cardDelete.failed)
-          : strings.cardDelete.failed,
+          : code === 'PART_HAS_EPISODES'
+            ? strings.cardDelete.chooseEpisodes
+            : strings.cardDelete.failed,
       )
       setBusy(false)
     }

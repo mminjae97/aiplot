@@ -67,15 +67,21 @@ export function StoryScreen({ workId }: Props) {
   const partName = (id: string, index?: number) => {
     const part = parts.find((card) => card.id === id)
     const order = index ?? (part ? parts.indexOf(part) : -1)
+    // A part the card list has not caught up with yet reads as untitled, never as its id.
     return part
       ? `${strings.story.partLabel(order + 1)}${part.data.title ? ` · ${part.data.title}` : ''}`
-      : id
+      : strings.drawer.untitled
   }
 
+  // Nothing is decided (open steps, empty states) before the cards and milestones are in.
+  const loaded = mains.isSuccess && partCards.isSuccess && completeness.isSuccess
   // Steps open in order (§8).
   const partsOpen = main !== null
   const episodesOpen =
-    partsOpen && parts.length > 0 && milestones.every((milestone) => milestone.parts.length === 1)
+    loaded &&
+    partsOpen &&
+    parts.length > 0 &&
+    milestones.every((milestone) => milestone.parts.length === 1)
   const isOpen = (step: Step) => step === 'main' || (step === 'parts' ? partsOpen : episodesOpen)
   // Until the user picks a tab: the furthest open step.
   const step: Step = chosen ?? (episodesOpen ? 'episodes' : partsOpen ? 'parts' : 'main')
@@ -107,7 +113,12 @@ export function StoryScreen({ workId }: Props) {
     episodes: strings.story.stepEpisodes,
   }
   const busy = drawer !== null || deleting !== null
-  const loadFailed = mains.isError || partCards.isError || episodeCards.isError
+  const loadFailed =
+    mains.isError ||
+    partCards.isError ||
+    episodeCards.isError ||
+    completeness.isError ||
+    placement.isError
 
   const actions = (card: Card) =>
     !locked && (
@@ -188,7 +199,9 @@ export function StoryScreen({ workId }: Props) {
             aria-labelledby={`story-tab-${step}`}
             className="story-sheet"
           >
-            {step === 'main' &&
+            {!loaded && !loadFailed && <span className="spinner" aria-hidden="true" />}
+            {loaded &&
+              step === 'main' &&
               (main === null ? (
                 <div className="story-empty">
                   <p>{strings.story.noMain}</p>
@@ -247,7 +260,8 @@ export function StoryScreen({ workId }: Props) {
                   {actions(main)}
                 </article>
               ))}
-            {step === 'parts' &&
+            {loaded &&
+              step === 'parts' &&
               (!partsOpen ? (
                 <p className="story-later">{strings.story.needMain}</p>
               ) : (
@@ -306,7 +320,8 @@ export function StoryScreen({ workId }: Props) {
                   )}
                 </>
               ))}
-            {step === 'episodes' &&
+            {loaded &&
+              step === 'episodes' &&
               (!episodesOpen ? (
                 <p className="story-later">
                   {partsOpen ? strings.story.needParts : strings.story.needMain}

@@ -333,6 +333,7 @@ export const strings = {
     moveEpisodes: '다른 부로 옮기기:',
     moveTarget: '옮길 부',
     deleteEpisodes: '에피소드도 함께 삭제',
+    chooseEpisodes: '이 부에 에피소드가 있어요. 옮길지 함께 지울지 골라 주세요.',
     restoreFailed: '되돌리지 못했어요. 되돌릴 수 있는 시간이 지났어요.',
   },
   story: {

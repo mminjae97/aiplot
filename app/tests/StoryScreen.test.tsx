@@ -230,3 +230,43 @@ test('deleting a part with episodes asks, moving them to another part by default
     expect(calls.find((c) => c.method === 'DELETE')?.path).toBe('/cards/c_p1?episodes=move%3Ac_p2')
   })
 })
+
+test('a part whose episodes the screen missed: the server says so and the dialog asks', async () => {
+  let placed = false
+  serve({
+    parts: [part('c_p1', 1, '항구'), part('c_p2', 2, '남쪽으로')],
+    assigned: { ms_1: ['c_p1'] },
+  })
+  const base = vi.mocked(fetch)
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, init?: RequestInit) => {
+      if (url.endsWith('/relations?kind=episode_part'))
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              relations: placed ? [{ from_id: 'c_ep1', to_id: 'c_p1', relation: '1' }] : [],
+            }),
+          ),
+        )
+      if (init?.method === 'DELETE' && !url.includes('episodes=')) {
+        placed = true
+        return Promise.resolve(
+          new Response(JSON.stringify({ code: 'PART_HAS_EPISODES', message: '', hint: null }), {
+            status: 409,
+          }),
+        )
+      }
+      return base(url, init)
+    }),
+  )
+  renderStory()
+  await screen.findByText(strings.story.missingMilestones)
+  const [first] = screen.getAllByRole('button', { name: strings.story.delete })
+  if (!first) throw new Error('no delete button')
+  fireEvent.click(first)
+  const dialog = await screen.findByRole('alertdialog')
+  fireEvent.click(within(dialog).getByRole('button', { name: strings.cardDelete.delete }))
+  expect(await within(dialog).findByText(strings.cardDelete.chooseEpisodes)).toBeTruthy()
+  expect(await within(dialog).findByText(strings.cardDelete.partEpisodes(1))).toBeTruthy()
+})
