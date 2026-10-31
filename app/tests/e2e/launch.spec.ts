@@ -74,15 +74,13 @@ test('app starts the local server, opens the library and makes a book', async ()
     await win.getByRole('button', { name: '세계관' }).click()
     const tabs = win.getByRole('tablist', { name: strings.worldBook.tabs })
     await expect(tabs.getByRole('tab')).toHaveCount(6)
-    const fit = await tabs.evaluate((list) => {
-      const page = list.closest('.page')?.getBoundingClientRect()
-      const boxes = [...list.children].map((tab) => tab.getBoundingClientRect())
-      return {
-        oneLine: new Set(boxes.map((box) => Math.round(box.top))).size === 1,
-        inside: page !== undefined && boxes.every((box) => box.right <= page.right),
-      }
-    })
-    expect(fit).toEqual({ oneLine: true, inside: true })
+    const page = await win.locator('.world-book .page-left').boundingBox()
+    const boxes = await Promise.all(
+      (await tabs.getByRole('tab').all()).map((tab) => tab.boundingBox()),
+    )
+    expect(new Set(boxes.map((box) => Math.round(box?.y ?? -1))).size).toBe(1)
+    const right = Math.max(...boxes.map((box) => (box ? box.x + box.width : Infinity)))
+    expect(right).toBeLessThanOrEqual((page?.x ?? 0) + (page?.width ?? 0))
     await win.getByRole('button', { name: strings.contents.toContents }).click()
     await expect(win.getByRole('heading', { name: strings.contents.heading })).toBeVisible()
     await win.getByRole('button', { name: strings.contents.back }).click()
