@@ -224,6 +224,18 @@
   perspective-origin: 50% 35%;
 }
 
+/* The turned spine shows a little left of the box: keep that strip inside the hover area,
+   or turning to the front would move the spine away from the pointer and back again. */
+.book::before,
+.book-slot::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -16px;
+  width: 16px;
+}
+
 .book:hover,
 .book:focus-within {
   z-index: 3;
@@ -329,13 +341,13 @@
 
 .book:hover .book-cover,
 .book-cover:focus-visible,
-.book-new:hover,
+.book-slot:hover .book-new,
 .book-new:focus-visible {
   transform: translateY(-12px);
 }
 
 .book:hover .book-shadow,
-.book:focus-within .book-shadow {
+.book:has(.book-cover:focus-visible) .book-shadow {
   transform: translateY(-6px) scale(1.02);
 }
 
