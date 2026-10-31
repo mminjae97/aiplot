@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DraftGenerate",
+  "description": "POST /drafts/{draftId}/generate (카드 생성, a job): pinned replaces the draft's pinned fields, kept from the last generated or saved card (§8); structure = the 4/5 stages the user picked for a part or an episode.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "pinned": { "type": "array", "maxItems": 50, "items": { "type": "string", "minLength": 1, "maxLength": 100 } },
+    "structure": { "anyOf": [{ "enum": [4, 5] }, { "type": "null" }] }
+  }
+}

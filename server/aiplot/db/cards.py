@@ -533,3 +533,13 @@ def foreshadowing_of_work(
         (work_id,),
     ).fetchall()
     return [(r[0], r[1], r[2], r[3]) for r in rows]
+
+
+def last_part_order(conn: sqlite3.Connection, work_id: str) -> int:
+    """The highest part order in the work (0 without parts): a new part goes after it."""
+    row = conn.execute(
+        'SELECT coalesce(max(part."order"), 0) FROM part JOIN card ON card.id = part.card_id '
+        "WHERE card.work_id = ?",
+        (work_id,),
+    ).fetchone()
+    return int(row[0])
