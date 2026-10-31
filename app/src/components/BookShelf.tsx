@@ -23,10 +23,7 @@ const SHELF_PADDING = 48
 // One board with its covers: top margin, cover plus lift, board.
 const SHELF_HEIGHT = CLEAR + COVER_HEIGHT + BOARD
 
-type Slot = ({ kind: 'work'; work: Work } | { kind: 'new' }) & {
-  // Which side of the cover its info slip opens on, away from the bookcase edge.
-  slip: 'left' | 'right'
-}
+type Slot = { kind: 'work'; work: Work } | { kind: 'new' }
 
 export function perShelf(width: number): number {
   const usable = Math.max(width - SHELF_PADDING * 2, BOOK_WIDTH)
@@ -44,10 +41,8 @@ export function packShelves(works: Work[], width: number, height: number): Slot[
   ]
   const shelves: Slot[][] = []
   items.forEach((item, index) => {
-    const column = index % columns
-    if (column === 0) shelves.push([])
-    const slip = columns > 1 && column >= columns / 2 ? 'left' : 'right'
-    shelves.at(-1)?.push({ ...item, slip })
+    if (index % columns === 0) shelves.push([])
+    shelves.at(-1)?.push(item)
   })
   const fill = Math.max(1, Math.floor((height - BOTTOM) / SHELF_HEIGHT))
   shelves.push([])
@@ -118,7 +113,6 @@ export function BookShelf({ works, highlight, onOpen, onMenu, onNew }: Props) {
                     <div role="listitem" key={slot.work.id}>
                       <ShelfBook
                         work={slot.work}
-                        slip={slot.slip}
                         newest={slot.work.id === newest}
                         highlighted={slot.work.id === highlight}
                         onOpen={onOpen}

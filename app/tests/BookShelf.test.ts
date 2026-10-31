@@ -3,6 +3,7 @@ import { createElement } from 'react'
 import { expect, test, vi } from 'vitest'
 import { BookItem } from '../src/components/BookItem'
 import { bindingOf } from '../src/components/bookColor'
+import { BookFront } from '../src/components/BookFront'
 import { packShelves } from '../src/components/BookShelf'
 import type { Work } from '../src/types'
 
@@ -55,21 +56,26 @@ test('the last books always have one empty board below them, scrolling if need b
   expect(packShelves(works(10), 1920, 984).map((s) => s.length)).toEqual([6, 5, 0])
 })
 
-test('slips open away from the nearer bookcase side', () => {
-  const [shelf] = packShelves(works(10), 1920, 852)
-  expect(shelf?.[0]?.slip).toBe('right')
-  expect(shelf?.at(-1)?.slip).toBe('left')
-})
-
 test('an illustrated cover shows the illustration only', () => {
   const [work] = works(1)
   if (!work) throw new Error('no work')
-  const props = { work, slip: 'right' as const, newest: false, highlighted: false, onOpen: vi.fn() }
+  const props = { work, newest: false, highlighted: false, onOpen: vi.fn() }
   const { container, rerender } = render(createElement(BookItem, props))
   expect(container.querySelector('.book-title')?.textContent).toBe(work.title)
   rerender(createElement(BookItem, { ...props, cover: 'cover.png' }))
   expect(container.querySelector('.book-title')).toBeNull()
   expect(container.querySelector('img.book-art')?.getAttribute('src')).toBe('cover.png')
-  // The title still names the book for screen readers and in the slip.
+  // The title still names the book for screen readers.
   expect(screen.getByRole('button', { name: work.title })).toBeTruthy()
+})
+
+test('chapters show small under the title once there are some', () => {
+  const { container, rerender } = render(
+    createElement(BookFront, { title: '안개의 항구', stage: '집필', image: null }),
+  )
+  expect(container.querySelector('.book-byline')).toBeNull()
+  rerender(
+    createElement(BookFront, { title: '안개의 항구', stage: '집필', image: null, chapters: 12 }),
+  )
+  expect(container.querySelector('.book-heading .book-byline')?.textContent).toBe('12화')
 })

@@ -850,7 +850,7 @@ export interface WorkList {
   works: Work[]
 }
 /**
- * A book in the library (§12 S0, §14 work). Fields for the cover (main theme, chapters) arrive with the units that create them.
+ * A book in the library (§12 S0, §14 work). The cover's chapter count arrives with writing (step 7).
  */
 export interface Work {
   id: WorkId
