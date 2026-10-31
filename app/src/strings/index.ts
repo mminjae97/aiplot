@@ -45,8 +45,26 @@ export const strings = {
     rename: '제목 바꾸기',
     backup: '백업 생성',
     delete: '삭제',
-    // Rename and delete come with their endpoints; backup in step 9 (§20).
+    // Backup arrives in step 9 (§20).
     later: '준비 중',
+  },
+  rename: {
+    title: '제목 바꾸기',
+    label: '제목',
+    save: '바꾸기',
+    cancel: '취소',
+    failed: '제목을 바꾸지 못했어요. 다시 시도해 주세요.',
+  },
+  deleteBook: {
+    title: '작품 삭제',
+    question: (title: string) => `「${title}」 작품을 삭제할까요?`,
+    covers: (n: number) => `올린 일러스트 ${String(n)}장도 함께 삭제돼요.`,
+    irreversible: '이 작업은 되돌릴 수 없어요.',
+    confirmLabel: '확인을 위해 작품 제목을 그대로 입력해 주세요.',
+    mismatch: '제목이 일치하지 않아요.',
+    delete: '삭제',
+    cancel: '취소',
+    failed: '삭제하지 못했어요. 다시 시도해 주세요.',
   },
   decorate: {
     title: '책 꾸미기',

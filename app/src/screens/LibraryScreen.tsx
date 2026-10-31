@@ -2,14 +2,18 @@ import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { type MenuPoint, bookButtonId } from '../components/BookItem'
-import { BookMenu } from '../components/BookMenu'
+import { BookMenu, type BookAction } from '../components/BookMenu'
 import { BookShelf } from '../components/BookShelf'
 import { DecorateDialog } from '../components/DecorateDialog'
+import { DeleteBookDialog } from '../components/DeleteBookDialog'
 import { NewBookDialog } from '../components/NewBookDialog'
+import { RenameDialog } from '../components/RenameDialog'
 import { TopBar } from '../components/TopBar'
 import { useNavigation } from '../stores/navigation'
 import { strings } from '../strings'
 import type { Work } from '../types'
+
+const NEW_BOOK = 'new'
 
 /** S0 library (§12): books on wooden shelves, newest first, "+" book last. */
 export function LibraryScreen() {
@@ -18,11 +22,12 @@ export function LibraryScreen() {
   const open = useNavigation((store) => store.open)
   const [creating, setCreating] = useState(false)
   const [menu, setMenu] = useState<{ workId: string; at: MenuPoint } | null>(null)
-  const [decorating, setDecorating] = useState<string | null>(null)
+  // The book dialog a menu item opened.
+  const [dialog, setDialog] = useState<{ action: BookAction; workId: string } | null>(null)
   const close = useCallback(() => {
     setCreating(false)
   }, [])
-  // The book focus goes back to once its menu or 책 꾸미기 closes.
+  // The book focus goes back to once its menu or dialog closes; NEW_BOOK after a delete.
   const returnTo = useRef<string | null>(null)
   const menuFor = useRef<string | null>(null)
   const openMenu = useCallback((work: Work, at: MenuPoint) => {
@@ -34,19 +39,17 @@ export function LibraryScreen() {
     if (refocus) returnTo.current = menuFor.current
     setMenu(null)
   }, [])
-  const openDecorate = useCallback((workId: string) => {
+  const openDialog = useCallback((action: BookAction, workId: string) => {
     returnTo.current = workId
-    setDecorating(workId)
+    setDialog({ action, workId })
   }, [])
-  const closeDecorate = useCallback(() => {
-    setDecorating(null)
+  const closeDialog = useCallback(() => {
+    setDialog(null)
   }, [])
-  useEffect(() => {
-    // After the commit that drops inert: an inert book cannot take focus.
-    if (menu !== null || decorating !== null || returnTo.current === null) return
-    document.getElementById(bookButtonId(returnTo.current))?.focus()
-    returnTo.current = null
-  }, [menu, decorating])
+  const deleted = useCallback(() => {
+    returnTo.current = NEW_BOOK
+    setDialog(null)
+  }, [])
   const openWork = useCallback(
     (work: Work) => {
       open({ name: 'contents', workId: work.id })
@@ -56,7 +59,20 @@ export function LibraryScreen() {
 
   // Looked up by id so a refetch never leaves a stale copy open.
   const menuWork = works.data?.works.find((w) => w.id === menu?.workId)
-  const decoratingWork = works.data?.works.find((w) => w.id === decorating)
+  const dialogWork = works.data?.works.find((w) => w.id === dialog?.workId)
+  // A dialog whose book is gone (deleted) is closed, and the shelf usable again.
+  const shown = dialogWork ? dialog : null
+
+  useEffect(() => {
+    // After the commit that drops inert: an inert book cannot take focus.
+    if (menu !== null || shown !== null || returnTo.current === null) return
+    const book =
+      returnTo.current === NEW_BOOK
+        ? document.querySelector<HTMLElement>('.book-new')
+        : document.getElementById(bookButtonId(returnTo.current))
+    book?.focus()
+    returnTo.current = null
+  }, [menu, shown])
 
   return (
     <>
@@ -64,7 +80,7 @@ export function LibraryScreen() {
         {/* The top bar is the title bar: it stays usable while a dialog is open. */}
         <TopBar />
         {/* inert keeps keyboard focus inside the dialog while it is open. */}
-        <main className="library" inert={creating || decorating !== null}>
+        <main className="library" inert={creating || shown !== null}>
           {works.isError && (
             <p className="library-alert" role="alert">
               {strings.library.loadFailed}{' '}
@@ -97,13 +113,21 @@ export function LibraryScreen() {
         <BookMenu
           title={menuWork.title}
           at={menu.at}
-          onDecorate={() => {
-            openDecorate(menuWork.id)
+          onAction={(action) => {
+            openDialog(action, menuWork.id)
           }}
           onClose={closeMenu}
         />
       )}
-      {decoratingWork && <DecorateDialog work={decoratingWork} onClose={closeDecorate} />}
+      {dialogWork && shown?.action === 'decorate' && (
+        <DecorateDialog work={dialogWork} onClose={closeDialog} />
+      )}
+      {dialogWork && shown?.action === 'rename' && (
+        <RenameDialog work={dialogWork} onClose={closeDialog} />
+      )}
+      {dialogWork && shown?.action === 'delete' && (
+        <DeleteBookDialog work={dialogWork} onClose={closeDialog} onDeleted={deleted} />
+      )}
     </>
   )
 }

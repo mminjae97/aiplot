@@ -2,10 +2,13 @@ import { type KeyboardEvent, useEffect, useLayoutEffect, useRef, useState } from
 import { strings } from '../strings'
 import type { MenuPoint } from './BookItem'
 
+/** Menu items that open a dialog for the book. */
+export type BookAction = 'decorate' | 'rename' | 'delete'
+
 type Props = {
   title: string
   at: MenuPoint
-  onDecorate: () => void
+  onAction: (action: BookAction) => void
   /** refocus: closed from the keyboard, so focus goes back to the book. */
   onClose: (refocus: boolean) => void
 }
@@ -13,9 +16,9 @@ type Props = {
 // Keeps the menu this far inside the window edges.
 const EDGE = 8
 
-/** Right-click menu of a shelf book (§12 S0). Rename and delete arrive with their endpoints,
- * backup in step 9; until then they show as not ready. */
-export function BookMenu({ title, at, onDecorate, onClose }: Props) {
+/** Right-click menu of a shelf book (§12 S0). Backup arrives in step 9; until then it shows
+ * as not ready. */
+export function BookMenu({ title, at, onAction, onClose }: Props) {
   const menu = useRef<HTMLDivElement>(null)
   const [place, setPlace] = useState(at)
 
@@ -69,7 +72,20 @@ export function BookMenu({ title, at, onDecorate, onClose }: Props) {
     }
   }
 
-  const later = [strings.bookMenu.rename, strings.bookMenu.backup, strings.bookMenu.delete]
+  const item = (action: BookAction, label: string) => (
+    <button
+      type="button"
+      role="menuitem"
+      tabIndex={-1}
+      data-danger={action === 'delete' || undefined}
+      onClick={() => {
+        onClose(false)
+        onAction(action)
+      }}
+    >
+      {label}
+    </button>
+  )
   return (
     <div
       ref={menu}
@@ -79,30 +95,13 @@ export function BookMenu({ title, at, onDecorate, onClose }: Props) {
       style={{ left: place.x, top: place.y }}
       onKeyDown={onKeyDown}
     >
-      <button
-        type="button"
-        role="menuitem"
-        tabIndex={-1}
-        onClick={() => {
-          onClose(false)
-          onDecorate()
-        }}
-      >
-        {strings.bookMenu.decorate}
+      {item('decorate', strings.bookMenu.decorate)}
+      {item('rename', strings.bookMenu.rename)}
+      <button type="button" role="menuitem" tabIndex={-1} aria-disabled="true">
+        {strings.bookMenu.backup}
+        <span className="book-menu-later">{strings.bookMenu.later}</span>
       </button>
-      {later.map((label) => (
-        <button
-          key={label}
-          type="button"
-          role="menuitem"
-          tabIndex={-1}
-          aria-disabled="true"
-          data-danger={label === strings.bookMenu.delete || undefined}
-        >
-          {label}
-          <span className="book-menu-later">{strings.bookMenu.later}</span>
-        </button>
-      ))}
+      {item('delete', strings.bookMenu.delete)}
     </div>
   )
 }

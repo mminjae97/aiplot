@@ -74,6 +74,7 @@ export const api = {
   getWork: (workId: string) => request<Work>(work(workId)),
   createWork: (body: WorkCreate) =>
     request<Work>('/works', { method: 'POST', body: JSON.stringify(body) }),
+  deleteWork: (workId: string) => request<null>(work(workId), { method: 'DELETE' }),
   updateWork: (workId: string, body: WorkUpdate) =>
     request<Work>(work(workId), { method: 'PATCH', body: JSON.stringify(body) }),
   listCovers: (workId: string) => request<CoverList>(`${work(workId)}/covers`),
