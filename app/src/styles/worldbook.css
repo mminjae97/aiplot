@@ -26,8 +26,10 @@
   }
 }
 
-/* A ribbon bookmark per category; the open one is longer and brass. */
+/* A ribbon bookmark per category; the open one turns brass and hangs a little lower.
+   Every tab keeps its size and weight, so neither the tabs nor the page under them move. */
 .world-tab {
+  position: relative;
   flex: 0 1 auto;
   padding: 8px clamp(4px, 1.6cqi, 7px) 10px;
   border: 0;
@@ -37,8 +39,11 @@
   color: var(--ink-soft);
   font: inherit;
   font-size: clamp(11px, 3.1cqi, var(--size-small));
+  font-weight: 500;
   cursor: pointer;
-  transition: padding var(--motion);
+  transition:
+    background var(--motion),
+    color var(--motion);
 }
 
 .world-tab:hover {
@@ -46,10 +51,24 @@
 }
 
 .world-tab[aria-selected='true'] {
-  padding-bottom: 16px;
+  /* square at the bottom, so the longer end continues it without a nick at the corners */
+  border-radius: 0;
   background: var(--brass);
-  color: #fff8ea;
-  font-weight: 700;
+  /* dark ink on brass: 4.5:1 or more in both themes (§5) */
+  color: #2a1f12;
+}
+
+/* The longer end hangs over the page below; it takes no room. */
+.world-tab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 6px;
+  border-radius: 0 0 4px 4px;
+  background: var(--brass);
+  pointer-events: none;
 }
 
 .world-index h2,

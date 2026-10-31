@@ -84,6 +84,16 @@ test('app starts the local server, opens the library and makes a book', async ()
     }
     const right = Math.max(...boxes.map((box) => (box ? box.x + box.width : Infinity)))
     expect(right).toBeLessThanOrEqual((page?.x ?? 0) + (page?.width ?? 0))
+    // Opening another bookmark moves neither the bookmarks nor the index under them.
+    const heading = win.locator('.world-index h2')
+    const headingBefore = await heading.boundingBox()
+    await tabs.getByRole('tab').nth(2).click()
+    await expect(tabs.getByRole('tab').nth(2)).toHaveAttribute('aria-selected', 'true')
+    const after = await Promise.all(
+      (await tabs.getByRole('tab').all()).map((tab) => tab.boundingBox()),
+    )
+    expect(after).toEqual(boxes)
+    expect((await heading.boundingBox())?.y).toBe(headingBefore?.y)
     await win.getByRole('button', { name: strings.contents.toContents }).click()
     await expect(win.getByRole('heading', { name: strings.contents.heading })).toBeVisible()
     await win.getByRole('button', { name: strings.contents.back }).click()
