@@ -26,7 +26,7 @@
   }
 }
 
-/* A ribbon bookmark per category; the open one turns brass and grows a notched tail below.
+/* A ribbon bookmark per category; the open one turns brass and hangs a little lower.
    Every tab keeps its size and weight, so neither the tabs nor the page under them move. */
 .world-tab {
   position: relative;
@@ -51,20 +51,22 @@
 }
 
 .world-tab[aria-selected='true'] {
+  /* square at the bottom, so the longer end continues it without a nick at the corners */
+  border-radius: 0;
   background: var(--brass);
   color: #fff8ea;
 }
 
-/* The tail hangs over the page below; it takes no room. */
+/* The longer end hangs over the page below; it takes no room. */
 .world-tab[aria-selected='true']::after {
   content: '';
   position: absolute;
   top: 100%;
   left: 0;
   right: 0;
-  height: 7px;
+  height: 6px;
+  border-radius: 0 0 4px 4px;
   background: var(--brass);
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 35%, 0 100%);
   pointer-events: none;
 }
 
