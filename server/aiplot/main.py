@@ -21,6 +21,7 @@ from aiplot.db.migrate import MigrationError, init_db
 from aiplot.jobs.queue import JobQueue
 from aiplot.llm.runtime import LLAMA_LOGGER, LlmRuntime, fake_runtime, llama_runtime
 from aiplot.parent import parse_pid, watch
+from aiplot.services.trash import Trash
 
 DEV_PORT = 8765
 API_PREFIX = "/api/v1"
@@ -80,6 +81,8 @@ def create_app(
     # {data}/images beside {data}/data/aiplot.db (§3 runtime data).
     app.state.images_dir = db_path.parent.parent / "images"
     app.state.jobs = job_queue
+    # Deleted cards, kept a few seconds for 되돌리기 (§8).
+    app.state.trash = Trash()
     app.state.llm = runtime
     install_error_handlers(app)
     if dev and dev_origin:

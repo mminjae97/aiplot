@@ -12,6 +12,7 @@ from typing import Any
 from pydantic import TypeAdapter
 
 from aiplot.db import cards as db
+from aiplot.db import deletion
 from aiplot.db import works as works_db
 from aiplot.db.connection import transaction
 from aiplot.generated.card.card import (
@@ -30,6 +31,7 @@ from aiplot.generated.card.completeness import (
     IncompleteCard,
     MilestoneFulfilment,
 )
+from aiplot.services.trash import Deleted, Trash
 from aiplot.services.works import WorkNotFoundError, require_open
 
 CARD = TypeAdapter(Card)
@@ -393,3 +395,101 @@ def completeness(conn: sqlite3.Connection, work_id: str) -> Completeness:
             if row.status == "incomplete"
         ],
     )
+
+
+# Delete and restore (§8, §16) ------------------------------------------------------------
+
+
+class PartHasEpisodesError(ValueError):
+    """A part with episodes needs ?episodes=move:{partId}|delete (409 PART_HAS_EPISODES)."""
+
+    def __init__(self, count: int) -> None:
+        super().__init__(f"the part has {count} episodes: move or delete them")
+        self.count = count
+
+
+class EpisodesTargetError(ValueError):
+    """?episodes= is not move:{another part of the work} or delete."""
+
+
+class RestoreExpiredError(LookupError):
+    """Nothing to restore: the window passed, or it was restored already."""
+
+
+def delete(
+    conn: sqlite3.Connection,
+    trash: Trash,
+    card_id: str,
+    *,
+    reconnect: bool = False,
+    episodes: str | None = None,
+) -> Deleted:
+    """Deletes the card and every relation row touching it in one transaction, and keeps
+    what that removed or changed for a restore. reconnect: an episode's prev and next are
+    linked to each other. episodes: what happens to a part's episodes."""
+    with transaction(conn):
+        row = require(conn, card_id)
+        require_open(conn, row.work_id, 1)
+        ids = [card_id]
+        moves: list[tuple[str, str | None, int | None, int]] = []
+        target: str | None = None
+        if row.type == "part":
+            members = deletion.episodes_of_part(conn, card_id)
+            if members and episodes is None:
+                raise PartHasEpisodesError(len(members))
+            if members and episodes == "delete":
+                ids += [episode_id for episode_id, _ in members]
+            elif members and episodes is not None and episodes.startswith("move:"):
+                target = episodes.removeprefix("move:")
+                other = db.get(conn, target)
+                if (
+                    other is None
+                    or other.type != "part"
+                    or other.work_id != row.work_id
+                    or target == card_id
+                ):
+                    raise EpisodesTargetError(f"{target} is not another part of this work")
+                start = deletion.last_order(conn, target)
+                moves = [
+                    (episode_id, card_id, order, start + i + 1)
+                    for i, (episode_id, order) in enumerate(members)
+                ]
+            elif members:
+                raise EpisodesTargetError(f"episodes={episodes} is not move:<partId> or delete")
+        # Moved episodes keep their part (no ON DELETE SET NULL) and stay out of the snapshot.
+        for episode_id, _, _, new_order in moves:
+            deletion.move_episode(conn, episode_id, target, new_order)
+        neighbours = (
+            deletion.order_neighbours(conn, card_id)
+            if reconnect and row.type == "episode"
+            else None
+        )
+        referencing = {ref for card in ids for ref, _ in db.references(conn, card)}
+        snapshot = deletion.capture(conn, ids)
+        snapshot.moved = [(episode_id, old, order) for episode_id, old, order, _ in moves]
+        deletion.delete_cards(conn, ids)
+        if neighbours is not None:
+            prev, nxt = neighbours
+            if prev and nxt and deletion.link_order(conn, prev, nxt):
+                snapshot.added_links.append((prev, nxt))
+        recompute(conn, (referencing | deletion.touched_by(conn, snapshot)) - set(ids))
+    return trash.put(card_id, row.work_id, snapshot)
+
+
+def restore(conn: sqlite3.Connection, trash: Trash, card_id: str) -> Card:
+    """Undoes a delete within its window (§8): rows, cleared columns, moved episodes and the
+    reconnecting link. Relation rows whose other end is gone meanwhile are skipped."""
+    deleted = trash.get(card_id)
+    if deleted is None:
+        raise RestoreExpiredError(card_id)
+    with transaction(conn):
+        try:
+            require_open(conn, deleted.work_id, 1)
+        except WorkNotFoundError as exc:
+            raise RestoreExpiredError(card_id) from exc
+        deletion.restore(conn, deleted.snapshot)
+        recompute(conn, deletion.touched_by(conn, deleted.snapshot))
+    trash.drop(card_id)
+    card = get(conn, card_id)
+    assert card is not None
+    return card
