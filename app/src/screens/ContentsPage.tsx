@@ -93,7 +93,7 @@ export function ContentsPage({ workId }: Props) {
   const planning = stage === 1 && locked_stage === 0
   return (
     <>
-      <TopBar onBack={back} title={title} />
+      <TopBar onBack={back} backDisabled={drawer !== null} title={title} />
       {/* The open drawer is modal: the spread behind it takes no focus (the top bar stays). */}
       <main className="desk" inert={drawer !== null}>
         <article className="spread">

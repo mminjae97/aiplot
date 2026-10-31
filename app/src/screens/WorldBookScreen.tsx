@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { type KeyboardEvent, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { CardDrawer, type DrawerRequest } from '../components/CardDrawer'
 import { DeleteCardDialog, UndoToast } from '../components/CardDelete'
@@ -12,6 +12,7 @@ type Category = 'rule' | 'faction' | 'history' | 'culture' | 'other'
 // Bookmark order (§8 S1-0); the glossary comes last.
 const CATEGORIES: Category[] = ['rule', 'faction', 'history', 'culture', 'other']
 type Tab = Category | 'terms'
+const TABS: Tab[] = [...CATEGORIES, 'terms']
 
 type Props = { workId: string }
 
@@ -44,7 +45,9 @@ export function WorldBookScreen({ workId }: Props) {
     queryFn: () => api.relations(workId, 'world'),
   })
 
-  const locked = (work.data?.locked_stage ?? 0) >= 1
+  const tabRefs = useRef(new Map<Tab, HTMLButtonElement>())
+  // Read-only until the work says otherwise: a locked book never offers edits while loading.
+  const locked = (work.data?.locked_stage ?? 1) >= 1
   const entries = (worlds.data?.cards ?? []).filter(isWorld)
   // One book: entries by bookmark, then as made; the page is the place in that order.
   const ordered = CATEGORIES.flatMap((category) =>
@@ -66,6 +69,25 @@ export function WorldBookScreen({ workId }: Props) {
     open({ name: 'contents', workId })
   }
 
+  // Tab pattern: one Tab stop, arrows/Home/End move and open the bookmark.
+  const onTabKey = (event: KeyboardEvent, key: Tab) => {
+    const at = TABS.indexOf(key)
+    const to =
+      event.key === 'ArrowRight'
+        ? TABS[(at + 1) % TABS.length]
+        : event.key === 'ArrowLeft'
+          ? TABS[(at - 1 + TABS.length) % TABS.length]
+          : event.key === 'Home'
+            ? TABS[0]
+            : event.key === 'End'
+              ? TABS[TABS.length - 1]
+              : undefined
+    if (to === undefined) return
+    event.preventDefault()
+    setTab(to)
+    tabRefs.current.get(to)?.focus()
+  }
+
   const related = entry
     ? (links.data?.relations ?? [])
         .filter((link) => link.from_id === entry.id)
@@ -75,27 +97,47 @@ export function WorldBookScreen({ workId }: Props) {
 
   return (
     <>
-      <TopBar onBack={back} backLabel={strings.contents.toContents} title={work.data?.title} />
+      <TopBar
+        onBack={back}
+        backLabel={strings.contents.toContents}
+        backDisabled={drawer !== null || deleting !== null}
+        title={work.data?.title}
+      />
       <main className="desk" inert={drawer !== null || deleting !== null}>
         <article className="spread world-book">
           <section className="page page-left" aria-label={strings.worldBook.title}>
             <div className="world-tabs" role="tablist" aria-label={strings.worldBook.tabs}>
-              {[...CATEGORIES, 'terms' as const].map((key) => (
+              {TABS.map((key) => (
                 <button
                   key={key}
+                  ref={(node) => {
+                    if (node) tabRefs.current.set(key, node)
+                    else tabRefs.current.delete(key)
+                  }}
+                  id={`world-tab-${key}`}
                   type="button"
                   role="tab"
                   aria-selected={tab === key}
+                  aria-controls="world-index"
+                  tabIndex={tab === key ? 0 : -1}
                   className="world-tab"
                   onClick={() => {
                     setTab(key)
+                  }}
+                  onKeyDown={(event) => {
+                    onTabKey(event, key)
                   }}
                 >
                   {key === 'terms' ? strings.worldBook.terms : strings.drawer.category[key]}
                 </button>
               ))}
             </div>
-            <div className="world-index" role="tabpanel">
+            <div
+              id="world-index"
+              className="world-index"
+              role="tabpanel"
+              aria-labelledby={`world-tab-${tab}`}
+            >
               <h2>{tab === 'terms' ? strings.worldBook.terms : strings.drawer.category[tab]}</h2>
               {worlds.isError && (
                 <p className="chat-error" role="alert">
@@ -107,8 +149,8 @@ export function WorldBookScreen({ workId }: Props) {
                   <p className="notes-empty">{strings.worldBook.noTerms}</p>
                 ) : (
                   <ol className="world-entries">
-                    {terms.map((term) => (
-                      <li key={`${term.card.id}:${term.term}`}>
+                    {terms.map((term, index) => (
+                      <li key={`${term.card.id}:${String(index)}`}>
                         <button
                           type="button"
                           className="world-entry"
@@ -167,7 +209,7 @@ export function WorldBookScreen({ workId }: Props) {
                   )}
                 </>
               )}
-              {locked && <p className="notes-empty">{strings.worldBook.locked}</p>}
+              {locked && work.data && <p className="notes-empty">{strings.worldBook.locked}</p>}
             </div>
           </section>
           <section className="page page-right world-entry-page" aria-live="polite">
@@ -208,8 +250,8 @@ export function WorldBookScreen({ workId }: Props) {
                   <>
                     <h3>{strings.worldBook.termsHeading}</h3>
                     <dl className="type-terms">
-                      {entry.data.terms.map((term) => (
-                        <div key={term.term}>
+                      {entry.data.terms.map((term, index) => (
+                        <div key={index}>
                           <dt>{term.term}</dt>
                           <dd>{term.meaning}</dd>
                         </div>

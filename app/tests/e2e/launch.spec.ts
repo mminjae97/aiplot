@@ -69,6 +69,22 @@ test('app starts the local server, opens the library and makes a book', async ()
         return spread ? [Math.round(spread.width), Math.round(spread.height)] : null
       })
       .toEqual([pageWidth - 128, Math.round((pageWidth - 128) * 0.75)])
+
+    // The world book's six bookmarks fit on one line of the left page even here.
+    await win.getByRole('button', { name: '세계관' }).click()
+    const tabs = win.getByRole('tablist', { name: strings.worldBook.tabs })
+    await expect(tabs.getByRole('tab')).toHaveCount(6)
+    const fit = await tabs.evaluate((list) => {
+      const page = list.closest('.page')?.getBoundingClientRect()
+      const boxes = [...list.children].map((tab) => tab.getBoundingClientRect())
+      return {
+        oneLine: new Set(boxes.map((box) => Math.round(box.top))).size === 1,
+        inside: page !== undefined && boxes.every((box) => box.right <= page.right),
+      }
+    })
+    expect(fit).toEqual({ oneLine: true, inside: true })
+    await win.getByRole('button', { name: strings.contents.toContents }).click()
+    await expect(win.getByRole('heading', { name: strings.contents.heading })).toBeVisible()
     await win.getByRole('button', { name: strings.contents.back }).click()
     await expect(win.locator('.book-title', { hasText: '안개의 항구' })).toBeVisible()
   } finally {

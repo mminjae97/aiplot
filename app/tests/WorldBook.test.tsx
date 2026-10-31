@@ -271,3 +271,63 @@ test('a locked planning stage reads only: no new entry, edit and delete disabled
     screen.getByRole('button', { name: strings.worldBook.delete }).hasAttribute('disabled'),
   ).toBe(true)
 })
+
+test('the bookmarks are one Tab stop; arrows, Home and End move between them', async () => {
+  serve()
+  renderBook()
+  await screen.findByRole('button', { name: /조수 마법/ })
+  const rule = screen.getByRole('tab', { name: '규칙·능력' })
+  expect(screen.getAllByRole('tab').map((tab) => tab.tabIndex)).toEqual([0, -1, -1, -1, -1, -1])
+  expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe(rule.id)
+  fireEvent.keyDown(rule, { key: 'ArrowLeft' })
+  expect(document.activeElement?.textContent).toBe('용어집')
+  expect(screen.getByRole('tab', { name: '용어집' }).getAttribute('aria-selected')).toBe('true')
+  fireEvent.keyDown(document.activeElement ?? rule, { key: 'Home' })
+  fireEvent.keyDown(document.activeElement ?? rule, { key: 'ArrowRight' })
+  expect(document.activeElement?.textContent).toBe('세력·조직')
+  expect(screen.getByRole('button', { name: /등대 길드/ })).toBeTruthy()
+})
+
+test('after a delete 되돌리기 takes the focus and the back button waits for dialogs', async () => {
+  serve()
+  renderBook()
+  fireEvent.click(await screen.findByRole('button', { name: /조수 마법/ }))
+  const back = screen.getByRole('button', { name: strings.contents.toContents })
+  expect(back.hasAttribute('disabled')).toBe(false)
+  fireEvent.click(screen.getByRole('button', { name: strings.worldBook.delete }))
+  expect(back.hasAttribute('disabled')).toBe(true)
+  const dialog = screen.getByRole('alertdialog')
+  // Tab stays in the dialog: from 삭제 it wraps to 취소.
+  const remove = within(dialog).getByRole('button', { name: strings.cardDelete.delete })
+  remove.focus()
+  fireEvent.keyDown(window, { key: 'Tab' })
+  expect(document.activeElement?.textContent).toBe(strings.cardDelete.cancel)
+  fireEvent.click(remove)
+  const undo = await screen.findByRole('button', { name: strings.cardDelete.undo })
+  expect(document.activeElement).toBe(undo)
+  expect(back.hasAttribute('disabled')).toBe(false)
+})
+
+test('nothing can be edited before the work says whether planning is locked', async () => {
+  serve()
+  let release: () => void = () => undefined
+  const base = vi.mocked(fetch)
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, init?: RequestInit) =>
+      url.endsWith('/works/w_1')
+        ? new Promise<Response>((resolve) => {
+            release = () => {
+              resolve(new Response(JSON.stringify(work())))
+            }
+          })
+        : base(url, init),
+    ),
+  )
+  renderBook()
+  await screen.findByRole('button', { name: /조수 마법/ })
+  expect(screen.queryByRole('button', { name: strings.worldBook.newEntry })).toBeNull()
+  expect(screen.queryByText(strings.worldBook.locked)).toBeNull()
+  release()
+  expect(await screen.findByRole('button', { name: strings.worldBook.newEntry })).toBeTruthy()
+})
