@@ -76,8 +76,11 @@
   border-left: 3px solid var(--warning);
 }
 
-/* Oak frame posts at both sides; the boards run between them. */
+/* The case's side walls: an oak post at the front edge and the wall's inner face running
+   back to the panel, darker toward the back; the boards run between the posts. */
 .bookcase {
+  /* how deep the side walls read in perspective (the boards' top faces narrow as much) */
+  --wall-depth: 28px;
   position: relative;
   flex: 1;
   padding: 0 0 var(--bookcase-bottom);
@@ -89,20 +92,30 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 16px;
+  width: calc(16px + var(--wall-depth));
   background:
+    /* the post's front face */
     linear-gradient(
-      90deg,
-      rgb(255 255 255 / 12%) 0 2px,
-      transparent 2px 12px,
-      rgb(0 0 0 / 22%) 12px
-    ),
+        90deg,
+        rgb(255 255 255 / 12%) 0 2px,
+        transparent 2px 12px,
+        rgb(0 0 0 / 22%) 12px 16px,
+        transparent 16px
+      )
+      0 0 / 100% 100%,
+    /* the inner face: lit at the front edge, in shadow where it meets the panel */
+    linear-gradient(
+        90deg,
+        transparent 0 16px,
+        rgb(255 255 255 / 10%) 16px 17px,
+        rgb(0 0 0 / 18%) 17px,
+        rgb(0 0 0 / 52%) 100%
+      )
+      0 0 / 100% 100%,
     image-set(url('../assets/wood/post.webp') 1x, url('../assets/wood/post@2x.webp') 2x) 0 0 / 60px
       1400px,
     var(--wood-board);
-  box-shadow:
-    0 0 12px var(--wood-shadow),
-    /* the post's inner side, running back into the case */ 10px 0 14px -4px rgb(0 0 0 / 40%);
+  box-shadow: 0 0 12px var(--wood-shadow);
   z-index: 2;
 }
 
@@ -135,7 +148,8 @@
 /* Above the board's top face, which the books stand on (a little in from its front edge). */
 .shelf-row {
   position: relative;
-  z-index: 1;
+  /* over the boards' top faces and the walls */
+  z-index: 4;
   top: -5px;
   width: var(--row-width);
   margin: 0 auto;
@@ -150,6 +164,8 @@
 
 .shelf-board {
   position: relative;
+  /* in front of the walls' inner faces, between the posts */
+  z-index: 3;
   height: var(--board);
   margin: 0 16px;
   /* the front edge: lit along its top, shading toward the bottom */
@@ -181,7 +197,7 @@
     image-set(url('../assets/wood/board.webp') 1x, url('../assets/wood/board@2x.webp') 2x) 0 0 /
       1400px 60px,
     var(--wood-board);
-  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 100%, 0 100%);
+  clip-path: polygon(var(--wall-depth) 0, calc(100% - var(--wall-depth)) 0, 100% 100%, 0 100%);
 }
 
 /* A paper tag tied to the first board when the shelf is empty. */
@@ -208,11 +224,11 @@
   background: var(--paper-edge);
 }
 
-/* Books stand cover out, all the same size (1:1.5), turned a little so the spine and the
-   book's thickness show; hover or focus turns one to face the viewer. */
+/* Books are on display, all the same size (1:1.5), facing out: each one's foot rests on a
+   stand at the front of the board and its top leans back against the panel. Hover or focus
+   lifts it off the stand, upright. */
 .bookcase {
-  --turn: 32deg;
-  --thickness: 40px;
+  --lean: 14deg;
 }
 
 .book,
@@ -221,19 +237,7 @@
   width: var(--book-width);
   height: var(--cover-height);
   perspective: 900px;
-  perspective-origin: 50% 35%;
-}
-
-/* The turned spine shows a little left of the box: keep that strip inside the hover area,
-   or turning to the front would move the spine away from the pointer and back again. */
-.book::before,
-.book-slot::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -16px;
-  width: 16px;
+  perspective-origin: 50% 40%;
 }
 
 .book:hover,
@@ -258,32 +262,21 @@
   background: none;
 }
 
+/* Leaning back about its foot: the top recedes toward the panel. */
 .book .book-cover,
 .book-slot .book-new {
-  transform-style: preserve-3d;
-  /* turned about a line near its left foot: the near corner stays on the board's top face */
-  transform-origin: 18% 100%;
-  transform: rotateY(var(--turn));
+  transform-origin: 50% 100%;
+  transform: rotateX(var(--lean));
   transition: transform 0.25s ease-out;
 }
 
-/* On the shelf the spine is a real face: the book's thickness, turned 90° back from the
-   front's left edge. */
-.book .book-spine {
-  left: calc(var(--spine-width) - var(--thickness));
-  width: var(--thickness);
-  transform-origin: right center;
-  transform: rotateY(-90deg);
-  border-radius: 2px;
-}
-
-/* The shadow the book throws on the back panel (lamp above, a little to the left) and the
-   darker patch where it stands on the board. */
+/* The book's shadow on the panel, highest where its top touches it, and the darker patch
+   where its foot stands. */
 .book-shadow {
   position: absolute;
-  inset: 14px -6px -2px 18px;
-  background: rgb(0 0 0 / 42%);
-  filter: blur(10px);
+  inset: 4px -4px 6px 10px;
+  background: rgb(0 0 0 / 40%);
+  filter: blur(9px);
   border-radius: 6px;
   transition: transform 0.25s ease-out;
   pointer-events: none;
@@ -292,12 +285,38 @@
 .book-shadow::after {
   content: '';
   position: absolute;
-  left: -10px;
-  right: 0;
-  bottom: -6px;
+  left: -6px;
+  right: -2px;
+  bottom: -12px;
   height: 12px;
   background: rgb(0 0 0 / 55%);
   border-radius: 50%;
+}
+
+/* The display stand: a wooden ledge with a brass lip in front of the book's foot, holding it
+   at the front of the board. */
+.book-stand {
+  position: absolute;
+  z-index: 1;
+  left: -8px;
+  right: -8px;
+  bottom: -3px;
+  height: 18px;
+  background:
+    linear-gradient(
+      180deg,
+      var(--brass-bright) 0 2px,
+      var(--brass) 2px 4px,
+      rgb(255 255 255 / 14%) 4px 5px,
+      transparent 5px 60%,
+      rgb(0 0 0 / 30%) 100%
+    ),
+    image-set(url('../assets/wood/board.webp') 1x, url('../assets/wood/board@2x.webp') 2x) 0 0 /
+      1400px 60px,
+    var(--wood-board-edge);
+  border-radius: 2px 2px 1px 1px;
+  box-shadow: 0 4px 6px -2px rgb(0 0 0 / 55%);
+  pointer-events: none;
 }
 
 /* The spine is a flat face turned away from the viewer: a shade darker than the cover,
@@ -339,11 +358,12 @@
   box-shadow: inset 2px 0 0 rgb(0 0 0 / 25%);
 }
 
+/* Lifted off the stand, upright. */
 .book:hover .book-cover,
 .book-cover:focus-visible,
 .book-slot:hover .book-new,
 .book-new:focus-visible {
-  transform: translateY(-12px);
+  transform: translateY(-16px);
 }
 
 .book:hover .book-shadow,
@@ -357,7 +377,7 @@
 
 @keyframes book-arrive {
   from {
-    transform: translateY(-24px) rotateY(var(--turn));
+    transform: translateY(-24px) rotateX(var(--lean));
   }
 }
 

@@ -71,6 +71,7 @@ export function BookItem({ work, cover, slip, newest, highlighted, onOpen, onMen
         {newest && <span className="book-ribbon" aria-hidden="true" />}
         <BookFront title={work.title} stage={stage} image={cover ?? null} />
       </button>
+      <span className="book-stand" aria-hidden="true" />
       <div className="book-slip" id={slipId} role="tooltip" data-side={slip}>
         <p className="book-slip-title">{work.title}</p>
         <p>{strings.library.stageOf(stage)}</p>
