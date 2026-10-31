@@ -81,6 +81,6 @@ export async function streamJob(
     if (done) break
     parser.feed(value)
   }
-  parser.feed('\n\n')
+  // An event cut off by the stream's end is dropped (SSE), never half applied.
   return last
 }

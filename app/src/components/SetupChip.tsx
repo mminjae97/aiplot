@@ -7,11 +7,13 @@ import { percentOf } from './setupText'
  * away from the first-run screen. */
 export function SetupChip() {
   const jobId = useSetupJob((store) => store.jobId)
+  const seen = useSetupJob((store) => store.seen)
   const live = useJobLive(jobId)
   const screen = useNavigation((store) => store.screen)
   const open = useNavigation((store) => store.open)
   if (live === null || screen.name === 'setup') return null
-  const failed = live.final?.type === 'error'
+  // A failure stays up until S0-1 has shown why.
+  const failed = live.final?.type === 'error' && seen !== jobId
   if (live.final !== null && !failed) return null
   const progress = live.progress
   const text = failed

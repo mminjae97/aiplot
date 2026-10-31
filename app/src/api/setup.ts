@@ -22,15 +22,23 @@ const EMPTY: JobLive = { progress: null, paused: false, final: null }
 
 export const jobKey = (jobId: string) => ['job', jobId]
 
-/** The setup job the first-run screen follows (UI pointer; its data lives in the query cache). */
-export const useSetupJob = create<{ jobId: string | null; follow: (jobId: string) => void }>(
-  (set) => ({
-    jobId: null,
-    follow: (jobId) => {
-      set({ jobId })
-    },
-  }),
-)
+/** The setup job the first-run screen follows (UI pointer; its data lives in the query cache).
+ * seen: a job whose ending S0-1 has shown, so the top-bar chip no longer reports it. */
+export const useSetupJob = create<{
+  jobId: string | null
+  seen: string | null
+  follow: (jobId: string) => void
+  acknowledge: (jobId: string) => void
+}>((set) => ({
+  jobId: null,
+  seen: null,
+  follow: (jobId) => {
+    set({ jobId })
+  },
+  acknowledge: (jobId) => {
+    set({ seen: jobId })
+  },
+}))
 
 // llama.cpp or the base model is not there yet, or llama-server gave up: S0-1 (§12, §13).
 const SETUP_STATES = new Set(['missing_binary', 'missing_model', 'error'])
@@ -44,7 +52,11 @@ export function useHealth() {
     queryKey: ['health'],
     queryFn: api.health,
     // The model loads in the background after its files arrive.
-    refetchInterval: (query) => (query.state.data?.llama.state === 'starting' ? 2000 : false),
+    refetchInterval: (query) => {
+      const state = query.state.data?.llama.state
+      // stopped: between processes (boot, or new files swapped in); starting follows.
+      return state === 'starting' || state === 'stopped' ? 2000 : false
+    },
   })
 }
 

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { type SubmitEvent, useState } from 'react'
+import { type SubmitEvent, useEffect, useState } from 'react'
 import { ApiRequestError, api } from '../api/client'
 import {
   type JobLive,
@@ -225,6 +225,7 @@ export function SetupScreen() {
   const status = useSetupStatus()
   const jobId = useSetupJob((store) => store.jobId)
   const follow = useSetupJob((store) => store.follow)
+  const acknowledge = useSetupJob((store) => store.acknowledge)
   const live = useJobLive(jobId)
   const [choosing, setChoosing] = useState(false)
   const toLibrary = () => {
@@ -252,11 +253,44 @@ export function SetupScreen() {
   const finalError = live?.final?.type === 'error' ? live.final : null
   const downloadError =
     download.error instanceof ApiRequestError ? errorText(download.error.code) : null
+  const ended = live?.final != null
+
+  useEffect(() => {
+    // How the last job ended is shown here, so the top-bar chip can stop saying it.
+    if (jobId !== null && ended) acknowledge(jobId)
+  }, [jobId, ended, acknowledge])
+
+  const later = (
+    <button type="button" className="paper-button" onClick={toLibrary}>
+      {strings.setup.later}
+    </button>
+  )
+  const usePaths = (
+    <button
+      type="button"
+      className="paper-button"
+      onClick={() => {
+        setChoosing(true)
+      }}
+    >
+      {strings.setup.usePaths}
+    </button>
+  )
 
   let body
   if (running) {
     body = <Progress jobId={jobId} live={live} onBackground={toLibrary} />
-  } else if (state === 'starting') {
+  } else if (choosing && status.data) {
+    body = (
+      <Paths
+        status={status.data}
+        onStarted={started}
+        onBack={() => {
+          setChoosing(false)
+        }}
+      />
+    )
+  } else if (state === 'starting' || state === 'stopped') {
     body = (
       <section className="setup-status" role="status" aria-busy="true">
         <span className="spinner" aria-hidden="true" />
@@ -283,9 +317,9 @@ export function SetupScreen() {
           {strings.setup.llamaError} {health.data?.llama.message}
         </p>
         <div className="setup-actions">
-          <button type="button" className="paper-button" onClick={toLibrary}>
-            {strings.setup.later}
-          </button>
+          {later}
+          {/* The files may be what fails: other ones can be picked from here too. */}
+          {usePaths}
           <button
             type="button"
             className="paper-button"
@@ -299,16 +333,6 @@ export function SetupScreen() {
           </button>
         </div>
       </section>
-    )
-  } else if (choosing && status.data) {
-    body = (
-      <Paths
-        status={status.data}
-        onStarted={started}
-        onBack={() => {
-          setChoosing(false)
-        }}
-      />
     )
   } else if (status.data && missing) {
     const partial = status.data.items.some((item) => item.status === 'partial')
@@ -327,27 +351,17 @@ export function SetupScreen() {
             {strings.setup.noSpace}
           </p>
         )}
-        {(finalError ?? downloadError) && (
+        {downloadError && (
           <p className="setup-error" role="alert">
-            {finalError ? errorText(finalError.code) : downloadError}
+            {downloadError}
           </p>
         )}
         {live?.final?.type === 'cancelled' && (
           <p className="setup-note">{strings.setup.cancelled}</p>
         )}
         <div className="setup-actions">
-          <button type="button" className="paper-button" onClick={toLibrary}>
-            {strings.setup.later}
-          </button>
-          <button
-            type="button"
-            className="paper-button"
-            onClick={() => {
-              setChoosing(true)
-            }}
-          >
-            {strings.setup.usePaths}
-          </button>
+          {later}
+          {usePaths}
           <button
             type="button"
             className="paper-button"
@@ -365,7 +379,12 @@ export function SetupScreen() {
       </>
     )
   } else {
-    body = <span className="spinner" aria-hidden="true" />
+    body = (
+      <section className="setup-status" aria-busy="true">
+        <span className="spinner" aria-hidden="true" />
+        <div className="setup-actions">{later}</div>
+      </section>
+    )
   }
 
   return (
@@ -393,6 +412,12 @@ export function SetupScreen() {
               </ul>
             </section>
           </div>
+          {/* A download or path check that failed, whatever state the files are in now. */}
+          {!running && finalError && (
+            <p className="setup-error" role="alert">
+              {errorText(finalError.code)}
+            </p>
+          )}
           {body}
         </article>
       </main>

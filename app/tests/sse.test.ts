@@ -1,5 +1,6 @@
-import { expect, test } from 'vitest'
-import { type JobEvent, SseParser } from '../src/api/sse'
+import { afterEach, expect, test, vi } from 'vitest'
+import { type JobEvent, SseParser, streamJob } from '../src/api/sse'
+import { useServer } from '../src/stores/server'
 import { formatBytes, formatEta, percentOf, stepText } from '../src/components/setupText'
 import { strings } from '../src/strings'
 
@@ -46,4 +47,26 @@ test('progress reads in Korean', () => {
     strings.setup.verifying(strings.setup.llama),
   )
   expect(stepText(null)).toBe(strings.setup.preparing)
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+test('an event cut off by the end of the stream is dropped', async () => {
+  useServer.setState({
+    state: { status: 'ready', baseUrl: 'http://127.0.0.1:9100', token: 'tok', restarts: 0 },
+  })
+  const text =
+    'id: 1\nevent: progress\ndata: {"done":1,"total":2,"etaSec":null,"step":null}\n\n' +
+    'id: 2\nevent: error\ndata: {"code":"DOWN'
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() => Promise.resolve(new Response(text))),
+  )
+  const events: JobEvent[] = []
+  const last = await streamJob('job_1', (event) => events.push(event))
+  expect(events.map((e) => e.type)).toEqual(['progress'])
+  // Resumes after the last whole event.
+  expect(last).toBe(1)
 })

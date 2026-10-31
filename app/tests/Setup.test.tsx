@@ -251,3 +251,46 @@ test('files the user has are picked and checked by the server', async () => {
     })
   })
 })
+
+test('when llama.cpp fails, other files can be picked; a failed check says why', async () => {
+  const { state, event, finish } = serve()
+  state.health = {
+    ...health('error'),
+    llama: { state: 'error', profile: 'q5', restarts: 3, message: 'exit code 1' },
+  }
+  renderApp()
+  expect(await screen.findByText(new RegExp(strings.setup.llamaError))).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: strings.setup.usePaths }))
+  const form = screen.getByRole('form', { name: strings.setup.pathsTitle })
+  fireEvent.change(within(form).getByLabelText(strings.setup.modelPath), {
+    target: { value: 'D:\\other.gguf' },
+  })
+  fireEvent.click(within(form).getByRole('button', { name: strings.setup.check }))
+  state.jobId = null
+  await event(1, 'error', { code: 'MODEL_MISMATCH', message: 'sha256 differs' })
+  finish()
+  expect(await screen.findByText(strings.setup.errors.MODEL_MISMATCH ?? '')).toBeTruthy()
+  // Seen here, so the library's top bar does not keep reporting it.
+  fireEvent.click(screen.getByRole('button', { name: strings.setup.later }))
+  expect(await screen.findByText(strings.library.empty)).toBeTruthy()
+  expect(screen.queryByRole('button', { name: strings.setup.chipFailed })).toBeNull()
+})
+
+test('a stopped llama-server between processes reads as loading', async () => {
+  const { state } = serve()
+  state.health = health('missing_model')
+  renderApp()
+  await screen.findByRole('heading', { name: strings.setup.title })
+  state.health = health('stopped')
+  fireEvent.click(screen.getByRole('button', { name: strings.setup.later }))
+  // Back on S0-1 (as from the chip) with fresh health.
+  act(() => {
+    useNavigation.getState().open({ name: 'setup' })
+  })
+  await waitFor(
+    () => {
+      expect(screen.getByText(strings.setup.loading)).toBeTruthy()
+    },
+    { timeout: 4000 },
+  )
+})
