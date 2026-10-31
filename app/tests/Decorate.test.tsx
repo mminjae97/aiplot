@@ -274,6 +274,27 @@ test('removing the cover in use asks first and turns the book back to cloth', as
   })
 })
 
+test('moving the confirmation to another illustration moves focus with it', async () => {
+  const { covers } = serve([book('w_a', '안개의 항구')])
+  for (const id of ['cv_1', 'cv_2']) {
+    covers.push({ id, work_id: 'w_a', created_at: '2026-10-31T10:00:00.000Z' })
+  }
+  renderApp()
+  const dialog = await openDecorate('안개의 항구')
+  fireEvent.click(within(dialog).getByLabelText(strings.decorate.coverIllustration))
+  const removeOf = (n: number) =>
+    within(dialog).findByRole('button', {
+      name: `${strings.decorate.illustration(n)} ${strings.decorate.remove}`,
+    })
+  for (const n of [2, 1]) {
+    fireEvent.click(await removeOf(n))
+    const panel = within(dialog).getByRole('group', { name: strings.decorate.illustration(n) })
+    expect(document.activeElement).toBe(
+      within(panel).getByRole('button', { name: strings.decorate.removeNo }),
+    )
+  }
+})
+
 test('a file that is not a picture explains itself', async () => {
   vi.mocked(cropCover).mockRejectedValueOnce(new CoverImageError('not a readable image'))
   const { calls } = serve([book('w_a', '안개의 항구')])

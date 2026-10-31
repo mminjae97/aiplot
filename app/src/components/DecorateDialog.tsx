@@ -35,9 +35,11 @@ function IllustrationChoice(props: ChoiceProps) {
   const remove = useRef<HTMLButtonElement>(null)
   const wasConfirming = useRef(confirming)
   useEffect(() => {
-    // The pressed button is swapped out: focus the safe choice, then back to 지우기.
+    // The pressed button is swapped out: focus the safe choice, then back to 지우기 — only if
+    // focus fell out with it, not when it moved on to another illustration's confirmation.
+    const lost = document.activeElement === null || document.activeElement === document.body
     if (confirming) keep.current?.focus()
-    else if (wasConfirming.current) remove.current?.focus()
+    else if (wasConfirming.current && lost) remove.current?.focus()
     wasConfirming.current = confirming
   }, [confirming])
   const label = strings.decorate.illustration(index + 1)
