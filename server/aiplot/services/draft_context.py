@@ -128,6 +128,11 @@ def ref_line(row: cards_db.CardRow, milestones: list[tuple[str, str]]) -> str:
     return line
 
 
+def ref_lines_of(rows: list[cards_db.CardRow]) -> str:
+    """Ref lines without the main story's milestones (world cards and the like)."""
+    return "\n".join(ref_line(row, []) for row in rows)
+
+
 def ref_lines(conn: sqlite3.Connection, rows: list[cards_db.CardRow]) -> str:
     lines = []
     for row in rows:

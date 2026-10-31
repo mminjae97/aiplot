@@ -477,6 +477,16 @@ export interface DraftCreate {
   part_id?: CardId | null
 }
 /**
+ * POST /drafts/{draftId}/generate (카드 생성, a job): pinned replaces the draft's pinned fields, kept from the last generated or saved card (§8); structure = the 4/5 stages the user picked for a part or an episode.
+ */
+export interface DraftGenerate {
+  /**
+   * @maxItems 50
+   */
+  pinned?: string[]
+  structure?: (4 | 5) | null
+}
+/**
  * POST /drafts/{draftId}/messages: one chat turn (§8). Empty text on a draft without turns lets the AI open with a question. The reply streams as SSE (DraftMessageEvent).
  */
 export interface DraftMessage {

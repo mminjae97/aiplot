@@ -49,8 +49,12 @@ class DraftState:
     generated: CardOutput | None = None
     # Cards @-mentioned so far: they stay in the roles' context.
     refs: list[str] = field(default_factory=list)
-    # A turn or a generation is running (one at a time per draft).
+    # A chat turn is running (one at a time per draft).
     busy: bool = False
+    # The generation job, and the notes the generated card was made from (its evidence
+    # indexes point into them; 저장 needs them unchanged).
+    job_id: str | None = None
+    generated_notes: str | None = None
     # Requests on one draft may overlap (thread pool): every read and change holds this, so
     # a response never mixes two versions (e.g. notes from one, sentences from another).
     lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
