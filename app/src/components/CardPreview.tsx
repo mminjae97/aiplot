@@ -1,6 +1,6 @@
 import { strings } from '../strings'
 import type { Card, CardOutput } from '../types'
-import { display, rows, same, valueOf } from './cardFields'
+import { display, isEmpty, rows, same, valueOf } from './cardFields'
 
 type Props = {
   card: CardOutput
@@ -18,9 +18,14 @@ type Props = {
  * no evidence reads as AI 추정, an empty required field as 아직 정해지지 않음. */
 export function CardPreview({ card, saved, names, pinned, selected, onPin, onSelect }: Props) {
   const list = rows(card).filter((row) => {
-    // In edit mode only what changed is shown (§8), plus what is still missing.
+    // In edit mode only what changed is shown (§8), plus what is still missing and what is
+    // pinned (so it can be unpinned).
     if (saved === null) return true
-    return !same(row.value, valueOf(saved, row.path)) || (row.required && row.empty)
+    return (
+      !same(row.value, valueOf(saved, row.path)) ||
+      (row.required && row.empty) ||
+      pinned.includes(row.path)
+    )
   })
   return (
     <>
@@ -62,7 +67,7 @@ export function CardPreview({ card, saved, names, pinned, selected, onPin, onSel
                 </button>
               </dt>
               <dd>
-                {saved !== null && before !== null && !same(row.value, before) && (
+                {saved !== null && !isEmpty(before) && !same(row.value, before) && (
                   <del className="preview-before" aria-label={strings.preview.before}>
                     {display(before, names)}
                   </del>

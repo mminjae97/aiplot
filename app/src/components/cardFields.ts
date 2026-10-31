@@ -41,6 +41,21 @@ export function isEmpty(value: unknown): boolean {
   return false
 }
 
+/** Not there yet as §15 counts it: 3–5 speech examples, a structure with a type and every
+ * stage summarised; otherwise just empty. */
+export function undecided(path: string, value: unknown): boolean {
+  if (path === 'speech.examples') {
+    return !Array.isArray(value) || value.length < 3 || value.length > 5
+  }
+  if (path === 'structure') {
+    if (value === null || typeof value !== 'object') return true
+    const structure = value as { type?: unknown; stages?: unknown }
+    if (structure.type == null || !Array.isArray(structure.stages)) return true
+    return (structure.stages as { summary?: unknown }[]).some((stage) => isEmpty(stage.summary))
+  }
+  return isEmpty(value)
+}
+
 export function labelOf(path: string): string {
   return strings.fields[path] ?? path
 }
@@ -79,12 +94,13 @@ export function rows(card: CardOutput): FieldRow[] {
   return fieldPaths(card).map((path) => {
     const value = valueOf(card, path)
     const evidence = card.evidence[path] ?? []
-    const empty = isEmpty(value)
+    const isRequired = required.includes(path)
+    const empty = isRequired ? undecided(path, value) : isEmpty(value)
     return {
       path,
       label: labelOf(path),
       value,
-      required: required.includes(path),
+      required: isRequired,
       empty,
       guessed: !empty && (evidence.length === 0 || card.ai_guess.includes(path)),
       evidence,
@@ -100,12 +116,18 @@ export function display(value: unknown, names: Map<string, string>): string {
   if (Array.isArray(value)) return value.map((item) => display(item, names)).join(', ')
   if (typeof value === 'object') {
     const record = value as Record<string, unknown>
-    // Structure: its stages, one per line.
+    // Structure: its kind, then its stages, one per line.
     if (Array.isArray(record.stages)) {
-      return (record.stages as Record<string, unknown>[])
-        .map((stage) => `${String(stage.name)}: ${display(stage.summary, names) || '—'}`)
-        .join('\n')
+      const kind = typeof record.type === 'number' ? `${String(record.type)}단계\n` : ''
+      return (
+        kind +
+        (record.stages as Record<string, unknown>[])
+          .map((stage) => `${String(stage.name)}: ${display(stage.summary, names) || '—'}`)
+          .join('\n')
+      )
     }
+    // A milestone or a planted foreshadowing reads as its text, never its id.
+    if (typeof record.id === 'string' && typeof record.text === 'string') return record.text
     return Object.values(record)
       .map((item) => display(item, names))
       .filter(Boolean)

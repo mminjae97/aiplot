@@ -550,3 +550,10 @@ p.drawer-body {
 .drawer-confirm h3 {
   font-size: var(--size-lead);
 }
+
+.preview-stale {
+  padding: 6px 10px;
+  border-left: 3px solid var(--warning);
+  color: var(--warning);
+  font-size: var(--size-small);
+}

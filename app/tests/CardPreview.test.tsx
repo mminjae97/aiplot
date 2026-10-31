@@ -42,7 +42,12 @@ function sse(events: [string, unknown][]): Response {
 }
 
 function serve(
-  options: { generated?: CharacterCardOutput; saveError?: string; jobError?: string } = {},
+  options: {
+    generated?: CharacterCardOutput
+    saveError?: string
+    jobError?: string
+    dropStream?: boolean
+  } = {},
 ) {
   let draft: Draft = {
     id: 'dr_1',
@@ -72,6 +77,11 @@ function serve(
         return json(draft, 201)
       }
       if (method === 'GET' && path === '/drafts/dr_1') return json(draft)
+      if (method === 'PUT' && path === '/drafts/dr_1/source') {
+        const notes = (body as { notes: string }).notes
+        draft = { ...draft, notes, sentences: [notes] }
+        return json(draft)
+      }
       if (method === 'DELETE') return Promise.resolve(new Response(null, { status: 204 }))
       if (path === '/drafts/dr_1/messages') return Promise.resolve(sse([['done', {}]]))
       if (path === '/drafts/dr_1/generate') {
@@ -79,6 +89,7 @@ function serve(
         return json({ jobId: 'job_1' }, 202)
       }
       if (path.startsWith('/jobs/job_1/events')) {
+        if (options.dropStream) return Promise.resolve(sse([['progress', { done: 0, total: 1 }]]))
         return Promise.resolve(
           sse(
             options.jobError
@@ -236,7 +247,6 @@ test('closing with an unsaved card asks first', async () => {
 test('a failed generation says why', async () => {
   serve({ jobError: 'LLM_UNAVAILABLE' })
   renderDrawer()
-  fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true })
   const button = await screen.findByRole('button', { name: strings.preview.generate })
   await waitFor(() => {
     expect(button).toHaveProperty('disabled', false)
@@ -261,4 +271,49 @@ test('editing shows only what changed, with the old value struck', async () => {
   // The new name: the cards that point at this one are listed before saving (§8).
   expect(await screen.findByText(strings.preview.references)).toBeTruthy()
   expect(screen.getByText('1화')).toBeTruthy()
+})
+
+test('a stream that ends without a result is a failed generation', async () => {
+  serve({ dropStream: true })
+  renderDrawer()
+  const button = await screen.findByRole('button', { name: strings.preview.generate })
+  await waitFor(() => {
+    expect(button).toHaveProperty('disabled', false)
+  })
+  fireEvent.click(button)
+  expect(await screen.findByText(strings.preview.generateFailed)).toBeTruthy()
+})
+
+test('notes changed after generation make the card stale', async () => {
+  const { calls } = serve()
+  renderDrawer()
+  await generated()
+  fireEvent.click(screen.getByRole('button', { name: '주제' }))
+  fireEvent.click(screen.getByRole('button', { name: strings.drawer.editNotes }))
+  // Typing in the notes: Ctrl+S never saves (nor closes) over unsaved text.
+  fireEvent.keyDown(window, { key: 's', ctrlKey: true })
+  expect(calls.some((c) => c.path === '/drafts/dr_1/save')).toBe(false)
+  fireEvent.change(screen.getByLabelText(strings.drawer.editNotesLabel), {
+    target: { value: '테오는 활을 쓴다.' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: strings.drawer.saveNotes }))
+  expect(await screen.findByText(strings.preview.stale)).toBeTruthy()
+  expect(screen.getByRole('button', { name: strings.preview.save })).toHaveProperty(
+    'disabled',
+    true,
+  )
+  // The old evidence would point at the wrong sentence: no highlight.
+  expect(document.querySelector('[data-evidence]')).toBeNull()
+})
+
+test('a double Ctrl+S saves once', async () => {
+  const { calls } = serve()
+  const { onClose } = renderDrawer()
+  await generated()
+  fireEvent.keyDown(window, { key: 's', ctrlKey: true })
+  fireEvent.keyDown(window, { key: 's', ctrlKey: true })
+  await waitFor(() => {
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+  expect(calls.filter((c) => c.path === '/drafts/dr_1/save')).toHaveLength(1)
 })

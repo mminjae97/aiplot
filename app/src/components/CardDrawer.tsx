@@ -58,11 +58,19 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
+  // The notes the shown card was generated from: once they change, the card is stale.
+  const [generatedFrom, setGeneratedFrom] = useState<string | null>(null)
   const panel = useRef<HTMLDivElement>(null)
   const keepWriting = useRef<HTMLButtonElement>(null)
   // Lifecycle, outside render: the draft once created, whether the drawer is still mounted,
   // the running turn's and generation's streams.
-  const life = useRef({ started: false, mounted: false, id: null as string | null })
+  const life = useRef({
+    started: false,
+    mounted: false,
+    id: null as string | null,
+    // Set at once (not on the next render), so a double Ctrl+S saves once.
+    saving: false,
+  })
   const stream = useRef<AbortController | null>(null)
   const genStream = useRef<AbortController | null>(null)
 
@@ -90,10 +98,16 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     enabled: nameChanged,
   })
   const pins = pinned ?? current?.pinned ?? []
+  const stale = generated !== null && generatedFrom !== null && current?.notes !== generatedFrom
+  const quiet = stage === 'idle' && generating === null && editing === null && !saving
+  const canGenerate = quiet && !confirming && current !== undefined && current.notes.trim() !== ''
+  const canSave = quiet && generated !== null && !stale
 
   const requestClose = () => {
+    // Mid-save the drawer stays: closing would delete the draft under the save.
+    if (saving) return
     // A generated card not saved yet: ask first (§8 unsaved close asks to save).
-    if (generated !== null && !saving) setConfirming(true)
+    if (generated !== null) setConfirming(true)
     else onClose()
   }
   // What the window's key listener (set up once) needs to read now.
@@ -153,8 +167,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
   }
 
   const generate = async () => {
-    if (draftId === null || generating !== null || stage !== 'idle' || editing !== null) return
-    if (!current?.notes.trim()) return
+    if (draftId === null || !canGenerate) return
     const controller = new AbortController()
     genStream.current = controller
     const alive = () => !controller.signal.aborted
@@ -166,10 +179,11 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
       if (!alive()) return
       setGenerating((old) => old && { ...old, jobId: accepted.jobId })
       // Set from the event callback, so kept in an object.
-      const outcome = { failure: null as string | null }
+      const outcome = { done: false, failure: null as string | null }
       await streamJob(
         accepted.jobId,
         (event) => {
+          if (event.type === 'done') outcome.done = true
           if (event.type === 'error') outcome.failure = (event.data as { code: string }).code
           if (event.type === 'cancelled') outcome.failure = 'CANCELLED'
         },
@@ -178,10 +192,12 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
       if (!alive()) return
       const failure = outcome.failure
       if (failure !== null && failure !== 'CANCELLED') setGenError(errorText(failure))
+      // The stream ended without a result (dropped, or a restarted server).
+      else if (!outcome.done && failure === null) setGenError(strings.preview.generateFailed)
       const fresh = await api.getDraft(draftId)
       if (!alive()) return
       queryClient.setQueryData(draftKey(draftId), fresh)
-      setPinned(null)
+      if (outcome.done) setGeneratedFrom(fresh.notes)
     } catch (err) {
       if (alive()) {
         setGenError(
@@ -203,7 +219,8 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
   }
 
   const save = async () => {
-    if (draftId === null || generated === null || saving || generating !== null) return
+    if (draftId === null || !canSave || life.current.saving) return
+    life.current.saving = true
     setSaving(true)
     setSaveError(null)
     try {
@@ -216,6 +233,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
       onClose()
     } catch (err) {
       setSaveError(saveErrorText(err instanceof ApiRequestError ? err.code : ''))
+      life.current.saving = false
       setSaving(false)
       setConfirming(false)
     }
@@ -347,9 +365,20 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
   const kind = strings.drawer.kind[request.type]
   const turns: DraftTurn[] = current?.turns ?? []
   const category = request.category ? strings.drawer.category[request.category] : null
-  const cardNames = new Map((cards.data?.cards ?? []).map((card) => [card.id, card.name ?? '']))
+  // Ids read as names: cards, the main story's milestones, episodes' planted foreshadowing.
+  const cardNames = new Map<string, string>()
+  for (const card of cards.data?.cards ?? []) {
+    cardNames.set(card.id, card.name ?? '')
+    if (card.type === 'main_story') {
+      for (const milestone of card.data.milestones) cardNames.set(milestone.id, milestone.text)
+    }
+    if (card.type === 'episode') {
+      for (const plant of card.data.foreshadowing.plants) cardNames.set(plant.id, plant.text)
+    }
+  }
+  // A stale card's evidence points into notes that changed: no highlight then.
   const selectedEvidence =
-    selected !== null && generated !== null ? (generated.evidence[selected] ?? []) : []
+    selected !== null && generated !== null && !stale ? (generated.evidence[selected] ?? []) : []
   const title = generated?.name ?? saved.data?.name ?? strings.drawer.untitled
   const long = generating !== null && generating.seconds >= LONG_WAIT_SEC
 
@@ -445,12 +474,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                   type="button"
                   className="paper-button"
                   data-primary={generated === null || undefined}
-                  disabled={
-                    generating !== null ||
-                    stage !== 'idle' ||
-                    editing !== null ||
-                    !current.notes.trim()
-                  }
+                  disabled={!canGenerate}
                   aria-busy={generating !== null}
                   aria-keyshortcuts="Control+Enter"
                   onClick={() => {
@@ -517,6 +541,11 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                       </ul>
                     </div>
                   )}
+                  {stale && (
+                    <p className="preview-stale" role="status">
+                      {strings.preview.stale}
+                    </p>
+                  )}
                   {saveError && (
                     <p className="chat-error" role="alert">
                       {saveError}
@@ -527,7 +556,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                       type="button"
                       className="paper-button"
                       data-primary
-                      disabled={saving || generating !== null || stage !== 'idle'}
+                      disabled={!canSave}
                       aria-busy={saving}
                       aria-keyshortcuts="Control+S"
                       onClick={() => {
@@ -586,10 +615,13 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                 type="button"
                 className="paper-button"
                 data-primary
+                disabled={!canSave}
+                aria-busy={saving}
                 onClick={() => {
                   void save()
                 }}
               >
+                {saving && <span className="spinner" aria-hidden="true" />}
                 {strings.preview.save}
               </button>
             </div>
