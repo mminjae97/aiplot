@@ -291,6 +291,20 @@ def test_restore_skips_what_is_gone_meanwhile(client: TestClient, conn: sqlite3.
     assert parts(conn) == [("c_e3", None, 1)]
 
 
+def test_restored_episode_keeps_its_plant_when_the_payoff_is_gone(
+    client: TestClient, conn: sqlite3.Connection
+) -> None:
+    world(conn)
+    delete(client, "c_e1")
+    delete(client, "c_e2")
+    assert restore(client, "c_e1").status_code == 200
+    # fs_a is episode 1's own; only the payoff in the deleted episode 2 is skipped.
+    found = conn.execute(
+        "SELECT id, plant_episode_id, payoff_episode_id FROM foreshadowing ORDER BY id"
+    ).fetchall()
+    assert [tuple(row) for row in found] == [("fs_a", "c_e1", None)]
+
+
 def test_locked_stage_rejects_delete_and_restore(
     client: TestClient, conn: sqlite3.Connection
 ) -> None:

@@ -1,6 +1,7 @@
 """Deleted cards kept in memory for a few seconds so "되돌리기" can bring them back (§8).
 Never written to disk: after the window the delete is final."""
 
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -30,6 +31,8 @@ class Trash:
         self.clock = clock
         self.now = now
         self._items: dict[str, Deleted] = {}
+        # Sync routes run on a thread pool: deletes and restores may overlap.
+        self._lock = threading.Lock()
 
     def _purge(self) -> None:
         now = self.clock()
@@ -37,7 +40,6 @@ class Trash:
             del self._items[card_id]
 
     def put(self, card_id: str, work_id: str, snapshot: Snapshot) -> Deleted:
-        self._purge()
         until = self.now() + timedelta(seconds=self.seconds)
         deleted = Deleted(
             work_id=work_id,
@@ -45,12 +47,16 @@ class Trash:
             expires=self.clock() + self.seconds,
             restore_until=until.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
         )
-        self._items[card_id] = deleted
+        with self._lock:
+            self._purge()
+            self._items[card_id] = deleted
         return deleted
 
     def get(self, card_id: str) -> Deleted | None:
-        self._purge()
-        return self._items.get(card_id)
+        with self._lock:
+            self._purge()
+            return self._items.get(card_id)
 
     def drop(self, card_id: str) -> None:
-        self._items.pop(card_id, None)
+        with self._lock:
+            self._items.pop(card_id, None)

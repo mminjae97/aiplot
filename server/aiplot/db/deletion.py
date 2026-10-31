@@ -160,19 +160,21 @@ def _exists(conn: sqlite3.Connection, table: str, column: str, value: Any) -> bo
     )
 
 
-# Columns of type rows that point at other cards (or a worldline): emptied on restore when
-# that target is gone, so the card keeps its type row.
-TYPE_REFERENCES = {
+# Rows a restored card owns that also point at other cards (or a worldline): those columns
+# are emptied on restore when the target is gone, so the card keeps its own rows (its type
+# row, the foreshadowing it planted) and only the link to the missing card is skipped.
+OWN_REFERENCES = {
     "character": (("origin_region_id", "card"),),
     "region": (("parent_region_id", "card"),),
     "part": (("main_id", "card"),),
     "episode": (("part_id", "card"), ("worldline_id", "worldline")),
+    "foreshadowing": (("payoff_episode_id", "card"),),
 }
 
 
 def _without_missing(conn: sqlite3.Connection, table: str, row: dict[str, Any]) -> dict[str, Any]:
     fixed = dict(row)
-    for column, target in TYPE_REFERENCES.get(table, ()):
+    for column, target in OWN_REFERENCES.get(table, ()):
         value = fixed.get(column)
         if value is not None and not _exists(conn, target, "id", value):
             fixed[column] = None
@@ -209,7 +211,7 @@ def restore(conn: sqlite3.Connection, snap: Snapshot) -> None:
             (from_id, to_id),
         )
     for table, row in snap.rows:
-        _insert(conn, table, _without_missing(conn, table, row) if table in TYPE_TABLES else row)
+        _insert(conn, table, _without_missing(conn, table, row))
     for table, key, key_value, column, value in snap.nulled:
         if _exists(conn, "card", "id", value):
             conn.execute(
