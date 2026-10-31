@@ -123,7 +123,8 @@ export function ContentsPage({ workId }: Props) {
                             aria-expanded={index === 3 ? choosingStory : undefined}
                             onClick={() => {
                               const type = ITEM_TYPES[index]
-                              if (type) setDrawer({ workId, type })
+                              if (type === 'world') open({ name: 'world', workId })
+                              else if (type) setDrawer({ workId, type })
                               else setChoosingStory((v) => !v)
                             }}
                           >

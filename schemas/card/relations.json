@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CardRelations",
+  "description": "GET /works/{workId}/relations?kind=: relation rows of the work (§6: references come from relation tables). world: world card -> related card (함께 보기, §8). character: character -> character with the relation (관계도).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["relations"],
+  "properties": {
+    "relations": {
+      "type": "array",
+      "items": {
+        "title": "CardRelation",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from_id", "to_id", "relation"],
+        "properties": {
+          "from_id": { "$ref": "../common/card-id.json" },
+          "to_id": { "$ref": "../common/card-id.json" },
+          "relation": { "description": "The relation text (character); null for world links.", "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

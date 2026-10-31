@@ -543,3 +543,22 @@ def last_part_order(conn: sqlite3.Connection, work_id: str) -> int:
         (work_id,),
     ).fetchone()
     return int(row[0])
+
+
+def relations_of_work(
+    conn: sqlite3.Connection, work_id: str, kind: str
+) -> list[tuple[str, str, str | None]]:
+    """(from, to, relation) rows: world_relation (world -> card) or char_relation."""
+    if kind == "world":
+        sql = (
+            "SELECT world_id, world_relation.card_id, NULL FROM world_relation "
+            "JOIN card ON card.id = world_relation.world_id WHERE card.work_id = ? "
+            "ORDER BY card.rowid, world_relation.rowid"
+        )
+    else:
+        sql = (
+            "SELECT from_id, to_id, relation FROM char_relation "
+            "JOIN card ON card.id = char_relation.from_id WHERE card.work_id = ? "
+            "ORDER BY card.rowid, char_relation.rowid"
+        )
+    return [(r[0], r[1], r[2]) for r in conn.execute(sql, (work_id,)).fetchall()]

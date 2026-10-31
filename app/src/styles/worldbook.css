@@ -1,0 +1,134 @@
+/* S1-0 world book: the contents' open spread, as an encyclopedia. Bookmarks along the top of
+   the left page, an index with dotted leaders and page numbers, the entry on the right. */
+
+.world-book .page {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.world-tabs {
+  display: flex;
+  gap: 3px;
+  margin: -20px 0 8px;
+}
+
+/* A ribbon bookmark per category; the open one is longer and brass. */
+.world-tab {
+  flex: 0 1 auto;
+  padding: 8px 7px 10px;
+  border: 0;
+  border-radius: 0 0 4px 4px;
+  white-space: nowrap;
+  background: var(--control);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: var(--size-small);
+  cursor: pointer;
+  transition: padding var(--motion);
+}
+
+.world-tab:hover {
+  color: var(--ink);
+}
+
+.world-tab[aria-selected='true'] {
+  padding-bottom: 16px;
+  background: var(--brass);
+  color: #fff8ea;
+  font-weight: 700;
+}
+
+.world-index h2,
+.world-entry-title {
+  font-size: var(--size-title);
+}
+
+.world-entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.world-entry {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 3px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--size-lead);
+  text-align: left;
+  cursor: pointer;
+}
+
+.world-entry:hover,
+.world-entry[aria-current='true'] {
+  color: var(--brass);
+}
+
+/* An incomplete entry: a dashed underline (and the server marks it in completeness). */
+.world-entry[data-incomplete] > span:first-child {
+  text-decoration: underline dashed var(--warning);
+  text-underline-offset: 4px;
+}
+
+.world-new {
+  align-self: flex-start;
+  margin-top: 8px;
+}
+
+.world-entry-page h3 {
+  margin-top: 8px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.world-summary {
+  font-size: var(--size-lead);
+}
+
+.world-related {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.world-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brass);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.world-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+.card-delete-refs {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+/* 되돌리기: a paper slip at the bottom of the window while the server keeps the card. */
+.undo-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  z-index: 30;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 10px 14px 10px 18px;
+  background: var(--paper);
+  box-shadow: 0 10px 26px var(--wood-shadow);
+  transform: translateX(-50%);
+}

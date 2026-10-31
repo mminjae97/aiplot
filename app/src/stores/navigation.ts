@@ -6,6 +6,8 @@ export type Screen =
   | { name: 'contents'; workId: string }
   // S0-1 first run (§12)
   | { name: 'setup' }
+  // S1-0 world book (§8)
+  | { name: 'world'; workId: string }
 
 interface NavigationStore {
   screen: Screen

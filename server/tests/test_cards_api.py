@@ -212,3 +212,38 @@ def test_cards_need_token(client: TestClient, conn: sqlite3.Connection) -> None:
         ("PATCH", "/api/v1/cards/c_port"),
     ):
         assert client.request(method, path, json={"map_x": 1, "map_y": 2}).status_code == 401
+
+
+def test_relations_come_from_the_relation_tables(
+    client: TestClient, conn: sqlite3.Connection
+) -> None:
+    save(conn, region("c_port", "북부 항구"))
+    save(conn, character("c_mira", "미라", relations=[]))
+    save(
+        conn,
+        character(
+            "c_teo",
+            "테오",
+            relations=[
+                {"target_id": "c_mira", "relation": "소꿉친구"},
+                {"target_id": "c_ghost", "relation": "없는 인물"},
+            ],
+        ),
+    )
+    world = fixture("world", id="c_tide")
+    world["data"] = {**world["data"], "related": ["c_port", "c_teo", "c_ghost"]}
+    save(conn, world)
+    assert get(client, "/works/w_01/relations?kind=character") == {
+        "relations": [{"from_id": "c_teo", "to_id": "c_mira", "relation": "소꿉친구"}]
+    }
+    assert get(client, "/works/w_01/relations?kind=world") == {
+        "relations": [
+            {"from_id": "c_tide", "to_id": "c_port", "relation": None},
+            {"from_id": "c_tide", "to_id": "c_teo", "relation": None},
+        ]
+    }
+    assert get(client, "/works/w_02/relations?kind=world") == {"relations": []}
+    bad = client.get("/api/v1/works/w_01/relations?kind=region", headers=AUTH)
+    assert error(bad) == (422, "VALIDATION_ERROR")
+    missing = client.get("/api/v1/works/w_nope/relations?kind=world", headers=AUTH)
+    assert error(missing) == (404, "WORK_NOT_FOUND")
