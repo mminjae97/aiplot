@@ -179,6 +179,15 @@ def test_only_a_region_position_is_edited(client: TestClient, conn: sqlite3.Conn
     # Any other field, any other card type: never a direct card edit (§6).
     for body in ({"map_x": 1, "map_y": 2, "name": "새 이름"}, {"name": "새 이름"}, {"map_x": 1}):
         assert error(patch(client, "c_port", body)) == (422, "VALIDATION_ERROR")
+    # Only finite coordinates: NaN would be stored as no position, Infinity breaks the map.
+    for raw in ('{"map_x": NaN, "map_y": 1}', '{"map_x": 1, "map_y": -Infinity}'):
+        response = client.patch(
+            "/api/v1/cards/c_port",
+            headers={**AUTH, "Content-Type": "application/json"},
+            content=raw,
+        )
+        assert error(response) == (422, "VALIDATION_ERROR")
+    assert error(patch(client, "c_port", {"map_x": 2e9, "map_y": 0})) == (422, "VALIDATION_ERROR")
     assert error(patch(client, "c_teo", {"map_x": 1, "map_y": 2})) == (422, "CARD_NOT_REGION")
     assert error(patch(client, "c_nope", {"map_x": 1, "map_y": 2})) == (404, "CARD_NOT_FOUND")
     assert get(client, "/cards/c_port") == before

@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["map_x", "map_y"],
   "properties": {
-    "map_x": { "type": "number" },
-    "map_y": { "type": "number" }
+    "map_x": { "description": "Finite map units (no NaN or Infinity).", "type": "number", "minimum": -1e9, "maximum": 1e9 },
+    "map_y": { "description": "Finite map units (no NaN or Infinity).", "type": "number", "minimum": -1e9, "maximum": 1e9 }
   }
 }

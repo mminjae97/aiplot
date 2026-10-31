@@ -209,7 +209,13 @@ export interface RegionSensory {
  * Region map position (§8): the only directly editable card values; PATCH /cards/{cardId} body.
  */
 export interface RegionPosition {
+  /**
+   * Finite map units (no NaN or Infinity).
+   */
   map_x: number
+  /**
+   * Finite map units (no NaN or Infinity).
+   */
   map_y: number
 }
 export interface MainStoryCard {
