@@ -33,9 +33,9 @@ export function perShelf(width: number): number {
   return Math.max(1, Math.floor((usable + GAP) / (BOOK_WIDTH + GAP)))
 }
 
-/** Stands covers left to right, newest first, as many per board as fit the width, and adds
- * empty boards until the bookcase fills the visible height, or one more below the last books
- * when they scroll. */
+/** Stands covers left to right, newest first, as many per board as fit the width; below the
+ * last books there is always one empty board (scrolling to it if need be), and more empty
+ * boards until the bookcase fills the visible height. */
 export function packShelves(works: Work[], width: number, height: number): Slot[][] {
   const columns = perShelf(width)
   const items = [
@@ -50,7 +50,7 @@ export function packShelves(works: Work[], width: number, height: number): Slot[
     shelves.at(-1)?.push({ ...item, slip })
   })
   const fill = Math.max(1, Math.floor((height - BOTTOM) / SHELF_HEIGHT))
-  if (shelves.length > fill) shelves.push([])
+  shelves.push([])
   while (shelves.length < fill) shelves.push([])
   return shelves
 }

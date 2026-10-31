@@ -300,11 +300,11 @@
 .book-shadow::after {
   content: '';
   position: absolute;
-  left: -6px;
-  right: -2px;
-  bottom: -12px;
-  height: 12px;
-  background: rgb(0 0 0 / 55%);
+  left: -4px;
+  right: -4px;
+  bottom: 0;
+  height: 14px;
+  background: rgb(0 0 0 / 40%);
   border-radius: 50%;
 }
 
@@ -331,7 +331,8 @@
       1400px 60px,
     var(--wood-board);
   border-radius: 2px 2px 1px 1px;
-  box-shadow: 0 4px 6px -2px rgb(0 0 0 / 55%);
+  /* resting on the board: only a thin dark seam where it meets it */
+  box-shadow: 0 1px 0 rgb(0 0 0 / 35%);
   pointer-events: none;
 }
 
@@ -374,12 +375,17 @@
   box-shadow: inset 2px 0 0 rgb(0 0 0 / 25%);
 }
 
-/* Lifted off the stand, upright. */
+/* Lifted off the stand, upright, and drawn out in front of it. */
 .book:hover .book-cover,
 .book-cover:focus-visible,
 .book-slot:hover .book-new,
 .book-new:focus-visible {
   transform: translateY(-16px);
+}
+
+.book:hover .book-cover,
+.book-cover:focus-visible {
+  z-index: 2;
 }
 
 .book:hover .book-shadow,
