@@ -353,18 +353,6 @@ p.drawer-body {
   color: var(--brass);
 }
 
-.story-chooser {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.story-chooser .paper-button {
-  padding: 3px 10px;
-  font-size: var(--size-small);
-}
-
 /* Card preview */
 .drawer-preview {
   display: flex;

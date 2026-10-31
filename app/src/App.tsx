@@ -4,6 +4,7 @@ import { CharacterDexScreen } from './screens/CharacterDexScreen'
 import { ContentsPage } from './screens/ContentsPage'
 import { LibraryScreen } from './screens/LibraryScreen'
 import { RegionMapScreen } from './screens/RegionMapScreen'
+import { StoryScreen } from './screens/StoryScreen'
 import { ServerScreen } from './screens/ServerScreen'
 import { SetupScreen } from './screens/SetupScreen'
 import { WorldBookScreen } from './screens/WorldBookScreen'
@@ -34,6 +35,9 @@ function Connected({ baseUrl }: { baseUrl: string }) {
         cardId={screen.cardId}
       />
     )
+  }
+  if (screen.name === 'story') {
+    return <StoryScreen key={`${baseUrl}:${screen.workId}`} workId={screen.workId} />
   }
   if (screen.name === 'regions') {
     return (

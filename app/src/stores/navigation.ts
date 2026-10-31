@@ -12,6 +12,8 @@ export type Screen =
   | { name: 'characters'; workId: string; cardId?: string }
   // S1-2 region map (§8)
   | { name: 'regions'; workId: string; cardId?: string }
+  // S1-3 story (§8)
+  | { name: 'story'; workId: string }
 
 interface NavigationStore {
   screen: Screen

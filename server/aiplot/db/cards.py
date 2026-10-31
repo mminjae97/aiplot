@@ -550,7 +550,8 @@ def relations_of_work(
 ) -> list[tuple[str, str, str | None]]:
     """(from, to, relation) rows: world_relation (world -> card), char_relation, the
     character table's origin region (character -> region), the region table's parent
-    (region -> parent) or episode_region (episode -> region, 'main' for the main one)."""
+    (region -> parent), episode_region (episode -> region, 'main' for the main one) or the
+    episode table's part (episode -> part, its order within the part as text)."""
     if kind == "world":
         sql = (
             "SELECT world_id, world_relation.card_id, NULL FROM world_relation "
@@ -568,6 +569,12 @@ def relations_of_work(
             "SELECT card_id, parent_region_id, NULL FROM region "
             "JOIN card ON card.id = region.card_id "
             "WHERE card.work_id = ? AND parent_region_id IS NOT NULL ORDER BY card.rowid"
+        )
+    elif kind == "episode_part":
+        sql = (
+            'SELECT episode.card_id, part_id, CAST(episode."order" AS TEXT) FROM episode '
+            "JOIN card ON card.id = episode.card_id "
+            'WHERE card.work_id = ? AND part_id IS NOT NULL ORDER BY episode."order", card.rowid'
         )
     elif kind == "episode_region":
         sql = (

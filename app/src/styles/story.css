@@ -1,0 +1,154 @@
+/* S1-3 story: the steps as paper tabs on the desk, each step on one sheet of paper. */
+
+.story-sheet {
+  flex: 1;
+  min-height: 320px;
+  margin-top: 16px;
+  padding: 28px 32px;
+  overflow: auto;
+  background: var(--paper);
+  box-shadow: 0 14px 30px var(--wood-shadow);
+}
+
+.dex.story {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* A step not open yet: faint, but still a tab that explains why. */
+.dex-tab[data-later] {
+  opacity: 0.55;
+}
+
+.story-later,
+.story-empty p {
+  color: var(--ink-soft);
+}
+
+.story-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.story-main {
+  max-width: 760px;
+}
+
+.story-theme {
+  margin: 4px 0 12px;
+  font-size: var(--size-title);
+}
+
+.story-facts {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.story-facts dt,
+.story-main h4 {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  font-weight: 700;
+}
+
+.story-facts dd {
+  margin: 0;
+}
+
+.story-milestones {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding-left: 22px;
+}
+
+.story-assigned {
+  margin-left: 12px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+/* Not in exactly one part: orange and said in words (§5). */
+.story-assigned[data-warning] {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.story-missing {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--warning);
+  background: rgb(184 100 28 / 8%);
+}
+
+.story-missing ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.story-parts {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.story-part {
+  padding: 14px 18px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 4px;
+  background: rgb(255 255 255 / 22%);
+}
+
+.story-part h3 {
+  font-size: var(--size-lead);
+}
+
+.story-part-theme {
+  margin-top: 2px;
+}
+
+.story-part-span {
+  margin: 4px 0 8px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.story-actions {
+  justify-content: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 0;
+}
+
+.story-add {
+  margin-top: 14px;
+}
+
+.story-episodes {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding-left: 22px;
+}
+
+.story-episodes .story-actions {
+  margin-top: 4px;
+}
+
+.card-delete-episodes {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--paper-edge);
+}
+
+.card-delete-episodes label[data-danger] {
+  color: var(--danger);
+}
