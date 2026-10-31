@@ -11,3 +11,15 @@ afterEach(() => {
 
 // jsdom has no layout: scrolling into view is a no-op there (node tests have no DOM).
 if (typeof Element !== 'undefined') Element.prototype.scrollIntoView = () => undefined
+
+// React Flow measures its pane and nodes; jsdom has no ResizeObserver or DOMMatrix.
+if (typeof window !== 'undefined') {
+  ;(window as { ResizeObserver?: unknown }).ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  ;(window as { DOMMatrixReadOnly?: unknown }).DOMMatrixReadOnly ??= class {
+    m22 = 1
+  }
+}

@@ -349,6 +349,12 @@ export const strings = {
     delete: '삭제',
     locked: '기획 단계가 잠겨 있어 읽기만 할 수 있어요.',
     loadFailed: '캐릭터를 불러오지 못했어요.',
+    views: '보기',
+    cardsTab: '도감',
+    graphTab: '관계도',
+    graphNoCards: '캐릭터가 생기면 여기에 관계도가 그려져요.',
+    graphNoLinks: '아직 이어진 관계가 없어요. 캐릭터 원문에 관계를 적으면 선이 생겨요.',
+    graphHint: '끌어서 옮기고, 휠로 확대해요. 옮긴 자리는 저장되지 않아요.',
   },
   worldBook: {
     title: '세계관',
