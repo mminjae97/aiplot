@@ -242,7 +242,6 @@ export function DecorateDialog({ work, onClose }: Props) {
                   {strings.decorate.custom}
                 </label>
               </div>
-              <p className="decorate-note">{strings.decorate.colorNote}</p>
             </fieldset>
 
             {mode === 'illustration' && (
@@ -299,7 +298,6 @@ export function DecorateDialog({ work, onClose }: Props) {
                   {upload.isPending && <span className="spinner" aria-hidden="true" />}
                   {strings.decorate.upload}
                 </button>
-                <p className="decorate-note">{strings.decorate.illustrationNote}</p>
               </fieldset>
             )}
           </div>
