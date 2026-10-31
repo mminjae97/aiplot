@@ -77,7 +77,7 @@ def test_color_keeps_shelf_order(client: TestClient) -> None:
 
 @pytest.mark.parametrize(
     "body",
-    [{}, {"color": "#ABCDEF"}, {"color": "#fff"}, {"color": "red"}, {"title": "새 제목"}],
+    [{}, {"color": "#ABCDEF"}, {"color": "#fff"}, {"color": "red"}, {"title": None}],
 )
 def test_update_rejects(client: TestClient, body: dict[str, object]) -> None:
     work = create(client)
