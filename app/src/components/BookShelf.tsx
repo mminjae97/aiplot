@@ -1,7 +1,15 @@
-import { type CSSProperties, useLayoutEffect, useRef, useState } from 'react'
+import { type ComponentProps, type CSSProperties, useLayoutEffect, useRef, useState } from 'react'
+import { useCoverImage } from '../api/covers'
 import { strings } from '../strings'
 import type { Work } from '../types'
-import { BOOK_WIDTH, BookItem, COVER_HEIGHT, COVER_WIDTH, SPINE_WIDTH } from './BookItem'
+import {
+  BOOK_WIDTH,
+  BookItem,
+  COVER_HEIGHT,
+  COVER_WIDTH,
+  type MenuPoint,
+  SPINE_WIDTH,
+} from './BookItem'
 
 // Spacing follows the cover size: half its width between books, half its height of clear
 // space above each row.
@@ -51,10 +59,17 @@ type Props = {
   works: Work[]
   highlight: string | null
   onOpen: (work: Work) => void
+  onMenu: (work: Work, at: MenuPoint) => void
   onNew: () => void
 }
 
-export function BookShelf({ works, highlight, onOpen, onNew }: Props) {
+/** A shelf book with its cover illustration fetched (the cloth shows until it arrives). */
+function ShelfBook(props: Omit<ComponentProps<typeof BookItem>, 'cover'>) {
+  const cover = useCoverImage(props.work.id, props.work.cover_id)
+  return <BookItem {...props} cover={cover} />
+}
+
+export function BookShelf({ works, highlight, onOpen, onMenu, onNew }: Props) {
   const ref = useRef<HTMLElement>(null)
   const [size, setSize] = useState({ width: 960, height: 640 })
 
@@ -101,12 +116,13 @@ export function BookShelf({ works, highlight, onOpen, onNew }: Props) {
                 {shelf.map((slot) =>
                   slot.kind === 'work' ? (
                     <div role="listitem" key={slot.work.id}>
-                      <BookItem
+                      <ShelfBook
                         work={slot.work}
                         slip={slot.slip}
                         newest={slot.work.id === newest}
                         highlighted={slot.work.id === highlight}
                         onOpen={onOpen}
+                        onMenu={onMenu}
                       />
                     </div>
                   ) : (
