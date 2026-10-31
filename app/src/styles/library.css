@@ -58,6 +58,9 @@
   flex-direction: column;
   /* walnut planks 200px wide: grain, growth rings and faint joints (images rendered from scripts/wood) over the colour */
   background:
+    /* warm lamplight from above the case, falling off toward the bottom */
+    radial-gradient(ellipse 90% 60% at 50% 0, rgb(255 214 150 / 14%), transparent 70%) 0 0 / 100%
+      100vh no-repeat,
     image-set(url('../assets/wood/panel.webp') 1x, url('../assets/wood/panel@2x.webp') 2x) 0 0 /
       1600px 1400px,
     var(--wood-panel);
@@ -97,7 +100,10 @@
     image-set(url('../assets/wood/post.webp') 1x, url('../assets/wood/post@2x.webp') 2x) 0 0 / 60px
       1400px,
     var(--wood-board);
-  box-shadow: 0 0 12px var(--wood-shadow);
+  box-shadow:
+    0 0 12px var(--wood-shadow),
+    /* the post's inner side, running back into the case */ 10px 0 14px -4px rgb(0 0 0 / 40%);
+  z-index: 2;
 }
 
 .bookcase::before {
@@ -114,8 +120,23 @@
   padding-top: var(--shelf-clear);
 }
 
+/* Each compartment is a box: the board above shades the back panel under it. */
+.shelf::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
+  height: 140px;
+  background: linear-gradient(180deg, rgb(0 0 0 / 32%), rgb(0 0 0 / 12%) 40%, transparent);
+  pointer-events: none;
+}
+
+/* Above the board's top face, which the books stand on (a little in from its front edge). */
 .shelf-row {
   position: relative;
+  z-index: 1;
+  top: -5px;
   width: var(--row-width);
   margin: 0 auto;
 }
@@ -128,20 +149,39 @@
 }
 
 .shelf-board {
+  position: relative;
   height: var(--board);
   margin: 0 16px;
+  /* the front edge: lit along its top, shading toward the bottom */
   background:
     linear-gradient(
       180deg,
-      rgb(255 255 255 / 18%) 0 2px,
-      transparent 2px 14px,
-      var(--wood-board-edge) 14px 100%
+      rgb(255 255 255 / 26%) 0 1px,
+      transparent 1px 40%,
+      rgb(0 0 0 / 22%) 100%
     ),
     image-set(url('../assets/wood/board.webp') 1x, url('../assets/wood/board@2x.webp') 2x) 0 0 /
       1400px 60px,
     var(--wood-board);
   border-radius: 1px;
-  box-shadow: 0 10px 14px -6px var(--wood-shadow);
+  box-shadow: 0 12px 18px -6px var(--wood-shadow);
+}
+
+/* The board's top face seen from a little above: narrower at the back, where it meets the
+   panel in shadow, lighter toward the front edge. */
+.shelf-board::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 14px;
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 38%), rgb(0 0 0 / 8%) 70%, rgb(255 255 255 / 10%)),
+    image-set(url('../assets/wood/board.webp') 1x, url('../assets/wood/board@2x.webp') 2x) 0 0 /
+      1400px 60px,
+    var(--wood-board);
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 100%, 0 100%);
 }
 
 /* A paper tag tied to the first board when the shelf is empty. */
@@ -168,11 +208,20 @@
   background: var(--paper-edge);
 }
 
-/* Books stand cover out, all the same size (1:1.5), like a display shelf. */
-.book {
+/* Books stand cover out, all the same size (1:1.5), turned a little so the spine and the
+   book's thickness show; hover or focus turns one to face the viewer. */
+.bookcase {
+  --turn: 32deg;
+  --thickness: 40px;
+}
+
+.book,
+.book-slot {
   position: relative;
   width: var(--book-width);
   height: var(--cover-height);
+  perspective: 900px;
+  perspective-origin: 50% 35%;
 }
 
 .book:hover,
@@ -195,7 +244,48 @@
 /* A hardcover: the spine at the left, the 1:1.5 front beside it. */
 .book-cover {
   background: none;
-  box-shadow: 6px 8px 14px var(--wood-shadow);
+}
+
+.book .book-cover,
+.book-slot .book-new {
+  transform-style: preserve-3d;
+  /* turned about a line near its left foot: the near corner stays on the board's top face */
+  transform-origin: 18% 100%;
+  transform: rotateY(var(--turn));
+  transition: transform 0.25s ease-out;
+}
+
+/* On the shelf the spine is a real face: the book's thickness, turned 90° back from the
+   front's left edge. */
+.book .book-spine {
+  left: calc(var(--spine-width) - var(--thickness));
+  width: var(--thickness);
+  transform-origin: right center;
+  transform: rotateY(-90deg);
+  border-radius: 2px;
+}
+
+/* The shadow the book throws on the back panel (lamp above, a little to the left) and the
+   darker patch where it stands on the board. */
+.book-shadow {
+  position: absolute;
+  inset: 14px -6px -2px 18px;
+  background: rgb(0 0 0 / 42%);
+  filter: blur(10px);
+  border-radius: 6px;
+  transition: transform 0.25s ease-out;
+  pointer-events: none;
+}
+
+.book-shadow::after {
+  content: '';
+  position: absolute;
+  left: -10px;
+  right: 0;
+  bottom: -6px;
+  height: 12px;
+  background: rgb(0 0 0 / 55%);
+  border-radius: 50%;
 }
 
 /* The spine is a flat face turned away from the viewer: a shade darker than the cover,
@@ -244,13 +334,26 @@
   transform: translateY(-12px);
 }
 
+.book:hover .book-shadow,
+.book:focus-within .book-shadow {
+  transform: translateY(-6px) scale(1.02);
+}
+
 .book[data-highlighted] .book-cover {
   animation: book-arrive 0.3s ease-out;
 }
 
 @keyframes book-arrive {
   from {
-    transform: translateY(-24px);
+    transform: translateY(-24px) rotateY(var(--turn));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .book .book-cover,
+  .book-slot .book-new,
+  .book-shadow {
+    transition: none;
   }
 }
 
@@ -332,11 +435,6 @@
   clip-path: polygon(0 0, 50% 22%, 100% 0, 100% 100%, 0 100%);
   pointer-events: none;
   transition: transform var(--motion);
-}
-
-.book:hover .book-ribbon,
-.book:focus-within .book-ribbon {
-  transform: translateY(-12px);
 }
 
 .book-slip {

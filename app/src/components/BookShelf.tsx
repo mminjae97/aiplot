@@ -126,7 +126,7 @@ export function BookShelf({ works, highlight, onOpen, onMenu, onNew }: Props) {
                       />
                     </div>
                   ) : (
-                    <div role="listitem" key="new">
+                    <div role="listitem" key="new" className="book-slot">
                       <button
                         type="button"
                         className="book-new"

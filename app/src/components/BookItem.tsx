@@ -51,7 +51,8 @@ export function BookItem({ work, cover, slip, newest, highlighted, onOpen, onMen
       style={bookStyle(colorOf(work))}
       data-highlighted={highlighted || undefined}
     >
-      {newest && <span className="book-ribbon" aria-hidden="true" />}
+      {/* Under the turned book: its shadow on the back panel and where it stands. */}
+      <span className="book-shadow" aria-hidden="true" />
       <button
         type="button"
         id={bookButtonId(work.id)}
@@ -67,6 +68,7 @@ export function BookItem({ work, cover, slip, newest, highlighted, onOpen, onMen
           onMenu(work, menuPoint(event))
         }}
       >
+        {newest && <span className="book-ribbon" aria-hidden="true" />}
         <BookFront title={work.title} stage={stage} image={cover ?? null} />
       </button>
       <div className="book-slip" id={slipId} role="tooltip" data-side={slip}>
