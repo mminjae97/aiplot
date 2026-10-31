@@ -365,3 +365,27 @@ test('관계도: a node per character; Enter on a node opens its card', async ()
   expect(await screen.findByRole('dialog', { name: '테오' })).toBeTruthy()
   localStorage.removeItem('aiplot.dex.view')
 })
+
+test('관계도: after 원문 수정 the focus comes back to the node', async () => {
+  serve()
+  localStorage.setItem('aiplot.dex.view', 'graph')
+  renderWith(<CharacterDexScreen workId="w_1" />)
+  await waitFor(() => {
+    expect(document.querySelector('.react-flow__node[data-id="c_teo"]')).not.toBeNull()
+  })
+  const teo = document.querySelector<HTMLElement>('.react-flow__node[data-id="c_teo"]')
+  if (!teo) throw new Error('no node')
+  fireEvent.keyDown(teo, { key: 'Enter' })
+  fireEvent.click(await screen.findByRole('button', { name: strings.dex.editSource }))
+  expect(await screen.findByRole('dialog')).toBeTruthy()
+  fireEvent.keyDown(window, { key: 'Escape' })
+  await waitFor(() => {
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+  await waitFor(() => {
+    expect(document.activeElement).toBe(
+      document.querySelector('.react-flow__node[data-id="c_teo"]'),
+    )
+  })
+  localStorage.removeItem('aiplot.dex.view')
+})

@@ -35,6 +35,24 @@ function savedView(): View {
   }
 }
 
+/** Gives the focus back to a card: its grid card or its graph node, else the + card or the
+ * 관계도 tab (the node may be gone after the graph was laid out again). */
+function focusCard(
+  view: View,
+  id: string | null,
+  cards: Map<string, HTMLButtonElement>,
+  add: HTMLButtonElement | null,
+  graphTab: HTMLButtonElement | undefined,
+) {
+  if (view === 'graph') {
+    const node =
+      id === null ? null : document.querySelector<HTMLElement>(`.react-flow__node[data-id="${id}"]`)
+    ;(node ?? graphTab)?.focus()
+  } else {
+    ;((id === null ? undefined : cards.get(id)) ?? add)?.focus()
+  }
+}
+
 function saveView(view: View) {
   try {
     localStorage.setItem(VIEW_KEY, view)
@@ -96,13 +114,17 @@ export function CharacterDexScreen({ workId, cardId }: Props) {
   useEffect(() => {
     if (highlight === null || !shown) return
     cardRefs.current.get(highlight)?.scrollIntoView({ block: 'nearest' })
+    // Back from the drawer or the undo toast with nothing focused: onto the card.
+    if (document.activeElement === document.body || document.activeElement === null) {
+      focusCard(view, highlight, cardRefs.current, addRef.current, tabRefs.current.get('graph'))
+    }
     const timer = window.setTimeout(() => {
       setHighlight(null)
     }, 300)
     return () => {
       window.clearTimeout(timer)
     }
-  }, [highlight, shown])
+  }, [highlight, shown, view])
 
   const busy = drawer !== null || deleting !== null || current !== null
 
@@ -191,7 +213,8 @@ export function CharacterDexScreen({ workId, cardId }: Props) {
                       ? strings.dex.graphNoLinks
                       : strings.dex.graphHint}
                   </p>
-                  {cards.length > 0 && (
+                  {/* Drawn once the lines are known too: no second layout when they arrive. */}
+                  {cards.length > 0 && (links.isSuccess || links.isError) && (
                     <RelationGraph
                       key={graphKey}
                       cards={cards}
@@ -300,7 +323,7 @@ export function CharacterDexScreen({ workId, cardId }: Props) {
             const back = returnTo.current
             returnTo.current = null
             window.requestAnimationFrame(() => {
-              ;((back ? cardRefs.current.get(back) : undefined) ?? addRef.current)?.focus()
+              focusCard(view, back, cardRefs.current, addRef.current, tabRefs.current.get('graph'))
             })
           }}
           onSaved={(card) => {

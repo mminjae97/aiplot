@@ -11,7 +11,7 @@ import {
   ReactFlow,
   useNodesState,
 } from '@xyflow/react'
-import type { KeyboardEvent } from 'react'
+import { type KeyboardEvent, useState } from 'react'
 import { strings } from '../strings'
 import type { CardRelation, CharacterCard } from '../types'
 import { Portrait } from './CharacterCard'
@@ -63,6 +63,8 @@ function RelationEdgeView({
   const length = Math.hypot(dx, dy) || 1
   const ux = dx / length
   const uy = dy / length
+  // Discs dragged onto each other: no line (its ends would cross and flip the arrows).
+  if (length <= 2 * RADIUS) return null
   const from = { x: sourceX + ux * RADIUS, y: sourceY + uy * RADIUS }
   const to = { x: targetX - ux * RADIUS, y: targetY - uy * RADIUS }
   // Each relation sits at its own end: a's view of b near a, b's view of a near b (on a
@@ -102,33 +104,35 @@ function RelationEdgeView({
 
 const NODE_TYPES = { character: CharacterNodeView }
 const EDGE_TYPES = { relation: RelationEdgeView }
-const ARROW = { type: MarkerType.ArrowClosed, width: 18, height: 18 } as const
+// Themed with the line (React Flow writes the marker colour inline).
+const ARROW = {
+  type: MarkerType.ArrowClosed,
+  width: 18,
+  height: 18,
+  color: 'var(--ink-soft)',
+} as const
 
-type Props = {
-  cards: CharacterCard[]
-  relations: CardRelation[]
-  /** A node was clicked (or Enter pressed on it): open its card from where it sits. */
-  onPick: (cardId: string, origin: DOMRect | null) => void
+// React Flow's screen-reader text, in Korean; nodes open a card, nothing is selected.
+const ARIA = {
+  'node.a11yDescription.default': 'Enter 키로 카드를 뒤집어 봐요.',
+  'node.a11yDescription.keyboardDisabled': 'Enter 키로 카드를 뒤집어 봐요.',
+  'edge.a11yDescription.default': '두 인물의 관계예요.',
 }
 
-/** 관계도 (§8): a node per character, a line per related pair with each side's relation at
- * its own end. Laid out afresh each time; dragging moves a node for this view only. */
-export function RelationGraph({ cards, relations, onPick }: Props) {
+function graphOf(cards: CharacterCard[], relations: CardRelation[]) {
   const pairs = pairsOf(relations, new Set(cards.map((card) => card.id)))
   const points = layout(
     cards.map((card) => card.id),
     pairs,
   )
-  const [nodes, , onNodesChange] = useNodesState<CharacterNode>(
-    cards.map((card) => ({
-      id: card.id,
-      type: 'character',
-      position: points.get(card.id) ?? { x: 0, y: 0 },
-      origin: [0.5, 0.36],
-      data: { card },
-      ariaLabel: strings.dex.flip(card.name ?? strings.drawer.untitled),
-    })),
-  )
+  const nodes: CharacterNode[] = cards.map((card) => ({
+    id: card.id,
+    type: 'character',
+    position: points.get(card.id) ?? { x: 0, y: 0 },
+    origin: [0.5, 0.36],
+    data: { card },
+    ariaLabel: strings.dex.flip(card.name ?? strings.drawer.untitled),
+  }))
   const edges: RelationEdge[] = pairs.map((pair) => ({
     id: pair.id,
     type: 'relation',
@@ -138,6 +142,23 @@ export function RelationGraph({ cards, relations, onPick }: Props) {
     markerEnd: pair.ab !== null ? ARROW : undefined,
     markerStart: pair.ba !== null ? ARROW : undefined,
   }))
+  return { nodes, edges }
+}
+
+type Props = {
+  cards: CharacterCard[]
+  relations: CardRelation[]
+  /** A node was clicked (or Enter pressed on it): open its card from where it sits. */
+  onPick: (cardId: string, origin: DOMRect | null) => void
+}
+
+/** 관계도 (§8): a node per character, a line per related pair with each side's relation at
+ * its own end. Laid out afresh each time it mounts (the screen remounts it when cards or
+ * relations change), never per render; dragging moves a node for this view only. */
+export function RelationGraph({ cards, relations, onPick }: Props) {
+  const [graph] = useState(() => graphOf(cards, relations))
+  const [nodes, , onNodesChange] = useNodesState<CharacterNode>(graph.nodes)
+  const { edges } = graph
 
   const nodeElement = (target: EventTarget) =>
     target instanceof Element ? target.closest<HTMLElement>('.react-flow__node') : null
@@ -169,6 +190,7 @@ export function RelationGraph({ cards, relations, onPick }: Props) {
         minZoom={0.3}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
+        ariaLabelConfig={ARIA}
       />
     </div>
   )
