@@ -148,7 +148,8 @@ def test_a_turn_updates_the_notes(
     draft_id = open_draft(client, {"type": "character"}, NOTES)
     found = events(turn(client, draft_id, "테오는 활을 써."))
     names = [name for name, _ in found]
-    assert names[-2:] == ["source", "done"] and set(names[:-2]) == {"reply"}
+    assert names[-3:] == ["replied", "source", "done"] and set(names[:-3]) == {"reply"}
+    assert found[-3][1] == {"text": REPLY}
     update = found[-2][1]
     assert update["notes"] == f"{NOTES}\n테오는 활을 쓴다."
     assert update["sentences"][-1] == "테오는 활을 쓴다."

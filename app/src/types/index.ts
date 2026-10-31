@@ -42,10 +42,10 @@ export type CardOutput =
   | PartCardOutput
   | EpisodeCardOutput
 /**
- * data of the SSE events of POST /drafts/{draftId}/messages; the SSE event name is the type. Order: reply* then source (unless the turn was the AI's opening), or error; always done last.
+ * data of the SSE events of POST /drafts/{draftId}/messages; the SSE event name is the type. Order: reply*, then (unless the turn was the AI's opening) replied and source, or error at any point; always done last. The event name tells them apart (reply and replied share a shape), hence anyOf.
  */
 export type DraftMessageEvent =
-  DraftReplyEvent | DraftSourceEvent | DraftErrorEvent | DraftDoneEvent
+  DraftReplyEvent | DraftRepliedEvent | DraftSourceEvent | DraftErrorEvent | DraftDoneEvent
 /**
  * data of the SSE events every job can send on GET /jobs/{jobId}/events; the SSE event name is the type (§16). Job kinds add their own events (e.g. chapter: beat_start, sentence).
  */
@@ -588,6 +588,12 @@ export interface EpisodeCardOutput {
  * event: reply. The next piece of the AI's answer.
  */
 export interface DraftReplyEvent {
+  text: string
+}
+/**
+ * event: replied. The answer is complete (its whole text); the notes update starts.
+ */
+export interface DraftRepliedEvent {
   text: string
 }
 /**
