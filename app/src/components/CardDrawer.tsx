@@ -169,8 +169,9 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     stream.current = null
   }
 
-  const generate = async (count: 4 | 5 | null = structure) => {
-    if (draftId === null || !canGenerate) return
+  /** True when a card came back (a failed or cancelled one changes nothing). */
+  const generate = async (count: 4 | 5 | null = structure): Promise<boolean> => {
+    if (draftId === null || !canGenerate) return false
     const controller = new AbortController()
     genStream.current = controller
     const alive = () => !controller.signal.aborted
@@ -182,7 +183,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
         draftId,
         count === null ? { pinned: pins } : { pinned: pins, structure: count },
       )
-      if (!alive()) return
+      if (!alive()) return false
       setGenerating((old) => old && { ...old, jobId: accepted.jobId })
       // Set from the event callback, so kept in an object.
       const outcome = { done: false, failure: null as string | null }
@@ -195,15 +196,16 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
         },
         { signal: controller.signal },
       )
-      if (!alive()) return
+      if (!alive()) return false
       const failure = outcome.failure
       if (failure !== null && failure !== 'CANCELLED') setGenError(errorText(failure))
       // The stream ended without a result (dropped, or a restarted server).
       else if (!outcome.done && failure === null) setGenError(strings.preview.generateFailed)
       const fresh = await api.getDraft(draftId)
-      if (!alive()) return
+      if (!alive()) return false
       queryClient.setQueryData(draftKey(draftId), fresh)
       if (outcome.done) setGeneratedFrom(fresh.notes)
+      return outcome.done
     } catch (err) {
       if (alive()) {
         setGenError(
@@ -212,6 +214,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
             : strings.preview.generateFailed,
         )
       }
+      return false
     } finally {
       if (alive()) {
         setGenerating(null)
@@ -234,6 +237,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
       // Saving closed the draft on the server already.
       life.current.id = null
       void queryClient.invalidateQueries({ queryKey: ['cards', request.workId] })
+      void queryClient.invalidateQueries({ queryKey: ['completeness', request.workId] })
       queryClient.setQueryData(['card', card.id], card)
       onSaved?.(card)
       onClose()
@@ -524,8 +528,10 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                     structure={structure}
                     busy={!canGenerate}
                     onStructure={(count) => {
-                      setStructure(count)
-                      void generate(count)
+                      // The pick holds once a card with it came back; a failure keeps the old.
+                      void generate(count).then((ok) => {
+                        if (ok) setStructure(count)
+                      })
                     }}
                   />
                   <CardPreview

@@ -168,3 +168,28 @@ test('a part shows which milestones it takes, which others take, which none', as
   expect(within(await row('결전')).getByText(strings.typeSection.unassigned)).toBeTruthy()
   expect(screen.getByText(strings.typeSection.noStructure)).toBeTruthy()
 })
+
+test('milestones say when they are loading or failed, never that there are none', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() => Promise.resolve(new Response('{}', { status: 500 }))),
+  )
+  show({
+    type: 'part',
+    name: '1부',
+    data: {
+      order: 1,
+      title: null,
+      theme: null,
+      fulfills: [],
+      start: null,
+      end: null,
+      structure: null,
+    },
+    evidence: {},
+    ai_guess: [],
+  })
+  expect(screen.getByText(strings.typeSection.loadingMilestones)).toBeTruthy()
+  expect(await screen.findByText(strings.typeSection.milestonesFailed)).toBeTruthy()
+  expect(screen.queryByText(strings.typeSection.noMilestones)).toBeNull()
+})

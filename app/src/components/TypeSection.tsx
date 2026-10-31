@@ -135,7 +135,16 @@ function Milestones({
   return (
     <>
       <h4>{strings.typeSection.milestones}</h4>
-      {milestones.length === 0 ? (
+      {completeness.isPending ? (
+        <p className="notes-empty" role="status">
+          <span className="spinner" aria-hidden="true" />
+          {strings.typeSection.loadingMilestones}
+        </p>
+      ) : completeness.isError ? (
+        <p className="chat-error" role="alert">
+          {strings.typeSection.milestonesFailed}
+        </p>
+      ) : milestones.length === 0 ? (
         <p className="notes-empty">{strings.typeSection.noMilestones}</p>
       ) : (
         <ul className="type-milestones">

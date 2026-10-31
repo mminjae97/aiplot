@@ -318,6 +318,8 @@ export const strings = {
     noStructure: '원문에 구조가 정해지면 추천이 나와요. 미리 고르면 그 구조로 만들어요.',
     milestones: '이 부가 이루는 사건',
     noMilestones: '메인 스토리에 주요 사건이 아직 없어요.',
+    loadingMilestones: '사건을 불러오는 중',
+    milestonesFailed: '사건 목록을 불러오지 못했어요.',
     thisPart: '이 부',
     otherPart: '다른 부',
     unassigned: '아직 없음',
