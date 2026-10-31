@@ -177,7 +177,8 @@ export function CardDrawer({ request, onClose }: Props) {
   }
 
   const send = (text: string, refs: string[]) => {
-    if (draftId !== null) void turn(draftId, text, refs)
+    // Never while the notes are edited by hand: the turn would rewrite them underneath.
+    if (draftId !== null && editing === null) void turn(draftId, text, refs)
   }
 
   const kind = strings.drawer.kind[request.type]

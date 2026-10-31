@@ -119,7 +119,7 @@ export function SourcePanel({
           <button
             type="button"
             className="paper-button"
-            disabled={busy}
+            disabled={busy || editing !== null}
             onClick={() => {
               onSameName(pair)
             }}
