@@ -356,24 +356,55 @@ def count_episode_characters(conn: sqlite3.Connection, episode_id: str) -> int:
     return int(row[0])
 
 
-def replace_episode_links(
+def relink_order(
     conn: sqlite3.Connection,
     card_id: str,
+    claimed: tuple[str | None, str | None],
     prev: str | None,
     next_id: str | None,
-    causes: list[str],
 ) -> None:
-    """The episode's own links: its prev and next in order, and the episodes it causes."""
-    conn.execute(
-        "DELETE FROM episode_link WHERE (kind = 'order' AND (from_id = ? OR to_id = ?)) "
-        "OR (kind = 'cause' AND from_id = ?)",
-        (card_id, card_id, card_id),
-    )
-    rows = [(prev, card_id, "order")] if prev else []
-    rows += [(card_id, next_id, "order")] if next_id else []
-    rows += [(card_id, target, "cause") for target in causes]
+    """Order links of one episode. It withdraws only what it claimed before (claimed = its
+    old prev, next); a new prev or next wins over competing rows, so every episode keeps at
+    most one prev and one next. Links other episodes claim are left alone."""
+    old_prev, old_next = claimed
+    if old_prev is not None and old_prev != prev:
+        conn.execute(
+            "DELETE FROM episode_link WHERE kind = 'order' AND from_id = ? AND to_id = ?",
+            (old_prev, card_id),
+        )
+    if old_next is not None and old_next != next_id:
+        conn.execute(
+            "DELETE FROM episode_link WHERE kind = 'order' AND from_id = ? AND to_id = ?",
+            (card_id, old_next),
+        )
+    if prev is not None:
+        conn.execute(
+            "DELETE FROM episode_link WHERE kind = 'order' "
+            "AND ((to_id = ? AND from_id != ?) OR (from_id = ? AND to_id != ?))",
+            (card_id, prev, prev, card_id),
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO episode_link (from_id, to_id, kind) VALUES (?, ?, 'order')",
+            (prev, card_id),
+        )
+    if next_id is not None:
+        conn.execute(
+            "DELETE FROM episode_link WHERE kind = 'order' "
+            "AND ((from_id = ? AND to_id != ?) OR (to_id = ? AND from_id != ?))",
+            (card_id, next_id, next_id, card_id),
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO episode_link (from_id, to_id, kind) VALUES (?, ?, 'order')",
+            (card_id, next_id),
+        )
+
+
+def replace_causes(conn: sqlite3.Connection, card_id: str, targets: list[str]) -> None:
+    """The episodes this one causes (from = this episode)."""
+    conn.execute("DELETE FROM episode_link WHERE kind = 'cause' AND from_id = ?", (card_id,))
     conn.executemany(
-        "INSERT OR IGNORE INTO episode_link (from_id, to_id, kind) VALUES (?, ?, ?)", rows
+        "INSERT OR IGNORE INTO episode_link (from_id, to_id, kind) VALUES (?, ?, 'cause')",
+        [(card_id, target) for target in targets],
     )
 
 

@@ -47,7 +47,8 @@ def filled(value: str | None) -> bool:
 
 def complete(conn: sqlite3.Connection, card: Card) -> bool:
     """True when every §15 required field is there; references count from relation tables."""
-    if not filled(card.name) and card.type != "episode":
+    # §15 requires a name only of these; parts have a title, episodes and the main story none.
+    if card.type in ("world", "character", "region") and not filled(card.name):
         return False
     match card:
         case WorldCard(data=data):
@@ -139,7 +140,8 @@ def claim(conn: sqlite3.Connection, table: str, owner: str, card_id: str, ids: l
             raise CardConflictError(f"{item} belongs to {holder}")
 
 
-def sync(conn: sqlite3.Connection, card: Card) -> None:
+def sync(conn: sqlite3.Connection, card: Card, before: db.CardRow | None) -> None:
+    """before: the card as it was saved last, for links it claimed then."""
     scope = Scope(conn, card.work_id, card.id)
     match card:
         case WorldCard(data=data):
@@ -222,13 +224,15 @@ def sync(conn: sqlite3.Connection, card: Card) -> None:
             )
             worlds = scope.keep(list(data.world), "world")
             db.replace_pairs(conn, "episode_world", "episode_id", "card_id", card.id, worlds)
-            db.replace_episode_links(
+            old_links = (before.data.get("links") or {}) if before is not None else {}
+            db.relink_order(
                 conn,
                 card.id,
+                (old_links.get("prev"), old_links.get("next")),
                 scope.one(data.links.prev, "episode"),
                 scope.one(data.links.next, "episode"),
-                scope.keep(list(data.links.causes), "episode"),
             )
+            db.replace_causes(conn, card.id, scope.keep(list(data.links.causes), "episode"))
             milestones = db.milestone_ids(conn, card.work_id)
             db.replace_fills(conn, card.id, [m for m in data.fulfills if m in milestones])
             plants = [(p.id, p.text) for p in data.foreshadowing.plants]
@@ -274,7 +278,7 @@ def save(conn: sqlite3.Connection, card: Card) -> Card:
         ):
             raise CardConflictError(f"{card.id} is a {existing.type} of {existing.work_id}")
         db.upsert(conn, to_row(card, "incomplete"))
-        sync(conn, card)
+        sync(conn, card, existing)
         recompute(conn, {card.id})
     saved = get(conn, card.id)
     assert saved is not None

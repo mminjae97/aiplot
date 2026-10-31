@@ -83,6 +83,9 @@ def test_status_follows_required_fields(conn: sqlite3.Connection) -> None:
     assert save(conn, fixture("world")).status == "complete"
     assert save(conn, fixture("world-undecided")).status == "incomplete"
     assert save(conn, fixture("part")).status == "complete"
+    # Parts and the main story need no name (§15).
+    assert save(conn, fixture("part", id="c_part9", name=None)).status == "complete"
+    assert save(conn, fixture("main-story", name=None)).status == "complete"
 
 
 def test_character_relations_stay_inside_the_work(conn: sqlite3.Connection) -> None:
@@ -263,3 +266,34 @@ def test_name_search_matches_word_prefixes(conn: sqlite3.Connection) -> None:
     assert names("   ") == []
     save(conn, character("c_teo", "레아", relations=[]))
     assert sorted(names("레아")) == ["레아"]
+
+
+def order(conn: sqlite3.Connection) -> list[tuple[Any, ...]]:
+    return rows(conn, "SELECT from_id, to_id FROM episode_link WHERE kind = 'order' ORDER BY 1, 2")
+
+
+def episode_with(card_id: str, prev: str | None, next_id: str | None) -> dict[str, Any]:
+    value = fixture("episode", id=card_id, name=card_id)
+    value["data"] = {
+        **value["data"],
+        "links": {"prev": prev, "next": next_id, "causes": []},
+        "foreshadowing": {"plants": [], "payoffs": []},
+    }
+    return value
+
+
+def test_order_links_keep_one_prev_and_next(conn: sqlite3.Connection) -> None:
+    for card_id in ("c_e1", "c_e2", "c_e3"):
+        save(conn, episode_with(card_id, None, None))
+    save(conn, episode_with("c_e1", None, "c_e2"))
+    # Saving episode 2 without a prev of its own leaves episode 1's link alone.
+    save(conn, episode_with("c_e2", None, None))
+    assert order(conn) == [("c_e1", "c_e2")]
+    # A new placement wins: episode 3 now follows 1, so 1 -> 2 goes.
+    save(conn, episode_with("c_e3", "c_e1", None))
+    assert order(conn) == [("c_e1", "c_e3")]
+    save(conn, episode_with("c_e2", None, "c_e1"))
+    assert order(conn) == [("c_e1", "c_e3"), ("c_e2", "c_e1")]
+    # Withdrawing its own claim removes only that link.
+    save(conn, episode_with("c_e3", None, None))
+    assert order(conn) == [("c_e2", "c_e1")]
