@@ -8,7 +8,14 @@ import { type PlanningScreen, useNavigation } from '../stores/navigation'
 import { strings } from '../strings'
 import { CharacterDexScreen } from './CharacterDexScreen'
 import { ContentsPage } from './ContentsPage'
-import { canTurn, type Picture, pictureOf, playTurn, type TurnDirection } from './pageTurn'
+import {
+  canTurn,
+  type CarriedNotes,
+  type Picture,
+  pictureOf,
+  playTurn,
+  type TurnDirection,
+} from './pageTurn'
 import { pageOf, pagesOf, samePage, SECTIONS, screenOf, useStorySteps } from './planningPages'
 import { RegionMapScreen } from './RegionMapScreen'
 import { StoryScreen } from './StoryScreen'
@@ -38,15 +45,47 @@ export function PlanningBook({ screen }: Props) {
   const index = pages.findIndex((item) => samePage(item, page))
   const before = index > 0 ? pages[index - 1] : undefined
   const after = index >= 0 && index < pages.length - 1 ? pages[index + 1] : undefined
-  // A leaf turns only when the reader turns the page itself: a post-it note, the desk beside
-  // the book, PageUp/PageDown. Tabs and links inside the pages change the page in place.
+  // A leaf turns only when the reader turns to another section themselves: a post-it note,
+  // the desk beside the book, PageUp/PageDown. Tabs within a section (also turned to from the
+  // desk) and links inside the pages change the page in place.
   const bookRef = useRef<HTMLDivElement>(null)
-  const pending = useRef<{ direction: TurnDirection; before: Picture } | null>(null)
+  const pending = useRef<{
+    direction: TurnDirection
+    before: Picture
+    notes: CarriedNotes
+  } | null>(null)
   const turnPage = (target: PlanningScreen) => {
     const to = pages.findIndex((item) => samePage(item, pageOf(target, steps)))
-    const spread = bookRef.current?.querySelector<HTMLElement>(':scope > .spread')
-    if (to !== index && to >= 0 && index >= 0 && spread && canTurn()) {
-      pending.current = { direction: to > index ? 'next' : 'prev', before: pictureOf(spread) }
+    const book = bookRef.current
+    const spread = book?.querySelector<HTMLElement>(':scope > .spread')
+    const from = SECTIONS.indexOf(screen.name)
+    const toSection = SECTIONS.indexOf(target.name)
+    if (
+      to !== index &&
+      to >= 0 &&
+      index >= 0 &&
+      from !== toSection &&
+      book &&
+      spread &&
+      canTurn()
+    ) {
+      // The notes of the sections turned past move to the other edge, with the leaf.
+      const sections = SECTIONS.slice(Math.min(from, toSection), Math.max(from, toSection))
+      pending.current = {
+        direction: to > index ? 'next' : 'prev',
+        before: pictureOf(spread),
+        notes: {
+          sections: [...sections],
+          before: sections.flatMap((section) => {
+            const note = book.querySelector<HTMLElement>(`.book-notes [data-section='${section}']`)
+            if (!note) return []
+            // As it looks now, hovered (lifted) or not.
+            const copy = note.cloneNode(true) as HTMLElement
+            copy.style.transform = getComputedStyle(note).transform
+            return [copy]
+          }),
+        },
+      }
     }
     open(target)
   }
@@ -56,10 +95,16 @@ export function PlanningBook({ screen }: Props) {
     pending.current = null
     const book = bookRef.current
     if (!turn || !book) return
-    return playTurn(book, turn.direction, turn.before, () => {
-      const spread = book.querySelector<HTMLElement>(':scope > .spread')
-      return spread ? pictureOf(spread) : null
-    })
+    return playTurn(
+      book,
+      turn.direction,
+      turn.before,
+      () => {
+        const spread = book.querySelector<HTMLElement>(':scope > .spread')
+        return spread ? pictureOf(spread) : null
+      },
+      turn.notes,
+    )
   }, [screenKey])
 
   // Subscribed anew every render (no deps): the keys turn from the page shown now.
