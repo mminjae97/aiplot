@@ -23,6 +23,9 @@ const FACE_BLEED = 1
 const BACK_PAINT_MS = 180
 /** The whole turn; --turn-time in book.css matches it. */
 export const TURN_MS = 750
+/** Once landed, the leaf (a 3D picture: its text and edges sit a fraction of a pixel off the
+ * page's) fades into the page under it instead of being swapped for it. */
+const SETTLE_MS = 160
 
 /** The spread as it looks now, to draw on a leaf. */
 export type Picture = {
@@ -127,12 +130,7 @@ function carriedNote(note: HTMLElement, edge: 'left' | 'right', back: boolean): 
   // At the strip's outer edge, as on the page.
   copy.style.left = edge === 'right' ? 'calc(100% - 12px)' : 'auto'
   copy.style.right = edge === 'left' ? 'calc(100% - 12px)' : 'auto'
-  if (back) {
-    // The open note sticks out 10px further: outward in the turned strip's frame, where
-    // outward is the other way.
-    const out = note.dataset.side === 'open' ? 'translateX(-10px) ' : ''
-    copy.style.transform = `${out}rotateY(180deg)`
-  }
+  if (back) copy.style.transform = 'rotateY(180deg)'
   return copy
 }
 
@@ -147,8 +145,15 @@ export function playTurn(
   notes: CarriedNotes,
 ): () => void {
   const size = book.getBoundingClientRect()
-  const half = size.width / 2
-  const strip = half / STRIPS
+  // Whole pixels from the book's left for the spine and every strip edge: a picture at a
+  // fraction of a pixel draws its text and edges a hair off the page it stands for.
+  const spine = Math.round(size.width / 2)
+  const width = Math.round(size.width)
+  /** Edge `k` of the leaf, counted out from the spine (0) to the free edge (STRIPS). */
+  const edge = (k: number) =>
+    direction === 'next'
+      ? Math.round(spine + ((width - spine) * k) / STRIPS)
+      : Math.round(spine - (spine * k) / STRIPS)
   const sign = direction === 'next' ? -1 : 1
   const placed: Placed[] = []
 
@@ -161,10 +166,14 @@ export function playTurn(
   const stay = div('leaf-stay')
   stay.dataset.dir = direction
   stay.append(div('leaf-fall'))
-  paint(stay, before, direction === 'next' ? 0 : half, size, placed)
+  if (direction === 'next') stay.style.width = `${String(spine)}px`
+  else stay.style.left = `${String(spine)}px`
+  paint(stay, before, direction === 'next' ? 0 : spine, size, placed)
   // The half the leaf lifts from is already the new page, shaded under the rising leaf.
   const reveal = div('leaf-reveal')
   reveal.dataset.dir = direction
+  if (direction === 'next') reveal.style.left = `${String(spine)}px`
+  else reveal.style.width = `${String(spine)}px`
   stage.append(stay, reveal)
 
   const strips: HTMLElement[] = []
@@ -174,19 +183,25 @@ export function playTurn(
   for (let index = 0; index < STRIPS; index += 1) {
     const element = div(index === 0 ? 'leaf-strip book-leaf' : 'leaf-strip')
     element.dataset.dir = direction
-    element.style.width = `${String(strip)}px`
-    // Strip `index` lies `index` strips from the spine: on the right page going on, on the
-    // left going back; it lands mirrored on the other page.
-    const near = half + index * strip
-    const far = half - (index + 1) * strip
+    // Strip `index` runs from edge `index` to edge `index + 1`: on the right page going on, on
+    // the left going back. It lands mirrored about the spine on the other page.
+    const from = edge(index)
+    const to = edge(index + 1)
+    element.style.width = `${String(Math.abs(to - from))}px`
+    if (index === 0) {
+      if (direction === 'next') element.style.left = `${String(spine)}px`
+      else element.style.right = `${String(width - spine)}px`
+    }
+    const start = Math.min(from, to)
+    const landed = 2 * spine - Math.max(from, to)
     const front = div('leaf-face leaf-front')
     const frontShade = div('leaf-shade')
     front.append(frontShade)
-    paint(front, before, direction === 'next' ? near : far, size, placed, FACE_BLEED)
+    paint(front, before, start, size, placed, FACE_BLEED)
     const back = div('leaf-face leaf-back')
     const backShade = div('leaf-shade')
     back.append(backShade)
-    backs.push({ face: back, offset: direction === 'next' ? far : near })
+    backs.push({ face: back, offset: landed })
     element.append(front, back)
     parent.append(element)
     parent = element
@@ -196,14 +211,14 @@ export function playTurn(
 
   // Notes stuck in the turned pages ride on the outer strip, tucked under its paper.
   const outer = parent
-  const edge = direction === 'next' ? 'right' : 'left'
+  const side = direction === 'next' ? 'right' : 'left'
   const live = notes.sections.flatMap((section) => {
     const note = book.querySelector<HTMLElement>(`.book-notes [data-section='${section}']`)
     return note ? [note] : []
   })
   outer.prepend(
-    ...notes.before.map((note) => carriedNote(note, edge, false)),
-    ...live.map((note) => carriedNote(note, edge, true)),
+    ...notes.before.map((note) => carriedNote(note, side, false)),
+    ...live.map((note) => carriedNote(note, side, true)),
   )
   // The notes themselves show again where they now sit once the leaf has landed (opacity, not
   // visibility: a focused note keeps the focus).
@@ -223,7 +238,21 @@ export function playTurn(
     for (const note of live) note.style.opacity = ''
     clip.remove()
   }
-  const timer = window.setTimeout(finish, TURN_MS + 150)
+  const timer = window.setTimeout(finish, TURN_MS + SETTLE_MS + 150)
+  /** The leaf has landed: the old page under it goes, the notes show where they now sit, and
+   * the leaf fades into the page. */
+  const settle = () => {
+    if (done) return
+    stay.remove()
+    for (const note of live) note.style.opacity = ''
+    const fade = clip.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: SETTLE_MS,
+      easing: 'ease-out',
+      fill: 'forwards',
+    })
+    animations.push(fade)
+    fade.onfinish = finish
+  }
   const backTimer = window.setTimeout(() => {
     const picture = after()
     if (done || !picture) return
@@ -241,7 +270,7 @@ export function playTurn(
       for (const face of shades[index] ?? []) animations.push(face.animate(shade, timing))
     })
     const last = animations[animations.length - 1]
-    if (last) last.onfinish = finish
+    if (last) last.onfinish = settle
   }
   // A click on the book while it turns ends the turn instead of reaching the page under the
   // pictures of the old one.
