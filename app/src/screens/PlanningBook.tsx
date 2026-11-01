@@ -16,15 +16,7 @@ import {
   playTurn,
   type TurnDirection,
 } from './pageTurn'
-import {
-  pageOf,
-  pagesOf,
-  samePage,
-  type Section,
-  SECTIONS,
-  screenOf,
-  useStorySteps,
-} from './planningPages'
+import { pageOf, pagesOf, samePage, SECTIONS, screenOf, useStorySteps } from './planningPages'
 import { RegionMapScreen } from './RegionMapScreen'
 import { StoryScreen } from './StoryScreen'
 import { WorldBookScreen } from './WorldBookScreen'
@@ -86,7 +78,9 @@ export function PlanningBook({ screen }: Props) {
           sections: [...sections],
           before: sections.flatMap((section) => {
             const note = book.querySelector<HTMLElement>(`.book-notes [data-section='${section}']`)
-            return note ? [note.cloneNode(true) as HTMLElement] : []
+            return note
+              ? [{ copy: note.cloneNode(true) as HTMLElement, rect: note.getBoundingClientRect() }]
+              : []
           }),
           levels: new Map(
             [...book.querySelectorAll<HTMLElement>('.book-notes [data-section]')].map((note) => [
@@ -96,6 +90,8 @@ export function PlanningBook({ screen }: Props) {
           ),
         },
       }
+      // The open pages stay where they lie until the leaf has landed (pageTurn releases it).
+      book.style.setProperty('--held', String(from))
     }
     open(target)
   }
@@ -142,12 +138,6 @@ export function PlanningBook({ screen }: Props) {
 
   const pageProps = { turn: open, onBusy: setBusy }
   const openSection = SECTIONS.indexOf(screen.name)
-  // The page block: one layer per section turned (left) and still to turn (right). A
-  // section's tabs (bookmarks, views, steps) are all on its one page.
-  const behind = openSection
-  const ahead = SECTIONS.length - 1 - openSection
-  /** How many pages lie over a section's page, where its note is stuck. */
-  const depthOf = (section: Section) => Math.abs(SECTIONS.indexOf(section) - openSection)
 
   return (
     <>
@@ -175,7 +165,12 @@ export function PlanningBook({ screen }: Props) {
         <div
           ref={bookRef}
           className="book-open"
-          style={work.data ? bookStyle(colorOf(work.data)) : undefined}
+          style={
+            {
+              ...(work.data ? bookStyle(colorOf(work.data)) : {}),
+              '--behind': openSection,
+            } as CSSProperties
+          }
         >
           {screen.name === 'contents' && <ContentsPage screen={screen} {...pageProps} />}
           {screen.name === 'world' && <WorldBookScreen screen={screen} {...pageProps} />}
@@ -186,20 +181,19 @@ export function PlanningBook({ screen }: Props) {
             <RegionMapScreen key={screen.cardId ?? ''} screen={screen} {...pageProps} />
           )}
           {screen.name === 'story' && <StoryScreen screen={screen} {...pageProps} />}
-          {(['left', 'right'] as const).flatMap((side) => {
-            const count = side === 'left' ? behind : ahead
-            return Array.from({ length: count }, (_, at) => at + 1).map((layer) => (
+          {(['left', 'right'] as const).flatMap((side) =>
+            SECTIONS.map((section, at) => (
               <span
-                key={`${side}${String(layer)}`}
+                key={`${side}-${section}`}
                 className="book-edge"
                 data-side={side}
-                data-even={layer % 2 === 0 || undefined}
-                data-last={layer === count || undefined}
-                style={{ '--layer': layer } as CSSProperties}
+                data-even={at % 2 === 1 || undefined}
+                data-bottom={(side === 'left' ? at === 0 : at === SECTIONS.length - 1) || undefined}
+                style={{ '--section': at } as CSSProperties}
                 aria-hidden="true"
               />
-            ))
-          })}
+            )),
+          )}
           <nav className="book-notes" aria-label={strings.book.sections}>
             {SECTIONS.map((section, at) => (
               <button
@@ -210,8 +204,7 @@ export function PlanningBook({ screen }: Props) {
                 // Stuck in its section's first page: sections already read stick out on the
                 // left, the open one on the right, those still ahead from under the page.
                 data-side={at < openSection ? 'past' : at === openSection ? 'open' : 'ahead'}
-                // How many pages lie over its own (0 = the open page).
-                style={{ '--note': at, '--depth': depthOf(section) } as CSSProperties}
+                style={{ '--note': at } as CSSProperties}
                 aria-current={screen.name === section ? 'page' : undefined}
                 onClick={() => {
                   if (screen.name !== section) turnPage({ name: section, workId })
