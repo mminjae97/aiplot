@@ -49,7 +49,7 @@
     0 1px 0 var(--paper-edge),
     0 10px 22px var(--wood-shadow);
   text-align: center;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition: transform var(--motion);
 }
 
@@ -204,7 +204,7 @@
   background: var(--paper);
   color: var(--ink-soft);
   font-size: var(--size-small);
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .dex-back {
@@ -299,7 +299,7 @@
   background: rgb(255 248 234 / 14%);
   /* light lettering on the bare wood in both themes */
   color: #efe4cf;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition: background var(--motion);
 }
 
@@ -337,7 +337,7 @@
 }
 
 .dex-graph .react-flow__node {
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .dex-graph .react-flow__node:focus-visible {

@@ -2,7 +2,6 @@
 
 /* Also the window's title bar: drag anywhere on it; controls opt out. */
 .top-bar {
-  -webkit-app-region: drag;
   user-select: none;
   display: flex;
   align-items: center;
@@ -29,16 +28,12 @@
   letter-spacing: 0.02em;
 }
 
-.top-bar button {
-  -webkit-app-region: no-drag;
-}
-
 .top-bar-back {
   border: 0;
   background: none;
   padding: 4px 0;
   color: var(--ink-soft);
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .top-bar-back:hover {
@@ -270,7 +265,7 @@
   padding: 0;
   border: 0;
   background: none;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   /* the book inside leans in this perspective */
   perspective: 1000px;
   perspective-origin: 50% 20%;
@@ -633,7 +628,7 @@
   border-radius: 50%;
   background: var(--control);
   color: var(--ink-soft);
-  cursor: default;
+  cursor: var(--cursor);
   transition:
     background var(--motion),
     color var(--motion);
@@ -677,7 +672,7 @@
   border: 0;
   background: none;
   text-align: left;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .book-menu button:hover,
@@ -688,7 +683,7 @@
 
 .book-menu button[aria-disabled='true'] {
   color: var(--ink-faint);
-  cursor: default;
+  cursor: var(--cursor);
 }
 
 .book-menu button[data-danger]:not([aria-disabled='true']) {
@@ -782,7 +777,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .decorate-swatches {
@@ -795,7 +790,7 @@
 /* A cloth sample per preset; the checked one gets a brass ring and a tick (not colour alone). */
 .decorate-swatch {
   position: relative;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .decorate-swatch input,
@@ -840,7 +835,7 @@
   gap: 6px;
   color: var(--ink-soft);
   font-size: var(--size-small);
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .decorate-custom input {
@@ -850,7 +845,7 @@
   border: 1px solid var(--ink-soft);
   border-radius: 3px;
   background: none;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .decorate-note {
@@ -877,7 +872,7 @@
 
 .decorate-illustration label {
   position: relative;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .decorate-thumb {
@@ -924,7 +919,7 @@
   color: var(--ink-soft);
   font-size: var(--size-small);
   text-decoration: underline;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .decorate-remove:hover {

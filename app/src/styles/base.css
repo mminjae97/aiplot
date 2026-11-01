@@ -57,9 +57,17 @@
 
   --motion: 0.2s;
 
-  /* set from styles/metrics.ts in main.tsx; these are fallbacks */
   --top-bar: 48px;
-  --desk-margin: 64px;
+  /* the wooden margin around the open book (S1): thin above and below, room at the sides for
+     the post-it notes and the page-turning zones */
+  --desk-margin-y: 24px;
+  --desk-margin-x: 120px;
+  /* the open book's spread, width / height */
+  --spread-ratio: 1.5;
+
+  /* a fountain pen, nib at the top left; brass over things that can be clicked */
+  --cursor: url('../assets/cursor/pen.svg') 2 2, default;
+  --cursor-pointer: url('../assets/cursor/pen-hover.svg') 2 2, pointer;
 }
 
 /* Dark: the same study after dusk; paper turns to lamplit vellum. */
@@ -116,6 +124,17 @@ body,
   margin: 0;
 }
 
+html {
+  cursor: var(--cursor);
+}
+
+/* Typing keeps the text cursor. */
+input:not([type='checkbox'], [type='radio'], [type='range'], [type='color']),
+textarea,
+[contenteditable='true'] {
+  cursor: text;
+}
+
 body {
   font-family: var(--font);
   font-size: var(--size-body);
@@ -148,7 +167,7 @@ input {
   border-radius: 3px;
   background: var(--paper);
   padding: 6px 16px;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition: background var(--motion);
 }
 
@@ -168,7 +187,7 @@ input {
 
 .paper-button:disabled {
   opacity: 0.5;
-  cursor: default;
+  cursor: var(--cursor);
 }
 
 /* A screen's top bar and body; the body fills what the bar leaves. */

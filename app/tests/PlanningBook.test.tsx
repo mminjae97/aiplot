@@ -67,10 +67,7 @@ beforeEach(() => {
     },
     window: {
       minimize: () => Promise.resolve(),
-      toggleMaximize: () => Promise.resolve(),
       close: () => Promise.resolve(),
-      isMaximized: () => Promise.resolve(false),
-      onMaximizedChange: () => () => undefined,
     },
     dialog: NO_DIALOGS,
   }
@@ -156,17 +153,56 @@ test('post-it notes open each section and say which one is open', async () => {
   )
 })
 
-test('PageDown and PageUp turn pages; a turn plays a leaf in its direction', async () => {
+test('turning a page plays a leaf in its direction; tabs inside the pages change in place', async () => {
+  // Motion allowed (jsdom has no matchMedia, which the book reads as no motion).
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }))
   serve()
   const view = renderBook({ name: 'contents', workId: 'w_1' })
   await screen.findByRole('heading', { name: strings.contents.heading })
-  expect(view.container.querySelector('.book-leaf')).toBeNull()
+  const leaf = () => view.container.querySelector('.book-leaf')?.getAttribute('data-dir')
+  expect(leaf()).toBeUndefined()
   fireEvent.keyDown(window, { key: 'PageDown' })
   expect(at()).toEqual({ name: 'world', workId: 'w_1', tab: 'rule' })
-  expect(view.container.querySelector('.book-leaf')?.getAttribute('data-dir')).toBe('next')
-  fireEvent.keyDown(window, { key: 'PageUp' })
-  expect(at()).toEqual({ name: 'contents', workId: 'w_1' })
-  expect(view.container.querySelector('.book-leaf')?.getAttribute('data-dir')).toBe('prev')
+  expect(leaf()).toBe('next')
+  // The leaf is a picture: never read out, never clicked.
+  expect(view.container.querySelector('.book-turn-clip')?.getAttribute('aria-hidden')).toBe('true')
+  // A bookmark inside the page opens without a leaf.
+  fireEvent.click(await screen.findByRole('tab', { name: strings.drawer.category.faction }))
+  expect(at()).toEqual({ name: 'world', workId: 'w_1', tab: 'faction' })
+  expect(leaf()).toBeUndefined()
+  fireEvent.click(prev())
+  expect(at()).toEqual({ name: 'world', workId: 'w_1', tab: 'rule' })
+  expect(leaf()).toBe('prev')
+  // A post-it note turns too.
+  const notes = screen.getByRole('navigation', { name: strings.book.sections })
+  fireEvent.click(within(notes).getByRole('button', { name: '지역' }))
+  expect(at()).toEqual({ name: 'regions', workId: 'w_1' })
+  expect(leaf()).toBe('next')
+})
+
+test('without motion (reduced, or no way to ask) pages turn with no leaf', async () => {
+  serve()
+  const view = renderBook({ name: 'contents', workId: 'w_1' })
+  await screen.findByRole('heading', { name: strings.contents.heading })
+  fireEvent.keyDown(window, { key: 'PageDown' })
+  expect(at()).toEqual({ name: 'world', workId: 'w_1', tab: 'rule' })
+  expect(view.container.querySelector('.book-leaf')).toBeNull()
+})
+
+test('post-it notes of sections already read stick out on the left, those ahead from under the page', async () => {
+  serve()
+  renderBook({ name: 'regions', workId: 'w_1' })
+  const notes = await screen.findByRole('navigation', { name: strings.book.sections })
+  expect(
+    within(notes)
+      .getAllByRole('button')
+      .map((note) => note.getAttribute('data-side')),
+  ).toEqual(['past', 'past', 'past', 'open', 'ahead'])
 })
 
 test('while a drawer is open the book takes no input and pages do not turn', async () => {

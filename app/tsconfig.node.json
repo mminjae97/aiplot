@@ -14,7 +14,6 @@
     "tests/e2e/**/*.ts",
     "src/strings/**/*.ts",
     "src/api/bridge.ts",
-    "src/styles/metrics.ts",
     "tests/electron/**/*.ts"
   ]
 }

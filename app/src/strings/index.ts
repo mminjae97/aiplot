@@ -4,8 +4,6 @@ export const strings = {
   },
   window: {
     minimize: '최소화',
-    maximize: '최대화',
-    restore: '이전 크기로',
     close: '닫기',
   },
   server: {

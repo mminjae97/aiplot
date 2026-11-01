@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- A fountain pen, nib at the top left (the hotspot, 2 2); a pale halo keeps it visible on
+       the walnut desk as well as on paper. -->
+  <g transform="translate(2 2) rotate(-45)" stroke-linejoin="round">
+    <path d="M0 0 L3.4 7 V12.6 H4 V37 Q4 39.2 0 39.2 Q-4 39.2 -4 37 V12.6 H-3.4 V7 Z" fill="#fff8ea" stroke="#fff8ea" stroke-width="2.6"/>
+    <path d="M0 0 L3 7 V9.6 H-3 V7 Z" fill="#c9a14a" stroke="#2a1f12" stroke-width="0.7"/>
+    <path d="M0 2.6 V7.4" stroke="#2a1f12" stroke-width="0.7"/>
+    <circle cx="0" cy="7.6" r="0.75" fill="#2a1f12"/>
+    <rect x="-3.4" y="9.6" width="6.8" height="3.2" fill="#2a1f12"/>
+    <path d="M-4 12.8 H4 V37 Q4 39 0 39 Q-4 39 -4 37 Z" fill="#3b2417" stroke="#2a1f12" stroke-width="0.7"/>
+    <rect x="-4" y="14" width="8" height="1.3" fill="#c9a14a"/>
+    <rect x="-4" y="32.6" width="8" height="1.3" fill="#c9a14a"/>
+    <rect x="-2.6" y="15.8" width="1" height="16" rx="0.5" fill="#fff8ea" opacity="0.35"/>
+  </g>
+</svg>

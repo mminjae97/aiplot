@@ -28,10 +28,7 @@ function bridge(): AiplotBridge {
     },
     window: {
       minimize: () => Promise.resolve(),
-      toggleMaximize: () => Promise.resolve(),
       close: () => Promise.resolve(),
-      isMaximized: () => Promise.resolve(false),
-      onMaximizedChange: () => () => undefined,
     },
     dialog: { pickModel, pickFolder: () => Promise.resolve(null) },
   }

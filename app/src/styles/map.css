@@ -20,7 +20,7 @@
   border-radius: 4px;
   background: var(--paper);
   box-shadow: 0 3px 8px rgb(38 22 12 / 25%);
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .react-flow__node-region:focus-visible {
@@ -102,7 +102,7 @@
   color: var(--ink-soft);
   font: inherit;
   font-weight: 700;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   pointer-events: auto;
 }
 

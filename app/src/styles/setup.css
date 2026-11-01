@@ -219,7 +219,7 @@
   background: none;
   color: var(--ink-soft);
   font-size: var(--size-small);
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .top-bar .setup-chip[data-failed] {
