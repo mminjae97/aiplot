@@ -62,7 +62,7 @@ function paint(
   bleed = 0,
 ) {
   const copy = picture.node.cloneNode(true) as HTMLElement
-  // Never focused or clicked; the clip around it stops the pointer itself (book.css).
+  // Never focused; the turning stage over it takes the pointer (book.css).
   copy.inert = true
   copy.style.cssText = `position:absolute;top:0;left:${String(bleed - offset)}px;width:${String(size.width)}px;height:${String(size.height)}px;margin:0`
   box.append(copy)
