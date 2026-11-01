@@ -66,7 +66,7 @@
   --spread-ratio: 1.5;
 
   /* a quill, nib at the bottom left; gilt over things that can be clicked (src/cursor.ts draws it
-     itself along the top and right edges) */
+     itself where the image would cross a window edge) */
   --cursor: url('../assets/cursor/quill.svg') 2 30, default;
   --cursor-pointer: url('../assets/cursor/quill-hover.svg') 2 30, pointer;
 }
@@ -129,7 +129,7 @@ html {
   cursor: var(--cursor);
 }
 
-/* Along the top and right edges the app draws the quill itself (src/cursor.ts). */
+/* Where the image would cross a window edge the app draws the quill itself (src/cursor.ts). */
 html[data-edge-cursor],
 html[data-edge-cursor] * {
   cursor: none !important;
