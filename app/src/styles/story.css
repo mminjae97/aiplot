@@ -303,12 +303,18 @@
   border-top: 1px solid var(--paper-edge);
 }
 
+/* The lane names stay at the left as the timeline scrolls, on paper over the nodes passing
+   under them. */
 .timeline-lane-name {
   position: sticky;
   left: 0;
+  z-index: 2;
   display: block;
   width: 86px;
+  height: 100%;
   padding: 2px 8px;
+  background: var(--paper);
+  box-shadow: 1px 0 0 var(--paper-edge);
   overflow: hidden;
   color: var(--ink-soft);
   font-size: var(--size-small);
