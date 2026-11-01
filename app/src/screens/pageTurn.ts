@@ -36,8 +36,13 @@ export type Picture = {
 }
 
 /** Post-it notes stuck in the pages being turned: copies as they were (the leaf's front) and
- * the sections, whose notes as they are now go on its back. */
-export type CarriedNotes = { before: HTMLElement[]; sections: string[] }
+ * the sections, whose notes as they are now go on its back; and every note's stacking level
+ * (z-index) before the turn, by section. */
+export type CarriedNotes = {
+  before: HTMLElement[]
+  sections: string[]
+  levels: ReadonlyMap<string, number>
+}
 
 export function canTurn(): boolean {
   return (
@@ -121,6 +126,7 @@ function keyframesOf(index: number, sign: number): { turn: Keyframe[]; shade: Ke
 /** A post-it copy that turns with the leaf's outer strip; the back one is turned over, so it
  * shows unmirrored where the note sits once the leaf has landed. */
 function carriedNote(note: HTMLElement, edge: 'left' | 'right', back: boolean): HTMLElement {
+  // (Its place over or under the leaf's paper is set by where playTurn puts it.)
   const copy = note.cloneNode(true) as HTMLElement
   copy.removeAttribute('aria-current')
   copy.inert = true
@@ -209,20 +215,40 @@ export function playTurn(
     shades.push([frontShade, backShade])
   }
 
-  // Notes stuck in the turned pages ride on the outer strip, tucked under its paper.
+  // Notes stuck in the turned pages ride on the outer strip: the open section's over its
+  // paper, the others tucked under it (as on the page; coplanar, so DOM order decides).
   const outer = parent
   const side = direction === 'next' ? 'right' : 'left'
   const live = notes.sections.flatMap((section) => {
     const note = book.querySelector<HTMLElement>(`.book-notes [data-section='${section}']`)
     return note ? [note] : []
   })
-  outer.prepend(
-    ...notes.before.map((note) => carriedNote(note, side, false)),
-    ...live.map((note) => carriedNote(note, side, true)),
-  )
+  const copies = [
+    ...notes.before.map((note) => [note, carriedNote(note, side, false)] as const),
+    ...live.map((note) => [note, carriedNote(note, side, true)] as const),
+  ]
+  for (const [note, copy] of copies) {
+    if (note.dataset.side === 'open') outer.append(copy)
+    else outer.prepend(copy)
+  }
   // The notes themselves show again where they now sit once the leaf has landed (opacity, not
   // visibility: a focused note keeps the focus).
   for (const note of live) note.style.opacity = '0'
+  // A note that now lies under the page it was over (the open section's, turning back) stays
+  // over it until the leaf has come down on it.
+  const held = [...book.querySelectorAll<HTMLElement>('.book-notes [data-section]')].filter(
+    (note) => {
+      const was = notes.levels.get(note.dataset.section ?? '')
+      const now = Number(getComputedStyle(note).zIndex)
+      if (live.includes(note) || was === undefined || !(was > now)) return false
+      note.style.zIndex = String(was)
+      return true
+    },
+  )
+  const release = () => {
+    for (const note of live) note.style.opacity = ''
+    for (const note of held) note.style.zIndex = ''
+  }
 
   book.append(clip)
   placed.forEach(restoreScrolls)
@@ -235,7 +261,7 @@ export function playTurn(
     window.clearTimeout(timer)
     window.clearTimeout(backTimer)
     for (const animation of animations) animation.cancel()
-    for (const note of live) note.style.opacity = ''
+    release()
     clip.remove()
   }
   const timer = window.setTimeout(finish, TURN_MS + SETTLE_MS + 150)
@@ -244,7 +270,7 @@ export function playTurn(
   const settle = () => {
     if (done) return
     stay.remove()
-    for (const note of live) note.style.opacity = ''
+    release()
     const fade = clip.animate([{ opacity: 1 }, { opacity: 0 }], {
       duration: SETTLE_MS,
       easing: 'ease-out',
