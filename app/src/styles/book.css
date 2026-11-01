@@ -160,9 +160,9 @@
   padding: 10px 12px;
 }
 
-/* Post-it notes stuck in each section's first page, at their own height: the open one sticks
-   out on the right over the page; sections already read stick out on the left and those still
-   ahead on the right, both from under the page. A note in the pages being turned turns with
+/* Post-it notes stuck in each section's first page, at their own height: the open one on the
+   right over the page; sections already read stick out on the left and those still ahead on
+   the right, both from under the page. A note in the pages being turned turns with
    the leaf (pageTurn.ts). */
 .book-notes {
   position: absolute;
@@ -188,7 +188,7 @@
   box-shadow: 1px 2px 4px rgb(0 0 0 / 28%);
   pointer-events: auto;
   cursor: var(--cursor-pointer);
-  transition: transform var(--motion);
+  transition: filter var(--motion);
   animation: note-right var(--motion) ease-out backwards;
 }
 
@@ -211,7 +211,6 @@
 /* A note riding on a turning leaf. */
 .book-note.leaf-note {
   animation: none;
-  transition: none;
   backface-visibility: hidden;
 }
 
@@ -231,13 +230,10 @@
   background: #d9c2f0;
 }
 
-.book-note:hover,
-.book-note[data-side='open'] {
-  transform: translateX(10px);
-}
-
-.book-note[data-side='past']:hover {
-  transform: translateX(-10px);
+/* Notes stay where they are stuck (never sliding out on hover, so a turn picks them up as
+   they are); hover only brightens them. The open one lies over the page. */
+.book-note:hover {
+  filter: brightness(1.06);
 }
 
 /* The open section also says so in words (never colour alone, §5). */
