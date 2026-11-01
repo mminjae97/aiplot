@@ -82,17 +82,6 @@
   opacity: 1;
 }
 
-/* Another bookmark's index settles in softly. */
-.world-index-body {
-  animation: world-index-in var(--motion) ease-out;
-}
-
-@keyframes world-index-in {
-  from {
-    opacity: 0.35;
-  }
-}
-
 .world-index h2,
 .world-entry-title {
   font-size: var(--size-title);
