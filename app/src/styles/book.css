@@ -10,6 +10,10 @@
 
 .book-open {
   position: relative;
+  /* The bottom pages of both blocks lie on the cover and never move; the open pages lie on
+     the left block and move right 3px per section turned (--behind, set by the book; --held
+     keeps the old value while a leaf turns). Centred: the middle section sits unshifted. */
+  --shift: calc((var(--held, var(--behind, 2)) - 2) * 3px);
   /* over the desk's turning zones, so the post-its sticking out stay clickable */
   z-index: 1;
   isolation: isolate;
@@ -32,20 +36,22 @@
    the spine, a page across both sides has none. Over the post-its still ahead. */
 .book-open .spread {
   position: relative;
+  translate: var(--shift) 0;
+  transition: translate var(--motion) ease-out;
   /* the page block's layers and the post-its stuck in them interleave below (see .book-edge) */
   z-index: 40;
   box-shadow: 0 4px 0 #d3c4a6;
 }
 
-/* The page block at each side: one layer per section's page lying under the open one
-   (--layer 1 = the page just under it), each 3px further out than the one over it. The left
-   block grows and the right one thins as the reader goes further into the book. */
+/* The page block at each side: one 3px layer of page edge per section's page, the bottom one
+   on the cover. Every section has a layer on both sides; it is as wide as the open pages
+   leave it (none on the side its page is not), so the block grows on the left and thins on
+   the right as the reader goes further in, and while a leaf turns (--shift held) it stays. A
+   later page lies over an earlier one on the left, an earlier over a later on the right. */
 .book-edge {
   position: absolute;
   top: 0;
-  bottom: calc(min(var(--layer), 4) * -1px);
-  z-index: calc(40 - var(--layer) * 2);
-  width: calc(var(--layer) * 3px);
+  bottom: 0;
   background: var(--paper-edge);
   pointer-events: none;
 }
@@ -54,21 +60,31 @@
   background: #cbbb9a;
 }
 
-.book-edge[data-side='right'] {
-  left: 100%;
+.book-edge[data-side='left'] {
+  right: calc(100% - var(--shift));
+  z-index: calc(30 + var(--section) * 2);
+  width: max(0px, calc(var(--shift) - (var(--section) - 2) * 3px));
+  transition:
+    right var(--motion) ease-out,
+    width var(--motion) ease-out;
 }
 
-.book-edge[data-side='left'] {
-  right: 100%;
+.book-edge[data-side='right'] {
+  left: calc(100% + var(--shift));
+  z-index: calc(38 - var(--section) * 2);
+  width: max(0px, calc((var(--section) - 2) * 3px - var(--shift)));
+  transition:
+    left var(--motion) ease-out,
+    width var(--motion) ease-out;
 }
 
 /* The bottom page of each block shades the cover beside it. */
-.book-edge[data-side='right'][data-last] {
-  box-shadow: 2px 0 3px rgb(38 22 12 / 22%);
+.book-edge[data-side='left'][data-bottom] {
+  box-shadow: -2px 0 3px rgb(38 22 12 / 22%);
 }
 
-.book-edge[data-side='left'][data-last] {
-  box-shadow: -2px 0 3px rgb(38 22 12 / 22%);
+.book-edge[data-side='right'][data-bottom] {
+  box-shadow: 2px 0 3px rgb(38 22 12 / 22%);
 }
 
 /* One page across both sides (the dex, the graph, the map, the story). */
@@ -201,12 +217,13 @@
 .book-note {
   position: absolute;
   top: calc(44px + var(--note) * 40px);
-  left: calc(100% - 12px);
+  /* Stuck to its own page, whose edge lies 3px further out per section (the bottom pages
+     fixed on the cover): it never moves as pages turn. 12px of it is under the pages. */
+  left: calc(100% + (var(--note) - 2) * 3px - 12px);
   /* the open section's: over the page */
   z-index: 42;
-  width: 84px;
-  /* clear of the page and of the page block over its root */
-  padding: 7px 8px 7px 30px;
+  width: 76px;
+  padding: 7px 8px 7px 20px;
   border: 0;
   border-radius: 0 3px 3px 0;
   background: #f3d76b;
@@ -228,20 +245,21 @@
 
 .book-note[data-side='past'] {
   left: auto;
-  right: calc(100% - 12px);
-  padding: 7px 30px 7px 8px;
+  right: calc(100% - (var(--note) - 2) * 3px - 12px);
+  padding: 7px 20px 7px 8px;
   border-radius: 3px 0 0 3px;
   text-align: right;
   box-shadow: -1px 2px 3px rgb(0 0 0 / 22%);
   animation-name: note-left;
 }
 
-/* A note comes out of the page block from its own page: under the --depth pages lying over
-   it, over those below. It stays where it is stuck as pages turn; only the block around it
-   changes. */
-.book-note[data-side='ahead'],
+/* A note lies on its own page: over that page's layer, under the layers lying over it. */
+.book-note[data-side='ahead'] {
+  z-index: calc(39 - var(--note) * 2);
+}
+
 .book-note[data-side='past'] {
-  z-index: calc(39 - var(--depth) * 2);
+  z-index: calc(31 + var(--note) * 2);
 }
 
 /* A note riding on a turning leaf. */
@@ -302,6 +320,9 @@
 .book-turning {
   position: absolute;
   inset: var(--desk-margin-y) var(--desk-margin-x);
+  /* over the open pages wherever they lie */
+  translate: var(--shift) 0;
+  transition: translate var(--motion) ease-out;
   /* the book takes no clicks while it shows pictures of the old page (a click ends the turn) */
   pointer-events: auto;
   /* far enough that a leaf rising toward the reader stays about the book's height */

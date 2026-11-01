@@ -39,7 +39,8 @@ export type Picture = {
  * the sections, whose notes as they are now go on its back; and every note's stacking level
  * (z-index) before the turn, by section. */
 export type CarriedNotes = {
-  before: HTMLElement[]
+  /** Copies as they were, with where they were on screen. */
+  before: { copy: HTMLElement; rect: DOMRect }[]
   sections: string[]
   levels: ReadonlyMap<string, number>
 }
@@ -83,7 +84,7 @@ function paint(
   const copy = picture.node.cloneNode(true) as HTMLElement
   // Never focused; the turning stage over it takes the pointer (book.css).
   copy.inert = true
-  copy.style.cssText = `position:absolute;top:0;left:${String(bleed - offset)}px;width:${String(size.width)}px;height:${String(size.height)}px;margin:0`
+  copy.style.cssText = `position:absolute;top:0;left:${String(bleed - offset)}px;width:${String(size.width)}px;height:${String(size.height)}px;margin:0;translate:none;transition:none`
   box.prepend(copy)
   out.push({ copy, picture })
 }
@@ -125,7 +126,7 @@ function keyframesOf(index: number, sign: number): { turn: Keyframe[]; shade: Ke
 
 /** A post-it copy that turns with the leaf's outer strip; the back one is turned over, so it
  * shows unmirrored where the note sits once the leaf has landed. */
-function carriedNote(note: HTMLElement, edge: 'left' | 'right', back: boolean): HTMLElement {
+function carriedNote(note: HTMLElement, left: number, back: boolean): HTMLElement {
   // (Its place over or under the leaf's paper is set by where playTurn puts it.)
   const copy = note.cloneNode(true) as HTMLElement
   copy.removeAttribute('aria-current')
@@ -133,9 +134,9 @@ function carriedNote(note: HTMLElement, edge: 'left' | 'right', back: boolean): 
   copy.classList.add('leaf-note')
   // Shown on the leaf even when copied from a note hidden by a turn still running.
   copy.style.opacity = ''
-  // At the strip's outer edge, as on the page.
-  copy.style.left = edge === 'right' ? 'calc(100% - 12px)' : 'auto'
-  copy.style.right = edge === 'left' ? 'calc(100% - 12px)' : 'auto'
+  // Where the note is on the page, in the outer strip's own frame.
+  copy.style.left = `${String(left)}px`
+  copy.style.right = 'auto'
   if (back) copy.style.transform = 'rotateY(180deg)'
   return copy
 }
@@ -218,14 +219,24 @@ export function playTurn(
   // Notes stuck in the turned pages ride on the outer strip: the open section's over its
   // paper, the others tucked under it (as on the page; coplanar, so DOM order decides).
   const outer = parent
-  const side = direction === 'next' ? 'right' : 'left'
   const live = notes.sections.flatMap((section) => {
     const note = book.querySelector<HTMLElement>(`.book-notes [data-section='${section}']`)
     return note ? [note] : []
   })
+  // On screen: the open pages (held where they were) and the outer strip's left edge. A front
+  // copy sits where its note was; a back copy where, once the strip has turned over the spine,
+  // it lands on its note as it is now.
+  const pagesAt = (book.querySelector(':scope > .spread') ?? book).getBoundingClientRect().left
+  const stripAt = pagesAt + (direction === 'next' ? edge(STRIPS - 1) : edge(STRIPS))
+  const spineAt = pagesAt + spine
+  const landing = (rect: DOMRect) => 2 * spineAt - rect.left - rect.width - stripAt
   const copies = [
-    ...notes.before.map((note) => [note, carriedNote(note, side, false)] as const),
-    ...live.map((note) => [note, carriedNote(note, side, true)] as const),
+    ...notes.before.map(
+      ({ copy, rect }) => [copy, carriedNote(copy, rect.left - stripAt, false)] as const,
+    ),
+    ...live.map(
+      (note) => [note, carriedNote(note, landing(note.getBoundingClientRect()), true)] as const,
+    ),
   ]
   for (const [note, copy] of copies) {
     if (note.dataset.side === 'open') outer.append(copy)
@@ -248,6 +259,8 @@ export function playTurn(
   const release = () => {
     for (const note of live) note.style.opacity = ''
     for (const note of held) note.style.zIndex = ''
+    // The open pages move onto the block they now lie on.
+    book.style.removeProperty('--held')
   }
 
   book.append(clip)
