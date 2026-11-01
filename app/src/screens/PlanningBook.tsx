@@ -172,6 +172,17 @@ export function PlanningBook({ screen }: Props) {
             <RegionMapScreen key={screen.cardId ?? ''} screen={screen} {...pageProps} />
           )}
           {screen.name === 'story' && <StoryScreen screen={screen} {...pageProps} />}
+          {(['left', 'right'] as const).flatMap((side) =>
+            [1, 2, 3, 4].map((layer) => (
+              <span
+                key={`${side}${String(layer)}`}
+                className="book-edge"
+                data-side={side}
+                style={{ '--layer': layer } as CSSProperties}
+                aria-hidden="true"
+              />
+            )),
+          )}
           <nav className="book-notes" aria-label={strings.book.sections}>
             {SECTIONS.map((section, at) => (
               <button
@@ -182,7 +193,8 @@ export function PlanningBook({ screen }: Props) {
                 // Stuck in its section's first page: sections already read stick out on the
                 // left, the open one on the right, those still ahead from under the page.
                 data-side={at < openSection ? 'past' : at === openSection ? 'open' : 'ahead'}
-                style={{ '--note': at } as CSSProperties}
+                // How many pages lie over its own (0 = the open page).
+                style={{ '--note': at, '--depth': Math.abs(at - openSection) } as CSSProperties}
                 aria-current={screen.name === section ? 'page' : undefined}
                 onClick={() => {
                   if (screen.name !== section) turnPage({ name: section, workId })
