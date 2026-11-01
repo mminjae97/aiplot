@@ -92,8 +92,9 @@ test('the desk beside the book turns one smallest page at a time, in reading ord
   expect(await screen.findByRole('heading', { name: strings.contents.heading })).toBeTruthy()
   expect(prev().getAttribute('aria-disabled') === 'true').toBe(true)
   const seen: unknown[] = []
-  // contents → 6 bookmarks → 도감 → 관계도 → map → story ① → ② (③ stays closed).
-  for (let i = 0; i < 11; i += 1) {
+  // contents → 6 bookmarks → 도감 → 관계도 → map → story ① → ② (③ stays closed) → the
+  // later stages' blank pages.
+  for (let i = 0; i < 14; i += 1) {
     await waitFor(() => {
       expect(next().getAttribute('aria-disabled') === 'true').toBe(false)
     })
@@ -112,11 +113,18 @@ test('the desk beside the book turns one smallest page at a time, in reading ord
     { name: 'regions', workId: 'w_1' },
     { name: 'story', workId: 'w_1', step: 'main' },
     { name: 'story', workId: 'w_1', step: 'parts' },
+    { name: 'direction', workId: 'w_1' },
+    { name: 'writing', workId: 'w_1' },
+    { name: 'reading', workId: 'w_1' },
   ])
-  // Episodes are not open (no part yet): the last page.
+  // The reader is the last page.
   expect(next().getAttribute('aria-disabled') === 'true').toBe(true)
+  expect(screen.getByRole('article', { name: '소설 읽기' })).toBeTruthy()
+  // Episodes are not open (no part yet): back from direction comes the parts step.
   fireEvent.click(prev())
-  expect(at()).toEqual({ name: 'story', workId: 'w_1', step: 'main' })
+  fireEvent.click(prev())
+  fireEvent.click(prev())
+  expect(at()).toEqual({ name: 'story', workId: 'w_1', step: 'parts' })
 })
 
 test('the open bookmark of the world book turns to the next category; the glossary to the dex', async () => {
@@ -142,7 +150,7 @@ test('post-it notes open each section and say which one is open', async () => {
     within(notes)
       .getAllByRole('button')
       .map((note) => note.textContent),
-  ).toEqual(['목차', '세계관', '캐릭터', '지역', '스토리'])
+  ).toEqual(['목차', '세계관', '캐릭터', '지역', '스토리', '연출', '집필', '소설 읽기'])
   expect(within(notes).getByRole('button', { name: '목차' }).getAttribute('aria-current')).toBe(
     'page',
   )
@@ -218,7 +226,7 @@ test('post-it notes of sections already read stick out on the left, those ahead 
     within(notes)
       .getAllByRole('button')
       .map((note) => note.getAttribute('data-side')),
-  ).toEqual(['past', 'past', 'past', 'open', 'ahead'])
+  ).toEqual(['past', 'past', 'past', 'open', 'ahead', 'ahead', 'ahead', 'ahead'])
 })
 
 test('while a drawer is open the book takes no input and pages do not turn', async () => {

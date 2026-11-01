@@ -7,6 +7,7 @@ import { TopBar } from '../components/TopBar'
 import { type PlanningScreen, useNavigation } from '../stores/navigation'
 import { strings } from '../strings'
 import { CharacterDexScreen } from './CharacterDexScreen'
+import { BlankPage } from './BlankPage'
 import { ContentsPage } from './ContentsPage'
 import {
   canTurn,
@@ -82,6 +83,8 @@ export function PlanningBook({ screen }: Props) {
               ? [{ copy: note.cloneNode(true) as HTMLElement, rect: note.getBoundingClientRect() }]
               : []
           }),
+          // The open pages glide this far while the leaf turns (3px per section, book.css).
+          slide: (toSection - from) * 3,
           levels: new Map(
             [...book.querySelectorAll<HTMLElement>('.book-notes [data-section]')].map((note) => [
               note.dataset.section ?? '',
@@ -90,8 +93,6 @@ export function PlanningBook({ screen }: Props) {
           ),
         },
       }
-      // The open pages stay where they lie until the leaf has landed (pageTurn releases it).
-      book.style.setProperty('--held', String(from))
     }
     open(target)
   }
@@ -169,6 +170,7 @@ export function PlanningBook({ screen }: Props) {
             {
               ...(work.data ? bookStyle(colorOf(work.data)) : {}),
               '--behind': openSection,
+              '--middle': (SECTIONS.length - 1) / 2,
             } as CSSProperties
           }
         >
@@ -181,6 +183,9 @@ export function PlanningBook({ screen }: Props) {
             <RegionMapScreen key={screen.cardId ?? ''} screen={screen} {...pageProps} />
           )}
           {screen.name === 'story' && <StoryScreen screen={screen} {...pageProps} />}
+          {(screen.name === 'direction' ||
+            screen.name === 'writing' ||
+            screen.name === 'reading') && <BlankPage screen={screen} />}
           {(['left', 'right'] as const).flatMap((side) =>
             SECTIONS.map((section, at) => (
               <span

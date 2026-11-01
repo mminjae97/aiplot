@@ -69,6 +69,9 @@ export type Page =
   | { name: 'characters'; view: DexView }
   | { name: 'regions' }
   | { name: 'story'; step: StoryStep }
+  | { name: 'direction' }
+  | { name: 'writing' }
+  | { name: 'reading' }
 
 /** Every page in reading order; story steps not open yet are skipped. */
 export function pagesOf(steps: StorySteps): Page[] {
@@ -82,6 +85,9 @@ export function pagesOf(steps: StorySteps): Page[] {
       name: 'story' as const,
       step,
     })),
+    { name: 'direction' },
+    { name: 'writing' },
+    { name: 'reading' },
   ]
 }
 
@@ -94,7 +100,10 @@ export function pageOf(screen: PlanningScreen, steps: StorySteps): Page {
     case 'characters':
       return { name: 'characters', view: screen.view ?? savedView() }
     case 'regions':
-      return { name: 'regions' }
+    case 'direction':
+    case 'writing':
+    case 'reading':
+      return { name: screen.name }
     case 'story': {
       // A step that is (or has become) closed is no page: the story opens at its furthest.
       const asked = screen.step
@@ -112,5 +121,14 @@ export function screenOf(page: Page, workId: string): PlanningScreen {
 
 /** The post-it notes on the book's edge (§8): one per section, opening its usual page
  * (the section's own default: the remembered dex view, the furthest story step). */
-export const SECTIONS = ['contents', 'world', 'characters', 'regions', 'story'] as const
+export const SECTIONS = [
+  'contents',
+  'world',
+  'characters',
+  'regions',
+  'story',
+  'direction',
+  'writing',
+  'reading',
+] as const
 export type Section = (typeof SECTIONS)[number]
