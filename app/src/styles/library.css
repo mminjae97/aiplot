@@ -1,6 +1,6 @@
 /* S0 library: a walnut bookcase with oak boards; books stand cover out like a display. */
 
-/* Also the window's title bar: drag anywhere on it; controls opt out. */
+/* Also the window's title bar (the window is always maximized: no drag region). */
 .top-bar {
   user-select: none;
   display: flex;

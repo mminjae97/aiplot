@@ -171,6 +171,16 @@ test('turning a page plays a leaf in its direction; tabs inside the pages change
   expect(leaf()).toBe('next')
   // The leaf is a picture: never read out, never clicked.
   expect(view.container.querySelector('.book-turn-clip')?.getAttribute('aria-hidden')).toBe('true')
+  // The back of the leaf shows the new page once it has drawn.
+  await waitFor(() => {
+    expect(view.container.querySelector('.leaf-back .spread.world-book')).not.toBeNull()
+  })
+  // A click on the book while it turns ends the turn, not reaching the page under it.
+  fireEvent.pointerDown(view.container.querySelector('.book-turning') as Element)
+  expect(leaf()).toBeUndefined()
+  fireEvent.keyDown(window, { key: 'PageDown' })
+  fireEvent.keyDown(window, { key: 'PageUp' })
+  expect(leaf()).toBe('prev')
   // A bookmark inside the page opens without a leaf.
   fireEvent.click(await screen.findByRole('tab', { name: strings.drawer.category.faction }))
   expect(at()).toEqual({ name: 'world', workId: 'w_1', tab: 'faction' })

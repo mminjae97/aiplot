@@ -144,14 +144,15 @@ export function WorldBookScreen({
             role="tabpanel"
             aria-labelledby={`world-tab-${tab}`}
           >
+            {/* outside the fresh body: announced once, not on every bookmark */}
+            {worlds.isError && (
+              <p className="chat-error" role="alert">
+                {strings.worldBook.loadFailed}
+              </p>
+            )}
             {/* a fresh body per bookmark, so it settles in (worldbook.css) */}
             <div key={tab} className="world-index-body">
               <h2>{tab === 'terms' ? strings.worldBook.terms : strings.drawer.category[tab]}</h2>
-              {worlds.isError && (
-                <p className="chat-error" role="alert">
-                  {strings.worldBook.loadFailed}
-                </p>
-              )}
               {tab === 'terms' ? (
                 terms.length === 0 ? (
                   <p className="notes-empty">{strings.worldBook.noTerms}</p>

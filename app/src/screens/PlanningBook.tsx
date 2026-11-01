@@ -55,9 +55,11 @@ export function PlanningBook({ screen }: Props) {
     const turn = pending.current
     pending.current = null
     const book = bookRef.current
-    const spread = book?.querySelector<HTMLElement>(':scope > .spread')
-    if (!turn || !book || !spread) return
-    return playTurn(book, turn.direction, turn.before, pictureOf(spread))
+    if (!turn || !book) return
+    return playTurn(book, turn.direction, turn.before, () => {
+      const spread = book.querySelector<HTMLElement>(':scope > .spread')
+      return spread ? pictureOf(spread) : null
+    })
   }, [screenKey])
 
   // Subscribed anew every render (no deps): the keys turn from the page shown now.

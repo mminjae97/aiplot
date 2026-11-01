@@ -11,6 +11,10 @@ const STRIPS = 6
 const curlOf = (strip: number) => (strip === 0 ? 0 : 4 + 3 * strip)
 /** How far each leaf face reaches over its neighbours (.leaf-face in book.css). */
 const FACE_BLEED = 1
+/** When the back faces are pictured: before they turn toward the reader (about half way), late
+ * enough that the new page has drawn (React Flow measures and fits its graph after the first
+ * paint; a page's data may still be arriving). */
+const BACK_PAINT_MS = 250
 /** Matches --turn-time in book.css; the leaf is removed by then even if no event says so. */
 const TURN_MS = 650
 
@@ -58,6 +62,8 @@ function paint(
   bleed = 0,
 ) {
   const copy = picture.node.cloneNode(true) as HTMLElement
+  // Never focused or clicked; the clip around it stops the pointer itself (book.css).
+  copy.inert = true
   copy.style.cssText = `position:absolute;top:0;left:${String(bleed - offset)}px;width:${String(size.width)}px;height:${String(size.height)}px;margin:0`
   box.append(copy)
   out.push({ copy, picture })
@@ -75,13 +81,14 @@ function restoreScrolls({ copy, picture }: Placed) {
   }
 }
 
-/** Plays one turn over `book` (the element around the spread) from `before` to `after`.
- * Returns a function that removes the leaf at once (another turn, or the book closing). */
+/** Plays one turn over `book` (the element around the spread) from `before` to the page shown
+ * now, pictured by `after` once it has drawn. Returns a function that removes the leaf at once
+ * (another turn, the book closing, or a click on the book while it turns). */
 export function playTurn(
   book: HTMLElement,
   direction: TurnDirection,
   before: Picture,
-  after: Picture,
+  after: () => Picture | null,
 ): () => void {
   const size = book.getBoundingClientRect()
   const half = size.width / 2
@@ -90,7 +97,6 @@ export function playTurn(
 
   const clip = div('book-turn-clip')
   clip.setAttribute('aria-hidden', 'true')
-  clip.inert = true
   const stage = div('book-turning')
   clip.append(stage)
 
@@ -105,6 +111,7 @@ export function playTurn(
   stage.append(stay, reveal)
 
   let parent: HTMLElement = stage
+  const backs: { face: HTMLElement; offset: number }[] = []
   for (let index = 0; index < STRIPS; index += 1) {
     const element = div(index === 0 ? 'leaf-strip book-leaf' : 'leaf-strip')
     element.dataset.dir = direction
@@ -118,8 +125,8 @@ export function playTurn(
     paint(front, before, direction === 'next' ? near : far, size, placed, FACE_BLEED)
     front.append(div('leaf-shade'))
     const back = div('leaf-face leaf-back')
-    paint(back, after, direction === 'next' ? far : near, size, placed, FACE_BLEED)
     back.append(div('leaf-shade'))
+    backs.push({ face: back, offset: direction === 'next' ? far : near })
     element.append(front, back)
     parent.append(element)
     parent = element
@@ -134,10 +141,27 @@ export function playTurn(
     if (done) return
     done = true
     window.clearTimeout(timer)
+    window.clearTimeout(backTimer)
     clip.remove()
     delete book.dataset.turning
   }
   const timer = window.setTimeout(finish, TURN_MS + 150)
+  const backTimer = window.setTimeout(() => {
+    const picture = after()
+    if (done || !picture) return
+    const painted: Placed[] = []
+    for (const { face, offset } of backs) {
+      paint(face, picture, offset, size, painted, FACE_BLEED)
+      // under the shade
+      face.prepend(face.lastElementChild as Node)
+    }
+    painted.forEach(restoreScrolls)
+  }, BACK_PAINT_MS)
+  // A click on the book while it turns ends the turn instead of reaching the page under the
+  // pictures of the old one.
+  stage.addEventListener('pointerdown', () => {
+    finish()
+  })
   const root = stage.querySelector('.book-leaf')
   root?.addEventListener('animationend', (event) => {
     if (event.target === root) finish()

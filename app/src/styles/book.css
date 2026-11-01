@@ -161,7 +161,8 @@
 
 /* Post-it notes stuck in each section's first page, at their own height: the open one sticks
    out on the right over the page, sections already read on the left, those still ahead from
-   under the page on the right. A note changing sides shows there once the leaf has landed. */
+   under the page on the right. A note moving to the other edge fades in there as the leaf
+   lands. */
 .book-notes {
   position: absolute;
   inset: 0;
@@ -206,7 +207,7 @@
 }
 
 .book-open[data-turning] .book-note {
-  animation-delay: calc(var(--turn-time) * 0.8);
+  animation-delay: calc(var(--turn-time) - var(--motion));
 }
 
 .book-note[data-section='world'] {
@@ -268,6 +269,8 @@
 .book-turning {
   position: absolute;
   inset: var(--desk-margin-y) 0;
+  /* the book takes no clicks while it shows pictures of the old page (a click ends the turn) */
+  pointer-events: auto;
   /* far enough that a leaf rising toward the reader stays about the book's height */
   perspective: 15000px;
 }
