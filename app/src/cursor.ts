@@ -1,6 +1,7 @@
 // The quill cursor (§5). The browser draws it (CSS `cursor` in base.css) except where the image
-// would cross the window's top or right edge: Chromium then swaps any custom cursor for its own
-// default, so there the app hides the cursor and draws the same quill itself.
+// would cross an edge of the window: Chromium then swaps any custom cursor for its own default,
+// so there the app hides the cursor and draws the same quill itself. The nib sits 2px inside the
+// image, so even the outermost pixels at the left and bottom count.
 import quill from './assets/cursor/quill.svg'
 import quillHover from './assets/cursor/quill-hover.svg'
 
@@ -9,9 +10,11 @@ const SIZE = 32
 const HOT_X = 2
 const HOT_Y = 30
 
-/** Whether the quill drawn at (x, y) would reach past the top or right edge of the window. */
-export function nearEdge(x: number, y: number, width: number): boolean {
-  return y - HOT_Y < 1 || x - HOT_X + SIZE > width - 1
+/** Whether the quill drawn with its nib at (x, y) would reach past an edge of the window. */
+export function nearEdge(x: number, y: number, width: number, height: number): boolean {
+  const left = x - HOT_X
+  const top = y - HOT_Y
+  return left < 1 || top < 1 || left + SIZE > width - 1 || top + SIZE > height - 1
 }
 
 const CLICKABLE = 'button:not(:disabled), a[href], [role="tab"], [role="button"], label, summary'
@@ -34,7 +37,7 @@ export function installCursor(): () => void {
   const move = (event: PointerEvent) => {
     if (event.pointerType !== 'mouse') return
     const { clientX: x, clientY: y } = event
-    if (!nearEdge(x, y, window.innerWidth)) {
+    if (!nearEdge(x, y, window.innerWidth, window.innerHeight)) {
       hide()
       return
     }
