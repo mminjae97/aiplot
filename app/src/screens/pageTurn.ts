@@ -203,7 +203,6 @@ function shadowFramesOf(
 /** A post-it copy that turns with a leaf's outer strip; the back one is turned over, so it
  * shows unmirrored where the note sits once the leaf has landed. */
 function carriedNote(note: HTMLElement, left: number, back: boolean): HTMLElement {
-  // (Its place over or under the leaf's paper is set by where playTurn puts it.)
   const copy = note.cloneNode(true) as HTMLElement
   copy.removeAttribute('aria-current')
   copy.inert = true
@@ -213,7 +212,10 @@ function carriedNote(note: HTMLElement, left: number, back: boolean): HTMLElemen
   // Where the note is on the page, in the outer strip's own frame.
   copy.style.left = `${String(left)}px`
   copy.style.right = 'auto'
-  if (back) copy.style.transform = 'rotateY(180deg)'
+  // Over the leaf's paper if it is the open section's, else tucked under it: a pixel in front
+  // of or behind it (on the same plane the order would be left to the renderer).
+  const depth = note.dataset.side === 'open' ? 1 : -1
+  copy.style.transform = `${back ? 'rotateY(180deg) ' : ''}translateZ(${String(depth)}px)`
   return copy
 }
 
@@ -328,14 +330,17 @@ export function playTurn(
   })
 
   // Each leaf carries its own section's note on its outer strip: the open section's over its
-  // paper, the others tucked under it (as on the page; coplanar, so DOM order decides).
+  // paper, the others tucked under it, as on the page.
   const live = notes.sections.map((section) =>
     book.querySelector<HTMLElement>(`.book-notes [data-section='${section}']`),
   )
   // On screen: the open pages and the outer strip's left edge as the turn starts. A front copy
   // sits where its note was; a back copy where, once the strip has turned over the spine (and
   // glided `slide` with the open pages), it lands on its note.
-  const pagesAt = (book.querySelector(':scope > .spread') ?? book).getBoundingClientRect().left
+  // (The new page lies where it now belongs; the turn starts it `slide` back, where the old one
+  // lay, and glides it over.)
+  const pages = book.querySelector<HTMLElement>(':scope > .spread')
+  const pagesAt = (pages ?? book).getBoundingClientRect().left - notes.slide
   const stripAt = pagesAt + (direction === 'next' ? edge(STRIPS - 1) : edge(STRIPS))
   const spineAt = pagesAt + spine
   const landing = (rect: DOMRect) => 2 * spineAt + notes.slide - rect.left - rect.width - stripAt
@@ -344,12 +349,13 @@ export function playTurn(
     if (!outer) return
     const was = notes.before[at]
     const now = live[at]
-    const copies: [HTMLElement, HTMLElement][] = []
-    if (was) copies.push([was.copy, carriedNote(was.copy, was.rect.left - stripAt, false)])
-    if (now) copies.push([now, carriedNote(now, landing(now.getBoundingClientRect()), true)])
-    for (const [note, copy] of copies) {
-      if (note.dataset.side === 'open') outer.append(copy)
-      else outer.prepend(copy)
+    if (was) outer.append(carriedNote(was.copy, was.rect.left - stripAt, false))
+    if (now) {
+      // Where it sits for good: not where its slide-in (it changed sides) has it for a moment.
+      // (jsdom has no Web Animations.)
+      if (typeof now.getAnimations === 'function')
+        for (const animation of now.getAnimations()) animation.finish()
+      outer.append(carriedNote(now, landing(now.getBoundingClientRect()), true))
     }
   })
   const turned = live.filter((note): note is HTMLElement => note !== null)
@@ -390,7 +396,6 @@ export function playTurn(
     for (const animation of animations) animation.cancel()
     release()
     clip.remove()
-    book.style.removeProperty('--glide')
   }
   const timer = window.setTimeout(finish, total + SETTLE_MS + 150)
   /** The last leaf has landed: the old page under them goes, the notes show where they now
@@ -464,14 +469,19 @@ export function playTurn(
         )
     })
     animations.push(gutter.animate(shadow.gutter, { duration: TURN_MS, fill: 'both' }))
-    // A new element gets no CSS transition: it glides from where the open pages were, in step
-    // with their own transition (book.css .spread, timed by --glide).
-    animations.push(
-      stage.animate(
-        [{ transform: `translateX(${String(-notes.slide)}px)` }, { transform: 'none' }],
-        { duration: total, easing: 'ease-in-out', fill: 'both' },
-      ),
-    )
+    // The open pages (a new page each section) and the leaves over them glide over together,
+    // from where the old pages lay.
+    const glide: Keyframe[] = [
+      { transform: `translateX(${String(-notes.slide)}px)` },
+      { transform: 'none' },
+    ]
+    const gliding: KeyframeAnimationOptions = {
+      duration: total,
+      easing: 'ease-in-out',
+      fill: 'both',
+    }
+    animations.push(stage.animate(glide, gliding))
+    if (pages) animations.push(pages.animate(glide, gliding))
     // The last leaf to land (its last strip's turn is the last to end) settles the turn.
     const lastStrip = lastLeaf?.strips[STRIPS - 1]
     const ending = animations.find((animation) => {

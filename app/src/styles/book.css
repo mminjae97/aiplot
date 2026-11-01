@@ -35,9 +35,8 @@
    the spine, a page across both sides has none. Over the post-its still ahead. */
 .book-open .spread {
   position: relative;
+  /* (pageTurn.ts glides a new page over from where the old one lay) */
   translate: var(--shift) 0;
-  /* gliding over while the leaves turn (--glide: the whole turn, set by the book) */
-  transition: translate var(--glide, var(--turn-time)) ease-in-out;
   /* the page block's layers and the post-its stuck in them interleave below (see .book-edge) */
   z-index: 40;
   box-shadow: 0 4px 0 #d3c4a6;

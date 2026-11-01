@@ -15,7 +15,6 @@ import {
   type Picture,
   pictureOf,
   playTurn,
-  turnTime,
   type TurnDirection,
 } from './pageTurn'
 import { pageOf, pagesOf, samePage, SECTIONS, screenOf, useStorySteps } from './planningPages'
@@ -98,8 +97,6 @@ export function PlanningBook({ screen }: Props) {
           ),
         },
       }
-      // ...over the whole turn.
-      book.style.setProperty('--glide', `${String(turnTime(sections.length))}ms`)
     }
     open(target)
   }
