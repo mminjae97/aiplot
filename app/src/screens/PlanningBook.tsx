@@ -80,6 +80,12 @@ export function PlanningBook({ screen }: Props) {
             const note = book.querySelector<HTMLElement>(`.book-notes [data-section='${section}']`)
             return note ? [note.cloneNode(true) as HTMLElement] : []
           }),
+          levels: new Map(
+            [...book.querySelectorAll<HTMLElement>('.book-notes [data-section]')].map((note) => [
+              note.dataset.section ?? '',
+              Number(getComputedStyle(note).zIndex),
+            ]),
+          ),
         },
       }
     }

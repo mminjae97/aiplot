@@ -236,12 +236,6 @@
   filter: brightness(1.06);
 }
 
-/* The open section also says so in words (never colour alone, §5). */
-.book-note[aria-current='page'] {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
 @keyframes note-right {
   from {
     opacity: 0;
