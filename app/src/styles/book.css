@@ -37,15 +37,15 @@
   box-shadow: 0 4px 0 #d3c4a6;
 }
 
-/* The page block at each side: one layer per page lying under the open ones (--layer 1 =
-   the page just under them), each a pixel further out than the one over it. The left block
-   grows and the right one thins as the reader goes further into the book. */
+/* The page block at each side: one layer per section's page lying under the open one
+   (--layer 1 = the page just under it), each 3px further out than the one over it. The left
+   block grows and the right one thins as the reader goes further into the book. */
 .book-edge {
   position: absolute;
   top: 0;
   bottom: calc(min(var(--layer), 4) * -1px);
   z-index: calc(40 - var(--layer) * 2);
-  width: calc(var(--layer) * 1px);
+  width: calc(var(--layer) * 3px);
   background: var(--paper-edge);
   pointer-events: none;
 }
