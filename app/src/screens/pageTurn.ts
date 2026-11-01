@@ -42,6 +42,8 @@ export type CarriedNotes = {
   /** Copies as they were, with where they were on screen. */
   before: { copy: HTMLElement; rect: DOMRect }[]
   sections: string[]
+  /** How far (px) the open pages glide right while the leaf turns. */
+  slide: number
   levels: ReadonlyMap<string, number>
 }
 
@@ -223,13 +225,13 @@ export function playTurn(
     const note = book.querySelector<HTMLElement>(`.book-notes [data-section='${section}']`)
     return note ? [note] : []
   })
-  // On screen: the open pages (held where they were) and the outer strip's left edge. A front
-  // copy sits where its note was; a back copy where, once the strip has turned over the spine,
-  // it lands on its note as it is now.
+  // On screen: the open pages and the outer strip's left edge as the turn starts. A front copy
+  // sits where its note was; a back copy where, once the strip has turned over the spine (and
+  // glided `slide` with the open pages), it lands on its note.
   const pagesAt = (book.querySelector(':scope > .spread') ?? book).getBoundingClientRect().left
   const stripAt = pagesAt + (direction === 'next' ? edge(STRIPS - 1) : edge(STRIPS))
   const spineAt = pagesAt + spine
-  const landing = (rect: DOMRect) => 2 * spineAt - rect.left - rect.width - stripAt
+  const landing = (rect: DOMRect) => 2 * spineAt + notes.slide - rect.left - rect.width - stripAt
   const copies = [
     ...notes.before.map(
       ({ copy, rect }) => [copy, carriedNote(copy, rect.left - stripAt, false)] as const,
@@ -259,8 +261,6 @@ export function playTurn(
   const release = () => {
     for (const note of live) note.style.opacity = ''
     for (const note of held) note.style.zIndex = ''
-    // The open pages move onto the block they now lie on.
-    book.style.removeProperty('--held')
   }
 
   book.append(clip)
@@ -310,6 +310,18 @@ export function playTurn(
     })
     const last = animations[animations.length - 1]
     if (last) last.onfinish = settle
+    // A new element gets no CSS transition: it glides from where the open pages were, in step
+    // with their own transition (book.css .spread).
+    animations.push(
+      stage.animate(
+        [{ transform: `translateX(${String(-notes.slide)}px)` }, { transform: 'none' }],
+        {
+          duration: TURN_MS,
+          easing: 'ease-in-out',
+          fill: 'both',
+        },
+      ),
+    )
   }
   // A click on the book while it turns ends the turn instead of reaching the page under the
   // pictures of the old one.

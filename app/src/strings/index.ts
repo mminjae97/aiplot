@@ -344,6 +344,9 @@ export const strings = {
       characters: '캐릭터',
       regions: '지역',
       story: '스토리',
+      direction: '연출',
+      writing: '집필',
+      reading: '소설 읽기',
     },
   },
   story: {

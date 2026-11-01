@@ -23,6 +23,11 @@ export type PlanningScreen =
   | { name: 'regions'; workId: string; cardId?: string }
   // S1-3 story (§8)
   | { name: 'story'; workId: string; step?: StoryStep }
+  // Stage 2 direction (§9), stage 3 writing (§10) and the reader (S3-2/3): blank pages until
+  // their steps; their post-its are already in the book.
+  | { name: 'direction'; workId: string }
+  | { name: 'writing'; workId: string }
+  | { name: 'reading'; workId: string }
 
 interface NavigationStore {
   screen: Screen
