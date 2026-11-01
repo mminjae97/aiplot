@@ -142,15 +142,12 @@ export function PlanningBook({ screen }: Props) {
 
   const pageProps = { turn: open, onBusy: setBusy }
   const openSection = SECTIONS.indexOf(screen.name)
-  // The page block: the pages turned (left) and still to turn (right), one layer each.
-  const here = Math.max(index, 0)
-  const behind = here
-  const ahead = Math.max(pages.length - 1 - here, 0)
-  /** How many pages lie over a section's first page, where its note is stuck. */
-  const depthOf = (section: Section) => {
-    const first = pages.findIndex((item) => item.name === section)
-    return first < 0 ? 1 : Math.max(Math.abs(first - here), 1)
-  }
+  // The page block: one layer per section turned (left) and still to turn (right). A
+  // section's tabs (bookmarks, views, steps) are all on its one page.
+  const behind = openSection
+  const ahead = SECTIONS.length - 1 - openSection
+  /** How many pages lie over a section's page, where its note is stuck. */
+  const depthOf = (section: Section) => Math.abs(SECTIONS.indexOf(section) - openSection)
 
   return (
     <>
