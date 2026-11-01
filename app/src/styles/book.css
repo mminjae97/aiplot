@@ -39,7 +39,6 @@
   translate: var(--shift) 0;
   /* the page block's layers and the post-its stuck in them interleave below (see .book-edge) */
   z-index: 40;
-  box-shadow: 0 4px 0 #d3c4a6;
 }
 
 /* The page block at each side: one 3px layer of page edge per section's page, the bottom one
@@ -69,6 +68,19 @@
 .book-edge[data-side='right'] {
   left: calc(100% + (var(--section) - var(--middle)) * 3px - 40px);
   z-index: calc(38 - var(--section) * 2);
+}
+
+/* The page block's bottom edge, under the whole book from the bottom page on the left to the
+   bottom page on the right: it never moves (the open pages lie on it). */
+.book-bottom {
+  position: absolute;
+  bottom: -4px;
+  left: calc((0 - var(--middle)) * 3px);
+  right: calc((var(--middle) - var(--last)) * 3px);
+  z-index: 5;
+  height: 4px;
+  background: #d3c4a6;
+  pointer-events: none;
 }
 
 /* The bottom page of each block shades the cover beside it. */
@@ -346,46 +358,6 @@
 
 .leaf-stay[data-dir='prev'] {
   right: 0;
-}
-
-/* Shadows on the pages under the leaf (pageTurn.ts moves and fades them with it). */
-.leaf-shadows {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-/* 100px wide at the left of the book; pageTurn.ts moves and widens it (transform only). */
-.leaf-cast {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 100px;
-  opacity: 0;
-  transform-origin: left center;
-}
-
-/* Darkest against the leaf, fading out away from it. */
-.leaf-cast[data-side='right'] {
-  background: linear-gradient(90deg, rgb(38 22 12 / 100%), rgb(38 22 12 / 35%) 30%, transparent);
-}
-
-.leaf-cast[data-side='left'] {
-  background: linear-gradient(270deg, rgb(38 22 12 / 100%), rgb(38 22 12 / 35%) 30%, transparent);
-}
-
-/* The gutter on both pages, deepest at the spine. */
-.leaf-gutter {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 30%;
-  opacity: 0;
-  translate: -50% 0;
-  background: linear-gradient(90deg, transparent, rgb(38 22 12 / 55%) 50%, transparent);
 }
 
 /* One leaf: its own 3D view (the leaves are stacked by z-index as they cross the spine). */

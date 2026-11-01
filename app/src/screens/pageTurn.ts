@@ -18,16 +18,6 @@ const DRAG = 0.38
 const SAMPLES = 60
 /** How dark a strip gets standing on edge to the lamp (its shade's opacity at 90°). */
 const SHADE = 0.2
-/** The shadow a leaf casts beyond its outer part: darkest (at most CAST) a little above the
- * page, fading as it rises; its soft edge widens with the height. */
-const CAST = 0.3
-const castOf = (height: number, half: number) =>
-  CAST * Math.min(1, height / 24) * Math.max(0.2, 1 - height / (half * 0.8))
-const penumbraOf = (height: number) => 14 + height * 0.18
-/** A cast shadow's own width; keyframes scale it (.leaf-cast in book.css). */
-const CAST_BOX = 100
-/** The gutter darkens while the first leaf stands over it (at most GUTTER, upright). */
-const GUTTER = 0.16
 /** How far each leaf face reaches over its neighbours (.leaf-face in book.css). */
 const FACE_BLEED = 1
 /** When the back faces are pictured: before the first of them turns toward the reader, late
@@ -155,51 +145,6 @@ function keyframesOf(
   return { turn, inner, outer }
 }
 
-/** A leaf's shadows over its turn. At each moment the strips' angles give the leaf's outline
- * seen from above: how far it reaches over each side of the spine, and how high its outermost
- * part there stands. Beyond that part a soft shadow falls on the page below. */
-function shadowFramesOf(
-  widths: number[],
-  spine: number,
-  direction: TurnDirection,
-): { left: Keyframe[]; right: Keyframe[]; gutter: Keyframe[] } {
-  const half = widths.reduce((sum, width) => sum + width, 0)
-  const left: Keyframe[] = []
-  const right: Keyframe[] = []
-  const gutter: Keyframe[] = []
-  for (let sample = 0; sample <= SAMPLES; sample += 1) {
-    const time = sample / SAMPLES
-    // Out from the spine: + over the side it starts on, - over the side it lands on.
-    let along = 0
-    let height = 0
-    let start = { reach: 0, height: 0 }
-    let land = { reach: 0, height: 0 }
-    widths.forEach((width, index) => {
-      const angle = (angleOf(index, time) * Math.PI) / 180
-      along += width * Math.cos(angle)
-      height += width * Math.sin(angle)
-      if (along > start.reach) start = { reach: along, height }
-      if (-along > land.reach) land = { reach: -along, height }
-    })
-    // Screen sides: going on, it starts over the right page; going back, over the left.
-    const onRight = direction === 'next' ? start : land
-    const onLeft = direction === 'next' ? land : start
-    const band = (over: { reach: number; height: number }, side: 'left' | 'right') => {
-      const width = penumbraOf(over.height)
-      const at = side === 'right' ? spine + over.reach : spine - over.reach - width
-      return {
-        offset: time,
-        transform: `translateX(${String(at)}px) scaleX(${String(width / CAST_BOX)})`,
-        opacity: over.reach > 0 ? castOf(over.height, half) : 0,
-      }
-    }
-    right.push(band(onRight, 'right'))
-    left.push(band(onLeft, 'left'))
-    gutter.push({ offset: time, opacity: GUTTER * Math.sin((angleOf(0, time) * Math.PI) / 180) })
-  }
-  return { left, right, gutter }
-}
-
 /** A post-it copy that turns with a leaf's outer strip; the back one is turned over, so it
  * shows unmirrored where the note sits once the leaf has landed. */
 function carriedNote(note: HTMLElement, left: number, back: boolean): HTMLElement {
@@ -268,21 +213,7 @@ export function playTurn(
   if (direction === 'next') stay.style.width = `${String(spine)}px`
   else stay.style.left = `${String(spine)}px`
   paint(stay, before, direction === 'next' ? 0 : spine, size, placed)
-  // Shadows on the pages under the leaves: beyond each leaf's outer part on each side of the
-  // spine (it is over one side, then the other), and the gutter's while the first one stands.
-  const shadows = div('leaf-shadows')
-  const casts = Array.from({ length: count }, () => {
-    const left = div('leaf-cast')
-    left.dataset.side = 'left'
-    const right = div('leaf-cast')
-    right.dataset.side = 'right'
-    shadows.append(left, right)
-    return { left, right }
-  })
-  const gutter = div('leaf-gutter')
-  gutter.style.left = `${String(spine)}px`
-  shadows.append(gutter)
-  stage.append(stay, shadows)
+  stage.append(stay)
 
   const leaves: Leaf[] = Array.from({ length: count }, (_, at) => {
     const wrap = div('leaf')
@@ -433,8 +364,6 @@ export function playTurn(
 
   // jsdom has no Web Animations; there the leaves just wait for the timer.
   if (typeof stage.animate === 'function') {
-    const widths = Array.from({ length: STRIPS }, (_, k) => Math.abs(edge(k + 1) - edge(k)))
-    const shadow = shadowFramesOf(widths, spine, direction)
     // Over the spine the leaves change places: one still to turn lies under the one turning
     // before it; once over, it lies on the ones turned before it.
     const crossing = 0.5 * (1 - DRAG)
@@ -461,14 +390,7 @@ export function playTurn(
           timing,
         ),
       )
-      const cast = casts[at]
-      if (cast)
-        animations.push(
-          cast.left.animate(shadow.left, timing),
-          cast.right.animate(shadow.right, timing),
-        )
     })
-    animations.push(gutter.animate(shadow.gutter, { duration: TURN_MS, fill: 'both' }))
     // The open pages (a new page each section) and the leaves over them glide over together,
     // from where the old pages lay.
     const glide: Keyframe[] = [

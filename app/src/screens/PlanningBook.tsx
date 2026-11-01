@@ -176,6 +176,7 @@ export function PlanningBook({ screen }: Props) {
               '--behind': openSection,
               // a whole section: the open pages always lie on whole pixels
               '--middle': Math.floor((SECTIONS.length - 1) / 2),
+              '--last': SECTIONS.length - 1,
             } as CSSProperties
           }
         >
@@ -191,6 +192,7 @@ export function PlanningBook({ screen }: Props) {
           {(screen.name === 'direction' ||
             screen.name === 'writing' ||
             screen.name === 'reading') && <BlankPage screen={screen} />}
+          <span className="book-bottom" aria-hidden="true" />
           {(['left', 'right'] as const).flatMap((side) =>
             SECTIONS.map((section, at) => (
               <span
