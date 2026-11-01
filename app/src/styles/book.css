@@ -340,8 +340,7 @@
   perspective: 15000px;
 }
 
-.leaf-stay,
-.leaf-reveal {
+.leaf-stay {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -350,36 +349,48 @@
   overflow: hidden;
 }
 
-.leaf-stay[data-dir='next'],
-.leaf-reveal[data-dir='prev'] {
+.leaf-stay[data-dir='next'] {
   left: 0;
 }
 
-.leaf-stay[data-dir='prev'],
-.leaf-reveal[data-dir='next'] {
+.leaf-stay[data-dir='prev'] {
   right: 0;
 }
 
-/* The shadow of the falling leaf on the page it is about to cover. */
-.leaf-fall {
+/* Shadows on the pages under the leaf (pageTurn.ts moves and fades them with it). */
+.leaf-shadows {
   position: absolute;
   inset: 0;
-  background: rgb(38 22 12 / 30%);
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.leaf-cast {
+  position: absolute;
+  top: 0;
+  bottom: 0;
   opacity: 0;
-  animation: leaf-fall var(--turn-time) ease-in both;
 }
 
-/* The shadow of the rising leaf on the page it uncovers, deepest at the spine. */
-.leaf-reveal {
-  animation: leaf-reveal var(--turn-time) ease-out both;
+/* Darkest against the leaf, fading out away from it. */
+.leaf-cast[data-side='right'] {
+  background: linear-gradient(90deg, rgb(38 22 12 / 100%), rgb(38 22 12 / 35%) 30%, transparent);
 }
 
-.leaf-reveal[data-dir='next'] {
-  background: linear-gradient(90deg, rgb(38 22 12 / 34%), transparent 70%);
+.leaf-cast[data-side='left'] {
+  background: linear-gradient(270deg, rgb(38 22 12 / 100%), rgb(38 22 12 / 35%) 30%, transparent);
 }
 
-.leaf-reveal[data-dir='prev'] {
-  background: linear-gradient(270deg, rgb(38 22 12 / 34%), transparent 70%);
+/* The gutter on both pages, deepest at the spine. */
+.leaf-gutter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 30%;
+  opacity: 0;
+  translate: -50% 0;
+  background: linear-gradient(90deg, transparent, rgb(38 22 12 / 55%) 50%, transparent);
 }
 
 .leaf-strip {
@@ -432,27 +443,6 @@
   inset: 0;
   background: rgb(38 22 12);
   opacity: 0;
-}
-
-@keyframes leaf-fall {
-  60% {
-    opacity: 0;
-  }
-  95% {
-    opacity: 0.6;
-  }
-  to {
-    opacity: 0;
-  }
-}
-
-@keyframes leaf-reveal {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
