@@ -210,7 +210,6 @@
 
 /* A note riding on a turning leaf. */
 .book-note.leaf-note {
-  visibility: visible;
   animation: none;
   transition: none;
   backface-visibility: hidden;

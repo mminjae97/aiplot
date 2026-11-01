@@ -122,13 +122,16 @@ function carriedNote(note: HTMLElement, edge: 'left' | 'right', back: boolean): 
   copy.removeAttribute('aria-current')
   copy.inert = true
   copy.classList.add('leaf-note')
+  // Shown on the leaf even when copied from a note hidden by a turn still running.
+  copy.style.opacity = ''
   // At the strip's outer edge, as on the page.
   copy.style.left = edge === 'right' ? 'calc(100% - 12px)' : 'auto'
   copy.style.right = edge === 'left' ? 'calc(100% - 12px)' : 'auto'
   if (back) {
-    // The open note sticks out 10px further; turned over, that is the other way.
-    const out = note.dataset.side === 'open' ? ' translateX(-10px)' : ''
-    copy.style.transform = `rotateY(180deg)${out}`
+    // The open note sticks out 10px further: outward in the turned strip's frame, where
+    // outward is the other way.
+    const out = note.dataset.side === 'open' ? 'translateX(-10px) ' : ''
+    copy.style.transform = `${out}rotateY(180deg)`
   }
   return copy
 }
@@ -202,8 +205,9 @@ export function playTurn(
     ...notes.before.map((note) => carriedNote(note, edge, false)),
     ...live.map((note) => carriedNote(note, edge, true)),
   )
-  // The notes themselves show again where they now sit once the leaf has landed.
-  for (const note of live) note.style.visibility = 'hidden'
+  // The notes themselves show again where they now sit once the leaf has landed (opacity, not
+  // visibility: a focused note keeps the focus).
+  for (const note of live) note.style.opacity = '0'
 
   book.append(clip)
   placed.forEach(restoreScrolls)
@@ -216,7 +220,7 @@ export function playTurn(
     window.clearTimeout(timer)
     window.clearTimeout(backTimer)
     for (const animation of animations) animation.cancel()
-    for (const note of live) note.style.visibility = ''
+    for (const note of live) note.style.opacity = ''
     clip.remove()
   }
   const timer = window.setTimeout(finish, TURN_MS + 150)

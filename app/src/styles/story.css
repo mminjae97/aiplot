@@ -188,6 +188,8 @@
 
 .timeline-scroll {
   flex: 1;
+  /* a node scrolled into view (keyboard focus) clears the lane names (EpisodeTimeline GUTTER) */
+  scroll-padding-left: 92px;
   min-height: 0;
   overflow: auto;
   border: 1px solid var(--paper-edge);

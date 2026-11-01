@@ -175,9 +175,8 @@ test('turning to another section plays a leaf; tabs within a section change in p
   // The contents' note turns over with the leaf (front as it was, back as it is now); the
   // note itself shows again once the leaf has landed.
   expect(view.container.querySelectorAll('.leaf-note')).toHaveLength(2)
-  // (hidden, so it has no accessible name to find it by)
-  const contentsNote = notes.querySelector('[data-section="contents"]') as HTMLElement
-  expect(contentsNote.style.visibility).toBe('hidden')
+  const contentsNote = within(notes).getByRole('button', { name: '목차' })
+  expect(contentsNote.style.opacity).toBe('0')
   // The back of the leaf shows the new page once it has drawn.
   await waitFor(() => {
     expect(view.container.querySelector('.leaf-back .spread.world-book')).not.toBeNull()
@@ -185,7 +184,7 @@ test('turning to another section plays a leaf; tabs within a section change in p
   // A click on the book while it turns ends the turn, not reaching the page under it.
   fireEvent.pointerDown(view.container.querySelector('.book-turning') as Element)
   expect(leaf()).toBeUndefined()
-  expect(contentsNote.style.visibility).toBe('')
+  expect(contentsNote.style.opacity).toBe('')
   // Within the world book, neither the desk nor a bookmark turns a leaf.
   fireEvent.click(next())
   expect(at()).toEqual({ name: 'world', workId: 'w_1', tab: 'faction' })

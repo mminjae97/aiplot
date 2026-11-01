@@ -78,7 +78,11 @@ export function PlanningBook({ screen }: Props) {
           sections: [...sections],
           before: sections.flatMap((section) => {
             const note = book.querySelector<HTMLElement>(`.book-notes [data-section='${section}']`)
-            return note ? [note.cloneNode(true) as HTMLElement] : []
+            if (!note) return []
+            // As it looks now, hovered (lifted) or not.
+            const copy = note.cloneNode(true) as HTMLElement
+            copy.style.transform = getComputedStyle(note).transform
+            return [copy]
           }),
         },
       }
