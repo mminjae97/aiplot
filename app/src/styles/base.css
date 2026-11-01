@@ -65,9 +65,10 @@
   /* the open book's spread, width / height */
   --spread-ratio: 1.5;
 
-  /* a fountain pen, nib at the top left; brass over things that can be clicked */
-  --cursor: url('../assets/cursor/pen.svg') 2 2, default;
-  --cursor-pointer: url('../assets/cursor/pen-hover.svg') 2 2, pointer;
+  /* a quill, nib at the bottom left; gilt over things that can be clicked (src/cursor.ts draws it
+     itself along the top and right edges) */
+  --cursor: url('../assets/cursor/quill.svg') 2 30, default;
+  --cursor-pointer: url('../assets/cursor/quill-hover.svg') 2 30, pointer;
 }
 
 /* Dark: the same study after dusk; paper turns to lamplit vellum. */
@@ -126,6 +127,22 @@ body,
 
 html {
   cursor: var(--cursor);
+}
+
+/* Along the top and right edges the app draws the quill itself (src/cursor.ts). */
+html[data-edge-cursor],
+html[data-edge-cursor] * {
+  cursor: none !important;
+}
+
+.app-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2147483647;
+  width: 32px;
+  height: 32px;
+  pointer-events: none;
 }
 
 /* Typing keeps the text cursor. */

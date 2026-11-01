@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
+import { installCursor } from './cursor'
 import './styles/base.css'
 import './styles/library.css'
 import './styles/contents.css'
@@ -23,6 +24,7 @@ const queryClient = new QueryClient({
 })
 
 connectServer()
+installCursor()
 
 createRoot(container).render(
   <StrictMode>
