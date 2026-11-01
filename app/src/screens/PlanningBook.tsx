@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { bookStyle } from '../components/BookFront'
 import { colorOf } from '../components/bookColor'
@@ -8,6 +8,7 @@ import { type PlanningScreen, useNavigation } from '../stores/navigation'
 import { strings } from '../strings'
 import { CharacterDexScreen } from './CharacterDexScreen'
 import { ContentsPage } from './ContentsPage'
+import { canTurn, type Picture, pictureOf, playTurn, type TurnDirection } from './pageTurn'
 import { pageOf, pagesOf, samePage, SECTIONS, screenOf, useStorySteps } from './planningPages'
 import { RegionMapScreen } from './RegionMapScreen'
 import { StoryScreen } from './StoryScreen'
@@ -37,24 +38,31 @@ export function PlanningBook({ screen }: Props) {
   const index = pages.findIndex((item) => samePage(item, page))
   const before = index > 0 ? pages[index - 1] : undefined
   const after = index >= 0 && index < pages.length - 1 ? pages[index + 1] : undefined
-  // A turning leaf plays when the reader turns to another page (forward or back by the
-  // reading order), not when a default page settles as the data arrives.
-  const screenKey = JSON.stringify(screen)
-  const [shown, setShown] = useState<{ key: string; index: number; dir: 'next' | 'prev' | null }>({
-    key: screenKey,
-    index,
-    dir: null,
-  })
-  if (shown.key !== screenKey) {
-    // The same page asked for another way (a default made explicit) does not turn.
-    const dir = index === shown.index ? null : index > shown.index ? 'next' : 'prev'
-    setShown({ key: screenKey, index, dir })
-  }
-
-  const turnTo = (target: PlanningScreen) => {
+  // A leaf turns only when the reader turns the page itself: a post-it note, the desk beside
+  // the book, PageUp/PageDown. Tabs and links inside the pages change the page in place.
+  const bookRef = useRef<HTMLDivElement>(null)
+  const pending = useRef<{ direction: TurnDirection; before: Picture } | null>(null)
+  const turnPage = (target: PlanningScreen) => {
+    const to = pages.findIndex((item) => samePage(item, pageOf(target, steps)))
+    const spread = bookRef.current?.querySelector<HTMLElement>(':scope > .spread')
+    if (to !== index && to >= 0 && index >= 0 && spread && canTurn()) {
+      pending.current = { direction: to > index ? 'next' : 'prev', before: pictureOf(spread) }
+    }
     open(target)
   }
+  const screenKey = JSON.stringify(screen)
+  useLayoutEffect(() => {
+    const turn = pending.current
+    pending.current = null
+    const book = bookRef.current
+    if (!turn || !book) return
+    return playTurn(book, turn.direction, turn.before, () => {
+      const spread = book.querySelector<HTMLElement>(':scope > .spread')
+      return spread ? pictureOf(spread) : null
+    })
+  }, [screenKey])
 
+  // Subscribed anew every render (no deps): the keys turn from the page shown now.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       // Not while held, with a modifier, or while typing.
@@ -65,19 +73,20 @@ export function PlanningBook({ screen }: Props) {
       if (busy || event.repeat || event.ctrlKey || event.altKey || event.metaKey || typing) return
       if (event.key === 'PageDown' && after) {
         event.preventDefault()
-        open(screenOf(after, workId))
+        turnPage(screenOf(after, workId))
       } else if (event.key === 'PageUp' && before) {
         event.preventDefault()
-        open(screenOf(before, workId))
+        turnPage(screenOf(before, workId))
       }
     }
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
     }
-  }, [busy, after, before, open, workId])
+  })
 
-  const pageProps = { turn: turnTo, onBusy: setBusy }
+  const pageProps = { turn: open, onBusy: setBusy }
+  const openSection = SECTIONS.indexOf(screen.name)
 
   return (
     <>
@@ -97,12 +106,16 @@ export function PlanningBook({ screen }: Props) {
           // aria-disabled, not disabled: the button keeps the focus at the first page.
           aria-disabled={!before}
           onClick={() => {
-            if (before) open(screenOf(before, workId))
+            if (before) turnPage(screenOf(before, workId))
           }}
         >
           <span aria-hidden="true">‹</span>
         </button>
-        <div className="book-open" style={work.data ? bookStyle(colorOf(work.data)) : undefined}>
+        <div
+          ref={bookRef}
+          className="book-open"
+          style={work.data ? bookStyle(colorOf(work.data)) : undefined}
+        >
           {screen.name === 'contents' && <ContentsPage screen={screen} {...pageProps} />}
           {screen.name === 'world' && <WorldBookScreen screen={screen} {...pageProps} />}
           {screen.name === 'characters' && (
@@ -112,19 +125,20 @@ export function PlanningBook({ screen }: Props) {
             <RegionMapScreen key={screen.cardId ?? ''} screen={screen} {...pageProps} />
           )}
           {screen.name === 'story' && <StoryScreen screen={screen} {...pageProps} />}
-          {shown.dir && (
-            <div key={shown.key} className="book-leaf" data-dir={shown.dir} aria-hidden="true" />
-          )}
           <nav className="book-notes" aria-label={strings.book.sections}>
-            {SECTIONS.map((section) => (
+            {SECTIONS.map((section, at) => (
               <button
                 key={section}
                 type="button"
                 className="book-note"
                 data-section={section}
+                // Stuck in its section's first page: sections already read stick out on the
+                // left, the open one on the right, those still ahead from under the page.
+                data-side={at < openSection ? 'past' : at === openSection ? 'open' : 'ahead'}
+                style={{ '--note': at } as CSSProperties}
                 aria-current={screen.name === section ? 'page' : undefined}
                 onClick={() => {
-                  if (screen.name !== section) open({ name: section, workId })
+                  if (screen.name !== section) turnPage({ name: section, workId })
                 }}
               >
                 {strings.book.notes[section]}
@@ -139,7 +153,7 @@ export function PlanningBook({ screen }: Props) {
           aria-label={strings.book.next}
           aria-disabled={!after}
           onClick={() => {
-            if (after) open(screenOf(after, workId))
+            if (after) turnPage(screenOf(after, workId))
           }}
         >
           <span aria-hidden="true">›</span>

@@ -40,7 +40,7 @@
   font: inherit;
   font-size: clamp(11px, 3.1cqi, var(--size-small));
   font-weight: 500;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition:
     background var(--motion),
     color var(--motion);
@@ -51,24 +51,46 @@
 }
 
 .world-tab[aria-selected='true'] {
-  /* square at the bottom, so the longer end continues it without a nick at the corners */
-  border-radius: 0;
   background: var(--brass);
   /* dark ink on brass: 4.5:1 or more in both themes (§5) */
   color: #2a1f12;
 }
 
-/* The longer end hangs over the page below; it takes no room. */
-.world-tab[aria-selected='true']::after {
+/* The longer end hangs over the page below; it takes no room. Every tab has one, folded up
+   out of sight until its bookmark opens, so opening one eases the end down in the same
+   colour as the tab instead of popping in. */
+.world-tab::after {
   content: '';
   position: absolute;
-  top: 100%;
+  top: calc(100% - 4px);
   left: 0;
   right: 0;
-  height: 6px;
+  height: 10px;
   border-radius: 0 0 4px 4px;
-  background: var(--brass);
+  background: inherit;
+  transform: scaleY(0.4);
+  transform-origin: top;
+  opacity: 0;
   pointer-events: none;
+  transition:
+    transform var(--motion) ease-out,
+    opacity var(--motion) ease-out;
+}
+
+.world-tab[aria-selected='true']::after {
+  transform: none;
+  opacity: 1;
+}
+
+/* Another bookmark's index settles in softly. */
+.world-index-body {
+  animation: world-index-in var(--motion) ease-out;
+}
+
+@keyframes world-index-in {
+  from {
+    opacity: 0.35;
+  }
 }
 
 .world-index h2,
@@ -94,7 +116,7 @@
   font: inherit;
   font-size: var(--size-lead);
   text-align: left;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .world-entry:hover,
@@ -135,7 +157,7 @@
   color: var(--brass);
   font: inherit;
   text-decoration: underline;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .world-actions {

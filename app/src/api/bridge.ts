@@ -16,15 +16,11 @@ export interface AiplotBridge {
     /** Returns the unsubscribe function. */
     onChange(listener: (state: ServerState) => void): () => void
   }
-  /** The top bar is the title bar (§12): its own window buttons. */
+  /** The top bar is the title bar (§12): its own window buttons. The window is always
+   * maximized, so there is none to maximize or restore it. */
   window: {
     minimize(): Promise<void>
-    /** Maximizes, or restores a maximized window. */
-    toggleMaximize(): Promise<void>
     close(): Promise<void>
-    isMaximized(): Promise<boolean>
-    /** Returns the unsubscribe function. */
-    onMaximizedChange(listener: (maximized: boolean) => void): () => void
   }
   /** OS dialogs for files the user already has (S0-1); null when cancelled. */
   dialog: {

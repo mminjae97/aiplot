@@ -67,7 +67,7 @@
   color: var(--ink-soft);
   font-size: 20px;
   line-height: 1;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .drawer-close:hover {
@@ -212,7 +212,7 @@ p.drawer-body {
   justify-content: space-between;
   gap: 16px;
   padding: 5px 12px;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .chat-mentions li[aria-selected='true'] {
@@ -346,7 +346,7 @@ p.drawer-body {
   color: inherit;
   font: inherit;
   text-align: left;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .contents-item:hover {
@@ -427,7 +427,7 @@ p.drawer-body {
   color: var(--ink-soft);
   font-size: var(--size-small);
   font-weight: 700;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .preview-name:hover,
@@ -451,7 +451,7 @@ p.drawer-body {
   background: none;
   color: var(--ink-faint);
   font-size: 11px;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   opacity: 0.5;
 }
 
@@ -637,7 +637,7 @@ p.drawer-body {
   font: inherit;
   font-size: var(--size-small);
   text-align: left;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 .type-structure-option[aria-pressed='true'] {

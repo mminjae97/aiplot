@@ -13,7 +13,6 @@ import {
 import type { ServerState } from '../src/api/bridge'
 import { strings } from '../src/strings'
 import { type ServerCommand, ServerSupervisor } from './processes'
-import { minimumWindowSize, type Size } from './windowSize'
 // The user's logo (app/build/icon.png) trimmed to its rounded square; bundled for the window.
 import icon from '../src/assets/logo.png?asset'
 
@@ -90,36 +89,6 @@ function isAppUrl(url: string): boolean {
   }
 }
 
-// The open book never shrinks below its size in a half-screen window (§12 S1). With no menu
-// bar the page fills the content area, so the frame is the outer size minus the content size.
-function frameOf(win: BrowserWindow): Size {
-  const [outerWidth = 0, outerHeight = 0] = win.getSize()
-  const [contentWidth = 0, contentHeight = 0] = win.getContentSize()
-  return { width: outerWidth - contentWidth, height: outerHeight - contentHeight }
-}
-
-// frame is measured once at creation: a minimized window reports a 0x0 content size.
-function applyMinimumSize(win: BrowserWindow, frame: Size): void {
-  if (win.isDestroyed() || win.isMinimized()) return
-  const [outerWidth = 0, outerHeight = 0] = win.getSize()
-  const { workArea } = screen.getDisplayMatching(win.getBounds())
-  const min = minimumWindowSize(workArea, frame)
-  win.setMinimumSize(min.width, min.height)
-  // setMinimumSize never grows a window that is already smaller (e.g. moved to a larger
-  // display): grow it, keeping it inside the work area.
-  if (win.isMaximized() || win.isFullScreen()) return
-  if (outerWidth >= min.width && outerHeight >= min.height) return
-  const width = Math.max(outerWidth, min.width)
-  const height = Math.max(outerHeight, min.height)
-  const { x, y } = win.getBounds()
-  win.setBounds({
-    x: Math.min(Math.max(x, workArea.x), workArea.x + workArea.width - width),
-    y: Math.min(Math.max(y, workArea.y), workArea.y + workArea.height - height),
-    width,
-    height,
-  })
-}
-
 // Without the default menu, unpackaged runs still open DevTools with F12 or Ctrl+Shift+I.
 function devToolsKeys(win: BrowserWindow): void {
   win.webContents.on('before-input-event', (event, input) => {
@@ -140,8 +109,7 @@ function createWindow(): BrowserWindow {
     width: Math.min(1440, workAreaSize.width),
     height: Math.min(900, workAreaSize.height),
     show: false,
-    // The app's top bar is the title bar (§12): Windows keeps the frame (resize, snap, shadow)
-    // but draws no title bar or buttons.
+    // The app's top bar is the title bar (§12): Windows draws no title bar or buttons.
     titleBarStyle: 'hidden',
     // Taskbar and Alt+Tab (§12); the packaged .exe gets build/icon.png from the installer.
     icon,
@@ -161,56 +129,23 @@ function createWindow(): BrowserWindow {
   // Electron's default File/Edit/View menu is not part of the app; its top bar is (§12).
   win.removeMenu()
   if (!app.isPackaged) devToolsKeys(win)
-  const frame = frameOf(win)
-  const apply = (): void => {
-    applyMinimumSize(win, frame)
-  }
-  apply()
-  win.center()
-  // Another monitor or resolution changes what half the screen is. 'move' also covers
-  // keyboard moves (Win+Shift+arrow), which never send 'moved'; it only recomputes when the
-  // window lands on another display.
-  let displayId = screen.getDisplayMatching(win.getBounds()).id
-  // A mouse drag (Windows sends 'will-move' for those only) recomputes once, on 'moved', so
-  // the window never jumps under the cursor mid-drag.
-  let dragging = false
-  win.on('will-move', () => {
-    dragging = true
+  // The window is always maximized (§12): it is only ever minimized beside that. Whatever
+  // restores it to a normal window (Win+arrow keys, snapping) maximizes it again.
+  win.on('unmaximize', () => {
+    if (!win.isDestroyed() && !win.isMinimized()) win.maximize()
   })
-  win.on('move', () => {
-    if (dragging || win.isMinimized()) return
-    const id = screen.getDisplayMatching(win.getBounds()).id
-    if (id === displayId) return
-    displayId = id
-    apply()
-  })
-  win.on('moved', () => {
-    dragging = false
-    displayId = screen.getDisplayMatching(win.getBounds()).id
-    apply()
-  })
-  win.on('restore', apply)
-  win.on('unmaximize', apply)
-  // The top bar's maximize button shows the matching icon.
-  const sendMaximized = (): void => {
-    if (!win.isDestroyed()) win.webContents.send('window:maximized', win.isMaximized())
-  }
-  win.on('maximize', sendMaximized)
-  win.on('unmaximize', sendMaximized)
-  const onDisplays = apply
-  screen.on('display-metrics-changed', onDisplays)
   win.once('ready-to-show', () => {
+    win.maximize()
     win.show()
   })
   win.on('closed', () => {
-    screen.off('display-metrics-changed', onDisplays)
     mainWindow = null
   })
   const load = devUrl ? win.loadURL(devUrl) : win.loadFile(rendererFile)
   load.catch((err: unknown) => {
     console.error('renderer load failed', err)
     // Never leave an invisible window holding the single-instance lock.
-    if (!win.isDestroyed()) win.show()
+    if (!win.isDestroyed()) win.maximize()
   })
   return win
 }
@@ -250,15 +185,9 @@ if (!app.requestSingleInstanceLock()) {
       ipcMain.handle('window:minimize', (event) => {
         appWindow(event).minimize()
       })
-      ipcMain.handle('window:toggle-maximize', (event) => {
-        const win = appWindow(event)
-        if (win.isMaximized()) win.unmaximize()
-        else win.maximize()
-      })
       ipcMain.handle('window:close', (event) => {
         appWindow(event).close()
       })
-      ipcMain.handle('window:is-maximized', (event) => appWindow(event).isMaximized())
       // Files the user already has (S0-1); the server checks them before use.
       const pick = async (event: IpcMainInvokeEvent, options: OpenDialogOptions) => {
         const result = await dialog.showOpenDialog(appWindow(event), options)

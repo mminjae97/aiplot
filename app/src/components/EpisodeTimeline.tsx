@@ -2,15 +2,18 @@ import { strings } from '../strings'
 import type { EpisodeCard, MilestoneFulfilment } from '../types'
 import type { Timeline } from './storyLayout'
 
-// Grid sizes: the lane names on the left, a column per story beat, a lane per region.
-const GUTTER = 136
-const COLUMN = 176
-const HEAD = 112
+// Grid sizes, kept tight so the open book shows as much of the story as it can: the lane
+// names on the left, a column per story beat, a lane per region.
+const GUTTER = 92
+const COLUMN = 116
+// The main line with its milestones, then the part titles, above the first lane.
+const HEAD = 76
+const PART_HEAD = 22
 // A lane holds one row per episode stacked in its busiest cell, plus a margin.
-const ROW = 72
-const LANE_PAD = 24
-const NODE_WIDTH = 144
-const NODE_HEIGHT = 58
+const ROW = 40
+const LANE_PAD = 10
+const NODE_WIDTH = 104
+const NODE_HEIGHT = 32
 
 /** Milestone colours: muted inks that keep white numerals readable; every node also says its
  * milestone's number, so colour is never the only sign (§5). */
@@ -39,7 +42,7 @@ export function EpisodeTimeline({
   onSelectPart,
   onPick,
 }: Props) {
-  const width = GUTTER + Math.max(timeline.columns, 1) * COLUMN + 24
+  const width = GUTTER + Math.max(timeline.columns, 1) * COLUMN + 12
   // Lane tops: each lane as tall as its stack.
   const tops: number[] = []
   let bottom = HEAD
@@ -47,7 +50,7 @@ export function EpisodeTimeline({
     tops.push(bottom)
     bottom += lane.rows * ROW + LANE_PAD
   }
-  const height = Math.max(bottom, HEAD + ROW + LANE_PAD) + 24
+  const height = Math.max(bottom, HEAD + ROW + LANE_PAD) + 8
   const cy = (lane: number, row: number) =>
     (tops[lane] ?? HEAD) + LANE_PAD / 2 + row * ROW + ROW / 2
   const at = new Map(timeline.nodes.map((node) => [node.episodeId, node]))
@@ -70,8 +73,8 @@ export function EpisodeTimeline({
             style={{
               left: GUTTER + span.first * COLUMN,
               width: (span.last - span.first + 1) * COLUMN,
-              top: HEAD - 34,
-              height: height - HEAD + 34,
+              top: HEAD - PART_HEAD,
+              height: height - HEAD + PART_HEAD,
             }}
           >
             <button
@@ -88,7 +91,7 @@ export function EpisodeTimeline({
         ))}
 
         {/* The main line, with each milestone over the part (or first episode) that has it. */}
-        <div className="timeline-main" style={{ width: width - GUTTER - 24, left: GUTTER }} />
+        <div className="timeline-main" style={{ width: width - GUTTER - 12, left: GUTTER }} />
         <span className="timeline-main-name">{strings.drawer.kind.main_story}</span>
         {[...byColumn].map(([column, indexes]) => (
           <div
@@ -159,12 +162,12 @@ export function EpisodeTimeline({
             if (from.column === to.column) {
               // Same column (simultaneous): a short bow out to the right, edge to edge.
               const x = cx(from.column) + NODE_WIDTH / 2
-              d = `M ${String(x)} ${String(y1)} C ${String(x + 28)} ${String(y1)}, ${String(x + 28)} ${String(y2)}, ${String(x)} ${String(y2)}`
+              d = `M ${String(x)} ${String(y1)} C ${String(x + 18)} ${String(y1)}, ${String(x + 18)} ${String(y2)}, ${String(x)} ${String(y2)}`
             } else {
               const forward = to.column > from.column
               const x1 = cx(from.column) + (forward ? NODE_WIDTH / 2 : -NODE_WIDTH / 2)
               const x2 = cx(to.column) + (forward ? -NODE_WIDTH / 2 : NODE_WIDTH / 2)
-              const bend = Math.max(30, Math.abs(x2 - x1) / 2) * (forward ? 1 : -1)
+              const bend = Math.max(20, Math.abs(x2 - x1) / 2) * (forward ? 1 : -1)
               d = `M ${String(x1)} ${String(y1)} C ${String(x1 + bend)} ${String(y1)}, ${String(x2 - bend)} ${String(y2)}, ${String(x2)} ${String(y2)}`
             }
             return (

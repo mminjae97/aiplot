@@ -131,10 +131,7 @@ beforeEach(() => {
     },
     window: {
       minimize: () => Promise.resolve(),
-      toggleMaximize: () => Promise.resolve(),
       close: () => Promise.resolve(),
-      isMaximized: () => Promise.resolve(false),
-      onMaximizedChange: () => () => undefined,
     },
     dialog: NO_DIALOGS,
   }

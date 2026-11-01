@@ -1,12 +1,13 @@
 /* S1 contents: the book lies open on the walnut desk. */
 
-/* The open book keeps a landscape 4:3 spread, as large as fits inside the wooden margin;
-   a taller window adds margin above and below, a wider one at the sides. */
+/* The open book keeps a landscape 3:2 spread, as large as fits inside the wooden margin (the
+   window is always maximized, so the book fills the screen's height); a taller screen adds
+   margin above and below, a wider one at the sides. */
 .desk {
   height: calc(100% - var(--top-bar));
   display: grid;
   place-items: center;
-  padding: var(--desk-margin);
+  padding: var(--desk-margin-y) var(--desk-margin-x);
   container-type: size;
   /* the walnut desk: horizontal planks (images rendered from scripts/wood) */
   background:
@@ -18,8 +19,8 @@
 }
 
 .spread {
-  width: min(100cqw, 100cqh * 4 / 3);
-  aspect-ratio: 4 / 3;
+  width: min(100cqw, 100cqh * var(--spread-ratio));
+  aspect-ratio: var(--spread-ratio);
   display: grid;
   grid-template-columns: 1fr 1fr;
   background: var(--paper);

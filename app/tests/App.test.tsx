@@ -11,10 +11,8 @@ import { FAKE_HEALTH, NO_DIALOGS, SETUP_IDLE } from './serverFixtures'
 
 let listeners: ((state: ServerState) => void)[] = []
 const retry = vi.fn(() => Promise.resolve())
-let maximizedListeners: ((maximized: boolean) => void)[] = []
 const windowCalls = {
   minimize: vi.fn(() => Promise.resolve()),
-  toggleMaximize: vi.fn(() => Promise.resolve()),
   close: vi.fn(() => Promise.resolve()),
 }
 
@@ -31,16 +29,7 @@ function bridge(initial: ServerState): AiplotBridge {
       },
     },
     dialog: NO_DIALOGS,
-    window: {
-      ...windowCalls,
-      isMaximized: () => Promise.resolve(false),
-      onMaximizedChange: (listener) => {
-        maximizedListeners.push(listener)
-        return () => {
-          maximizedListeners = maximizedListeners.filter((l) => l !== listener)
-        }
-      },
-    },
+    window: windowCalls,
   }
 }
 
@@ -108,7 +97,6 @@ beforeEach(() => {
   useServer.setState({ state: null })
   useNavigation.setState({ screen: { name: 'library' }, highlight: null })
   listeners = []
-  maximizedListeners = []
   retry.mockClear()
   for (const call of Object.values(windowCalls)) call.mockClear()
 })
@@ -301,20 +289,15 @@ test('the top bar is the title bar: window buttons on every screen', async () =>
   window.aiplot = bridge({ status: 'starting', restarts: 0 })
   connectServer()
   renderApp()
-  // Even before the server is up the window can be moved, minimized and closed.
+  // Even before the server is up the window can be minimized and closed; it is always
+  // maximized, so nothing maximizes or restores it.
   fireEvent.click(await screen.findByRole('button', { name: strings.window.minimize }))
-  fireEvent.click(screen.getByRole('button', { name: strings.window.maximize }))
   fireEvent.click(screen.getByRole('button', { name: strings.window.close }))
   expect(windowCalls.minimize).toHaveBeenCalledOnce()
-  expect(windowCalls.toggleMaximize).toHaveBeenCalledOnce()
   expect(windowCalls.close).toHaveBeenCalledOnce()
-  // The middle button follows the window's state.
-  act(() => {
-    for (const listener of maximizedListeners) listener(true)
-  })
-  expect(screen.getByRole('button', { name: strings.window.restore })).toBeTruthy()
+  expect(screen.getByRole('banner').querySelectorAll('.window-controls button').length).toBe(2)
   // Never Tab stops, like native caption buttons.
-  for (const name of [strings.window.minimize, strings.window.restore, strings.window.close]) {
+  for (const name of [strings.window.minimize, strings.window.close]) {
     expect(screen.getByRole('button', { name }).tabIndex).toBe(-1)
   }
 })

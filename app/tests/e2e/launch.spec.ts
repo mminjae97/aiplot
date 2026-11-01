@@ -24,22 +24,25 @@ test('app starts the local server, opens the library and makes a book', async ()
     await expect(win.getByText(strings.library.empty)).toBeVisible({ timeout: 45_000 })
     await expect(win.getByRole('heading', { name: strings.app.name })).toBeVisible()
 
-    // The top bar is the title bar: its buttons drive the real window.
+    // The top bar is the title bar. The window is always maximized: its buttons are minimize
+    // and close only, and whatever restores it to a normal window maximizes it again.
     const state = () =>
       app.evaluate(({ BrowserWindow }) => {
         const window = BrowserWindow.getAllWindows()[0]
         return { maximized: window?.isMaximized(), minimized: window?.isMinimized() }
       })
-    await win.getByRole('button', { name: strings.window.maximize }).click()
     await expect.poll(state).toMatchObject({ maximized: true })
-    await win.getByRole('button', { name: strings.window.restore }).click()
-    await expect.poll(state).toMatchObject({ maximized: false })
+    await expect(win.locator('.window-controls button')).toHaveCount(2)
+    await app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.unmaximize()
+    })
+    await expect.poll(state).toMatchObject({ maximized: true })
     await win.getByRole('button', { name: strings.window.minimize }).click()
     await expect.poll(state).toMatchObject({ minimized: true })
     await app.evaluate(({ BrowserWindow }) => {
       BrowserWindow.getAllWindows()[0]?.restore()
     })
-    await expect.poll(state).toMatchObject({ minimized: false })
+    await expect.poll(state).toMatchObject({ minimized: false, maximized: true })
 
     // A new book opens to its contents and then stands on the shelf.
     await win.getByRole('button', { name: strings.library.newBook }).click()
@@ -47,31 +50,21 @@ test('app starts the local server, opens the library and makes a book', async ()
     await win.getByRole('button', { name: strings.newBook.create, exact: true }).click()
     await expect(win.getByRole('heading', { name: strings.contents.heading })).toBeVisible()
 
-    // The window cannot shrink below half the screen's width, and there the open book is as
-    // wide as the width allows (4:3 inside the desk margin). It also opens at least that big.
-    const min = await app.evaluate(({ BrowserWindow, screen }) => {
-      const window = BrowserWindow.getAllWindows()[0]
-      if (!window) throw new Error('no window')
-      const [width = 0, height = 0] = window.getMinimumSize()
-      const [openWidth = 0, openHeight = 0] = window.getSize()
-      if (openWidth < width || openHeight < height) throw new Error('opened below its minimum')
-      window.setSize(width, height)
-      return {
-        width,
-        half: Math.floor(screen.getDisplayMatching(window.getBounds()).workAreaSize.width / 2),
-      }
-    })
-    expect(min.width).toBe(min.half)
-    const pageWidth = Number(await win.evaluate('window.innerWidth'))
+    // The open book is as large as the maximized window allows: a 3:2 spread inside the desk
+    // margin (24px above and below, 120px at the sides), usually as tall as the window.
     await expect
       .poll(async () => {
         const spread = await win.locator('.spread').boundingBox()
-        return spread ? [Math.round(spread.width), Math.round(spread.height)] : null
+        const [width, height] = await win.evaluate<number[]>('[innerWidth, innerHeight]')
+        const fit = Math.min((width ?? 0) - 240, ((height ?? 0) - 48 - 48) * 1.5)
+        return spread
+          ? Math.abs(spread.width - fit) <= 1 && Math.abs(spread.height - fit / 1.5) <= 1
+          : null
       })
-      .toEqual([pageWidth - 128, Math.round((pageWidth - 128) * 0.75)])
+      .toBe(true)
 
-    // The world book's bookmarks never run past the left page; from a 1920px display's
-    // half-screen window up they fit on one line (smaller displays wrap them).
+    // The world book's bookmarks never run past the left page; on a page 408px wide or more
+    // they fit on one line (smaller pages wrap them).
     await win
       .getByRole('region', { name: strings.contents.heading })
       .getByRole('button', { name: '세계관' })
@@ -82,7 +75,7 @@ test('app starts the local server, opens the library and makes a book', async ()
     const boxes = await Promise.all(
       (await tabs.getByRole('tab').all()).map((tab) => tab.boundingBox()),
     )
-    if (min.half >= 960) {
+    if ((page?.width ?? 0) >= 408) {
       expect(new Set(boxes.map((box) => Math.round(box?.y ?? -1))).size).toBe(1)
     }
     const right = Math.max(...boxes.map((box) => (box ? box.x + box.width : Infinity)))

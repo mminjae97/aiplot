@@ -14,8 +14,8 @@ type Props = {
   showSetup?: boolean
 }
 
-/** Common top bar (§12) and the window's title bar: drag to move, double-click to maximize,
- * window buttons at the right. Logo + app name in the library; "← 서재" and the work title
+/** Common top bar (§12) and the window's title bar (the window is always maximized: nothing
+ * to drag), window buttons at the right. Logo + app name in the library; "← 서재" and the work title
  * inside a book. */
 export function TopBar({ onBack, backLabel, backDisabled, title, showSetup = true }: Props) {
   return (

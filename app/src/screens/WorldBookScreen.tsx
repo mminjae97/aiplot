@@ -144,77 +144,82 @@ export function WorldBookScreen({
             role="tabpanel"
             aria-labelledby={`world-tab-${tab}`}
           >
-            <h2>{tab === 'terms' ? strings.worldBook.terms : strings.drawer.category[tab]}</h2>
+            {/* outside the fresh body: announced once, not on every bookmark */}
             {worlds.isError && (
               <p className="chat-error" role="alert">
                 {strings.worldBook.loadFailed}
               </p>
             )}
-            {tab === 'terms' ? (
-              terms.length === 0 ? (
-                <p className="notes-empty">{strings.worldBook.noTerms}</p>
-              ) : (
-                <ol className="world-entries">
-                  {terms.map((term, index) => (
-                    <li key={`${term.card.id}:${String(index)}`}>
-                      <button
-                        type="button"
-                        className="world-entry"
-                        onClick={() => {
-                          show(term.card)
-                        }}
-                      >
-                        <span>{term.term}</span>
-                        <span className="leader" aria-hidden="true" />
-                        <span className="status">{term.card.name}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ol>
-              )
-            ) : (
-              <>
-                {ordered.filter((card) => (card.data.category ?? 'other') === tab).length === 0 ? (
-                  <p className="notes-empty">{strings.worldBook.empty}</p>
+            {/* a fresh body per bookmark, so it settles in (worldbook.css) */}
+            <div key={tab} className="world-index-body">
+              <h2>{tab === 'terms' ? strings.worldBook.terms : strings.drawer.category[tab]}</h2>
+              {tab === 'terms' ? (
+                terms.length === 0 ? (
+                  <p className="notes-empty">{strings.worldBook.noTerms}</p>
                 ) : (
                   <ol className="world-entries">
-                    {ordered
-                      .filter((card) => (card.data.category ?? 'other') === tab)
-                      .map((card) => (
-                        <li key={card.id}>
-                          <button
-                            type="button"
-                            className="world-entry"
-                            aria-current={card.id === selected || undefined}
-                            data-incomplete={card.status === 'incomplete' || undefined}
-                            onClick={() => {
-                              setSelected(card.id)
-                            }}
-                          >
-                            <span>{card.name ?? strings.drawer.untitled}</span>
-                            <span className="leader" aria-hidden="true" />
-                            <span className="status">
-                              {strings.worldBook.page(pageOf.get(card.id) ?? 0)}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
+                    {terms.map((term, index) => (
+                      <li key={`${term.card.id}:${String(index)}`}>
+                        <button
+                          type="button"
+                          className="world-entry"
+                          onClick={() => {
+                            show(term.card)
+                          }}
+                        >
+                          <span>{term.term}</span>
+                          <span className="leader" aria-hidden="true" />
+                          <span className="status">{term.card.name}</span>
+                        </button>
+                      </li>
+                    ))}
                   </ol>
-                )}
-                {!locked && (
-                  <button
-                    type="button"
-                    className="paper-button world-new"
-                    onClick={() => {
-                      setDrawer({ workId, type: 'world', category: tab })
-                    }}
-                  >
-                    {strings.worldBook.newEntry}
-                  </button>
-                )}
-              </>
-            )}
-            {locked && work.data && <p className="notes-empty">{strings.worldBook.locked}</p>}
+                )
+              ) : (
+                <>
+                  {ordered.filter((card) => (card.data.category ?? 'other') === tab).length ===
+                  0 ? (
+                    <p className="notes-empty">{strings.worldBook.empty}</p>
+                  ) : (
+                    <ol className="world-entries">
+                      {ordered
+                        .filter((card) => (card.data.category ?? 'other') === tab)
+                        .map((card) => (
+                          <li key={card.id}>
+                            <button
+                              type="button"
+                              className="world-entry"
+                              aria-current={card.id === selected || undefined}
+                              data-incomplete={card.status === 'incomplete' || undefined}
+                              onClick={() => {
+                                setSelected(card.id)
+                              }}
+                            >
+                              <span>{card.name ?? strings.drawer.untitled}</span>
+                              <span className="leader" aria-hidden="true" />
+                              <span className="status">
+                                {strings.worldBook.page(pageOf.get(card.id) ?? 0)}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                    </ol>
+                  )}
+                  {!locked && (
+                    <button
+                      type="button"
+                      className="paper-button world-new"
+                      onClick={() => {
+                        setDrawer({ workId, type: 'world', category: tab })
+                      }}
+                    >
+                      {strings.worldBook.newEntry}
+                    </button>
+                  )}
+                </>
+              )}
+              {locked && work.data && <p className="notes-empty">{strings.worldBook.locked}</p>}
+            </div>
           </div>
         </section>
         <section className="page page-right world-entry-page" aria-live="polite">

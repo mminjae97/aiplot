@@ -1,9 +1,10 @@
 /* The open planning book (§8, §12 S1): the spread lies on its cover in the book's colour,
-   page edges stacked at the sides, post-it notes on the right edge, and a leaf that turns
-   when the page changes. The desk beside it turns pages back and on. */
+   page edges stacked at the sides, post-it notes stuck in the pages, and a leaf of soft paper
+   that turns when the reader turns the page. The desk beside it turns pages back and on. */
 
 .book-desk {
   position: relative;
+  --turn-time: 0.65s;
 }
 
 .book-open {
@@ -11,8 +12,6 @@
   /* over the desk's turning zones, so the post-its sticking out stay clickable */
   z-index: 1;
   isolation: isolate;
-  /* far enough that a turning leaf stays within the book's height */
-  perspective: 7000px;
 }
 
 /* The cover, a little larger than the pages, in the book's colour. */
@@ -28,9 +27,11 @@
   box-shadow: 0 26px 50px var(--wood-shadow);
 }
 
-/* Page edges stacked under the open pages, and the fold at the spine. */
+/* Page edges stacked under the open pages; two-page spreads shade their own gutters toward
+   the spine, a page across both sides has none. Over the post-its still ahead. */
 .book-open .spread {
   position: relative;
+  z-index: 1;
   box-shadow:
     -2px 1px 0 var(--paper-edge),
     -4px 2px 0 #d3c4a6,
@@ -39,31 +40,6 @@
     4px 2px 0 #d3c4a6,
     6px 3px 0 var(--paper-edge),
     0 4px 0 #d3c4a6;
-}
-
-.book-open .spread::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 72px;
-  transform: translateX(-50%);
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgb(80 55 30 / 10%) 40%,
-    rgb(60 40 20 / 24%) 50%,
-    rgb(80 55 30 / 10%) 60%,
-    transparent
-  );
-  pointer-events: none;
-}
-
-/* Two-page spreads already shade their own gutters. */
-.book-open .spread:not(.spread-wide)::after {
-  width: 6px;
-  background: rgb(60 40 20 / 18%);
 }
 
 /* One page across both sides (the dex, the graph, the map, the story). */
@@ -170,21 +146,34 @@
 }
 
 .page-wide .story-sheet {
-  padding: 20px 24px;
+  margin-top: 10px;
+  padding: 16px 20px;
 }
 
-/* Post-it notes on the right edge, one per section; the open one sticks out further. */
+/* The story keeps its margins thin, so the timeline gets as much of the book as it can. */
+.page-wide.story {
+  padding: 18px 22px 20px;
+}
+
+.page-wide.story .story-sheet:has(.story-board) {
+  padding: 10px 12px;
+}
+
+/* Post-it notes stuck in each section's first page, at their own height: the open one sticks
+   out on the right over the page, sections already read on the left, those still ahead from
+   under the page on the right. A note moving to the other edge fades in there as the leaf
+   lands. */
 .book-notes {
   position: absolute;
-  top: 44px;
-  left: calc(100% - 12px);
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  inset: 0;
+  pointer-events: none;
 }
 
 .book-note {
+  position: absolute;
+  top: calc(44px + var(--note) * 40px);
+  left: calc(100% - 12px);
+  z-index: 2;
   width: 76px;
   padding: 7px 8px 7px 20px;
   border: 0;
@@ -196,8 +185,29 @@
   font-weight: 500;
   text-align: left;
   box-shadow: 1px 2px 4px rgb(0 0 0 / 28%);
-  cursor: pointer;
+  pointer-events: auto;
+  cursor: var(--cursor-pointer);
   transition: transform var(--motion);
+  animation: note-right var(--motion) ease-out backwards;
+}
+
+.book-note[data-side='ahead'] {
+  z-index: 0;
+  box-shadow: 1px 2px 3px rgb(0 0 0 / 22%);
+}
+
+.book-note[data-side='past'] {
+  left: auto;
+  right: calc(100% - 12px);
+  padding: 7px 20px 7px 8px;
+  border-radius: 3px 0 0 3px;
+  text-align: right;
+  box-shadow: -1px 2px 4px rgb(0 0 0 / 28%);
+  animation-name: note-left;
+}
+
+.book-open[data-turning] .book-note {
+  animation-delay: calc(var(--turn-time) - var(--motion));
 }
 
 .book-note[data-section='world'] {
@@ -217,8 +227,12 @@
 }
 
 .book-note:hover,
-.book-note[aria-current='page'] {
+.book-note[data-side='open'] {
   transform: translateX(10px);
+}
+
+.book-note[data-side='past']:hover {
+  transform: translateX(-10px);
 }
 
 /* The open section also says so in words (never colour alone, §5). */
@@ -227,62 +241,238 @@
   text-underline-offset: 3px;
 }
 
-/* A leaf turning over the spine: from the right page to the left going on, back the other
-   way. It plays once per page change (0.3s) and is gone after. */
-.book-leaf {
+@keyframes note-right {
+  from {
+    opacity: 0;
+    translate: -8px 0;
+  }
+}
+
+@keyframes note-left {
+  from {
+    opacity: 0;
+    translate: 8px 0;
+  }
+}
+
+/* A leaf of soft paper turning over the spine (screens/pageTurn.ts): strips hinged one on the
+   next bend it, the free edge leading as it lifts and trailing as it falls. The clip keeps a
+   leaf rising toward the reader inside the desk. */
+.book-turn-clip {
+  position: absolute;
+  inset: calc(-1 * var(--desk-margin-y)) 0;
+  z-index: 3;
+  overflow: clip;
+  pointer-events: none;
+}
+
+.book-turning {
+  position: absolute;
+  inset: var(--desk-margin-y) 0;
+  /* the book takes no clicks while it shows pictures of the old page (a click ends the turn) */
+  pointer-events: auto;
+  /* far enough that a leaf rising toward the reader stays about the book's height */
+  perspective: 15000px;
+}
+
+.leaf-stay,
+.leaf-reveal {
   position: absolute;
   top: 0;
   bottom: 0;
-  z-index: 3;
+  z-index: 0;
   width: 50%;
-  background: linear-gradient(90deg, var(--paper-edge), var(--paper) 30%, var(--paper));
-  box-shadow: 0 0 18px rgb(38 22 12 / 30%);
-  pointer-events: none;
-  animation: 0.3s ease-in-out forwards;
+  overflow: hidden;
 }
 
-.book-leaf[data-dir='next'] {
-  left: 50%;
-  transform-origin: left center;
-  animation-name: leaf-next;
-}
-
-.book-leaf[data-dir='prev'] {
+.leaf-stay[data-dir='next'],
+.leaf-reveal[data-dir='prev'] {
   left: 0;
-  transform-origin: right center;
-  animation-name: leaf-prev;
 }
 
-@keyframes leaf-next {
+.leaf-stay[data-dir='prev'],
+.leaf-reveal[data-dir='next'] {
+  right: 0;
+}
+
+/* The shadow of the falling leaf on the page it is about to cover. */
+.leaf-fall {
+  position: absolute;
+  inset: 0;
+  background: rgb(38 22 12 / 30%);
+  opacity: 0;
+  animation: leaf-fall var(--turn-time) ease-in both;
+}
+
+/* The shadow of the rising leaf on the page it uncovers, deepest at the spine. */
+.leaf-reveal {
+  animation: leaf-reveal var(--turn-time) ease-out both;
+}
+
+.leaf-reveal[data-dir='next'] {
+  background: linear-gradient(90deg, rgb(38 22 12 / 34%), transparent 70%);
+}
+
+.leaf-reveal[data-dir='prev'] {
+  background: linear-gradient(270deg, rgb(38 22 12 / 34%), transparent 70%);
+}
+
+.leaf-strip {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  transform-style: preserve-3d;
+  animation: var(--turn-time) ease-in-out both;
+}
+
+.leaf-strip[data-dir='next'] {
+  left: 100%;
+  transform-origin: left center;
+  animation-name: leaf-curl-next;
+}
+
+.leaf-strip[data-dir='prev'] {
+  right: 100%;
+  transform-origin: right center;
+  animation-name: leaf-curl-prev;
+}
+
+.leaf-strip.book-leaf {
+  /* over the halves under it, however far it has turned */
+  z-index: 1;
+}
+
+.leaf-strip.book-leaf[data-dir='next'] {
+  left: 50%;
+  animation-name: leaf-turn-next;
+  animation-timing-function: cubic-bezier(0.45, 0.05, 0.3, 1);
+}
+
+.leaf-strip.book-leaf[data-dir='prev'] {
+  right: 50%;
+  animation-name: leaf-turn-prev;
+  animation-timing-function: cubic-bezier(0.45, 0.05, 0.3, 1);
+}
+
+.leaf-face {
+  position: absolute;
+  /* 1px over each neighbour, so no hairline shows between the strips (pageTurn.ts shifts the
+     picture to match) */
+  inset: 0 -1px;
+  overflow: hidden;
+  background: var(--paper);
+  backface-visibility: hidden;
+}
+
+.leaf-back {
+  transform: rotateY(180deg);
+}
+
+/* Turned away from the lamp the leaf darkens, and lightens as it settles. */
+.leaf-shade {
+  position: absolute;
+  inset: 0;
+  background: rgb(38 22 12);
+  animation: var(--turn-time) ease-in-out both;
+}
+
+.leaf-front .leaf-shade {
+  animation-name: leaf-shade-front;
+}
+
+.leaf-back .leaf-shade {
+  animation-name: leaf-shade-back;
+}
+
+@keyframes leaf-turn-next {
   from {
     transform: rotateY(0deg);
-    opacity: 1;
-  }
-  90% {
-    opacity: 1;
   }
   to {
     transform: rotateY(-180deg);
+  }
+}
+
+@keyframes leaf-turn-prev {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(180deg);
+  }
+}
+
+@keyframes leaf-curl-next {
+  0% {
+    transform: rotateY(0deg);
+  }
+  30% {
+    transform: rotateY(calc(var(--curl) * -1deg));
+  }
+  70% {
+    transform: rotateY(calc(var(--curl) * 0.5deg));
+  }
+  100% {
+    transform: rotateY(0deg);
+  }
+}
+
+@keyframes leaf-curl-prev {
+  0% {
+    transform: rotateY(0deg);
+  }
+  30% {
+    transform: rotateY(calc(var(--curl) * 1deg));
+  }
+  70% {
+    transform: rotateY(calc(var(--curl) * -0.5deg));
+  }
+  100% {
+    transform: rotateY(0deg);
+  }
+}
+
+@keyframes leaf-shade-front {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.28;
+  }
+}
+
+@keyframes leaf-shade-back {
+  from {
+    opacity: 0.28;
+  }
+  to {
     opacity: 0;
   }
 }
 
-@keyframes leaf-prev {
-  from {
-    transform: rotateY(0deg);
-    opacity: 1;
+@keyframes leaf-fall {
+  60% {
+    opacity: 0;
   }
-  90% {
+  95% {
+    opacity: 0.6;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes leaf-reveal {
+  from {
     opacity: 1;
   }
   to {
-    transform: rotateY(180deg);
     opacity: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .book-leaf {
+  .book-turn-clip {
     display: none;
   }
 }
@@ -292,7 +482,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  width: calc(var(--desk-margin) + (100cqw - min(100cqw, 100cqh * 4 / 3)) / 2);
+  width: calc(var(--desk-margin-x) + (100cqw - min(100cqw, 100cqh * var(--spread-ratio))) / 2);
   display: grid;
   place-items: center;
   padding: 0;
@@ -300,7 +490,7 @@
   background: transparent;
   color: transparent;
   font-size: 44px;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition:
     color var(--motion),
     background var(--motion);
@@ -321,7 +511,7 @@
 }
 
 .book-turn[aria-disabled='true'] {
-  cursor: default;
+  cursor: var(--cursor);
   background: transparent;
   color: transparent;
 }
