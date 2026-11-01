@@ -33,36 +33,42 @@
 .book-open .spread {
   position: relative;
   /* the page block's layers and the post-its stuck in them interleave below (see .book-edge) */
-  z-index: 20;
+  z-index: 40;
   box-shadow: 0 4px 0 #d3c4a6;
 }
 
-/* The page block at each side: the edges of the pages under the open ones, one layer per page
-   further in (--layer 1-4), each a step further out and down and shading the layer below. */
+/* The page block at each side: one layer per page lying under the open ones (--layer 1 =
+   the page just under them), each a pixel further out than the one over it. The left block
+   grows and the right one thins as the reader goes further into the book. */
 .book-edge {
   position: absolute;
-  top: calc(var(--layer) * 1px);
-  bottom: calc(var(--layer) * -1px);
-  z-index: calc(20 - var(--layer) * 2);
-  width: calc(var(--layer) * 3px);
+  top: 0;
+  bottom: calc(min(var(--layer), 4) * -1px);
+  z-index: calc(40 - var(--layer) * 2);
+  width: calc(var(--layer) * 1px);
   background: var(--paper-edge);
   pointer-events: none;
 }
 
-.book-edge:nth-of-type(even) {
-  background: #d3c4a6;
+.book-edge[data-even] {
+  background: #cbbb9a;
 }
 
 .book-edge[data-side='right'] {
   left: 100%;
-  border-right: 1px solid #c4b291;
-  box-shadow: 2px 0 3px rgb(38 22 12 / 16%);
 }
 
 .book-edge[data-side='left'] {
   right: 100%;
-  border-left: 1px solid #c4b291;
-  box-shadow: -2px 0 3px rgb(38 22 12 / 16%);
+}
+
+/* The bottom page of each block shades the cover beside it. */
+.book-edge[data-side='right'][data-last] {
+  box-shadow: 2px 0 3px rgb(38 22 12 / 22%);
+}
+
+.book-edge[data-side='left'][data-last] {
+  box-shadow: -2px 0 3px rgb(38 22 12 / 22%);
 }
 
 /* One page across both sides (the dex, the graph, the map, the story). */
@@ -197,9 +203,10 @@
   top: calc(44px + var(--note) * 40px);
   left: calc(100% - 12px);
   /* the open section's: over the page */
-  z-index: 22;
-  width: 76px;
-  padding: 7px 8px 7px 20px;
+  z-index: 42;
+  width: 84px;
+  /* clear of the page and of the page block over its root */
+  padding: 7px 8px 7px 30px;
   border: 0;
   border-radius: 0 3px 3px 0;
   background: #f3d76b;
@@ -222,26 +229,19 @@
 .book-note[data-side='past'] {
   left: auto;
   right: calc(100% - 12px);
-  padding: 7px 20px 7px 8px;
+  padding: 7px 30px 7px 8px;
   border-radius: 3px 0 0 3px;
   text-align: right;
   box-shadow: -1px 2px 3px rgb(0 0 0 / 22%);
   animation-name: note-left;
 }
 
-/* A note stuck in a page further in comes out of the page block from between that page's
-   edge and the one above it: under the --depth pages lying over its own, over those below. */
+/* A note comes out of the page block from its own page: under the --depth pages lying over
+   it, over those below. It stays where it is stuck as pages turn; only the block around it
+   changes. */
 .book-note[data-side='ahead'],
 .book-note[data-side='past'] {
-  z-index: calc(19 - var(--depth) * 2);
-}
-
-.book-note[data-side='ahead'] {
-  padding-left: calc(18px + var(--depth) * 3px);
-}
-
-.book-note[data-side='past'] {
-  padding-right: calc(18px + var(--depth) * 3px);
+  z-index: calc(39 - var(--depth) * 2);
 }
 
 /* A note riding on a turning leaf. */
@@ -294,7 +294,7 @@
   /* the desk around the book: post-its turning with the leaf stick out past its edges */
   inset: calc(-1 * var(--desk-margin-y)) calc(-1 * var(--desk-margin-x));
   /* over the pages, the page block and every post-it */
-  z-index: 40;
+  z-index: 60;
   overflow: clip;
   pointer-events: none;
 }

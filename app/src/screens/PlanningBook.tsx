@@ -16,7 +16,15 @@ import {
   playTurn,
   type TurnDirection,
 } from './pageTurn'
-import { pageOf, pagesOf, samePage, SECTIONS, screenOf, useStorySteps } from './planningPages'
+import {
+  pageOf,
+  pagesOf,
+  samePage,
+  type Section,
+  SECTIONS,
+  screenOf,
+  useStorySteps,
+} from './planningPages'
 import { RegionMapScreen } from './RegionMapScreen'
 import { StoryScreen } from './StoryScreen'
 import { WorldBookScreen } from './WorldBookScreen'
@@ -134,6 +142,15 @@ export function PlanningBook({ screen }: Props) {
 
   const pageProps = { turn: open, onBusy: setBusy }
   const openSection = SECTIONS.indexOf(screen.name)
+  // The page block: the pages turned (left) and still to turn (right), one layer each.
+  const here = Math.max(index, 0)
+  const behind = here
+  const ahead = Math.max(pages.length - 1 - here, 0)
+  /** How many pages lie over a section's first page, where its note is stuck. */
+  const depthOf = (section: Section) => {
+    const first = pages.findIndex((item) => item.name === section)
+    return first < 0 ? 1 : Math.max(Math.abs(first - here), 1)
+  }
 
   return (
     <>
@@ -172,17 +189,20 @@ export function PlanningBook({ screen }: Props) {
             <RegionMapScreen key={screen.cardId ?? ''} screen={screen} {...pageProps} />
           )}
           {screen.name === 'story' && <StoryScreen screen={screen} {...pageProps} />}
-          {(['left', 'right'] as const).flatMap((side) =>
-            [1, 2, 3, 4].map((layer) => (
+          {(['left', 'right'] as const).flatMap((side) => {
+            const count = side === 'left' ? behind : ahead
+            return Array.from({ length: count }, (_, at) => at + 1).map((layer) => (
               <span
                 key={`${side}${String(layer)}`}
                 className="book-edge"
                 data-side={side}
+                data-even={layer % 2 === 0 || undefined}
+                data-last={layer === count || undefined}
                 style={{ '--layer': layer } as CSSProperties}
                 aria-hidden="true"
               />
-            )),
-          )}
+            ))
+          })}
           <nav className="book-notes" aria-label={strings.book.sections}>
             {SECTIONS.map((section, at) => (
               <button
@@ -194,7 +214,7 @@ export function PlanningBook({ screen }: Props) {
                 // left, the open one on the right, those still ahead from under the page.
                 data-side={at < openSection ? 'past' : at === openSection ? 'open' : 'ahead'}
                 // How many pages lie over its own (0 = the open page).
-                style={{ '--note': at, '--depth': Math.abs(at - openSection) } as CSSProperties}
+                style={{ '--note': at, '--depth': depthOf(section) } as CSSProperties}
                 aria-current={screen.name === section ? 'page' : undefined}
                 onClick={() => {
                   if (screen.name !== section) turnPage({ name: section, workId })
