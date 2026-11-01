@@ -11,7 +11,7 @@
 export type TurnDirection = 'next' | 'prev'
 
 /** Strips per leaf: more bend more smoothly, each costs two copies of the spread. */
-const STRIPS = 12
+const STRIPS = 16
 /** Share of the turn by which the free edge starts after the spine (0 = a stiff board). */
 const DRAG = 0.38
 /** Samples per strip for its keyframes. */
@@ -127,19 +127,32 @@ function angleOf(index: number, time: number): number {
   return 180 * (0.5 - 0.5 * Math.cos(Math.PI * progress))
 }
 
+/** How dark the paper is where two strips meet (edge `k`, 0 = the spine): lit by the angle
+ * halfway between them, so the shade runs on smoothly from one strip to the next. */
+function shadeAt(k: number, time: number): number {
+  const before = angleOf(Math.max(k - 1, 0), time)
+  const after = angleOf(Math.min(k, STRIPS - 1), time)
+  return SHADE * Math.sin((((before + after) / 2) * Math.PI) / 180)
+}
+
 /** Each strip's keyframes: its turn relative to the strip it hangs on (nested transforms add
- * up), and its shade, darkest standing on edge. */
-function keyframesOf(index: number, sign: number): { turn: Keyframe[]; shade: Keyframe[] } {
+ * up), and its shade at its inner and outer edges (a face blends the two across itself). */
+function keyframesOf(
+  index: number,
+  sign: number,
+): { turn: Keyframe[]; inner: Keyframe[]; outer: Keyframe[] } {
   const turn: Keyframe[] = []
-  const shade: Keyframe[] = []
+  const inner: Keyframe[] = []
+  const outer: Keyframe[] = []
   for (let sample = 0; sample <= SAMPLES; sample += 1) {
     const time = sample / SAMPLES
     const angle = angleOf(index, time)
     const relative = index === 0 ? angle : angle - angleOf(index - 1, time)
     turn.push({ offset: time, transform: `rotateY(${String(sign * relative)}deg)` })
-    shade.push({ offset: time, opacity: SHADE * Math.sin((angle * Math.PI) / 180) })
+    inner.push({ offset: time, opacity: shadeAt(index, time) })
+    outer.push({ offset: time, opacity: shadeAt(index + 1, time) })
   }
-  return { turn, shade }
+  return { turn, inner, outer }
 }
 
 /** A leaf's shadows over its turn. At each moment the strips' angles give the leaf's outline
@@ -204,11 +217,15 @@ function carriedNote(note: HTMLElement, left: number, back: boolean): HTMLElemen
   return copy
 }
 
+/** A face's shading: two gradients, one darkest at the strip's inner edge and one at its
+ * outer edge, their opacities set from the paper's angle there. */
+type Shades = { inner: HTMLElement; outer: HTMLElement }
+
 type Leaf = {
   /** Holds the leaf's own 3D view; its z-index puts it over or under the other leaves. */
   wrap: HTMLElement
   strips: HTMLElement[]
-  shades: HTMLElement[][]
+  shades: Shades[]
   backs: { face: HTMLElement; offset: number }[]
 }
 
@@ -268,7 +285,7 @@ export function playTurn(
   const leaves: Leaf[] = Array.from({ length: count }, (_, at) => {
     const wrap = div('leaf')
     const strips: HTMLElement[] = []
-    const shades: HTMLElement[][] = []
+    const shades: Shades[] = []
     const backs: { face: HTMLElement; offset: number }[] = []
     let parent: HTMLElement = wrap
     for (let index = 0; index < STRIPS; index += 1) {
@@ -283,20 +300,28 @@ export function playTurn(
         if (direction === 'next') element.style.left = `${String(spine)}px`
         else element.style.right = `${String(width - spine)}px`
       }
+      // In a face's own frame, which side is the strip's inner edge: going on, the front's left;
+      // going back, its right; a back face is mirrored.
+      const shading = (face: HTMLElement, innerLeft: boolean): Shades => {
+        const inner = div('leaf-shade')
+        inner.dataset.from = innerLeft ? 'left' : 'right'
+        const outer = div('leaf-shade')
+        outer.dataset.from = innerLeft ? 'right' : 'left'
+        face.append(inner, outer)
+        return { inner, outer }
+      }
       const front = div('leaf-face leaf-front')
-      const frontShade = div('leaf-shade')
-      front.append(frontShade)
+      const frontShades = shading(front, direction === 'next')
       // Only the first leaf shows the page being turned; the others are the pages between.
       if (at === 0) paint(front, before, Math.min(from, to), size, placed, FACE_BLEED)
       const back = div('leaf-face leaf-back')
-      const backShade = div('leaf-shade')
-      back.append(backShade)
+      const backShades = shading(back, direction !== 'next')
       backs.push({ face: back, offset: 2 * spine - Math.max(from, to) })
       element.append(front, back)
       parent.append(element)
       parent = element
       strips.push(element)
-      shades.push([frontShade, backShade])
+      shades.push(frontShades, backShades)
     }
     stage.append(wrap)
     return { wrap, strips, shades, backs }
@@ -331,20 +356,24 @@ export function playTurn(
   // The notes themselves show again where they now sit once the leaves have landed (opacity,
   // not visibility: a focused note keeps the focus).
   for (const note of turned) note.style.opacity = '0'
-  // A note that now lies under the page it was over (the open section's, turning back) stays
-  // over it until the leaves have come down on it.
-  const held = [...book.querySelectorAll<HTMLElement>('.book-notes [data-section]')].filter(
-    (note) => {
-      const was = notes.levels.get(note.dataset.section ?? '')
-      const now = Number(getComputedStyle(note).zIndex)
-      if (turned.includes(note) || was === undefined || !(was > now)) return false
-      note.style.zIndex = String(was)
-      return true
-    },
-  )
+  // A note stays as it lay among the pages until the leaves change that: one now under the
+  // page it was over (the open section's, turning back) until they have come down on it, one
+  // now over the pages that covered it (the section turned to) until they have lifted off it.
+  const held = { sinking: [] as HTMLElement[], rising: [] as HTMLElement[] }
+  for (const note of book.querySelectorAll<HTMLElement>('.book-notes [data-section]')) {
+    const was = notes.levels.get(note.dataset.section ?? '')
+    const now = Number(getComputedStyle(note).zIndex)
+    if (turned.includes(note) || was === undefined || was === now) continue
+    note.style.zIndex = String(was)
+    held[was > now ? 'sinking' : 'rising'].push(note)
+  }
+  const rise = () => {
+    for (const note of held.rising) note.style.zIndex = ''
+  }
   const release = () => {
     for (const note of turned) note.style.opacity = ''
-    for (const note of held) note.style.zIndex = ''
+    for (const note of held.sinking) note.style.zIndex = ''
+    rise()
   }
 
   book.append(clip)
@@ -357,6 +386,7 @@ export function playTurn(
     done = true
     window.clearTimeout(timer)
     window.clearTimeout(backTimer)
+    window.clearTimeout(riseTimer)
     for (const animation of animations) animation.cancel()
     release()
     clip.remove()
@@ -377,6 +407,11 @@ export function playTurn(
     animations.push(fade)
     fade.onfinish = finish
   }
+  // The last leaf's free edge has lifted off the page under it once it crosses the spine.
+  const riseTimer = window.setTimeout(
+    rise,
+    (count - 1) * STAGGER_MS + 0.5 * (1 - DRAG) * TURN_MS + DRAG * TURN_MS,
+  )
   // The last leaf's back is the page landed on.
   const lastLeaf = leaves[count - 1]
   const backTimer = window.setTimeout(
@@ -405,9 +440,10 @@ export function playTurn(
         fill: 'both',
       }
       leaf.strips.forEach((element, index) => {
-        const { turn, shade } = keyframesOf(index, sign)
+        const { turn, inner, outer } = keyframesOf(index, sign)
         animations.push(element.animate(turn, timing))
-        for (const face of leaf.shades[index] ?? []) animations.push(face.animate(shade, timing))
+        for (const face of leaf.shades.slice(index * 2, index * 2 + 2))
+          animations.push(face.inner.animate(inner, timing), face.outer.animate(outer, timing))
       })
       animations.push(
         leaf.wrap.animate(

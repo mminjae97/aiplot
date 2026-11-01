@@ -441,12 +441,20 @@
   transform: rotateY(180deg);
 }
 
-/* Standing on edge to the lamp a strip darkens (pageTurn.ts sets the opacity). */
+/* Standing on edge to the lamp the paper darkens: two gradients per face, darkest at one edge
+   each, so the shade runs on across the strips without steps (pageTurn.ts sets opacities). */
 .leaf-shade {
   position: absolute;
   inset: 0;
-  background: rgb(38 22 12);
   opacity: 0;
+}
+
+.leaf-shade[data-from='left'] {
+  background: linear-gradient(90deg, rgb(38 22 12), transparent);
+}
+
+.leaf-shade[data-from='right'] {
+  background: linear-gradient(270deg, rgb(38 22 12), transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
