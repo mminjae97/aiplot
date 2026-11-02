@@ -5,7 +5,9 @@
 // sections turns one leaf per section, each a moment after the one before, as a reader's thumb
 // lets pages go. The first leaf's front is a picture of the page being turned, the last one's
 // back the page it lands on (the leaves between are blank paper); the half no leaf has covered
-// yet keeps showing the old page. Each leaf carries its own section's post-it. Everything that
+// yet keeps showing the old page. The new page lies where it belongs from the start; each leaf
+// carries its own section's post-it and page edge, and shifts the open pages' 3px per section
+// while it is in the air. Everything that
 // moves is a transform or an opacity, so the compositor alone draws the turn. Pictures are inert
 // copies of the DOM.
 
@@ -51,8 +53,10 @@ export type Picture = {
 export type CarriedNotes = {
   before: { copy: HTMLElement; rect: DOMRect }[]
   sections: string[]
-  /** How far (px) the open pages glide right while the leaves turn. */
+  /** How far (px) right the open pages lie after the turn than before (3px per section). */
   slide: number
+  /** The open section (its index) before the turn. */
+  from: number
   levels: ReadonlyMap<string, number>
 }
 
@@ -144,8 +148,13 @@ function pageShadeAt(distance: number): number {
   return distance >= 0 ? erfc / 2 : 1 - erfc / 2
 }
 
-/** The open pages' glide (0–1 of the whole turn → 0–1 of the way), eased in and out. */
+/** The open pages' shadow gliding over (0–1 of the whole turn → 0–1 of the way), eased in and
+ * out. */
 const glideOf = (time: number) => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(Math.max(time, 0), 1))
+
+/** How far over (0–1) a leaf has shifted at `time` (0–1 of its turn): with the spine's height,
+ * so it shifts while in the air and never while it lies on a page. */
+const shiftOf = (time: number) => 0.5 - 0.5 * Math.cos((angleOf(0, time) * Math.PI) / 180)
 
 /** How dark the paper is where two strips meet (edge `k`, 0 = the spine): lit by the angle
  * halfway between them, so the shade runs on smoothly from one strip to the next. */
@@ -214,6 +223,32 @@ function windowed(note: HTMLElement, rect: Box, side: 'left' | 'right', base: st
   return { win, copy, base, box }
 }
 
+/** Section `section`'s page edge (book.css .book-edge, `width` px of it) at `left` in a leaf's
+ * outer strip (or the stage), on its back if `back`: behind the post-its riding there. Where it
+ * shows in the page block it lies in the open pages' shadow, `near` px past their edge on its
+ * side of the book (`side`). */
+function pageEdge(
+  section: number,
+  left: number,
+  back: boolean,
+  width: number,
+  shade: { side: 'left' | 'right'; near: number },
+): HTMLElement {
+  const strip = div('leaf-edge')
+  if (section % 2 === 1) strip.dataset.even = 'true'
+  strip.style.left = `${String(left)}px`
+  strip.style.width = `${String(width)}px`
+  strip.style.transform = `${back ? 'rotateY(180deg) ' : ''}translateZ(-2px)`
+  const share = (distance: number) =>
+    `color-mix(in srgb, var(--wood-shadow) ${String(Math.round(pageShadeAt(distance) * 1000) / 10)}%, transparent)`
+  const [onLeft, onRight] =
+    shade.side === 'right' ? [shade.near, shade.near + width] : [shade.near + width, shade.near]
+  const over = div('leaf-edge-shade')
+  over.style.background = `linear-gradient(90deg, ${share(onLeft)}, ${share(onRight)})`
+  strip.append(over)
+  return strip
+}
+
 /** A face's shading: two gradients, one darkest at the strip's inner edge and one at its
  * outer edge, their opacities set from the paper's angle there. */
 type Shades = { inner: HTMLElement; outer: HTMLElement }
@@ -223,7 +258,7 @@ type Leaf = {
   wrap: HTMLElement
   strips: HTMLElement[]
   shades: Shades[]
-  backs: { face: HTMLElement; offset: number }[]
+  backs: { face: HTMLElement; offset: number; bleed: number }[]
 }
 
 /** How a note, or its copy on a leaf, is covered while the leaves turn: by the paper of a leaf
@@ -245,8 +280,6 @@ type Track = {
   /** The open pages' edge beside it while it is covered: the page edges there never move, and
    * the pages' shadow is darkest there. */
   edge: number
-  /** How far its window moves itself `ms` into the turn (to stay put on gliding leaves). */
-  drift?: (ms: number) => number
 }
 
 /** The leaves as a turn plays them: its length, a leaf's strip widths, and `ms` into it how far
@@ -286,7 +319,7 @@ function followLeaf({ win, copy, base }: Windowed, track: Track, leaf: LeafAt): 
   const flat = leaf.widths.reduce((sum, width) => sum + width, 0)
   const times = Array.from({ length: frames + 1 }, (_, frame) => (leaf.total * frame) / frames)
   const out: Animation[] = []
-  const { bands, drift } = track
+  const { bands } = track
   // Covered from the open pages' side up to the leaf's edge (no further than the open pages'
   // while the leaf lies on them: the page edges beside them stay put); the window slides over
   // that far (into the room on its other side), the note back.
@@ -301,13 +334,13 @@ function followLeaf({ win, copy, base }: Windowed, track: Track, leaf: LeafAt): 
         : left + track.span - (Math.max(track.edge, free) - bands)
     return toward * Math.max(hidden + NOTE_SHADOW, 0)
   })
-  if (bands !== null || drift) {
+  if (bands !== null) {
     out.push(
       animateChanges(
         win,
         times,
-        times.map((ms, frame) => ({
-          transform: `${base} translateX(${String((drift?.(ms) ?? 0) + (shifts[frame] ?? 0))}px)`,
+        times.map((_, frame) => ({
+          transform: `${base} translateX(${String(shifts[frame] ?? 0)}px)`,
         })),
       ),
       animateChanges(
@@ -367,17 +400,24 @@ export function playTurn(
   const widths = Array.from({ length: STRIPS }, (_, index) =>
     Math.abs(edge(index + 1) - edge(index)),
   )
+  // The new open pages, where they lie for good.
+  const pages = book.querySelector<HTMLElement>(':scope > .spread')
+  const pagesRect = (pages ?? book).getBoundingClientRect()
+  // The page edge of one section (book.css .book-edge).
+  const step = Math.abs(notes.slide) / count
 
   const clip = div('book-turn-clip')
   clip.setAttribute('aria-hidden', 'true')
   const stage = div('book-turning')
   clip.append(stage)
 
-  // The half the leaves fall onto keeps the old page until they cover it.
+  // The half the leaves fall onto keeps the old page where it lay until they cover it (the
+  // stage is where the new page lies).
   const stay = div('leaf-stay')
   stay.dataset.dir = direction
   if (direction === 'next') stay.style.width = `${String(spine)}px`
   else stay.style.left = `${String(spine)}px`
+  stay.style.transform = `translateX(${String(-notes.slide)}px)`
   paint(stay, before, direction === 'next' ? 0 : spine, size, placed)
   stage.append(stay)
 
@@ -385,7 +425,7 @@ export function playTurn(
     const wrap = div('leaf')
     const strips: HTMLElement[] = []
     const shades: Shades[] = []
-    const backs: { face: HTMLElement; offset: number }[] = []
+    const backs: { face: HTMLElement; offset: number; bleed: number }[] = []
     let parent: HTMLElement = wrap
     for (let index = 0; index < STRIPS; index += 1) {
       const element = div(index === 0 ? 'leaf-strip book-leaf' : 'leaf-strip')
@@ -409,18 +449,47 @@ export function playTurn(
         face.append(inner, outer)
         return { inner, outer }
       }
-      const front = div('leaf-face leaf-front')
+      // The outer strip's faces reach no further than the free edge (the page edge beyond it
+      // shows through): on the right going on, on the left going back.
+      const end = index === STRIPS - 1 ? ' leaf-face-free' : ''
+      const bleed = end && direction === 'prev' ? 0 : FACE_BLEED
+      const front = div(`leaf-face leaf-front${end}`)
       const frontShades = shading(front, direction === 'next')
       // Only the first leaf shows the page being turned; the others are the pages between.
-      if (at === 0) paint(front, before, Math.min(from, to), size, placed, FACE_BLEED)
-      const back = div('leaf-face leaf-back')
+      if (at === 0) paint(front, before, Math.min(from, to), size, placed, bleed)
+      const back = div(`leaf-face leaf-back${end}`)
       const backShades = shading(back, direction !== 'next')
-      backs.push({ face: back, offset: 2 * spine - Math.max(from, to) })
+      backs.push({ face: back, offset: 2 * spine - Math.max(from, to), bleed })
       element.append(front, back)
       parent.append(element)
       parent = element
       strips.push(element)
       shades.push(frontShades, backShades)
+    }
+    // The leaf's own page edge (book.css .book-edge) turns with it: past its free edge where
+    // it shows in the page block it leaves and where it shows in the one it lands on.
+    const outer = strips[STRIPS - 1]
+    if (outer) {
+      const reach = Math.abs(edge(STRIPS) - edge(STRIPS - 1))
+      const last = count - 1
+      const going = direction === 'next'
+      const own = going ? notes.from + at : notes.from - 1 - at
+      const at0 = going ? (at > 0 ? at - 1 : null) : at + 1
+      const at1 = going ? last - at : at < last ? last - at : null
+      if (at0 !== null)
+        outer.append(
+          pageEdge(own, going ? reach + step * at0 : -step * at0, false, step, {
+            side: going ? 'right' : 'left',
+            near: going ? step * at0 : step * (at0 - 1),
+          }),
+        )
+      if (at1 !== null)
+        outer.append(
+          pageEdge(own, going ? reach + step * at1 : -step * at1, true, step, {
+            side: going ? 'left' : 'right',
+            near: going ? step * at1 : step * (at1 - 1),
+          }),
+        )
     }
     stage.append(wrap)
     return { wrap, strips, shades, backs }
@@ -431,22 +500,19 @@ export function playTurn(
   const live = notes.sections.map((section) =>
     book.querySelector<HTMLElement>(`.book-notes [data-section='${section}']`),
   )
-  // On screen: the open pages and the outer strip's left edge as the turn starts. A front copy
-  // sits where its note was; a back copy where, once the strip has turned over the spine (and
-  // glided `slide` with the open pages), it lands on its note.
-  // (The new page lies where it now belongs; the turn starts it `slide` back, where the old one
-  // lay, and glides it over.)
-  const pages = book.querySelector<HTMLElement>(':scope > .spread')
-  const pagesRect = (pages ?? book).getBoundingClientRect()
+  // On screen: the old open pages and the outer strip's left edge as the turn starts. A front
+  // copy sits where its note was; a back copy where, once the strip has turned over the spine
+  // (and shifted `slide` with it), it lands on its note.
   const pagesAt = pagesRect.left - notes.slide
   const stripAt = pagesAt + (direction === 'next' ? edge(STRIPS - 1) : edge(STRIPS))
   const spineAt = pagesAt + spine
   const landing = (rect: Box) => 2 * spineAt + notes.slide - rect.left - rect.width - stripAt
-  /** How far (px) a copy riding on the leaves has glided with them `ms` into the turn: from
-   * where its note was (front) or to where its note is (back). */
-  const glided = (ms: number, back: boolean) => notes.slide * (glideOf(ms / total) - (back ? 1 : 0))
-  // The page edges of one section (book.css .book-edge).
-  const step = Math.abs(notes.slide) / count
+  /** How far over (0–1) leaf `at` has shifted `ms` into the turn. */
+  const shifted = (at: number, ms: number) => shiftOf((ms - at * STAGGER_MS) / TURN_MS)
+  /** How far (px) a copy riding on leaf `at` has shifted with it `ms` into the turn: from where
+   * its note was (front) or to where its note is (back). */
+  const glided = (at: number, ms: number, back: boolean) =>
+    notes.slide * (shifted(at, ms) - (back ? 1 : 0))
   const oldEdge = { left: pagesAt, right: pagesAt + pagesRect.width }
   const newEdge = { left: pagesRect.left, right: pagesRect.right }
   const tracks: { note: Windowed; track: Track }[] = []
@@ -463,7 +529,7 @@ export function playTurn(
         back,
         track: {
           ...cover,
-          leftAt: (ms) => rect.left + glided(ms, back),
+          leftAt: (ms) => rect.left + glided(at, ms, back),
           span: rect.width,
           covered: back ? 'end' : 'start',
         },
@@ -547,7 +613,7 @@ export function playTurn(
     const rect = note.getBoundingClientRect()
     const going = direction === 'next'
     const copy = windowed(note, rect, 'right', '')
-    copy.win.style.left = `${String(copy.box.left - pagesAt)}px`
+    copy.win.style.left = `${String(copy.box.left - pagesRect.left)}px`
     copy.win.style.top = `${String(copy.box.top - size.top)}px`
     stay.after(copy.win)
     note.style.opacity = '0'
@@ -562,13 +628,34 @@ export function playTurn(
         covered: going ? 'start' : 'end',
         bands: step * (count - 1),
         edge: going ? oldEdge.right : newEdge.right,
-        // (Staying put while the leaves glide.)
-        drift: (ms) => -notes.slide * glideOf(ms / total),
       },
     })
   }
+  // The new open page's own edge going on (the old one's going back) shows in the page block
+  // while a leaf lies over that page: until the last leaf lifts off it, or from when the first
+  // comes down on it.
+  const going = direction === 'next'
+  const ownEdge = pageEdge(
+    going ? notes.from + count : notes.from,
+    (going ? oldEdge.right : newEdge.right) + step * (count - 1) - pagesRect.left,
+    false,
+    step,
+    { side: 'right', near: step * (count - 1) },
+  )
+  ownEdge.classList.add('leaf-own-edge')
+  stay.after(ownEdge)
+  // The open pages' shadow glides over from where they lay (the new page's own stays off
+  // meanwhile).
+  const shadow = div('book-pages-shadow')
+  if (pages) {
+    shadow.style.cssText = `left:${String(pagesRect.left - size.left)}px;top:${String(pagesRect.top - size.top)}px;width:${String(pagesRect.width)}px;height:${String(pagesRect.height)}px;box-shadow:${getComputedStyle(pages).boxShadow}`
+    pages.before(shadow)
+    pages.style.boxShadow = 'none'
+  }
   const release = () => {
     for (const note of [...turned, ...held]) note.style.opacity = ''
+    shadow.remove()
+    pages?.style.removeProperty('box-shadow')
   }
 
   book.append(clip)
@@ -607,8 +694,8 @@ export function playTurn(
       const picture = after()
       if (done || !picture || !lastLeaf) return
       const painted: Placed[] = []
-      for (const { face, offset } of lastLeaf.backs)
-        paint(face, picture, offset, size, painted, FACE_BLEED)
+      for (const { face, offset, bleed } of lastLeaf.backs)
+        paint(face, picture, offset, size, painted, bleed)
       painted.forEach(restoreScrolls)
     },
     BACK_PAINT_MS + (count - 1) * STAGGER_MS,
@@ -644,16 +731,28 @@ export function playTurn(
         ),
       )
     })
-    // The open pages (a new page each section) and the leaves over them glide over together,
-    // from where the old pages lay.
-    // (Sampled, so the notes' cuts follow the very same glide.)
-    const glide: Keyframe[] = Array.from({ length: SAMPLES + 1 }, (_, sample) => ({
-      offset: sample / SAMPLES,
-      transform: `translateX(${String(-notes.slide * (1 - glideOf(sample / SAMPLES)))}px)`,
-    }))
-    const gliding: KeyframeAnimationOptions = { duration: total, fill: 'both' }
-    animations.push(stage.animate(glide, gliding))
-    if (pages) animations.push(pages.animate(glide, gliding))
+    // Each leaf shifts from where the old pages lay to where the new ones lie while it is in
+    // the air; the open pages' shadow glides over meanwhile.
+    leaves.forEach((leaf, at) => {
+      animations.push(
+        leaf.wrap.animate(
+          Array.from({ length: SAMPLES + 1 }, (_, sample) => ({
+            offset: sample / SAMPLES,
+            transform: `translateX(${String(-notes.slide * (1 - shiftOf(sample / SAMPLES)))}px)`,
+          })),
+          { duration: TURN_MS, delay: at * STAGGER_MS, fill: 'both' },
+        ),
+      )
+    })
+    animations.push(
+      shadow.animate(
+        Array.from({ length: SAMPLES + 1 }, (_, sample) => ({
+          offset: sample / SAMPLES,
+          transform: `translateX(${String(-notes.slide * (1 - glideOf(sample / SAMPLES)))}px)`,
+        })),
+        { duration: total, fill: 'both' },
+      ),
+    )
     const reach = (by: number, ms: number) => reachOf(widths, (ms - by * STAGGER_MS) / TURN_MS)
     const leafAt: LeafAt = {
       total,
@@ -661,10 +760,26 @@ export function playTurn(
       reach,
       edge: (by, ms) =>
         pagesAt +
-        notes.slide * glideOf(ms / total) +
+        notes.slide * shifted(by, ms) +
         spine +
         (direction === 'next' ? 1 : -1) * reach(by, ms),
     }
+    // The page's own edge goes as the leaf over it lifts off, or comes as it comes down.
+    const flat = widths.reduce((sum, strip) => sum + strip, 0)
+    const frames = Math.ceil(total / 8)
+    const ownTimes = Array.from({ length: frames + 1 }, (_, frame) => (total * frame) / frames)
+    const by = going ? count - 1 : 0
+    animations.push(
+      animateChanges(
+        ownEdge,
+        ownTimes,
+        ownTimes.map((ms) => {
+          // How far that leaf's free edge is from lying flat over the page.
+          const away = going ? flat - reach(by, ms) : flat + reach(by, ms)
+          return { opacity: Math.round(Math.max(1 - away / SHADE_FADE, 0) * 1000) / 1000 }
+        }),
+      ),
+    )
     for (const { note, track } of tracks) animations.push(...followLeaf(note, track, leafAt))
     // The last leaf to land (its last strip's turn is the last to end) settles the turn.
     const lastStrip = lastLeaf?.strips[STRIPS - 1]

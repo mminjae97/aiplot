@@ -18,11 +18,13 @@
   isolation: isolate;
 }
 
-/* The cover, a little larger than the pages, in the book's colour. */
+/* The cover in the book's colour, showing as far past the page blocks on every side (their
+   outermost layers, and the block's bottom edge). */
 .book-open::before {
   content: '';
   position: absolute;
-  inset: -12px -16px -14px;
+  inset: -14px calc(-14px - (var(--last) - var(--middle)) * 3px) -18px
+    calc(-14px - var(--middle) * 3px);
   z-index: -1;
   border-radius: 6px;
   background:
@@ -35,7 +37,7 @@
    the spine, a page across both sides has none. Over the post-its still ahead. */
 .book-open .spread {
   position: relative;
-  /* (pageTurn.ts glides a new page over from where the old one lay) */
+  /* (a turn shows the new page in its place from the start: pageTurn.ts) */
   translate: var(--shift) 0;
   /* the page block's layers and the post-its stuck in them interleave below (see .book-edge) */
   z-index: 40;
@@ -360,7 +362,8 @@
 .book-turning {
   position: absolute;
   inset: var(--desk-margin-y) var(--desk-margin-x);
-  /* over the open pages wherever they lie (pageTurn.ts glides it with them) */
+  /* over the new open pages (pageTurn.ts keeps the old page where it lay, and shifts each leaf
+     over while it is in the air) */
   translate: var(--shift) 0;
   /* the book takes no clicks while it shows pictures of the old page (a click ends the turn) */
   pointer-events: auto;
@@ -381,6 +384,43 @@
 
 .leaf-stay[data-dir='prev'] {
   right: 0;
+}
+
+/* A section's page edge on a turning leaf (or over the new page while a leaf lies on it),
+   coloured as in the page block (.book-edge). */
+.leaf-edge {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: var(--paper-edge);
+  backface-visibility: hidden;
+  pointer-events: none;
+}
+
+.leaf-edge[data-even] {
+  background: #cbbb9a;
+}
+
+/* The open pages' shadow on it (pageTurn.ts sets the fall-off away from their edge): weaker
+   toward the top, where the pages' shadow (contents.css .spread, 22px down) starts. */
+.leaf-edge-shade {
+  position: absolute;
+  inset: 0;
+  mask-image: linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 14%) 0,
+    rgb(0 0 0 / 50%) 22px,
+    rgb(0 0 0 / 84%) 42px,
+    #000 62px
+  );
+}
+
+/* The open pages' shadow while the leaves turn, gliding from where the old pages lay
+   (pageTurn.ts; the pages' own stays off meanwhile). */
+.book-pages-shadow {
+  position: absolute;
+  z-index: 40;
+  pointer-events: none;
 }
 
 /* One leaf: its own 3D view (the leaves are stacked by z-index as they cross the spine), seen
@@ -433,6 +473,15 @@
 
 .leaf-back {
   transform: rotateY(180deg);
+}
+
+/* The outer strip's faces end at the free edge (pageTurn.ts). */
+.leaf-strip[data-dir='next'] > .leaf-face-free {
+  right: 0;
+}
+
+.leaf-strip[data-dir='prev'] > .leaf-face-free {
+  left: 0;
 }
 
 /* Standing on edge to the lamp the paper darkens: two gradients per face, darkest at one edge

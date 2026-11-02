@@ -87,8 +87,9 @@ export function PlanningBook({ screen }: Props) {
               ? [{ copy: note.cloneNode(true) as HTMLElement, rect: note.getBoundingClientRect() }]
               : []
           }),
-          // The open pages glide this far while the leaves turn (3px per section, book.css).
+          // The open pages lie this much further right after the turn (3px per section, book.css).
           slide: (toSection - from) * 3,
+          from,
           levels: new Map(
             [...book.querySelectorAll<HTMLElement>('.book-notes [data-section]')].map((note) => [
               note.dataset.section ?? '',
