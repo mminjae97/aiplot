@@ -15,22 +15,27 @@ const RADIUS = 7
 // A cause arrow runs this far below the order arrow's height, so their heads never meet.
 const CAUSE_DROP = 11
 
-/** A path through points, each inner corner rounded; repeated and in-line points dropped. */
-export function rounded(points: Point[]): string {
+/** The points without repeats and without points in line with both neighbours (no corner
+ * there, also where a leg doubles back on itself in one straight line). */
+export function simplify(points: Point[]): Point[] {
   const distinct = points.filter((point, i) => {
     const prev = points[i - 1]
     return !prev || prev.x !== point.x || prev.y !== point.y
   })
-  const kept = distinct.filter((point, i) => {
+  return distinct.filter((point, i) => {
     const prev = distinct[i - 1]
     const next = distinct[i + 1]
-    // In line with both neighbours: no corner here.
     return !(
       prev &&
       next &&
       (prev.x - point.x) * (next.y - point.y) === (prev.y - point.y) * (next.x - point.x)
     )
   })
+}
+
+/** A path through points, each inner corner rounded. */
+export function rounded(points: Point[]): string {
+  const kept = simplify(points)
   const out: string[] = []
   kept.forEach((point, i) => {
     const prev = kept[i - 1]
@@ -129,17 +134,17 @@ export function routeOf(
   const out = edgeX(from, side)
   const away = out + (side * gaps.column) / 2 + shift
   const into = sameColumn ? edgeX(to, 1) : edgeX(to, -side)
-  const before = sameColumn ? away : into - (side * gaps.column) / 2 - shift
+  const before = sameColumn ? away : into - (side * gaps.column) / 2 + shift
   // The gap between the rows on `to`'s side toward `from` (above it when in one row); a cause
   // takes the one on its far side.
   const toward = (down === 0 ? 1 : down) * (cause ? -1 : 1)
   const lane = edgeY(to, -toward) - (toward * gaps.row) / 2
-  return [
+  return simplify([
     { x: out, y: from.y + level },
     { x: away, y: from.y + level },
     { x: away, y: lane },
     { x: before, y: lane },
     { x: before, y: to.y + level },
     { x: into, y: to.y + level },
-  ]
+  ])
 }

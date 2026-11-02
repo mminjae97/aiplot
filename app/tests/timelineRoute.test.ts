@@ -132,6 +132,27 @@ test('an order and a cause going round the same node never lie on one another', 
   expect(overlap(order, cause)).toBe(false)
 })
 
+/** Whether a route crosses itself: two pieces that do not follow one another meet. */
+function knotted(route: Point[]): boolean {
+  const pieces = route.slice(1).map((point, i) => [route[i] ?? point, point] as const)
+  const meet = ([p, q]: readonly [Point, Point], [r, t]: readonly [Point, Point]) =>
+    Math.max(Math.min(p.x, q.x), Math.min(r.x, t.x)) <=
+      Math.min(Math.max(p.x, q.x), Math.max(r.x, t.x)) &&
+    Math.max(Math.min(p.y, q.y), Math.min(r.y, t.y)) <=
+      Math.min(Math.max(p.y, q.y), Math.max(r.y, t.y))
+  return pieces.some((a, i) => pieces.slice(i + 2).some((b) => meet(a, b)))
+}
+
+test('an arrow going round never crosses itself', () => {
+  for (const kind of ['order', 'cause'] as const) {
+    // One column over, past a node at the source's time; three columns over, past nodes between.
+    expect(knotted(route(node(0, 0), node(1, 2), kind, [node(0, 1)]))).toBe(false)
+    expect(knotted(route(node(0, 0), node(3, 2), kind, [node(0, 1), node(2, 2)]))).toBe(false)
+    expect(knotted(route(node(3, 2), node(0, 0), kind, [node(3, 1)]))).toBe(false)
+    expect(knotted(route(node(0, 0), node(0, 2), kind, [node(0, 1)]))).toBe(false)
+  }
+})
+
 test("a cause to an episode at the same time leaves apart from the node's order arrow", () => {
   // A's next is P a lane down and a column on; A also causes M, two lanes down, at its time.
   const order = route(node(0, 0), node(1, 1), 'order')
