@@ -344,8 +344,8 @@
   }
 }
 
-/* A leaf of soft paper turning over the spine (screens/pageTurn.ts animates its strips: the
-   spine first, the free edge dragged along behind). The clip keeps the post-its riding on the
+/* A leaf of soft paper turning over the spine (screens/pageTurn.ts animates its strips: all
+   together, the free edge lagging a little half way over). The clip keeps the post-its riding on the
    leaves inside the desk. */
 .book-turn-clip {
   position: absolute;

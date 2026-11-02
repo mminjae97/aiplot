@@ -1,6 +1,7 @@
 // Leaves of soft paper turning over the spine (§12 S1 book). A leaf is cut into narrow strips
-// hinged one on the next. The part at the spine turns first and each strip further out follows
-// a little later, so the free edge is dragged along behind and lands last. Turning past several
+// hinged one on the next. The whole leaf lifts and lands together, the part further out lagging
+// a little behind in between, so the paper curls without its free edge being dragged flat
+// across the page or spreading out late as it lands. Turning past several
 // sections turns one leaf per section, each a moment after the one before, as a reader's thumb
 // lets pages go. The first leaf's front is a picture of the page being turned, the last one's
 // back the page it lands on (the leaves between are blank paper); the half no leaf has covered
@@ -12,8 +13,8 @@ export type TurnDirection = 'next' | 'prev'
 
 /** Strips per leaf: more bend more smoothly, each costs two copies of the spread. */
 const STRIPS = 16
-/** Share of the turn by which the free edge starts after the spine (0 = a stiff board). */
-const DRAG = 0.38
+/** How far (deg) the free edge lags behind the spine half way over (0 = a stiff board). */
+const CURL = 30
 /** Samples per strip for its keyframes. */
 const SAMPLES = 60
 /** How far (px) a leaf's free edge draws back off a note before the pages' shadow on it is gone. */
@@ -112,11 +113,13 @@ function restoreScrolls({ copy, picture }: Placed) {
 }
 
 /** Angle (deg, 0 = flat where it started, 180 = flat on the other page) of strip `index` at
- * `time` (0–1): eased, each strip starting a little after the one nearer the spine. */
+ * `time` (0–1): eased, each strip further out lagging a little more behind the spine, most half
+ * way over and not at all as it lifts and lands (always turning on, never back). */
 function angleOf(index: number, time: number): number {
-  const start = DRAG * (index / (STRIPS - 1))
-  const progress = Math.min(Math.max((time - start) / (1 - DRAG), 0), 1)
-  return 180 * (0.5 - 0.5 * Math.cos(Math.PI * progress))
+  const progress = Math.min(Math.max(time, 0), 1)
+  const spine = 180 * (0.5 - 0.5 * Math.cos(Math.PI * progress))
+  const lag = CURL * (index / (STRIPS - 1)) * Math.sin((spine * Math.PI) / 180)
+  return spine - lag
 }
 
 /** How far (px) the free edge of a leaf whose strips are `widths` wide reaches out from the
@@ -615,7 +618,8 @@ export function playTurn(
   if (typeof stage.animate === 'function') {
     // Over the spine the leaves change places: one still to turn lies under the one turning
     // before it; once over, it lies on the ones turned before it.
-    const crossing = 0.5 * (1 - DRAG)
+    // (The spine strip stands upright half way.)
+    const crossing = 0.5
     leaves.forEach((leaf, at) => {
       const timing: KeyframeAnimationOptions = {
         duration: TURN_MS,
