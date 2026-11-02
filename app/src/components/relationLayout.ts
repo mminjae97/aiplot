@@ -1,18 +1,7 @@
 // The relation graph's data (§8 관계도): one line per pair of characters, its colour and dash
-// from what the relations say, and a force layout computed afresh every time (positions are
-// never stored).
-import {
-  forceCenter,
-  forceCollide,
-  forceLink,
-  forceManyBody,
-  forceSimulation,
-  forceX,
-  forceY,
-  type Force,
-  type SimulationLinkDatum,
-  type SimulationNodeDatum,
-} from 'd3-force'
+// from what the relations say, and a layout computed afresh every time (positions are never
+// stored): stress majorization, tried from a few fixed starts, keeping the fewest crossings.
+import { type Force, forceCollide, forceSimulation, type SimulationNodeDatum } from 'd3-force'
 import type { CardRelation } from '../types'
 
 /** One line between a and b: a's relation to b (shown at a's end) and b's to a. */
@@ -214,30 +203,169 @@ function forceClear(pairs: Pair[]): Force<Node, undefined> {
   return force
 }
 
-/** Force layout centred on (0, 0): linked characters pull together, all push apart, nobody
- * lies on a line that is not theirs, and a weak pull to the middle keeps loners close (weaker
- * across than down, so the graph spreads wide like the book's spread). The start positions are d3's fixed spiral,
- * so the same data gives the same picture. */
-export function layout(ids: string[], pairs: Pair[]): Map<string, Point> {
-  const nodes: Node[] = ids.map((id) => ({ id }))
-  const links: SimulationLinkDatum<Node>[] = pairs.map((pair) => ({
-    source: pair.a,
-    target: pair.b,
+// How far apart (px) two related characters lie; those further apart in the web of relations
+// lie that many times as far.
+const UNIT = 230
+// Stress iterations per try, and the work budget (iterations × characters²) for all tries.
+const ITERATIONS = 300
+const BUDGET = 5e6
+const MAX_TRIES = 10
+// The spread is wide: the picture is stretched across to at least this width per height.
+const WIDE = 1.6
+
+/** Steps in the web of relations between every two characters (BFS); characters not linked
+ * at all count as one step beyond the furthest. */
+function stepsOf(ids: string[], pairs: Pair[]): number[][] {
+  const index = new Map(ids.map((id, i) => [id, i]))
+  const next: number[][] = ids.map(() => [])
+  for (const pair of pairs) {
+    const a = index.get(pair.a)
+    const b = index.get(pair.b)
+    if (a === undefined || b === undefined) continue
+    next[a]?.push(b)
+    next[b]?.push(a)
+  }
+  const steps = ids.map((_, from) => {
+    const row: number[] = ids.map(() => Infinity)
+    row[from] = 0
+    const queue = [from]
+    for (let head = 0; head < queue.length; head++) {
+      const at = queue[head] ?? 0
+      for (const to of next[at] ?? []) {
+        if (row[to] !== Infinity) continue
+        row[to] = (row[at] ?? 0) + 1
+        queue.push(to)
+      }
+    }
+    return row
+  })
+  const furthest = Math.max(0, ...steps.flat().filter((step) => step !== Infinity))
+  return steps.map((row) => row.map((step) => (step === Infinity ? furthest + 1 : step)))
+}
+
+/** Stress majorization (Gansner, Koren & North): moves each character to where its distances
+ * to all others best match their steps apart, over and over. Fewer lines cross than with
+ * springs and pushes alone. */
+function stress(steps: number[][], start: Point[]): Point[] {
+  const xs = start.map((point) => point.x)
+  const ys = start.map((point) => point.y)
+  const n = xs.length
+  for (let round = 0; round < ITERATIONS; round++) {
+    for (let i = 0; i < n; i++) {
+      let sx = 0
+      let sy = 0
+      let sw = 0
+      for (let j = 0; j < n; j++) {
+        if (i === j) continue
+        const want = (steps[i]?.[j] ?? 1) * UNIT
+        const weight = 1 / (want * want)
+        const dx = (xs[i] ?? 0) - (xs[j] ?? 0)
+        const dy = (ys[i] ?? 0) - (ys[j] ?? 0)
+        const now = Math.hypot(dx, dy) || 1e-6
+        sx += weight * ((xs[j] ?? 0) + (want * dx) / now)
+        sy += weight * ((ys[j] ?? 0) + (want * dy) / now)
+        sw += weight
+      }
+      if (sw > 0) {
+        xs[i] = sx / sw
+        ys[i] = sy / sw
+      }
+    }
+  }
+  return xs.map((x, i) => ({ x, y: ys[i] ?? 0 }))
+}
+
+/** Turns the picture so its long side runs across, centres it on (0, 0) and stretches it
+ * across to the spread's shape (stretching never adds a crossing). */
+function widen(points: Point[]): Point[] {
+  const n = points.length || 1
+  const mx = points.reduce((sum, point) => sum + point.x, 0) / n
+  const my = points.reduce((sum, point) => sum + point.y, 0) / n
+  let sxx = 0
+  let syy = 0
+  let sxy = 0
+  for (const point of points) {
+    sxx += (point.x - mx) ** 2
+    syy += (point.y - my) ** 2
+    sxy += (point.x - mx) * (point.y - my)
+  }
+  const turn = -0.5 * Math.atan2(2 * sxy, sxx - syy)
+  const cos = Math.cos(turn)
+  const sin = Math.sin(turn)
+  const turned = points.map((point) => ({
+    x: (point.x - mx) * cos - (point.y - my) * sin,
+    y: (point.x - mx) * sin + (point.y - my) * cos,
   }))
-  const simulation = forceSimulation(nodes)
-    .force(
-      'link',
-      forceLink<Node, SimulationLinkDatum<Node>>(links)
-        .id((node) => node.id)
-        .distance(260),
-    )
-    .force('charge', forceManyBody().strength(-900))
+  const xs = turned.map((point) => point.x)
+  const ys = turned.map((point) => point.y)
+  const width = Math.max(...xs) - Math.min(...xs)
+  const height = Math.max(...ys) - Math.min(...ys)
+  const stretch = width > 0 ? Math.max(1, (WIDE * height) / width) : 1
+  return turned.map((point) => ({ x: point.x * stretch, y: point.y }))
+}
+
+/** Pulls discs apart and off lines that are not theirs, moving them as little as it can. */
+function tidy(ids: string[], pairs: Pair[], points: Point[]): Point[] {
+  const nodes: Node[] = ids.map((id, i) => ({ id, x: points[i]?.x ?? 0, y: points[i]?.y ?? 0 }))
+  forceSimulation(nodes)
+    .alpha(0.3)
     .force('collide', forceCollide(80))
     .force('clear', forceClear(pairs))
-    .force('x', forceX(0).strength(0.03))
-    .force('y', forceY(0).strength(0.09))
-    .force('center', forceCenter(0, 0))
     .stop()
-  simulation.tick(600)
-  return new Map(nodes.map((node) => [node.id, { x: node.x ?? 0, y: node.y ?? 0 }]))
+    .tick(150)
+  return nodes.map((node) => ({ x: node.x ?? 0, y: node.y ?? 0 }))
+}
+
+/** How many pairs of lines cross (lines sharing a character never count). */
+export function crossingsOf(at: ReadonlyMap<string, Point>, pairs: Pair[]): number {
+  const turn = (p: Point, q: Point, r: Point) =>
+    (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x)
+  let count = 0
+  for (const [i, s] of pairs.entries()) {
+    for (const t of pairs.slice(i + 1)) {
+      if (s.a === t.a || s.a === t.b || s.b === t.a || s.b === t.b) continue
+      const p1 = at.get(s.a)
+      const p2 = at.get(s.b)
+      const q1 = at.get(t.a)
+      const q2 = at.get(t.b)
+      if (!p1 || !p2 || !q1 || !q2) continue
+      if (turn(p1, p2, q1) * turn(p1, p2, q2) < 0 && turn(q1, q2, p1) * turn(q1, q2, p2) < 0)
+        count++
+    }
+  }
+  return count
+}
+
+/** A fixed sequence of pseudo-random numbers (Park–Miller), so the same data always gives the
+ * same picture. */
+function numbers(seed: number) {
+  let state = seed
+  return () => {
+    state = (state * 16807) % 2147483647
+    return state / 2147483647
+  }
+}
+
+/** Positions centred on (0, 0): a stress layout from several fixed starts (as many as the
+ * budget allows for this many characters), each stretched wide and tidied, keeping the one
+ * whose lines cross least. */
+export function layout(ids: string[], pairs: Pair[]): Map<string, Point> {
+  if (ids.length === 0) return new Map()
+  const steps = stepsOf(ids, pairs)
+  const tries = Math.max(
+    1,
+    Math.min(MAX_TRIES, Math.floor(BUDGET / (ITERATIONS * ids.length * ids.length))),
+  )
+  const next = numbers(7)
+  const spread = UNIT * Math.sqrt(ids.length)
+  let best: { at: Map<string, Point>; crossings: number } | null = null
+  for (let attempt = 0; attempt < tries; attempt++) {
+    const start = ids.map(() => ({ x: (next() - 0.5) * spread, y: (next() - 0.5) * spread }))
+    const points = tidy(ids, pairs, widen(stress(steps, start)))
+    const at = new Map(ids.map((id, i) => [id, points[i] ?? { x: 0, y: 0 }]))
+    const crossings = crossingsOf(at, pairs)
+    if (!best || crossings < best.crossings) best = { at, crossings }
+    if (crossings === 0) break
+  }
+  return best?.at ?? new Map<string, Point>()
 }

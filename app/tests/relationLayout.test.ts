@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { kindOf, layout, pairsOf, styleOf } from '../src/components/relationLayout'
+import { crossingsOf, kindOf, layout, pairsOf, styleOf } from '../src/components/relationLayout'
 
 const drawn = new Set(['c_a', 'c_b', 'c_c'])
 
@@ -85,4 +85,35 @@ test('a line takes the strongest side, solid only when both sides feel it', () =
     fromB: false,
   })
   expect(styleOf(pair('절친', '숙적')).kind).toBe('hostile')
+})
+
+test('crossing lines are counted, lines meeting at a character are not', () => {
+  const at = new Map([
+    ['c_a', { x: 0, y: 0 }],
+    ['c_b', { x: 10, y: 10 }],
+    ['c_c', { x: 0, y: 10 }],
+    ['c_d', { x: 10, y: 0 }],
+  ])
+  const pair = (a: string, b: string) => ({ id: `${a}|${b}`, a, b, ab: '', ba: null })
+  expect(crossingsOf(at, [pair('c_a', 'c_b'), pair('c_c', 'c_d')])).toBe(1)
+  expect(crossingsOf(at, [pair('c_a', 'c_b'), pair('c_a', 'c_c')])).toBe(0)
+})
+
+test('a web that can be drawn without crossings is drawn without them, wide and apart', () => {
+  // A 3×3 grid of friends: planar, so the best layout crosses nothing.
+  const ids = Array.from({ length: 9 }, (_, i) => `c_${String(i)}`)
+  const rows = ids.flatMap((id, i) => [
+    ...(i % 3 < 2 ? [{ from_id: id, to_id: ids[i + 1] ?? '', relation: '친구' }] : []),
+    ...(i < 6 ? [{ from_id: id, to_id: ids[i + 3] ?? '', relation: '친구' }] : []),
+  ])
+  const pairs = pairsOf(rows, new Set(ids))
+  const at = layout(ids, pairs)
+  expect(crossingsOf(at, pairs)).toBe(0)
+  const points = [...at.values()]
+  for (const [i, p] of points.entries())
+    for (const q of points.slice(i + 1))
+      expect(Math.hypot(p.x - q.x, p.y - q.y)).toBeGreaterThan(150)
+  const xs = points.map((p) => p.x)
+  const ys = points.map((p) => p.y)
+  expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(Math.max(...ys) - Math.min(...ys))
 })
