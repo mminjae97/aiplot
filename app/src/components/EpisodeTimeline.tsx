@@ -2,12 +2,12 @@ import { type PointerEvent, type RefObject, useEffect, useRef } from 'react'
 import { strings } from '../strings'
 import type { EpisodeCard, MilestoneFulfilment } from '../types'
 import type { Placed, Timeline } from './storyLayout'
-import { type NodeBox, rounded, routeOf } from './timelineRoute'
+import { type NodeBox, type Point, rounded, routeOf } from './timelineRoute'
 
 // Grid sizes, kept tight so the open book shows as much of the story as it can: the lane
 // names on the left, a column per story beat, a lane per region.
 const GUTTER = 92
-const COLUMN = 116
+const COLUMN = 124
 // The main line with its milestones, then the part titles, above the first lane.
 const HEAD = 76
 const PART_HEAD = 22
@@ -16,6 +16,8 @@ const ROW = 40
 const LANE_PAD = 10
 const NODE_WIDTH = 104
 const NODE_HEIGHT = 32
+// Free space between two columns' nodes and two rows' (arrows go round through it).
+const GAPS = { column: COLUMN - NODE_WIDTH, row: ROW - NODE_HEIGHT }
 
 /** Milestone colours: muted inks that keep white numerals readable; every node also says its
  * milestone's number, so colour is never the only sign (§5). */
@@ -87,6 +89,7 @@ export function EpisodeTimeline({
     width: NODE_WIDTH,
     height: NODE_HEIGHT,
   })
+  const boxes = timeline.nodes.map(boxOf)
   const scrollRef = useRef<HTMLDivElement>(null)
   useWheelAcross(scrollRef)
   // Dragging the paper (not a node or a part's name) moves the view with the pointer.
@@ -197,8 +200,8 @@ export function EpisodeTimeline({
               viewBox="0 0 10 10"
               refX="9"
               refY="5"
-              markerWidth="8"
-              markerHeight="8"
+              markerWidth="6"
+              markerHeight="6"
               orient="auto-start-reverse"
             >
               <path d="M 0 0 L 10 5 L 0 10 z" className="timeline-head-order" />
@@ -208,8 +211,8 @@ export function EpisodeTimeline({
               viewBox="0 0 10 10"
               refX="9"
               refY="5"
-              markerWidth="8"
-              markerHeight="8"
+              markerWidth="6"
+              markerHeight="6"
               orient="auto-start-reverse"
             >
               <path d="M 0 0 L 10 5 L 0 10 z" className="timeline-head-cause" />
@@ -219,18 +222,23 @@ export function EpisodeTimeline({
             const from = at.get(arrow.from)
             const to = at.get(arrow.to)
             if (!from || !to) return null
-            const boxes = timeline.nodes.filter((node) => node !== from && node !== to).map(boxOf)
-            const blocked = (point: { x: number; y: number }) =>
-              boxes.some(
+            const others = boxes.filter(
+              (_, i) => timeline.nodes[i] !== from && timeline.nodes[i] !== to,
+            )
+            // A straight piece touches a node it passes within 3px of.
+            const blocked = (a: Point, b: Point) =>
+              others.some(
                 (box) =>
-                  Math.abs(point.x - box.x) <= box.width / 2 + 4 &&
-                  Math.abs(point.y - box.y) <= box.height / 2 + 4,
+                  Math.max(a.x, b.x) >= box.x - box.width / 2 - 3 &&
+                  Math.min(a.x, b.x) <= box.x + box.width / 2 + 3 &&
+                  Math.max(a.y, b.y) >= box.y - box.height / 2 - 3 &&
+                  Math.min(a.y, b.y) <= box.y + box.height / 2 + 3,
               )
             return (
               <path
                 key={`${arrow.from}|${arrow.to}|${arrow.kind}`}
                 className={`timeline-arrow timeline-arrow-${arrow.kind}`}
-                d={rounded(routeOf(boxOf(from), boxOf(to), arrow.kind, blocked))}
+                d={rounded(routeOf(boxOf(from), boxOf(to), arrow.kind, blocked, GAPS))}
                 markerEnd={`url(#arrow-${arrow.kind})`}
               />
             )
