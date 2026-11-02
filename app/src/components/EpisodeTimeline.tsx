@@ -1,3 +1,4 @@
+import { type PointerEvent, type RefObject, useEffect, useRef } from 'react'
 import { strings } from '../strings'
 import type { EpisodeCard, MilestoneFulfilment } from '../types'
 import type { Timeline } from './storyLayout'
@@ -22,6 +23,30 @@ export const inkOf = (index: number) => INKS[index % INKS.length] ?? '#5a4a3a'
 
 const cx = (column: number) => GUTTER + column * COLUMN + COLUMN / 2
 
+// A wheel step given in lines (rather than pixels) moves about this far.
+const LINE_PX = 16
+
+/** The wheel runs the story across: up shows what comes before, down what comes after. */
+function useWheelAcross(ref: RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const box = ref.current
+    if (!box) return
+    const onWheel = (event: WheelEvent) => {
+      // Ctrl+wheel stays the browser's zoom; sideways wheels and touchpads scroll as they are.
+      if (event.ctrlKey || event.deltaY === 0 || Math.abs(event.deltaX) > Math.abs(event.deltaY))
+        return
+      if (box.scrollWidth <= box.clientWidth) return
+      event.preventDefault()
+      box.scrollLeft +=
+        event.deltaMode === WheelEvent.DOM_DELTA_LINE ? event.deltaY * LINE_PX : event.deltaY
+    }
+    box.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      box.removeEventListener('wheel', onWheel)
+    }
+  }, [ref])
+}
+
 type Props = {
   timeline: Timeline
   episodes: ReadonlyMap<string, EpisodeCard>
@@ -33,7 +58,8 @@ type Props = {
 
 /** S1-3 timeline (§8): story order across, split by part with titles; the main line on top
  * with the milestones over their parts; a lane per region; episodes as nodes in their main
- * region's lane, small markers in the others; arrows for order (solid) and cause (dashed). */
+ * region's lane, small markers in the others; arrows for order (solid) and cause (dashed).
+ * The wheel moves it along the story and the paper can be dragged. */
 export function EpisodeTimeline({
   timeline,
   episodes,
@@ -54,6 +80,29 @@ export function EpisodeTimeline({
   const cy = (lane: number, row: number) =>
     (tops[lane] ?? HEAD) + LANE_PAD / 2 + row * ROW + ROW / 2
   const at = new Map(timeline.nodes.map((node) => [node.episodeId, node]))
+  const scrollRef = useRef<HTMLDivElement>(null)
+  useWheelAcross(scrollRef)
+  // Dragging the paper (not a node or a part's name) moves the view with the pointer.
+  const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null)
+  const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || (event.target as Element).closest('button')) return
+    const box = event.currentTarget
+    drag.current = { x: event.clientX, y: event.clientY, left: box.scrollLeft, top: box.scrollTop }
+    box.setPointerCapture(event.pointerId)
+    // no text selection while dragging
+    event.preventDefault()
+  }
+  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const from = drag.current
+    if (!from) return
+    event.currentTarget.scrollLeft = from.left - (event.clientX - from.x)
+    event.currentTarget.scrollTop = from.top - (event.clientY - from.y)
+  }
+  const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    if (!drag.current) return
+    drag.current = null
+    event.currentTarget.releasePointerCapture(event.pointerId)
+  }
   // Milestones sharing a column sit side by side, their texts joined under them.
   const byColumn = new Map<number, number[]>()
   milestones.forEach((_, index) => {
@@ -62,7 +111,14 @@ export function EpisodeTimeline({
   })
 
   return (
-    <div className="timeline-scroll">
+    <div
+      ref={scrollRef}
+      className="timeline-scroll"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
       <div className="timeline" style={{ width, height }}>
         {timeline.spans.map((span, index) => (
           <div

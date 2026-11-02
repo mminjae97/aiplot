@@ -5,6 +5,9 @@ import {
   layout,
   lengthOf,
   linesOf,
+  NODE_HEIGHT,
+  NODE_WIDTH,
+  throughAreas,
   travelText,
 } from '../src/components/regionLayout'
 
@@ -106,4 +109,59 @@ test('areas wrap their children, nest, and survive a parent cycle', () => {
     new Map(),
   )
   expect(cycle.size).toBe(0)
+})
+
+test('a line to an area pulls on the regions inside it, sharing its pull', () => {
+  const lines = linesOf(
+    [
+      {
+        from_id: 'c_capital',
+        to_id: 'c_north',
+        travel: { value: 2, unit: 'day', mode: '말' },
+        direction: '북',
+      },
+    ],
+    new Set(['c_capital', 'c_north']),
+  )
+  const inside: Record<string, string[]> = { c_capital: ['c_palace', 'c_market'] }
+  const through = throughAreas(lines, (id) => inside[id] ?? [id])
+  expect(through.map((line) => [line.a, line.b, line.weight])).toEqual([
+    ['c_palace', 'c_north', 0.5],
+    ['c_market', 'c_north', 0.5],
+  ])
+  // The way still points from the capital's regions up to the north.
+  expect(through[0]?.dir).toEqual({ x: 0, y: -1 })
+})
+
+test('regions linked only to an area settle around it, the way the notes point', () => {
+  // The capital is drawn as an area around its palace; the others link to the capital.
+  const ids = ['c_capital', 'c_palace', 'c_north', 'c_south', 'c_east', 'c_west']
+  const rows = [
+    ['c_north', '북'],
+    ['c_south', '남'],
+    ['c_east', '동'],
+    ['c_west', '서'],
+  ].map(([to, direction]) => ({
+    from_id: 'c_capital',
+    to_id: to ?? '',
+    travel: { value: 3, unit: 'day' as const, mode: '말' },
+    direction: direction ?? null,
+  }))
+  const lines = throughAreas(linesOf(rows, new Set(ids)), (id) =>
+    id === 'c_capital' ? ['c_palace'] : [id],
+  )
+  const drawn = ids.filter((id) => id !== 'c_capital')
+  const at = layout(drawn, new Map(), lines, [['c_palace']])
+  const point = (id: string) => at.get(id) ?? { x: NaN, y: NaN }
+  const palace = point('c_palace')
+  expect(point('c_north').y).toBeLessThan(palace.y - 150)
+  expect(point('c_south').y).toBeGreaterThan(palace.y + 150)
+  expect(point('c_east').x).toBeGreaterThan(palace.x + 150)
+  expect(point('c_west').x).toBeLessThan(palace.x - 150)
+  const xs = drawn.map((id) => point(id).x)
+  const ys = drawn.map((id) => point(id).y)
+  const width = Math.max(...xs) - Math.min(...xs) + NODE_WIDTH
+  const height = Math.max(...ys) - Math.min(...ys) + NODE_HEIGHT
+  expect(width / height).toBeGreaterThan(0.8)
+  expect(width / height).toBeLessThan(1.5)
 })

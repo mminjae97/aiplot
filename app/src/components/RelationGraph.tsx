@@ -1,5 +1,4 @@
 import {
-  BaseEdge,
   type Edge,
   type EdgeProps,
   EdgeLabelRenderer,
@@ -15,15 +14,23 @@ import { type KeyboardEvent, useState } from 'react'
 import { strings } from '../strings'
 import type { CardRelation, CharacterCard } from '../types'
 import { Portrait } from './CharacterCard'
-import { layout, pairsOf } from './relationLayout'
+import { layout, type LineStyle, pairsOf, type RelationKind, styleOf } from './relationLayout'
 
 type CharacterNode = Node<{ card: CharacterCard }, 'character'>
-type RelationEdge = Edge<{ ab: string | null; ba: string | null }, 'relation'>
+type RelationEdge = Edge<{ style: LineStyle; title: string }, 'relation'>
 
 // The portrait is a 72px disc; lines stop just outside it so the arrowheads show.
 const RADIUS = 42
-// A label sits this far from its own node's centre, clear of the disc and the name.
-const LABEL_AT = 96
+
+/** A shape for each kind beside its colour, so colour is never the only sign (§5). */
+const GLYPHS: Record<RelationKind, string> = {
+  love: '♥',
+  friendly: '●',
+  hostile: '✕',
+  neutral: '◆',
+}
+const KINDS: RelationKind[] = ['love', 'friendly', 'hostile', 'neutral']
+const colorOf = (kind: RelationKind) => `var(--rel-${kind})`
 
 function CharacterNodeView({ data }: NodeProps<CharacterNode>) {
   return (
@@ -64,53 +71,96 @@ function RelationEdgeView({
   const ux = dx / length
   const uy = dy / length
   // Discs dragged onto each other: no line (its ends would cross and flip the arrows).
-  if (length <= 2 * RADIUS) return null
+  if (length <= 2 * RADIUS || !data) return null
   const from = { x: sourceX + ux * RADIUS, y: sourceY + uy * RADIUS }
   const to = { x: targetX - ux * RADIUS, y: targetY - uy * RADIUS }
-  // Each relation sits at its own end: a's view of b near a, b's view of a near b (on a
-  // short line both move in towards the middle).
-  const off = Math.min(LABEL_AT, length * 0.35)
-  const labels = [
-    { text: data?.ab, point: { x: sourceX + ux * off, y: sourceY + uy * off }, side: 'a' },
-    { text: data?.ba, point: { x: targetX - ux * off, y: targetY - uy * off }, side: 'b' },
-  ]
+  const path = `M ${String(from.x)} ${String(from.y)} L ${String(to.x)} ${String(to.y)}`
+  const { kind, mutual } = data.style
+  const middle = { x: (sourceX + targetX) / 2, y: (sourceY + targetY) / 2 }
   return (
     <>
-      <BaseEdge
+      <path
         id={id}
-        path={`M ${String(from.x)} ${String(from.y)} L ${String(to.x)} ${String(to.y)}`}
+        d={path}
+        className="graph-line"
+        data-kind={kind}
+        data-mutual={mutual || undefined}
         markerStart={markerStart}
         markerEnd={markerEnd}
-        className="graph-line"
       />
+      {/* What each side says shows on hover; the line itself carries no words. */}
+      <path d={path} className="graph-line-hit">
+        <title>{data.title}</title>
+      </path>
       <EdgeLabelRenderer>
-        {labels.map(({ text, point, side }) =>
-          text ? (
-            <div
-              key={side}
-              className="graph-label"
-              style={{
-                transform: `translate(-50%, -50%) translate(${String(point.x)}px, ${String(point.y)}px)`,
-              }}
-            >
-              {text}
-            </div>
-          ) : null,
-        )}
+        <div
+          className="graph-glyph"
+          aria-hidden="true"
+          style={{
+            color: colorOf(kind),
+            transform: `translate(-50%, -50%) translate(${String(middle.x)}px, ${String(middle.y)}px)`,
+          }}
+        >
+          {GLYPHS[kind]}
+        </div>
       </EdgeLabelRenderer>
     </>
   )
 }
 
+function LineSample({ kind, mutual }: { kind?: RelationKind; mutual: boolean }) {
+  return (
+    <svg width="30" height="10" aria-hidden="true">
+      <line
+        x1="1"
+        y1="5"
+        x2="29"
+        y2="5"
+        className="graph-line"
+        data-kind={kind}
+        data-mutual={mutual || undefined}
+      />
+    </svg>
+  )
+}
+
+/** The key at the top left: each kind's colour and shape, then solid (both sides feel it)
+ * and dashed (one side does). */
+function Legend() {
+  return (
+    <dl className="graph-legend" aria-label={strings.dex.legend}>
+      {KINDS.map((kind) => (
+        <div key={kind} className="graph-legend-row">
+          <dt>
+            <LineSample kind={kind} mutual />
+            <span className="graph-legend-glyph" style={{ color: colorOf(kind) }}>
+              {GLYPHS[kind]}
+            </span>
+          </dt>
+          <dd>{strings.dex.kinds[kind]}</dd>
+        </div>
+      ))}
+      <div className="graph-legend-row">
+        <dt>
+          <LineSample mutual />
+        </dt>
+        <dd>{strings.dex.mutual}</dd>
+      </div>
+      <div className="graph-legend-row">
+        <dt>
+          <LineSample mutual={false} />
+        </dt>
+        <dd>{strings.dex.oneWay}</dd>
+      </div>
+    </dl>
+  )
+}
+
 const NODE_TYPES = { character: CharacterNodeView }
 const EDGE_TYPES = { relation: RelationEdgeView }
-// Themed with the line (React Flow writes the marker colour inline).
-const ARROW = {
-  type: MarkerType.ArrowClosed,
-  width: 18,
-  height: 18,
-  color: 'var(--ink-soft)',
-} as const
+// In the line's colour (React Flow writes the marker colour inline).
+const arrowOf = (kind: RelationKind) =>
+  ({ type: MarkerType.ArrowClosed, width: 18, height: 18, color: colorOf(kind) }) as const
 
 // React Flow's screen-reader text, in Korean; nodes open a card, nothing is selected.
 const ARIA = {
@@ -133,15 +183,29 @@ function graphOf(cards: CharacterCard[], relations: CardRelation[]) {
     data: { card },
     ariaLabel: strings.dex.flip(card.name ?? strings.drawer.untitled),
   }))
-  const edges: RelationEdge[] = pairs.map((pair) => ({
-    id: pair.id,
-    type: 'relation',
-    source: pair.a,
-    target: pair.b,
-    data: { ab: pair.ab, ba: pair.ba },
-    markerEnd: pair.ab !== null ? ARROW : undefined,
-    markerStart: pair.ba !== null ? ARROW : undefined,
-  }))
+  const names = new Map(cards.map((card) => [card.id, card.name ?? strings.drawer.untitled]))
+  const edges: RelationEdge[] = pairs.map((pair) => {
+    const style = styleOf(pair)
+    const a = names.get(pair.a) ?? ''
+    const b = names.get(pair.b) ?? ''
+    const title = [
+      pair.ab === null ? null : strings.dex.relationOf(a, b, pair.ab),
+      pair.ba === null ? null : strings.dex.relationOf(b, a, pair.ba),
+    ]
+      .filter((line) => line !== null)
+      .join('\n')
+    return {
+      id: pair.id,
+      type: 'relation',
+      source: pair.a,
+      target: pair.b,
+      data: { style, title },
+      ariaLabel: title,
+      // Arrowheads point from the sides that feel the line's kind.
+      markerEnd: style.fromA ? arrowOf(style.kind) : undefined,
+      markerStart: style.fromB ? arrowOf(style.kind) : undefined,
+    }
+  })
   return { nodes, edges }
 }
 
@@ -152,8 +216,8 @@ type Props = {
   onPick: (cardId: string, origin: DOMRect | null) => void
 }
 
-/** 관계도 (§8): a node per character, a line per related pair with each side's relation at
- * its own end. Laid out afresh each time it mounts (the screen remounts it when cards or
+/** 관계도 (§8): a node per character, a line per related pair coloured by what the relations
+ * say (solid when both sides feel it, dashed when one does), with a key at the top left. Laid out afresh each time it mounts (the screen remounts it when cards or
  * relations change), never per render; dragging moves a node for this view only. */
 export function RelationGraph({ cards, relations, onPick }: Props) {
   const [graph] = useState(() => graphOf(cards, relations))
@@ -174,6 +238,7 @@ export function RelationGraph({ cards, relations, onPick }: Props) {
 
   return (
     <div className="dex-graph" onKeyDown={onKeyDown}>
+      <Legend />
       <ReactFlow
         nodes={nodes}
         edges={edges}

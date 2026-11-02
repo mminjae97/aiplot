@@ -329,6 +329,7 @@
 
 /* 관계도 on a large sheet of paper. */
 .dex-graph {
+  position: relative;
   flex: 1;
   min-height: 320px;
   margin-top: 16px;
@@ -390,24 +391,87 @@
   transform: translate(-50%, -50%);
 }
 
-.dex-graph .graph-line {
+.graph-line {
+  fill: none;
   stroke: var(--ink-soft);
-  stroke-width: 1.5;
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
 }
 
-.dex-graph .react-flow__arrowhead polyline {
-  stroke: var(--ink-soft);
-  fill: var(--ink-soft);
+.graph-line[data-mutual] {
+  stroke-dasharray: none;
 }
 
-.graph-label {
+.graph-line[data-kind='love'] {
+  stroke: var(--rel-love);
+}
+
+.graph-line[data-kind='friendly'] {
+  stroke: var(--rel-friendly);
+}
+
+.graph-line[data-kind='hostile'] {
+  stroke: var(--rel-hostile);
+}
+
+.graph-line[data-kind='neutral'] {
+  stroke: var(--rel-neutral);
+}
+
+/* A wide invisible stroke so the line's hover text is easy to reach. */
+.graph-line-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12;
+  pointer-events: stroke;
+}
+
+/* The kind's shape in the middle of its line. */
+.graph-glyph {
   position: absolute;
-  padding: 0 6px;
-  border: 1px solid var(--paper-edge);
-  border-radius: 3px;
+  padding: 1px 2px;
+  border-radius: 50%;
   background: var(--paper);
-  color: var(--ink);
-  font-size: var(--size-small);
-  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1;
   pointer-events: none;
+}
+
+/* The key: each kind, then solid vs dashed, at the sheet's top left. */
+.graph-legend {
+  position: absolute;
+  z-index: 5;
+  top: 10px;
+  left: 12px;
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 4px;
+  background: var(--paper);
+  font-size: var(--size-small);
+  pointer-events: none;
+}
+
+.graph-legend-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.graph-legend-row dt {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  width: 48px;
+}
+
+.graph-legend-row dd {
+  margin: 0;
+  color: var(--ink);
+}
+
+.graph-legend-glyph {
+  font-size: 11px;
 }

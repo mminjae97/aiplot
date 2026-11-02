@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { layout, pairsOf } from '../src/components/relationLayout'
+import { kindOf, layout, pairsOf, styleOf } from '../src/components/relationLayout'
 
 const drawn = new Set(['c_a', 'c_b', 'c_c'])
 
@@ -50,4 +50,39 @@ test('the layout is the same for the same data, linked cards at about the line l
     expect(gap(p, q)).toBeGreaterThan(140)
     expect(gap(p, q)).toBeLessThan(500)
   }
+})
+
+test('a relation is love, friendly, hostile or else neutral by its words', () => {
+  for (const text of ['짝사랑', '첫사랑이자 소꿉친구', '정혼자', '약혼자'])
+    expect(kindOf(text)).toBe('love')
+  for (const text of ['절친', '라이벌이자 절친', '아버지', '스승', '모시는 황태녀', '옛 전우'])
+    expect(kindOf(text)).toBe('friendly')
+  for (const text of ['숙적', '연적', '넘어서야 할 상대', '적'])
+    expect(kindOf(text)).toBe('hostile')
+  for (const text of ['의뢰인', '같은 반 친구의 형'.slice(0, 4), '', null])
+    expect(kindOf(text)).toBe('neutral')
+})
+
+test('a line takes the strongest side, solid only when both sides feel it', () => {
+  const pair = (ab: string | null, ba: string | null) => ({ id: 'x', a: 'c_a', b: 'c_b', ab, ba })
+  expect(styleOf(pair('연인', '약혼자'))).toEqual({
+    kind: 'love',
+    mutual: true,
+    fromA: true,
+    fromB: true,
+  })
+  // One-sided love over the other side's respect: dashed, the arrow from the one in love.
+  expect(styleOf(pair('모시는 황태녀', '짝사랑'))).toEqual({
+    kind: 'love',
+    mutual: false,
+    fromA: false,
+    fromB: true,
+  })
+  expect(styleOf(pair('스승', null))).toEqual({
+    kind: 'friendly',
+    mutual: false,
+    fromA: true,
+    fromB: false,
+  })
+  expect(styleOf(pair('절친', '숙적')).kind).toBe('hostile')
 })

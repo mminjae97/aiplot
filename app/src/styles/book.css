@@ -165,22 +165,28 @@
   color: #2a1f12;
 }
 
-/* Cards on the two pages, never across the spine: they fill the left page, then the right
-   (more than fit go on to further columns). */
+/* Cards on the two pages, never across the spine: rows run across the left page, then the
+   right, and further rows scroll down (CharacterDexScreen places each card's column). */
 .page-wide .dex-grid {
-  display: block;
+  display: grid;
   flex: 1;
+  grid-template-columns:
+    repeat(var(--per-page, 1), 168px)
+    calc(52px - 22px)
+    repeat(var(--per-page, 1), 168px);
+  grid-auto-rows: max-content;
+  gap: 24px 22px;
+  align-content: start;
+  justify-content: center;
   min-height: 0;
-  overflow-x: auto;
+  margin-top: 20px;
+  padding-bottom: 4px;
+  overflow: hidden auto;
   scrollbar-color: var(--ink-faint) transparent;
   scrollbar-width: thin;
-  margin-top: 20px;
-  columns: 2;
-  column-gap: 96px;
-  column-fill: auto;
 }
 
-/* The cards view runs on sideways (further columns), never down past the page. */
+/* Only the grid scrolls; the heading and tabs stay. */
 .page-wide.dex[data-view='cards'] {
   overflow: hidden;
 }
@@ -193,11 +199,7 @@
 }
 
 .page-wide .dex-grid > li {
-  display: inline-block;
-  /* a card that does not fit the rest of the page goes over to the next one whole */
-  break-inside: avoid;
-  margin: 0 22px 24px 0;
-  vertical-align: top;
+  display: block;
 }
 
 .page-wide .dex-card {

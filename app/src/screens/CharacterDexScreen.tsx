@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
+import { type CSSProperties, type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { CardDrawer, type DrawerRequest } from '../components/CardDrawer'
 import { DeleteCardDialog, UndoToast } from '../components/CardDelete'
@@ -20,6 +20,24 @@ function isCharacter(card: Card): card is CharacterCard {
 
 type View = DexView
 const VIEWS: View[] = ['cards', 'graph']
+
+// The cards' grid on the two pages (book.css .page-wide .dex-grid): card width, the gap
+// between cards, and the room at the spine between the pages' last and first columns.
+const CARD = 168
+const GAP = 22
+const SPINE = 52
+
+/** How many cards fit across one page of a grid `width` wide (at least one). */
+function perPage(width: number): number {
+  return Math.max(1, Math.floor((width - SPINE) / (2 * (CARD + GAP))))
+}
+
+/** The grid column of the card at `index`: rows run across both pages, left page first, and
+ * skip the column at the spine. */
+function columnOf(index: number, across: number): number {
+  const column = index % (2 * across)
+  return column < across ? column + 1 : column + 2
+}
 
 /** Gives the focus back to a card: its grid card or its graph node, else the + card or the
  * 관계도 tab (the node may be gone after the graph was laid out again). */
@@ -61,6 +79,23 @@ export function CharacterDexScreen({
   const [highlight, setHighlight] = useState<string | null>(null)
   const cardRefs = useRef(new Map<string, HTMLButtonElement>())
   const addRef = useRef<HTMLButtonElement>(null)
+  const gridRef = useRef<HTMLUListElement>(null)
+  const [across, setAcross] = useState(1)
+
+  // Cards per page follow the page's width.
+  useEffect(() => {
+    const grid = gridRef.current
+    if (!grid || typeof ResizeObserver === 'undefined') return
+    const measure = () => {
+      setAcross(perPage(grid.clientWidth))
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(grid)
+    return () => {
+      observer.disconnect()
+    }
+  })
   // The drawer gives the focus back here when it closes (the card, or the + card).
   const returnTo = useRef<string | null>(null)
 
@@ -219,9 +254,13 @@ export function CharacterDexScreen({
               {characters.isSuccess && cards.length === 0 && !locked && (
                 <p className="dex-note">{strings.dex.empty}</p>
               )}
-              <ul className="dex-grid">
-                {cards.map((card) => (
-                  <li key={card.id}>
+              <ul
+                ref={gridRef}
+                className="dex-grid"
+                style={{ '--per-page': across } as CSSProperties}
+              >
+                {cards.map((card, index) => (
+                  <li key={card.id} style={{ gridColumn: columnOf(index, across) }}>
                     <button
                       ref={(node) => {
                         if (node) cardRefs.current.set(card.id, node)
@@ -247,7 +286,7 @@ export function CharacterDexScreen({
                   </li>
                 ))}
                 {!locked && (
-                  <li>
+                  <li style={{ gridColumn: columnOf(cards.length, across) }}>
                     <button
                       ref={addRef}
                       type="button"

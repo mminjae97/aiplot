@@ -1,5 +1,6 @@
-// The relation graph's data (§8 관계도): one line per pair of characters, a label at each
-// end, and a force layout computed afresh every time (positions are never stored).
+// The relation graph's data (§8 관계도): one line per pair of characters, its colour and dash
+// from what the relations say, and a force layout computed afresh every time (positions are
+// never stored).
 import {
   forceCenter,
   forceCollide,
@@ -37,6 +38,123 @@ export function pairsOf(relations: CardRelation[], drawn: ReadonlySet<string>): 
     byKey.set(key, pair)
   }
   return [...byKey.values()]
+}
+
+/** What a relation is, by its words: love (pink), friendly (blue), hostile (red), else neutral
+ * (green). */
+export type RelationKind = 'love' | 'friendly' | 'hostile' | 'neutral'
+
+// Words that say the kind, anywhere in the relation's text. Family, teachers, comrades and the
+// like are friendly; words in none of these lists are neutral.
+const WORDS: [Exclude<RelationKind, 'neutral'>, string[]][] = [
+  [
+    'love',
+    ['사랑', '연인', '애인', '연모', '첫사랑', '짝사랑', '약혼', '정혼', '남편', '아내', '부부'],
+  ],
+  [
+    'friendly',
+    [
+      '친구',
+      '절친',
+      '소꿉',
+      '우정',
+      '동료',
+      '전우',
+      '룸메이트',
+      '스승',
+      '제자',
+      '은사',
+      '가족',
+      '아버지',
+      '어머니',
+      '아빠',
+      '엄마',
+      '부모',
+      '딸',
+      '아들',
+      '형',
+      '오빠',
+      '누나',
+      '언니',
+      '동생',
+      '남매',
+      '자매',
+      '형제',
+      '할아버지',
+      '할머니',
+      '삼촌',
+      '이모',
+      '고모',
+      '은인',
+      '신뢰',
+      '존경',
+      '동경',
+      '모시',
+      '주인',
+      '가신',
+      '협력',
+      '돕',
+      '챙기',
+      '지켜',
+      '고마운',
+      '편한',
+      '귀여워',
+      '단골',
+    ],
+  ],
+  [
+    'hostile',
+    [
+      '숙적',
+      '적대',
+      '원수',
+      '연적',
+      '라이벌',
+      '경쟁',
+      '경멸',
+      '증오',
+      '미워',
+      '거슬',
+      '견제',
+      '배신',
+      '복수',
+      '대립',
+      '넘어서',
+      '이용',
+    ],
+  ],
+]
+
+/** One side's relation → its kind; when its words say several, the first in WORDS wins
+ * ("라이벌이자 절친" is friendly). */
+export function kindOf(relation: string | null): RelationKind {
+  if (!relation) return 'neutral'
+  const text = relation.replace(/\s/g, '')
+  if (text === '적') return 'hostile'
+  for (const [kind, words] of WORDS) if (words.some((word) => text.includes(word))) return kind
+  return 'neutral'
+}
+
+/** How a pair's line is drawn: the kind of the side(s) that feel it most (love, then hostile,
+ * then friendly, then neutral), solid when both sides feel it, dashed when only one does (the
+ * arrowheads point from those sides). */
+export type LineStyle = {
+  kind: RelationKind
+  mutual: boolean
+  fromA: boolean
+  fromB: boolean
+}
+
+const WEIGHT: Record<RelationKind, number> = { love: 3, hostile: 2, friendly: 1, neutral: 0 }
+
+export function styleOf(pair: Pair): LineStyle {
+  const a = pair.ab === null ? null : kindOf(pair.ab)
+  const b = pair.ba === null ? null : kindOf(pair.ba)
+  const kind = [a, b].reduce<RelationKind>(
+    (best, side) => (side !== null && WEIGHT[side] > WEIGHT[best] ? side : best),
+    a ?? b ?? 'neutral',
+  )
+  return { kind, mutual: a === kind && b === kind, fromA: a === kind, fromB: b === kind }
 }
 
 type Point = { x: number; y: number }

@@ -63,6 +63,8 @@ export type Line = {
   b: string
   travel: RegionTravel | null
   dir: Point | null
+  /** How hard the line pulls in the layout (a line to an area shares its pull). */
+  weight?: number
 }
 
 export function linesOf(rows: RegionLinkRow[], drawn: ReadonlySet<string>): Line[] {
@@ -81,6 +83,22 @@ export function linesOf(rows: RegionLinkRow[], drawn: ReadonlySet<string>): Line
   return [...byKey.values()]
 }
 
+/** Lines for the layout, which places only tokens: a line to a parent (drawn as an area)
+ * goes to each region drawn inside it instead, each pulling its share, so the regions
+ * linked to an area still settle around it. */
+export function throughAreas(lines: Line[], leavesOf: (id: string) => string[]): Line[] {
+  return lines.flatMap((line) => {
+    const as = leavesOf(line.a)
+    const bs = leavesOf(line.b)
+    const share = (line.weight ?? 1) / (as.length * bs.length || 1)
+    return as.flatMap((a) =>
+      bs
+        .filter((b) => b !== a)
+        .map((b) => ({ ...line, id: `${a}|${b}|${line.id}`, a, b, weight: share })),
+    )
+  })
+}
+
 type Node = SimulationNodeDatum & { id: string }
 
 /** Pulls each linked pair toward the way the notes point: b ends up that way from a. */
@@ -94,7 +112,7 @@ function forceDirection(lines: Line[]): Force<Node, undefined> {
       const length = lengthOf(line.travel)
       const dx = (a.x ?? 0) + line.dir.x * length - (b.x ?? 0)
       const dy = (a.y ?? 0) + line.dir.y * length - (b.y ?? 0)
-      const k = 0.12 * alpha
+      const k = 0.12 * alpha * (line.weight ?? 1)
       b.vx = (b.vx ?? 0) + dx * k
       b.vy = (b.vy ?? 0) + dy * k
       a.vx = (a.vx ?? 0) - dx * k
@@ -161,7 +179,7 @@ export function layout(
       forceLink<Node, SimulationLinkDatum<Node>>(links)
         .id((node) => node.id)
         .distance((_, index) => lengthOf(lines[index]?.travel ?? null))
-        .strength(0.6),
+        .strength((_, index) => 0.6 * (lines[index]?.weight ?? 1)),
     )
     .force('charge', forceManyBody().strength(-500))
     .force('collide', forceCollide(NODE_WIDTH / 2 + 12))
