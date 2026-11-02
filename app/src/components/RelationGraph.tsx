@@ -253,6 +253,8 @@ function withAreas(nodes: GraphNode[], groups: Group[]): GraphNode[] {
         position: { x: left, y: top },
         width: right - left,
         height: bottom - top,
+        // Its size is known: React Flow need not measure it again each time it is redone.
+        measured: { width: right - left, height: bottom - top },
         zIndex: -1,
         draggable: false,
         selectable: false,
@@ -342,7 +344,14 @@ export function RelationGraph({ cards, relations, groups, onPick }: Props) {
   const [nodes, setNodes] = useState<GraphNode[]>(graph.nodes)
   const { edges } = graph
   const onNodesChange = (changes: NodeChange<GraphNode>[]) => {
-    setNodes((current) => withAreas(applyNodeChanges(changes, current), groups))
+    setNodes((current) => {
+      const next = applyNodeChanges(changes, current)
+      // Areas follow their members; other changes (sizes measured) leave them as they are.
+      const moved = changes.some(
+        (change) => change.type === 'position' && !change.id.startsWith('faction:'),
+      )
+      return moved ? withAreas(next, groups) : next
+    })
   }
 
   const nodeElement = (target: EventTarget) =>

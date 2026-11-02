@@ -34,9 +34,29 @@ export function pairsOf(relations: CardRelation[], drawn: ReadonlySet<string>): 
  * (green). */
 export type RelationKind = 'love' | 'friendly' | 'hostile' | 'neutral'
 
-// Words that say the kind, anywhere in the relation's text. Family, teachers, comrades and the
-// like are friendly; words in none of these lists are neutral.
+// Words that say the kind, checked in this order (the first list with a word in the text
+// wins): strong hostility before everything ("아버지의 원수" is hostile), then love, then
+// friendship (family, teachers, comrades too), then mere rivalry ("라이벌이자 절친" is
+// friendly). Words of two letters or more match inside a word; one-letter words (형, 딸, 적)
+// only as a whole word or with a particle after it, so 형사 or 목적 do not count.
 const WORDS: [Exclude<RelationKind, 'neutral'>, string[]][] = [
+  [
+    'hostile',
+    [
+      '원수',
+      '숙적',
+      '적대',
+      '연적',
+      '배신',
+      '복수',
+      '증오',
+      '죽인',
+      '죽이려',
+      '노림',
+      '노리는',
+      '적',
+    ],
+  ],
   [
     'love',
     ['사랑', '연인', '애인', '연모', '첫사랑', '짝사랑', '약혼', '정혼', '남편', '아내', '부부'],
@@ -63,6 +83,10 @@ const WORDS: [Exclude<RelationKind, 'neutral'>, string[]][] = [
       '딸',
       '아들',
       '형',
+      '형님',
+      '친형',
+      '친딸',
+      '외동딸',
       '오빠',
       '누나',
       '언니',
@@ -92,36 +116,29 @@ const WORDS: [Exclude<RelationKind, 'neutral'>, string[]][] = [
       '단골',
     ],
   ],
-  [
-    'hostile',
-    [
-      '숙적',
-      '적대',
-      '원수',
-      '연적',
-      '라이벌',
-      '경쟁',
-      '경멸',
-      '증오',
-      '미워',
-      '거슬',
-      '견제',
-      '배신',
-      '복수',
-      '대립',
-      '넘어서',
-      '이용',
-    ],
-  ],
+  ['hostile', ['라이벌', '경쟁', '경멸', '미워', '거슬', '견제', '대립', '넘어서', '이용']],
 ]
 
-/** One side's relation → its kind; when its words say several, the first in WORDS wins
- * ("라이벌이자 절친" is friendly). */
+// Words that hold one of the words above without its meaning.
+const NOT_WORDS = ['주인공', '형사', '형식', '형편', '목적', '적당', '적극', '적응', '적용']
+// What may follow a one-letter word: a particle or 이다 and the like.
+const TAIL = /^(이|가|은|는|을|를|의|과|와|도|만|에게|한테|이자|이다|이고|이며|님|군|들)?$/
+
+/** One side's relation → its kind (see WORDS). */
 export function kindOf(relation: string | null): RelationKind {
   if (!relation) return 'neutral'
-  const text = relation.replace(/\s/g, '')
-  if (text === '적') return 'hostile'
-  for (const [kind, words] of WORDS) if (words.some((word) => text.includes(word))) return kind
+  const tokens = relation
+    .split(/[\s,·/]+/)
+    .map((token) => NOT_WORDS.reduce((rest, word) => rest.replaceAll(word, ' '), token))
+    .flatMap((token) => token.split(' '))
+    .filter((token) => token !== '')
+  const says = (word: string) =>
+    tokens.some((token) =>
+      word.length >= 2
+        ? token.includes(word)
+        : token.startsWith(word) && TAIL.test(token.slice(word.length)),
+    )
+  for (const [kind, words] of WORDS) if (words.some(says)) return kind
   return 'neutral'
 }
 
@@ -262,8 +279,11 @@ function forceClear(pairs: Pair[]): Force<Node, undefined> {
 const UNIT = 230
 // Stress iterations per try, and the work budget (iterations × characters²) for all tries.
 const ITERATIONS = 300
-const BUDGET = 5e6
+// Work (rough steps) all tries may take together: a stress run is ITERATIONS × characters²,
+// its tidy pass TIDY_TICKS × lines × characters, counting its crossings lines².
+const BUDGET = 3e6
 const MAX_TRIES = 10
+const TIDY_TICKS = 150
 // The spread is wide: the picture is stretched across to at least this width per height.
 const WIDE = 1.6
 
@@ -429,7 +449,7 @@ function tidy(ids: string[], pairs: Pair[], groups: Group[], points: Point[]): P
     .force('clear', forceClear(pairs))
     .force('outside', forceOutside(groups))
     .stop()
-    .tick(150)
+    .tick(TIDY_TICKS)
   return nodes.map((node) => ({ x: node.x ?? 0, y: node.y ?? 0 }))
 }
 
@@ -470,10 +490,9 @@ function numbers(seed: number) {
 export function layout(ids: string[], pairs: Pair[], groups: Group[] = []): Map<string, Point> {
   if (ids.length === 0) return new Map()
   const steps = stepsOf(ids, pairs, groups)
-  const tries = Math.max(
-    1,
-    Math.min(MAX_TRIES, Math.floor(BUDGET / (ITERATIONS * ids.length * ids.length))),
-  )
+  const n = ids.length
+  const perTry = ITERATIONS * n * n + TIDY_TICKS * (pairs.length + 1) * n + pairs.length ** 2
+  const tries = Math.max(1, Math.min(MAX_TRIES, Math.floor(BUDGET / perTry)))
   const next = numbers(7)
   const spread = UNIT * Math.sqrt(ids.length)
   let best: { at: Map<string, Point>; crossings: number } | null = null

@@ -69,8 +69,25 @@ test('a relation is love, friendly, hostile or else neutral by its words', () =>
     expect(kindOf(text)).toBe('friendly')
   for (const text of ['숙적', '연적', '넘어서야 할 상대', '적'])
     expect(kindOf(text)).toBe('hostile')
-  for (const text of ['의뢰인', '같은 반 친구의 형'.slice(0, 4), '', null])
-    expect(kindOf(text)).toBe('neutral')
+  for (const text of ['의뢰인', '', null]) expect(kindOf(text)).toBe('neutral')
+})
+
+test('strong hostility beats family and love; short words count only as whole words', () => {
+  for (const text of [
+    '아버지의 원수',
+    '형을 죽인 원수',
+    '친구를 배신함',
+    '남편을 죽인 원수',
+    '주인공을 노림',
+    '적이다',
+    '적군',
+  ])
+    expect(kindOf(text)).toBe('hostile')
+  for (const text of ['형사', '목적이 같은 사람']) expect(kindOf(text)).toBe('neutral')
+  for (const text of ['형', '친형', '형이자 스승', '외동딸', '딸'])
+    expect(kindOf(text)).not.toBe('neutral')
+  // Mere rivalry still loses to friendship.
+  expect(kindOf('라이벌이자 절친')).toBe('friendly')
 })
 
 test('a line takes the strongest side, solid only when both sides feel it', () => {
