@@ -132,9 +132,10 @@ export function DecorateDialog({ work, onClose }: Props) {
       uploadButton.current?.focus()
     },
   })
+  // The choice goes in with the call, never from the closure (see SetupScreen's paths).
   const save = useMutation({
-    mutationFn: () =>
-      api.updateWork(work.id, { color, cover_id: mode === 'illustration' ? picked : null }),
+    mutationFn: (choice: { color: string | null; cover_id: string | null }) =>
+      api.updateWork(work.id, choice),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['works'] }),
   })
 
@@ -159,7 +160,10 @@ export function DecorateDialog({ work, onClose }: Props) {
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (save.isPending) return
-    save.mutate(undefined, { onSuccess: onClose })
+    save.mutate(
+      { color, cover_id: mode === 'illustration' ? picked : null },
+      { onSuccess: onClose },
+    )
   }
 
   const list = covers.data?.covers ?? []
