@@ -1,7 +1,8 @@
 // Leaves of soft paper turning over the spine (§12 S1 book). A leaf is cut into narrow strips
-// hinged one on the next. The whole leaf lifts and lands together, the part further out lagging
-// a little behind in between, so the paper curls without its free edge being dragged flat
-// across the page or spreading out late as it lands. Turning past several
+// hinged one on the next. The part further out follows the spine a moment later and bends back
+// behind it, more so toward the free edge, so the paper curls as it lifts and lands softly, its
+// free edge last (a moment only: dragged flat for long it looks pulled across the page, and
+// spreading out late as it lands, stretched). Turning past several
 // sections turns one leaf per section, each a moment after the one before, as a reader's thumb
 // lets pages go. The first leaf's front is a picture of the page being turned, the last one's
 // back the page it lands on (the leaves between are blank paper); the half no leaf has covered
@@ -16,8 +17,11 @@ export type TurnDirection = 'next' | 'prev'
 
 /** Strips per leaf: more bend more smoothly, each costs two copies of the spread. */
 const STRIPS = 16
-/** How far (deg) the free edge lags behind the spine half way over (0 = a stiff board). */
-const CURL = 30
+/** Share of the turn by which the free edge starts and lands after the spine. */
+const DRAG = 0.1
+/** How far (deg) the paper bends back behind where it would be, at most, half way over: under a
+ * radian, so no strip ever turns back (0 = a stiff board). */
+const CURL = 50
 /** How far out from the spine (share of the leaf) a page darkens into the gutter, and how dark
  * it gets there (contents.css .page-left, .page-right). */
 const GUTTER = 0.18
@@ -128,13 +132,14 @@ function restoreScrolls({ copy, picture }: Placed) {
 }
 
 /** Angle (deg, 0 = flat where it started, 180 = flat on the other page) of strip `index` at
- * `time` (0–1): eased, each strip further out lagging a little more behind the spine, most half
- * way over and not at all as it lifts and lands (always turning on, never back). */
+ * `time` (0–1): eased, each strip further out starting and ending a little later and bending
+ * back behind that, more toward the free edge, most half way over and not at all lying flat
+ * (always turning on, never back). */
 function angleOf(index: number, time: number): number {
-  const progress = Math.min(Math.max(time, 0), 1)
-  const spine = 180 * (0.5 - 0.5 * Math.cos(Math.PI * progress))
-  const lag = CURL * (index / (STRIPS - 1)) * Math.sin((spine * Math.PI) / 180)
-  return spine - lag
+  const out = index / (STRIPS - 1)
+  const progress = Math.min(Math.max((time - DRAG * out) / (1 - DRAG), 0), 1)
+  const turned = 180 * (0.5 - 0.5 * Math.cos(Math.PI * progress))
+  return turned - CURL * out ** 1.5 * Math.sin((turned * Math.PI) / 180)
 }
 
 /** How far (px) the free edge of a leaf whose strips are `widths` wide reaches out from the
@@ -569,8 +574,8 @@ export function playTurn(
   if (typeof stage.animate === 'function') {
     // Over the spine the leaves change places: one still to turn lies under the one turning
     // before it; once over, it lies on the ones turned before it.
-    // (The spine strip stands upright half way.)
-    const crossing = 0.5
+    // (The spine strip stands upright half way through its own turn.)
+    const crossing = 0.5 * (1 - DRAG)
     leaves.forEach((leaf, at) => {
       const timing: KeyframeAnimationOptions = {
         duration: TURN_MS,
