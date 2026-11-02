@@ -127,15 +127,19 @@ function Paths({ status, onStarted, onBack }: PathsProps) {
   // null = the default location under the data dir.
   const [model, setModel] = useState(current('model'))
   const [llama, setLlama] = useState(current('llama'))
+  // The paths go in with the call, never from the closure: TanStack Query swaps in a new
+  // mutationFn only after the render, so a click right after picking a file would send the
+  // old ones.
   const save = useMutation({
-    mutationFn: () => api.setPaths({ model_path: model, llama_dir: llama }),
+    mutationFn: (paths: { model_path: string | null; llama_dir: string | null }) =>
+      api.setPaths(paths),
     onSuccess: (accepted) => {
       onStarted(accepted.jobId)
     },
   })
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!save.isPending) save.mutate()
+    if (!save.isPending) save.mutate({ model_path: model, llama_dir: llama })
   }
   const row = (
     id: string,
