@@ -217,21 +217,17 @@ function windowed(note: HTMLElement, rect: Box, side: 'left' | 'right', base: st
 }
 
 /** Section `section`'s page as it shows past a leaf's free edge (or past the new open page):
- * `width` px of it at `left` in the leaf's outer strip (or the stage), on its back if `back`,
- * its edge on the outer side (`side`; book.css .leaf-edge), behind the post-its riding there.
- * `fold` takes the leaf's shading as it bends. */
+ * `width` px of it at `left` in the leaf's outer strip (or the stage), on its back if `back`
+ * (book.css .leaf-edge), behind the post-its riding there. `fold` takes the leaf's shading as
+ * it bends. */
 function pageEdge(
   section: number,
   left: number,
   back: boolean,
   width: number,
-  side: 'left' | 'right',
 ): { strip: HTMLElement; fold: HTMLElement } {
   const strip = div('leaf-edge')
-  const tone = toneOf(section)
-  strip.style.setProperty('--tone', `var(--page-${tone})`)
-  strip.style.setProperty('--tone-edge', `var(--page-edge-${tone})`)
-  strip.dataset.side = side
+  strip.style.setProperty('--tone', `var(--page-${toneOf(section)})`)
   strip.style.left = `${String(left)}px`
   strip.style.width = `${String(width)}px`
   strip.style.transform = `${back ? 'rotateY(180deg) ' : ''}translateZ(-2px)`
@@ -443,18 +439,18 @@ export function playTurn(
       // How many page edges out from the open pages' it shows: where it starts, where it lands.
       const out0 = going ? (at > 0 ? at : null) : at + 1
       const out1 = going ? last - at + 1 : at < last ? last - at : null
-      const place = (out: number, back: boolean, side: 'left' | 'right') => {
+      const place = (out: number, back: boolean) => {
         const span = step * out
         // (Reaching in under the leaf's paper, so no seam opens between them as it turns.)
         const under = 2
         const { strip, fold } = going
-          ? pageEdge(own, reach - under, back, span + under, side)
-          : pageEdge(own, -span, back, span + under, side)
+          ? pageEdge(own, reach - under, back, span + under)
+          : pageEdge(own, -span, back, span + under)
         outer.append(strip)
         folds.push(fold)
       }
-      if (out0 !== null) place(out0, false, going ? 'right' : 'left')
-      if (out1 !== null) place(out1, true, going ? 'left' : 'right')
+      if (out0 !== null) place(out0, false)
+      if (out1 !== null) place(out1, true)
     }
     stage.append(wrap)
     return { wrap, strips, shades, backs, folds }
@@ -605,7 +601,6 @@ export function playTurn(
     (going ? oldEdge.right : newEdge.right) + step * (count - 1) - pagesRect.left,
     false,
     step,
-    'right',
   ).strip
   stay.after(ownEdge)
   const release = () => {

@@ -30,7 +30,7 @@
   /* the planning book's pages, alternating by section, and their edges in the page blocks */
   --page-a: #ede3cf;
   --page-edge-a: #dccfb4;
-  --page-b: #e6dac2;
+  --page-b: #e4d8bf;
   --page-edge-b: #cbbb9a;
   /* round window buttons, a shade deeper than the top bar */
   --control: #d9caac;
@@ -82,7 +82,7 @@
   --paper-edge: #3b3127;
   --page-a: #2f271f;
   --page-edge-a: #3b3127;
-  --page-b: #352c23;
+  --page-b: #392f25;
   --page-edge-b: #45392c;
   --control: #453a2e;
   --control-hover: #584a3a;
@@ -103,7 +103,7 @@
     --paper-edge: #3b3127;
     --page-a: #2f271f;
     --page-edge-a: #3b3127;
-    --page-b: #352c23;
+    --page-b: #392f25;
     --page-edge-b: #45392c;
     --control: #453a2e;
     --control-hover: #584a3a;

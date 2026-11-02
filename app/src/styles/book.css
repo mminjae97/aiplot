@@ -49,11 +49,8 @@
   translate: var(--shift) 0;
   /* the page block's layers and the post-its stuck in them interleave below (see .book-edge) */
   z-index: 40;
-  /* its own edges only (a line at each side, as the pages in the blocks, and the pages' edge
-     below): no shadow over the page blocks and post-its beside it */
+  /* the pages' edge below only: no shadow over the page blocks and post-its beside it */
   box-shadow:
-    inset 1px 0 var(--paper-edge),
-    inset -1px 0 var(--paper-edge),
     0 2px 0 var(--page-edge-a),
     0 4px 0 #d3c4a6;
 }
@@ -73,12 +70,12 @@
   pointer-events: none;
 }
 
-/* A section's page in a page block (or on a turning leaf, .leaf-edge): its paper tone (base.css),
-   a line at its outer edge, and the pages' 4px edge below, as the open pages. */
+/* A section's page in a page block (or on a turning leaf, .leaf-edge): its paper, in its tone
+   (base.css: the tones alternate, so the pages show apart), and the pages' 4px edge below, as
+   the open pages. */
 .book-edge,
 .leaf-edge {
   --tone: var(--page-a);
-  --tone-edge: var(--page-edge-a);
   background:
     linear-gradient(var(--tone), var(--tone)) top / 100% calc(100% - 4px) no-repeat,
     linear-gradient(var(--page-edge-a) 2px, #d3c4a6 0);
@@ -86,17 +83,6 @@
 
 .book-edge[data-even] {
   --tone: var(--page-b);
-  --tone-edge: var(--page-edge-b);
-}
-
-.book-edge[data-side='left'],
-.leaf-edge[data-side='left'] {
-  box-shadow: inset 1px 0 var(--tone-edge);
-}
-
-.book-edge[data-side='right'],
-.leaf-edge[data-side='right'] {
-  box-shadow: inset -1px 0 var(--tone-edge);
 }
 
 .book-edge[data-side='left'] {
@@ -124,15 +110,11 @@
 
 /* The bottom page of each block shades the cover beside it. */
 .book-edge[data-side='left'][data-bottom] {
-  box-shadow:
-    inset 1px 0 var(--tone-edge),
-    -2px 0 3px rgb(38 22 12 / 22%);
+  box-shadow: -2px 0 3px rgb(38 22 12 / 22%);
 }
 
 .book-edge[data-side='right'][data-bottom] {
-  box-shadow:
-    inset -1px 0 var(--tone-edge),
-    2px 0 3px rgb(38 22 12 / 22%);
+  box-shadow: 2px 0 3px rgb(38 22 12 / 22%);
 }
 
 /* One page across both sides (the dex, the graph, the map, the story). */
@@ -414,7 +396,7 @@
 }
 
 /* A section's page past a turning leaf's free edge (or past the new open page while a leaf
-   lies on it), as in the page block (.book-edge; pageTurn.ts sets its tone and side). */
+   lies on it), as in the page block (.book-edge; pageTurn.ts sets its tone). */
 .leaf-edge {
   position: absolute;
   top: 0;
