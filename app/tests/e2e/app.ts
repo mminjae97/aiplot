@@ -3,9 +3,13 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { _electron as electron, type ElectronApplication } from '@playwright/test'
 
-/** Starts the built app on a fresh data dir with the fixture LLM (§4), runs `use`, then closes
- * it and removes the data dir. */
-export async function withApp(use: (app: ElectronApplication) => Promise<void>): Promise<void> {
+/** Starts the app (the repo's build, or a packaged exe) on a fresh data dir with the fixture
+ * LLM (§4), runs `use`, then closes it and removes the data dir. */
+export async function withApp(
+  use: (app: ElectronApplication) => Promise<void>,
+  /** A packaged Aiplot.exe instead of the repo's build run by the dev Electron. */
+  executablePath?: string,
+): Promise<void> {
   // Always test the built renderer, never a leftover dev server URL.
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
@@ -19,7 +23,9 @@ export async function withApp(use: (app: ElectronApplication) => Promise<void>):
   env.AIPLOT_FAKE_LLM = '1'
   let app: ElectronApplication | null = null
   try {
-    app = await electron.launch({ args: [resolve(__dirname, '../..')], env })
+    app = await electron.launch(
+      executablePath ? { executablePath, env } : { args: [resolve(__dirname, '../..')], env },
+    )
     await use(app)
   } finally {
     try {

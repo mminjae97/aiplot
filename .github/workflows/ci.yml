@@ -113,3 +113,44 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy eval
+
+  # Windows installer (§19, from unit 14): main pushes and manual runs only (a few minutes).
+  installer:
+    if: github.event_name != 'pull_request'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          working-directory: server
+      - run: uv sync --locked
+        working-directory: server
+      - run: uv run pyinstaller aiplot-server.spec --noconfirm
+        working-directory: server
+      - run: npm ci
+        working-directory: app
+      - uses: actions/cache@v6
+        with:
+          path: ~\AppData\Local\electron\Cache
+          key: electron-${{ runner.os }}-${{ hashFiles('app/node_modules/electron/package.json') }}
+      - run: node node_modules/electron/install.js
+        working-directory: app
+      - run: npm run dist
+        working-directory: app
+      # The packaged app starts its bundled server and saves a card (fixture LLM).
+      - run: npx playwright test tests/e2e/packaged.spec.ts
+        working-directory: app
+        env:
+          AIPLOT_E2E_PACKAGED: '1'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Aiplot-Setup
+          path: app/dist/Aiplot-Setup-*.exe
+          if-no-files-found: error
+          retention-days: 14

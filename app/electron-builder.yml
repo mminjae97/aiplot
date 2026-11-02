@@ -1,0 +1,30 @@
+# Windows installer (§2, §20 unit 14): `npm run dist` after the server is built
+# (`uv run pyinstaller aiplot-server.spec` in server/). Unsigned for now.
+appId: com.aiplot.app
+productName: Aiplot
+directories:
+  output: dist
+  buildResources: build
+# Everything the app runs is bundled into out/ by electron-vite; the main process needs no
+# packages at run time.
+files:
+  - out/**
+  - package.json
+  - '!node_modules/**'
+extraResources:
+  # The PyInstaller server (electron/main.ts: resources/aiplot-server/aiplot-server.exe).
+  - from: ../server/dist/aiplot-server
+    to: aiplot-server
+npmRebuild: false
+win:
+  target: nsis
+  icon: build/icon.png
+nsis:
+  # Per-user (no administrator rights), the folder can be changed; the data dir
+  # (%LOCALAPPDATA%\Aiplot) is the user's and stays when the app is removed.
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+  shortcutName: Aiplot
+  artifactName: Aiplot-Setup-${version}.${ext}
