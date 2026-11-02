@@ -13,7 +13,7 @@ export type Gaps = { column: number; row: number }
 // Corner radius of a bend.
 const RADIUS = 7
 // A cause arrow runs this far below the order arrow's height, so their heads never meet.
-const CAUSE_DROP = 9
+const CAUSE_DROP = 11
 
 /** A path through points, each inner corner rounded; repeated and in-line points dropped. */
 export function rounded(points: Point[]): string {
@@ -77,11 +77,13 @@ function clear(route: Point[], blocked: Blocked): boolean {
  * Both kinds come into the side of `to` facing `from`: order (what comes next) at its middle,
  * cause (what led to it) a little lower, so their heads never meet. The direct way: straight
  * across in one row; to another row, out of `from`'s top or bottom (order by its quarter
- * toward `to`, cause by its middle), then across into `to`; between two nodes at the same time,
- * straight up or down (order left of the middle, cause right of it). If that touches another
- * node, the arrow goes round through the gaps, where no node lies: out of `from`'s side into
- * the column gap, along the gap between the rows next to `to`, down (or up) the column gap
- * before it and in. */
+ * toward `to`, cause just off the middle the other way, clear of the episode's own markers),
+ * then across into `to`; between two nodes at the same time, straight up or down (order by the
+ * left quarter, cause just right of the middle). If that touches another node, the arrow goes
+ * round through the gaps, where no node lies: out of `from`'s side into the column gap, along
+ * the gap between the rows next to `to`, down (or up) the column gap before it and in. Order
+ * and cause keep apart there too: in the gaps a few pixels apart, the cause along the row gap
+ * on `to`'s far side. */
 export function routeOf(
   from: NodeBox,
   to: NodeBox,
@@ -92,13 +94,14 @@ export function routeOf(
   const sameColumn = Math.abs(to.x - from.x) < 1
   const side = sameColumn || to.x > from.x ? 1 : -1
   const down = to.y > from.y + 0.5 ? 1 : to.y < from.y - 0.5 ? -1 : 0
-  const drop = kind === 'cause' ? CAUSE_DROP : 0
+  const cause = kind === 'cause'
+  const drop = cause ? CAUSE_DROP : 0
   const edgeX = (box: NodeBox, sign: number) => box.x + (sign * box.width) / 2
   const edgeY = (box: NodeBox, sign: number) => box.y + (sign * box.height) / 2
 
   let direct: Point[]
   if (sameColumn) {
-    const x = from.x + (kind === 'cause' ? 1 : -1) * (from.width / 4)
+    const x = cause ? from.x + from.width / 8 : from.x - from.width / 4
     direct = [
       { x, y: edgeY(from, down) },
       { x, y: edgeY(to, -down) },
@@ -109,7 +112,7 @@ export function routeOf(
       { x: edgeX(to, -side), y: to.y + drop },
     ]
   } else {
-    const x = kind === 'cause' ? from.x : from.x + (side * from.width) / 4
+    const x = cause ? from.x - (side * from.width) / 8 : from.x + (side * from.width) / 4
     direct = [
       { x, y: edgeY(from, down) },
       { x, y: to.y + drop },
@@ -119,20 +122,24 @@ export function routeOf(
   if (clear(direct, blocked)) return direct
 
   // Round through the gaps. Between two nodes at the same time it goes out of the right side
-  // and comes back into `to`'s right side.
+  // and comes back into `to`'s right side, an order above the middle there (its middle is
+  // where `to`'s own next arrow leaves), a cause below.
+  const level = sameColumn && !cause ? -CAUSE_DROP : drop
+  const shift = cause ? (side * gaps.column) / 4 : 0
   const out = edgeX(from, side)
-  const away = out + (side * gaps.column) / 2
+  const away = out + (side * gaps.column) / 2 + shift
   const into = sameColumn ? edgeX(to, 1) : edgeX(to, -side)
-  const before = sameColumn ? away : into - (side * gaps.column) / 2
-  // The gap between the rows on `to`'s side toward `from` (above it when in one row).
-  const toward = down === 0 ? 1 : down
+  const before = sameColumn ? away : into - (side * gaps.column) / 2 - shift
+  // The gap between the rows on `to`'s side toward `from` (above it when in one row); a cause
+  // takes the one on its far side.
+  const toward = (down === 0 ? 1 : down) * (cause ? -1 : 1)
   const lane = edgeY(to, -toward) - (toward * gaps.row) / 2
   return [
-    { x: out, y: from.y + drop },
-    { x: away, y: from.y + drop },
+    { x: out, y: from.y + level },
+    { x: away, y: from.y + level },
     { x: away, y: lane },
     { x: before, y: lane },
-    { x: before, y: to.y + drop },
-    { x: into, y: to.y + drop },
+    { x: before, y: to.y + level },
+    { x: into, y: to.y + level },
   ]
 }
