@@ -506,13 +506,16 @@
   stroke-dasharray: 7 5;
 }
 
-/* On a halo of paper, so lines passing under it do not cut through the letters. */
+/* On a paper tab over the outline's top, above the lines. */
 .faction-name {
-  fill: var(--brass);
-  stroke: var(--paper);
-  stroke-width: 5px;
-  stroke-linejoin: round;
-  paint-order: stroke;
-  font-size: 15px;
+  position: absolute;
+  padding: 1px 8px;
+  border: 1px solid var(--brass);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--brass);
+  font-size: 14px;
   font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
 }

@@ -10,6 +10,7 @@ import {
   type NodeChange,
   Position,
   ReactFlow,
+  ViewportPortal,
 } from '@xyflow/react'
 import { type KeyboardEvent, useState } from 'react'
 import { strings } from '../strings'
@@ -31,8 +32,6 @@ type RelationEdge = Edge<{ style: LineStyle; title: string }, 'relation'>
 
 // The portrait is a 72px disc; lines stop just outside it so the arrowheads show.
 const RADIUS = 42
-// Room above a faction's area for its name.
-const FACTION_LABEL = 22
 // How far a line bows out, as a share of its length, and at most (px).
 const BEND = 0.08
 const BEND_MAX = 28
@@ -201,15 +200,34 @@ function Legend({ factions }: { factions: boolean }) {
 type FactionNode = Node<{ name: string; path: string; label: { x: number; y: number } }, 'faction'>
 type GraphNode = CharacterNode | FactionNode
 
-/** A faction's area: a dashed outline round its members with its name at the top. */
+/** A faction's area: a dashed outline round its members, under the lines (its name is drawn
+ * over them: FactionNames). */
 function FactionNodeView({ data, width, height }: NodeProps<FactionNode>) {
   return (
     <svg className="faction-area" width={width} height={height} aria-hidden="true">
       <path d={data.path} className="faction-shape" />
-      <text x={data.label.x} y={data.label.y} className="faction-name" textAnchor="middle">
-        {data.name}
-      </text>
     </svg>
+  )
+}
+
+/** Each faction's name on a paper tab at the top of its outline, over the lines. */
+function FactionNames({ nodes }: { nodes: GraphNode[] }) {
+  return (
+    <ViewportPortal>
+      {nodes.map((node) =>
+        node.type === 'faction' ? (
+          <div
+            key={node.id}
+            className="faction-name"
+            style={{
+              transform: `translate(-50%, -50%) translate(${String(node.data.label.x)}px, ${String(node.data.label.y)}px)`,
+            }}
+          >
+            {node.data.name}
+          </div>
+        ) : null,
+      )}
+    </ViewportPortal>
   )
 }
 
@@ -223,7 +241,7 @@ function withAreas(nodes: GraphNode[], groups: Group[]): GraphNode[] {
     if (points.length < 2) return []
     const hull = hullOf(points, GROUP_PAD)
     const left = Math.min(...hull.map((point) => point.x))
-    const top = Math.min(...hull.map((point) => point.y)) - FACTION_LABEL
+    const top = Math.min(...hull.map((point) => point.y))
     const right = Math.max(...hull.map((point) => point.x))
     const bottom = Math.max(...hull.map((point) => point.y))
     const topmost = hull.reduce((best, point) => (point.y < best.y ? point : best))
@@ -242,7 +260,7 @@ function withAreas(nodes: GraphNode[], groups: Group[]): GraphNode[] {
         data: {
           name: group.name,
           path,
-          label: { x: topmost.x - left, y: FACTION_LABEL - 6 },
+          label: { x: topmost.x, y: topmost.y },
         },
       },
     ]
@@ -360,7 +378,9 @@ export function RelationGraph({ cards, relations, groups, onPick }: Props) {
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
         ariaLabelConfig={ARIA}
-      />
+      >
+        <FactionNames nodes={nodes} />
+      </ReactFlow>
     </div>
   )
 }
