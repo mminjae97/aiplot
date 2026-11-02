@@ -171,6 +171,8 @@ export function PlanningBook({ screen }: Props) {
         <div
           ref={bookRef}
           className="book-open"
+          // the open section's paper (its pages alternate two tones, base.css)
+          data-tone={openSection % 2 === 1 ? 'b' : 'a'}
           style={
             {
               ...(work.data ? bookStyle(colorOf(work.data)) : {}),

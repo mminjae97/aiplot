@@ -16,6 +16,14 @@
   /* over the desk's turning zones, so the post-its sticking out stay clickable */
   z-index: 1;
   isolation: isolate;
+  /* the open section's paper: the sections' pages alternate two tones (base.css) */
+  --paper: var(--page-a);
+  --paper-edge: var(--page-edge-a);
+}
+
+.book-open[data-tone='b'] {
+  --paper: var(--page-b);
+  --paper-edge: var(--page-edge-b);
 }
 
 /* The cover in the book's colour, showing as far past the page blocks on every side (their
@@ -41,6 +49,10 @@
   translate: var(--shift) 0;
   /* the page block's layers and the post-its stuck in them interleave below (see .book-edge) */
   z-index: 40;
+  /* its own edges below only: no shadow over the page blocks and post-its beside it */
+  box-shadow:
+    0 2px 0 var(--page-edge-a),
+    0 4px 0 #d3c4a6;
 }
 
 /* The page block at each side: one 3px layer of page edge per section's page, the bottom one
@@ -55,12 +67,13 @@
   /* down over the block's bottom edge, as the open pages' own (contents.css .spread) */
   bottom: -4px;
   width: 40px;
-  background: var(--paper-edge);
+  /* its section's page tone (base.css) */
+  background: var(--page-edge-a);
   pointer-events: none;
 }
 
 .book-edge[data-even] {
-  background: #cbbb9a;
+  background: var(--page-edge-b);
 }
 
 .book-edge[data-side='left'] {
@@ -270,17 +283,6 @@
   z-index: calc(11 + var(--note) * 2);
 }
 
-/* The open pages' shadow on a note's copy while the leaves turn (pageTurn.ts sets and fades it). */
-.book-note::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: var(--page-shade, none);
-  opacity: 0;
-  pointer-events: none;
-}
-
 /* A note copy riding on a turning leaf, or lying over the pages while the leaves turn, in a
    window that cuts off what they still cover (pageTurn.ts slides the window over it and the
    note back). */
@@ -293,10 +295,6 @@
 
 .book-note.leaf-note {
   animation: none;
-}
-
-.book-note.leaf-note::after {
-  will-change: opacity;
 }
 
 .book-note[data-section='world'] {
@@ -373,7 +371,8 @@
 .leaf-stay {
   position: absolute;
   top: 0;
-  bottom: 0;
+  /* with the old pages' edges below them */
+  bottom: -4px;
   z-index: 0;
   width: 50%;
   overflow: hidden;
@@ -389,18 +388,14 @@
 
 /* A section's page past a turning leaf's free edge (or past the new open page while a leaf
    lies on it): paper, then its edge coloured as in the page block (.book-edge; pageTurn.ts sets
-   the layers). As tall as the leaf: lying on the block, the block's own edge shows below it. */
+   the layers). */
 .leaf-edge {
-  --band: var(--paper-edge);
   position: absolute;
   top: 0;
-  height: 100%;
+  /* down over the page's edge below it, as the leaf's faces */
+  height: calc(100% + 4px);
   backface-visibility: hidden;
   pointer-events: none;
-}
-
-.leaf-edge[data-even] {
-  --band: #cbbb9a;
 }
 
 /* Darkening as the leaf bends (pageTurn.ts: as its outer strip's shading). */
@@ -409,36 +404,6 @@
   inset: 0;
   background: rgb(38 22 12);
   opacity: 0;
-}
-
-/* The open pages' shadow on it (pageTurn.ts sets the fall-off away from their edge): weaker
-   toward the top, where the pages' shadow (contents.css .spread, 22px down) starts. */
-.leaf-edge-shade {
-  position: absolute;
-  inset: 0;
-  mask-image: linear-gradient(
-    to bottom,
-    rgb(0 0 0 / 14%) 0,
-    rgb(0 0 0 / 50%) 22px,
-    rgb(0 0 0 / 84%) 42px,
-    #000 62px
-  );
-}
-
-/* The open pages' shadow on one side's page block while the leaves turn: where the old pages
-   lay, or where the new ones lie (pageTurn.ts; the pages' own stays off meanwhile). */
-.book-pages-shadow {
-  position: absolute;
-  z-index: 40;
-  pointer-events: none;
-}
-
-.book-pages-shadow[data-side='left'] {
-  clip-path: inset(-100px 50% -100px -100px);
-}
-
-.book-pages-shadow[data-side='right'] {
-  clip-path: inset(-100px -100px -100px 50%);
 }
 
 /* One leaf: its own 3D view (the leaves are stacked by z-index as they cross the spine), seen
@@ -482,10 +447,12 @@
 .leaf-face {
   position: absolute;
   /* 1px over each neighbour, so no hairline shows between the strips (pageTurn.ts shifts the
-     picture to match) */
-  inset: 0 -1px;
+     picture to match); 4px down for the page's edge below it (.book-open .spread) */
+  inset: 0 -1px -4px;
   overflow: hidden;
-  background: var(--paper);
+  background:
+    linear-gradient(var(--paper), var(--paper)) top / 100% calc(100% - 4px) no-repeat,
+    linear-gradient(var(--page-edge-a) 2px, #d3c4a6 0);
   backface-visibility: hidden;
 }
 
