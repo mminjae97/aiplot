@@ -27,6 +27,7 @@ requires-dist = [
 dev = [
     { name = "datamodel-code-generator", specifier = ">=0.87.0" },
     { name = "mypy", specifier = ">=2.4.1" },
+    { name = "pyinstaller", specifier = ">=6.22.3" },
     { name = "pytest", specifier = ">=9.2.0" },
     { name = "ruff", specifier = ">=0.17.3" },
     { name = "types-pyyaml", specifier = ">=6.0.12.20260906" },
