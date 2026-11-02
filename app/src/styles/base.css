@@ -27,6 +27,11 @@
 
   --paper: #ede3cf;
   --paper-edge: #dccfb4;
+  /* the planning book's pages, alternating by section, and their edges in the page blocks */
+  --page-a: #ede3cf;
+  --page-edge-a: #dccfb4;
+  --page-b: #e4d8bf;
+  --page-edge-b: #cbbb9a;
   /* round window buttons, a shade deeper than the top bar */
   --control: #d9caac;
   --control-hover: #c9b691;
@@ -75,6 +80,10 @@
 :root[data-theme='dark'] {
   --paper: #2f271f;
   --paper-edge: #3b3127;
+  --page-a: #2f271f;
+  --page-edge-a: #3b3127;
+  --page-b: #392f25;
+  --page-edge-b: #45392c;
   --control: #453a2e;
   --control-hover: #584a3a;
   --ink: #eadfca;
@@ -92,6 +101,10 @@
   :root[data-theme='system'] {
     --paper: #2f271f;
     --paper-edge: #3b3127;
+    --page-a: #2f271f;
+    --page-edge-a: #3b3127;
+    --page-b: #392f25;
+    --page-edge-b: #45392c;
     --control: #453a2e;
     --control-hover: #584a3a;
     --ink: #eadfca;

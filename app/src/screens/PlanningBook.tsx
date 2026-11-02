@@ -70,8 +70,12 @@ export function PlanningBook({ screen }: Props) {
       spread &&
       canTurn()
     ) {
-      // The notes of the sections turned past move to the other edge, with the leaf.
-      const sections = SECTIONS.slice(Math.min(from, toSection), Math.max(from, toSection))
+      // One leaf per section turned past, in the order they turn; each carries its note to
+      // the other edge.
+      const sections =
+        toSection > from
+          ? SECTIONS.slice(from, toSection)
+          : SECTIONS.slice(toSection, from).reverse()
       pending.current = {
         direction: to > index ? 'next' : 'prev',
         before: pictureOf(spread),
@@ -83,8 +87,9 @@ export function PlanningBook({ screen }: Props) {
               ? [{ copy: note.cloneNode(true) as HTMLElement, rect: note.getBoundingClientRect() }]
               : []
           }),
-          // The open pages glide this far while the leaf turns (3px per section, book.css).
+          // The open pages lie this much further right after the turn (3px per section, book.css).
           slide: (toSection - from) * 3,
+          from,
           levels: new Map(
             [...book.querySelectorAll<HTMLElement>('.book-notes [data-section]')].map((note) => [
               note.dataset.section ?? '',
@@ -166,11 +171,15 @@ export function PlanningBook({ screen }: Props) {
         <div
           ref={bookRef}
           className="book-open"
+          // the open section's paper (its pages alternate two tones, base.css)
+          data-tone={openSection % 2 === 1 ? 'b' : 'a'}
           style={
             {
               ...(work.data ? bookStyle(colorOf(work.data)) : {}),
               '--behind': openSection,
-              '--middle': (SECTIONS.length - 1) / 2,
+              // a whole section: the open pages always lie on whole pixels
+              '--middle': Math.floor((SECTIONS.length - 1) / 2),
+              '--last': SECTIONS.length - 1,
             } as CSSProperties
           }
         >
@@ -186,6 +195,7 @@ export function PlanningBook({ screen }: Props) {
           {(screen.name === 'direction' ||
             screen.name === 'writing' ||
             screen.name === 'reading') && <BlankPage screen={screen} />}
+          <span className="book-bottom" aria-hidden="true" />
           {(['left', 'right'] as const).flatMap((side) =>
             SECTIONS.map((section, at) => (
               <span
