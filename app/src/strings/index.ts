@@ -426,6 +426,12 @@ export const strings = {
     graphNoCards: '캐릭터가 생기면 여기에 관계도가 그려져요.',
     graphNoLinks: '아직 이어진 관계가 없어요. 캐릭터 원문에 관계를 적으면 선이 생겨요.',
     graphHint: '끌어서 옮기고, 휠로 확대해요. 옮긴 자리는 저장되지 않아요.',
+    legend: '선의 뜻',
+    kinds: { love: '사랑', friendly: '우호', hostile: '적대', neutral: '중립' },
+    mutual: '서로',
+    oneWay: '한쪽만',
+    faction: '같은 소속',
+    relationOf: (from: string, to: string, relation: string) => `${from} → ${to}: ${relation}`,
   },
   worldBook: {
     title: '세계관',

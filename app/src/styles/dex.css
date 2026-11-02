@@ -329,6 +329,7 @@
 
 /* 관계도 on a large sheet of paper. */
 .dex-graph {
+  position: relative;
   flex: 1;
   min-height: 320px;
   margin-top: 16px;
@@ -350,7 +351,7 @@
   flex-direction: column;
   gap: 4px;
   align-items: center;
-  width: 110px;
+  width: 120px;
 }
 
 /* The same portrait as the card, as a 72px disc. */
@@ -369,12 +370,20 @@
   font-size: 30px;
 }
 
+/* On paper over any line passing under it; a long name goes onto two lines at its space. */
 .graph-name {
+  display: -webkit-box;
   max-width: 100%;
+  padding: 0 4px;
   overflow: hidden;
+  border-radius: 3px;
+  background: var(--paper);
   font-weight: 500;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  line-height: 1.25;
+  text-align: center;
+  word-break: keep-all;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 /* Lines meet at the portrait's centre (they are drawn shorter, outside the disc). */
@@ -390,24 +399,123 @@
   transform: translate(-50%, -50%);
 }
 
-.dex-graph .graph-line {
+.graph-line {
+  fill: none;
   stroke: var(--ink-soft);
-  stroke-width: 1.5;
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
 }
 
-.dex-graph .react-flow__arrowhead polyline {
-  stroke: var(--ink-soft);
+.graph-line[data-mutual] {
+  stroke-dasharray: none;
+}
+
+.graph-line[data-kind='love'] {
+  stroke: var(--rel-love);
+}
+
+.graph-line[data-kind='friendly'] {
+  stroke: var(--rel-friendly);
+}
+
+.graph-line[data-kind='hostile'] {
+  stroke: var(--rel-hostile);
+}
+
+.graph-line[data-kind='neutral'] {
+  stroke: var(--rel-neutral);
+}
+
+/* A wide invisible stroke so the line's hover text is easy to reach. */
+.graph-line-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12;
+  pointer-events: stroke;
+}
+
+/* The kind's shape in the middle of its line. */
+.graph-glyph {
+  position: absolute;
+  padding: 1px 2px;
+  border-radius: 50%;
+  background: var(--paper);
+  font-size: 12px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* The key: each kind, then solid vs dashed, at the sheet's top left. */
+.graph-legend {
+  position: absolute;
+  z-index: 5;
+  top: 10px;
+  left: 12px;
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 4px;
+  background: var(--paper);
+  font-size: var(--size-small);
+  pointer-events: none;
+}
+
+.graph-legend-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.graph-legend-row dt {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  width: 48px;
+}
+
+.graph-legend-row dd {
+  margin: 0;
+  color: var(--ink);
+}
+
+.graph-legend-head {
   fill: var(--ink-soft);
 }
 
-.graph-label {
+.graph-legend-glyph {
+  font-size: 11px;
+}
+
+/* A faction's area (세력·조직): a dashed outline round its members, under the lines; areas
+   overlap where a character is in more than one. */
+.react-flow__node-faction {
+  pointer-events: none;
+}
+
+.faction-area {
+  display: block;
+  overflow: visible;
+}
+
+.faction-shape {
+  fill: rgb(176 138 62 / 7%);
+  stroke: var(--brass);
+  stroke-width: 1.5;
+  stroke-dasharray: 7 5;
+}
+
+/* On a paper tab over the outline's top, above the lines. */
+.faction-name {
   position: absolute;
-  padding: 0 6px;
-  border: 1px solid var(--paper-edge);
-  border-radius: 3px;
+  padding: 1px 8px;
+  border: 1px solid var(--brass);
+  border-radius: 4px;
   background: var(--paper);
-  color: var(--ink);
-  font-size: var(--size-small);
+  color: var(--brass);
+  font-size: 14px;
+  font-weight: 700;
   white-space: nowrap;
   pointer-events: none;
 }

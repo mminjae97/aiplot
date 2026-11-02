@@ -22,6 +22,7 @@ import {
   NODE_HEIGHT,
   NODE_WIDTH,
   type Point,
+  throughAreas,
   travelText,
 } from './regionLayout'
 
@@ -184,10 +185,14 @@ export function RegionMap({ cards, links, parents, episodes, locked, onPick, onM
   )
   const [nodes, setNodes] = useState<MapNode[]>(() => {
     const leaves = cards.filter((card) => !children.has(card.id))
-    const leafIds = new Set(leaves.map((card) => card.id))
-    const lines = linesOf(links, leafIds)
     const descendants = (id: string): string[] =>
       (children.get(id) ?? []).flatMap((kid) => (children.has(kid) ? descendants(kid) : [kid]))
+    const lines = throughAreas(
+      linesOf(links, new Set(cards.map((card) => card.id))).filter(
+        (line) => !inside(line.a, line.b, children) && !inside(line.b, line.a, children),
+      ),
+      (id) => (children.has(id) ? descendants(id) : [id]),
+    )
     const placed = new Map<string, Point>()
     for (const card of leaves) {
       if (card.position) placed.set(card.id, { x: card.position.map_x, y: card.position.map_y })

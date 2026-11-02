@@ -37,6 +37,11 @@
   --control-hover: #c9b691;
   --ink: #2e2219;
   --ink-soft: #6b5a48;
+  /* 관계도 line kinds (§8): love, friendly, hostile, neutral */
+  --rel-love: #c2507e;
+  --rel-friendly: #2f62a8;
+  --rel-hostile: #b3322a;
+  --rel-neutral: #3f8048;
   --ink-faint: #9a8a74;
 
   --wood-panel: #5a3b26;
@@ -88,6 +93,10 @@
   --control-hover: #584a3a;
   --ink: #eadfca;
   --ink-soft: #bfae94;
+  --rel-love: #f08cb4;
+  --rel-friendly: #84aef0;
+  --rel-hostile: #f0786c;
+  --rel-neutral: #8cc98a;
   --ink-faint: #8c7c66;
   --wood-panel: #2b1d13;
   --wood-board: #6f4e33;
@@ -109,6 +118,10 @@
     --control-hover: #584a3a;
     --ink: #eadfca;
     --ink-soft: #bfae94;
+    --rel-love: #f08cb4;
+    --rel-friendly: #84aef0;
+    --rel-hostile: #f0786c;
+    --rel-neutral: #8cc98a;
     --ink-faint: #8c7c66;
     --wood-panel: #2b1d13;
     --wood-board: #6f4e33;
