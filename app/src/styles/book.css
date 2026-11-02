@@ -267,10 +267,33 @@
   z-index: calc(11 + var(--note) * 2);
 }
 
-/* A note riding on a turning leaf. */
+/* The open pages' shadow on a note's copy while the leaves turn (pageTurn.ts sets and fades it). */
+.book-note::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--page-shade, none);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* A note copy riding on a turning leaf, or lying over the pages while the leaves turn, in a
+   window that cuts off what they still cover (pageTurn.ts slides the window over it and the
+   note back). */
+.note-window {
+  position: absolute;
+  overflow: clip;
+  backface-visibility: hidden;
+  pointer-events: none;
+}
+
 .book-note.leaf-note {
   animation: none;
-  backface-visibility: hidden;
+}
+
+.book-note.leaf-note::after {
+  will-change: opacity;
 }
 
 .book-note[data-section='world'] {
@@ -322,8 +345,8 @@
 }
 
 /* A leaf of soft paper turning over the spine (screens/pageTurn.ts animates its strips: the
-   spine first, the free edge dragged along behind). The clip keeps a leaf rising toward the
-   reader inside the desk. */
+   spine first, the free edge dragged along behind). The clip keeps the post-its riding on the
+   leaves inside the desk. */
 .book-turn-clip {
   position: absolute;
   /* the desk around the book: post-its turning with the leaf stick out past its edges */
@@ -360,12 +383,12 @@
   right: 0;
 }
 
-/* One leaf: its own 3D view (the leaves are stacked by z-index as they cross the spine). */
+/* One leaf: its own 3D view (the leaves are stacked by z-index as they cross the spine), seen
+   from straight above with no perspective, so the paper rising toward the reader never grows
+   past the page's height. */
 .leaf {
   position: absolute;
   inset: 0;
-  /* far enough that a leaf rising toward the reader stays about the book's height */
-  perspective: 15000px;
 }
 
 .leaf-strip {
