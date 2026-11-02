@@ -21,6 +21,9 @@ type RelationEdge = Edge<{ style: LineStyle; title: string }, 'relation'>
 
 // The portrait is a 72px disc; lines stop just outside it so the arrowheads show.
 const RADIUS = 42
+// How far a line bows out, as a share of its length, and at most (px).
+const BEND = 0.08
+const BEND_MAX = 28
 
 /** A shape for each kind beside its colour, so colour is never the only sign (§5). */
 const GLYPHS: Record<RelationKind, string> = {
@@ -72,11 +75,27 @@ function RelationEdgeView({
   const uy = dy / length
   // Discs dragged onto each other: no line (its ends would cross and flip the arrows).
   if (length <= 2 * RADIUS || !data) return null
-  const from = { x: sourceX + ux * RADIUS, y: sourceY + uy * RADIUS }
-  const to = { x: targetX - ux * RADIUS, y: targetY - uy * RADIUS }
-  const path = `M ${String(from.x)} ${String(from.y)} L ${String(to.x)} ${String(to.y)}`
+  // A gentle bow, always to the same side of a→b, so lines running the same way part.
+  const bend = Math.min(BEND_MAX, length * BEND)
+  const control = {
+    x: (sourceX + targetX) / 2 - uy * bend,
+    y: (sourceY + targetY) / 2 + ux * bend,
+  }
+  // Each end leaves its disc toward the bow's control point.
+  const towards = (from: { x: number; y: number }) => {
+    const cx = control.x - from.x
+    const cy = control.y - from.y
+    const reach = Math.hypot(cx, cy) || 1
+    return { x: from.x + (cx / reach) * RADIUS, y: from.y + (cy / reach) * RADIUS }
+  }
+  const from = towards({ x: sourceX, y: sourceY })
+  const to = towards({ x: targetX, y: targetY })
+  const path = `M ${String(from.x)} ${String(from.y)} Q ${String(control.x)} ${String(control.y)} ${String(to.x)} ${String(to.y)}`
   const { kind, mutual } = data.style
-  const middle = { x: (sourceX + targetX) / 2, y: (sourceY + targetY) / 2 }
+  const middle = {
+    x: 0.25 * from.x + 0.5 * control.x + 0.25 * to.x,
+    y: 0.25 * from.y + 0.5 * control.y + 0.25 * to.y,
+  }
   return (
     <>
       <path
@@ -114,12 +133,13 @@ function LineSample({ kind, mutual }: { kind?: RelationKind; mutual: boolean }) 
       <line
         x1="1"
         y1="5"
-        x2="29"
+        x2={mutual ? 29 : 23}
         y2="5"
         className="graph-line"
         data-kind={kind}
         data-mutual={mutual || undefined}
       />
+      {!mutual && <path d="M 22 1 L 30 5 L 22 9 z" className="graph-legend-head" />}
     </svg>
   )
 }
@@ -201,9 +221,10 @@ function graphOf(cards: CharacterCard[], relations: CardRelation[]) {
       target: pair.b,
       data: { style, title },
       ariaLabel: title,
-      // Arrowheads point from the sides that feel the line's kind.
-      markerEnd: style.fromA ? arrowOf(style.kind) : undefined,
-      markerStart: style.fromB ? arrowOf(style.kind) : undefined,
+      // A solid line is both ways and has no arrowheads; a dashed one points from the side
+      // that feels it.
+      markerEnd: !style.mutual && style.fromA ? arrowOf(style.kind) : undefined,
+      markerStart: !style.mutual && style.fromB ? arrowOf(style.kind) : undefined,
     }
   })
   return { nodes, edges }

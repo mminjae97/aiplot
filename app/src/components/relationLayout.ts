@@ -9,6 +9,7 @@ import {
   forceSimulation,
   forceX,
   forceY,
+  type Force,
   type SimulationLinkDatum,
   type SimulationNodeDatum,
 } from 'd3-force'
@@ -160,8 +161,62 @@ export function styleOf(pair: Pair): LineStyle {
 type Point = { x: number; y: number }
 type Node = SimulationNodeDatum & { id: string }
 
-/** Force layout centred on (0, 0): linked characters pull together, all push apart, and a
- * weak pull to the middle keeps loners close. The start positions are d3's fixed spiral,
+// How far (px) a character's centre keeps from a line it is not on: its disc and name clear.
+const CLEARANCE = 72
+
+/** Keeps characters off other pairs' lines: one lying on a line it is not part of is pushed
+ * off it sideways, the line's ends the other way (a line under a disc reads as linked to it). */
+function forceClear(pairs: Pair[]): Force<Node, undefined> {
+  let nodes: Node[] = []
+  let byId = new Map<string, Node>()
+  const force = (alpha: number) => {
+    for (const pair of pairs) {
+      const a = byId.get(pair.a)
+      const b = byId.get(pair.b)
+      if (!a || !b) continue
+      const ax = a.x ?? 0
+      const ay = a.y ?? 0
+      const dx = (b.x ?? 0) - ax
+      const dy = (b.y ?? 0) - ay
+      const length2 = dx * dx + dy * dy
+      if (length2 === 0) continue
+      for (const node of nodes) {
+        if (node === a || node === b) continue
+        const t = ((node.x ?? 0) - ax) * dx + ((node.y ?? 0) - ay) * dy
+        if (t <= 0 || t >= length2) continue
+        const along = t / length2
+        const px = ax + dx * along
+        const py = ay + dy * along
+        let ox = (node.x ?? 0) - px
+        let oy = (node.y ?? 0) - py
+        let off = Math.hypot(ox, oy)
+        if (off >= CLEARANCE) continue
+        if (off < 1e-6) {
+          // Right on the line: off to one side, the same side every time.
+          ox = -dy
+          oy = dx
+          off = Math.sqrt(length2)
+        }
+        const push = ((CLEARANCE - off) / off) * alpha * 4
+        node.vx = (node.vx ?? 0) + ox * push
+        node.vy = (node.vy ?? 0) + oy * push
+        a.vx = (a.vx ?? 0) - ox * push * (1 - along) * 0.5
+        a.vy = (a.vy ?? 0) - oy * push * (1 - along) * 0.5
+        b.vx = (b.vx ?? 0) - ox * push * along * 0.5
+        b.vy = (b.vy ?? 0) - oy * push * along * 0.5
+      }
+    }
+  }
+  force.initialize = (all: Node[]) => {
+    nodes = all
+    byId = new Map(all.map((node) => [node.id, node]))
+  }
+  return force
+}
+
+/** Force layout centred on (0, 0): linked characters pull together, all push apart, nobody
+ * lies on a line that is not theirs, and a weak pull to the middle keeps loners close (weaker
+ * across than down, so the graph spreads wide like the book's spread). The start positions are d3's fixed spiral,
  * so the same data gives the same picture. */
 export function layout(ids: string[], pairs: Pair[]): Map<string, Point> {
   const nodes: Node[] = ids.map((id) => ({ id }))
@@ -174,14 +229,15 @@ export function layout(ids: string[], pairs: Pair[]): Map<string, Point> {
       'link',
       forceLink<Node, SimulationLinkDatum<Node>>(links)
         .id((node) => node.id)
-        .distance(230),
+        .distance(260),
     )
-    .force('charge', forceManyBody().strength(-600))
+    .force('charge', forceManyBody().strength(-900))
     .force('collide', forceCollide(80))
-    .force('x', forceX(0).strength(0.06))
-    .force('y', forceY(0).strength(0.06))
+    .force('clear', forceClear(pairs))
+    .force('x', forceX(0).strength(0.03))
+    .force('y', forceY(0).strength(0.09))
     .force('center', forceCenter(0, 0))
     .stop()
-  simulation.tick(300)
+  simulation.tick(600)
   return new Map(nodes.map((node) => [node.id, { x: node.x ?? 0, y: node.y ?? 0 }]))
 }

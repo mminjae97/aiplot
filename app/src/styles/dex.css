@@ -351,7 +351,7 @@
   flex-direction: column;
   gap: 4px;
   align-items: center;
-  width: 110px;
+  width: 120px;
 }
 
 /* The same portrait as the card, as a 72px disc. */
@@ -370,12 +370,20 @@
   font-size: 30px;
 }
 
+/* On paper over any line passing under it; a long name goes onto two lines at its space. */
 .graph-name {
+  display: -webkit-box;
   max-width: 100%;
+  padding: 0 4px;
   overflow: hidden;
+  border-radius: 3px;
+  background: var(--paper);
   font-weight: 500;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  line-height: 1.25;
+  text-align: center;
+  word-break: keep-all;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 /* Lines meet at the portrait's centre (they are drawn shorter, outside the disc). */
@@ -470,6 +478,10 @@
 .graph-legend-row dd {
   margin: 0;
   color: var(--ink);
+}
+
+.graph-legend-head {
+  fill: var(--ink-soft);
 }
 
 .graph-legend-glyph {
