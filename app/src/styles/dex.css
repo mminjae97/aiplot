@@ -487,3 +487,32 @@
 .graph-legend-glyph {
   font-size: 11px;
 }
+
+/* A faction's area (세력·조직): a dashed outline round its members, under the lines; areas
+   overlap where a character is in more than one. */
+.react-flow__node-faction {
+  pointer-events: none;
+}
+
+.faction-area {
+  display: block;
+  overflow: visible;
+}
+
+.faction-shape {
+  fill: rgb(176 138 62 / 7%);
+  stroke: var(--brass);
+  stroke-width: 1.5;
+  stroke-dasharray: 7 5;
+}
+
+/* On a halo of paper, so lines passing under it do not cut through the letters. */
+.faction-name {
+  fill: var(--brass);
+  stroke: var(--paper);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+  font-size: 15px;
+  font-weight: 700;
+}

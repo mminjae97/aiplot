@@ -150,6 +150,60 @@ export function styleOf(pair: Pair): LineStyle {
 type Point = { x: number; y: number }
 type Node = SimulationNodeDatum & { id: string }
 
+/** A faction (세력·조직 world card) and the characters in its 함께 보기: drawn as an area
+ * around them; a character may be in several. */
+export type Group = { id: string; name: string; members: string[] }
+
+/** Factions with at least two of the drawn characters (one alone gets no area). */
+export function groupsOf(
+  factions: { id: string; name: string | null }[],
+  rows: CardRelation[],
+  drawn: ReadonlySet<string>,
+): Group[] {
+  return factions.flatMap((faction) => {
+    const members = [
+      ...new Set(
+        rows
+          .filter((row) => row.from_id === faction.id && drawn.has(row.to_id))
+          .map((row) => row.to_id),
+      ),
+    ]
+    return members.length >= 2 ? [{ id: faction.id, name: faction.name ?? '', members }] : []
+  })
+}
+
+// Room (px) an area keeps around its members' centres: their discs and names.
+export const GROUP_PAD = 70
+
+/** The area around points: the convex hull of a circle of `pad` around each, so it is round at
+ * the ends and keeps that room on every side. */
+export function hullOf(points: Point[], pad: number): Point[] {
+  const ring = points.flatMap((point) =>
+    Array.from({ length: 24 }, (_, k) => ({
+      x: point.x + pad * Math.cos((k * Math.PI) / 12),
+      y: point.y + pad * Math.sin((k * Math.PI) / 12),
+    })),
+  )
+  const sorted = [...ring].sort((p, q) => p.x - q.x || p.y - q.y)
+  const cross = (o: Point, a: Point, b: Point) =>
+    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x)
+  const half = (list: Point[]) => {
+    const out: Point[] = []
+    for (const point of list) {
+      while (out.length >= 2) {
+        const a = out[out.length - 2]
+        const b = out[out.length - 1]
+        if (!a || !b || cross(a, b, point) > 0) break
+        out.pop()
+      }
+      out.push(point)
+    }
+    out.pop()
+    return out
+  }
+  return [...half(sorted), ...half([...sorted].reverse())]
+}
+
 // How far (px) a character's centre keeps from a line it is not on: its disc and name clear.
 const CLEARANCE = 72
 
@@ -214,8 +268,9 @@ const MAX_TRIES = 10
 const WIDE = 1.6
 
 /** Steps in the web of relations between every two characters (BFS); characters not linked
- * at all count as one step beyond the furthest. */
-function stepsOf(ids: string[], pairs: Pair[]): number[][] {
+ * at all count as one step beyond the furthest, and two of one faction as one step at most
+ * (they lie together). */
+function stepsOf(ids: string[], pairs: Pair[], groups: Group[]): number[][] {
   const index = new Map(ids.map((id, i) => [id, i]))
   const next: number[][] = ids.map(() => [])
   for (const pair of pairs) {
@@ -240,7 +295,16 @@ function stepsOf(ids: string[], pairs: Pair[]): number[][] {
     return row
   })
   const furthest = Math.max(0, ...steps.flat().filter((step) => step !== Infinity))
-  return steps.map((row) => row.map((step) => (step === Infinity ? furthest + 1 : step)))
+  const out = steps.map((row) => row.map((step) => (step === Infinity ? furthest + 1 : step)))
+  for (const group of groups) {
+    const members = group.members.flatMap((id) => index.get(id) ?? [])
+    for (const a of members)
+      for (const b of members) {
+        const row = out[a]
+        if (a !== b && row) row[b] = Math.min(row[b] ?? 1, 1)
+      }
+  }
+  return out
 }
 
 /** Stress majorization (Gansner, Koren & North): moves each character to where its distances
@@ -304,13 +368,66 @@ function widen(points: Point[]): Point[] {
   return turned.map((point) => ({ x: point.x * stretch, y: point.y }))
 }
 
-/** Pulls discs apart and off lines that are not theirs, moving them as little as it can. */
-function tidy(ids: string[], pairs: Pair[], points: Point[]): Point[] {
+/** Keeps characters out of factions they are not in: one inside a faction's area (with room
+ * for its own disc) is pushed out from the area's middle. */
+function forceOutside(groups: Group[]): Force<Node, undefined> {
+  let nodes: Node[] = []
+  let byId = new Map<string, Node>()
+  const force = (alpha: number) => {
+    for (const group of groups) {
+      const members = group.members.flatMap((id) => byId.get(id) ?? [])
+      if (members.length < 2) continue
+      const points = members.map((node) => ({ x: node.x ?? 0, y: node.y ?? 0 }))
+      const hull = hullOf(points, GROUP_PAD + OUTSIDE)
+      const cx = points.reduce((sum, point) => sum + point.x, 0) / points.length
+      const cy = points.reduce((sum, point) => sum + point.y, 0) / points.length
+      const inside = new Set(group.members)
+      for (const node of nodes) {
+        if (inside.has(node.id)) continue
+        const at = { x: node.x ?? 0, y: node.y ?? 0 }
+        if (!within(hull, at)) continue
+        const dx = at.x - cx
+        const dy = at.y - cy
+        const off = Math.hypot(dx, dy) || 1e-6
+        node.vx = (node.vx ?? 0) + (dx / off) * 90 * alpha
+        node.vy = (node.vy ?? 0) + (dy / off) * 90 * alpha
+      }
+    }
+  }
+  force.initialize = (all: Node[]) => {
+    nodes = all
+    byId = new Map(all.map((node) => [node.id, node]))
+  }
+  return force
+}
+
+// Room (px) a character outside an area keeps from its outline: its own disc and name, and
+// the area's name above it.
+const OUTSIDE = 80
+
+/** Whether a point lies inside a convex polygon (hullOf's order). */
+export function within(polygon: Point[], point: Point): boolean {
+  if (polygon.length < 3) return false
+  let sign = 0
+  for (const [i, a] of polygon.entries()) {
+    const b = polygon[(i + 1) % polygon.length] ?? a
+    const turn = (b.x - a.x) * (point.y - a.y) - (b.y - a.y) * (point.x - a.x)
+    if (turn === 0) continue
+    if (sign === 0) sign = Math.sign(turn)
+    else if (Math.sign(turn) !== sign) return false
+  }
+  return true
+}
+
+/** Pulls discs apart, off lines that are not theirs and out of factions that are not theirs,
+ * moving them as little as it can. */
+function tidy(ids: string[], pairs: Pair[], groups: Group[], points: Point[]): Point[] {
   const nodes: Node[] = ids.map((id, i) => ({ id, x: points[i]?.x ?? 0, y: points[i]?.y ?? 0 }))
   forceSimulation(nodes)
     .alpha(0.3)
     .force('collide', forceCollide(80))
     .force('clear', forceClear(pairs))
+    .force('outside', forceOutside(groups))
     .stop()
     .tick(150)
   return nodes.map((node) => ({ x: node.x ?? 0, y: node.y ?? 0 }))
@@ -346,12 +463,13 @@ function numbers(seed: number) {
   }
 }
 
-/** Positions centred on (0, 0): a stress layout from several fixed starts (as many as the
+/** Positions centred on (0, 0), each faction's members together: a stress layout from
+ * several fixed starts (as many as the
  * budget allows for this many characters), each stretched wide and tidied, keeping the one
  * whose lines cross least. */
-export function layout(ids: string[], pairs: Pair[]): Map<string, Point> {
+export function layout(ids: string[], pairs: Pair[], groups: Group[] = []): Map<string, Point> {
   if (ids.length === 0) return new Map()
-  const steps = stepsOf(ids, pairs)
+  const steps = stepsOf(ids, pairs, groups)
   const tries = Math.max(
     1,
     Math.min(MAX_TRIES, Math.floor(BUDGET / (ITERATIONS * ids.length * ids.length))),
@@ -361,7 +479,7 @@ export function layout(ids: string[], pairs: Pair[]): Map<string, Point> {
   let best: { at: Map<string, Point>; crossings: number } | null = null
   for (let attempt = 0; attempt < tries; attempt++) {
     const start = ids.map(() => ({ x: (next() - 0.5) * spread, y: (next() - 0.5) * spread }))
-    const points = tidy(ids, pairs, widen(stress(steps, start)))
+    const points = tidy(ids, pairs, groups, widen(stress(steps, start)))
     const at = new Map(ids.map((id, i) => [id, points[i] ?? { x: 0, y: 0 }]))
     const crossings = crossingsOf(at, pairs)
     if (!best || crossings < best.crossings) best = { at, crossings }

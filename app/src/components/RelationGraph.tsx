@@ -6,21 +6,33 @@ import {
   MarkerType,
   type Node,
   type NodeProps,
+  applyNodeChanges,
+  type NodeChange,
   Position,
   ReactFlow,
-  useNodesState,
 } from '@xyflow/react'
 import { type KeyboardEvent, useState } from 'react'
 import { strings } from '../strings'
 import type { CardRelation, CharacterCard } from '../types'
 import { Portrait } from './CharacterCard'
-import { layout, type LineStyle, pairsOf, type RelationKind, styleOf } from './relationLayout'
+import {
+  GROUP_PAD,
+  type Group,
+  hullOf,
+  layout,
+  type LineStyle,
+  pairsOf,
+  type RelationKind,
+  styleOf,
+} from './relationLayout'
 
 type CharacterNode = Node<{ card: CharacterCard }, 'character'>
 type RelationEdge = Edge<{ style: LineStyle; title: string }, 'relation'>
 
 // The portrait is a 72px disc; lines stop just outside it so the arrowheads show.
 const RADIUS = 42
+// Room above a faction's area for its name.
+const FACTION_LABEL = 22
 // How far a line bows out, as a share of its length, and at most (px).
 const BEND = 0.08
 const BEND_MAX = 28
@@ -146,7 +158,7 @@ function LineSample({ kind, mutual }: { kind?: RelationKind; mutual: boolean }) 
 
 /** The key at the top left: each kind's colour and shape, then solid (both sides feel it)
  * and dashed (one side does). */
-function Legend() {
+function Legend({ factions }: { factions: boolean }) {
   return (
     <dl className="graph-legend" aria-label={strings.dex.legend}>
       {KINDS.map((kind) => (
@@ -172,11 +184,73 @@ function Legend() {
         </dt>
         <dd>{strings.dex.oneWay}</dd>
       </div>
+      {factions && (
+        <div className="graph-legend-row">
+          <dt>
+            <svg width="30" height="14" aria-hidden="true">
+              <rect x="1" y="1" width="28" height="12" rx="6" className="faction-shape" />
+            </svg>
+          </dt>
+          <dd>{strings.dex.faction}</dd>
+        </div>
+      )}
     </dl>
   )
 }
 
-const NODE_TYPES = { character: CharacterNodeView }
+type FactionNode = Node<{ name: string; path: string; label: { x: number; y: number } }, 'faction'>
+type GraphNode = CharacterNode | FactionNode
+
+/** A faction's area: a dashed outline round its members with its name at the top. */
+function FactionNodeView({ data, width, height }: NodeProps<FactionNode>) {
+  return (
+    <svg className="faction-area" width={width} height={height} aria-hidden="true">
+      <path d={data.path} className="faction-shape" />
+      <text x={data.label.x} y={data.label.y} className="faction-name" textAnchor="middle">
+        {data.name}
+      </text>
+    </svg>
+  )
+}
+
+/** Each faction's area node from where its members are now (redone as they are dragged).
+ * Areas lie under the lines, overlapping where a character is in more than one. */
+function withAreas(nodes: GraphNode[], groups: Group[]): GraphNode[] {
+  const characters = nodes.filter((node) => node.type === 'character')
+  const at = new Map(characters.map((node) => [node.id, node.position]))
+  const areas: FactionNode[] = groups.flatMap((group) => {
+    const points = group.members.flatMap((id) => at.get(id) ?? [])
+    if (points.length < 2) return []
+    const hull = hullOf(points, GROUP_PAD)
+    const left = Math.min(...hull.map((point) => point.x))
+    const top = Math.min(...hull.map((point) => point.y)) - FACTION_LABEL
+    const right = Math.max(...hull.map((point) => point.x))
+    const bottom = Math.max(...hull.map((point) => point.y))
+    const topmost = hull.reduce((best, point) => (point.y < best.y ? point : best))
+    const path = `M ${hull.map((point) => `${String(point.x - left)} ${String(point.y - top)}`).join(' L ')} Z`
+    return [
+      {
+        id: `faction:${group.id}`,
+        type: 'faction',
+        position: { x: left, y: top },
+        width: right - left,
+        height: bottom - top,
+        zIndex: -1,
+        draggable: false,
+        selectable: false,
+        focusable: false,
+        data: {
+          name: group.name,
+          path,
+          label: { x: topmost.x - left, y: FACTION_LABEL - 6 },
+        },
+      },
+    ]
+  })
+  return [...areas, ...characters]
+}
+
+const NODE_TYPES = { character: CharacterNodeView, faction: FactionNodeView }
 const EDGE_TYPES = { relation: RelationEdgeView }
 // In the line's colour (React Flow writes the marker colour inline).
 const arrowOf = (kind: RelationKind) =>
@@ -189,11 +263,12 @@ const ARIA = {
   'edge.a11yDescription.default': '두 인물의 관계예요.',
 }
 
-function graphOf(cards: CharacterCard[], relations: CardRelation[]) {
+function graphOf(cards: CharacterCard[], relations: CardRelation[], groups: Group[]) {
   const pairs = pairsOf(relations, new Set(cards.map((card) => card.id)))
   const points = layout(
     cards.map((card) => card.id),
     pairs,
+    groups,
   )
   const nodes: CharacterNode[] = cards.map((card) => ({
     id: card.id,
@@ -227,23 +302,30 @@ function graphOf(cards: CharacterCard[], relations: CardRelation[]) {
       markerStart: !style.mutual && style.fromB ? arrowOf(style.kind) : undefined,
     }
   })
-  return { nodes, edges }
+  return { nodes: withAreas(nodes, groups), edges }
 }
 
 type Props = {
   cards: CharacterCard[]
   relations: CardRelation[]
+  /** Factions with their members among the cards: drawn as areas, members kept together. */
+  groups: Group[]
   /** A node was clicked (or Enter pressed on it): open its card from where it sits. */
   onPick: (cardId: string, origin: DOMRect | null) => void
 }
 
 /** 관계도 (§8): a node per character, a line per related pair coloured by what the relations
- * say (solid when both sides feel it, dashed when one does), with a key at the top left. Laid out afresh each time it mounts (the screen remounts it when cards or
- * relations change), never per render; dragging moves a node for this view only. */
-export function RelationGraph({ cards, relations, onPick }: Props) {
-  const [graph] = useState(() => graphOf(cards, relations))
-  const [nodes, , onNodesChange] = useNodesState<CharacterNode>(graph.nodes)
+ * say (solid when both sides feel it, dashed when one does), each faction's members together
+ * inside its area, with a key at the top left. Laid out afresh each time it mounts (the
+ * screen remounts it when cards, relations or factions change), never per render; dragging
+ * moves a node for this view only, its areas following. */
+export function RelationGraph({ cards, relations, groups, onPick }: Props) {
+  const [graph] = useState(() => graphOf(cards, relations, groups))
+  const [nodes, setNodes] = useState<GraphNode[]>(graph.nodes)
   const { edges } = graph
+  const onNodesChange = (changes: NodeChange<GraphNode>[]) => {
+    setNodes((current) => withAreas(applyNodeChanges(changes, current), groups))
+  }
 
   const nodeElement = (target: EventTarget) =>
     target instanceof Element ? target.closest<HTMLElement>('.react-flow__node') : null
@@ -252,14 +334,14 @@ export function RelationGraph({ cards, relations, onPick }: Props) {
     if (event.key !== 'Enter' && event.key !== ' ') return
     const node = nodeElement(event.target)
     const id = node?.dataset.id
-    if (!node || !id) return
+    if (!node || !id || id.startsWith('faction:')) return
     event.preventDefault()
     onPick(id, node.getBoundingClientRect())
   }
 
   return (
     <div className="dex-graph" onKeyDown={onKeyDown}>
-      <Legend />
+      <Legend factions={groups.length > 0} />
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -267,6 +349,7 @@ export function RelationGraph({ cards, relations, onPick }: Props) {
         edgeTypes={EDGE_TYPES}
         onNodesChange={onNodesChange}
         onNodeClick={(event, node) => {
+          if (node.type !== 'character') return
           onPick(node.id, nodeElement(event.target)?.getBoundingClientRect() ?? null)
         }}
         nodesConnectable={false}

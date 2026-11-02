@@ -430,6 +430,7 @@ export const strings = {
     kinds: { love: '사랑', friendly: '우호', hostile: '적대', neutral: '중립' },
     mutual: '서로',
     oneWay: '한쪽만',
+    faction: '같은 소속',
     relationOf: (from: string, to: string, relation: string) => `${from} → ${to}: ${relation}`,
   },
   worldBook: {

@@ -1,5 +1,15 @@
 import { expect, test } from 'vitest'
-import { crossingsOf, kindOf, layout, pairsOf, styleOf } from '../src/components/relationLayout'
+import {
+  crossingsOf,
+  GROUP_PAD,
+  groupsOf,
+  hullOf,
+  kindOf,
+  layout,
+  pairsOf,
+  styleOf,
+  within,
+} from '../src/components/relationLayout'
 
 const drawn = new Set(['c_a', 'c_b', 'c_c'])
 
@@ -116,4 +126,53 @@ test('a web that can be drawn without crossings is drawn without them, wide and 
   const xs = points.map((p) => p.x)
   const ys = points.map((p) => p.y)
   expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(Math.max(...ys) - Math.min(...ys))
+})
+
+test('a faction groups the drawn characters in its 함께 보기, two at least', () => {
+  const drawn = new Set(['c_a', 'c_b', 'c_c'])
+  const rows = [
+    { from_id: 'c_order', to_id: 'c_a', relation: null },
+    { from_id: 'c_order', to_id: 'c_b', relation: null },
+    { from_id: 'c_order', to_id: 'c_b', relation: null },
+    { from_id: 'c_order', to_id: 'c_region', relation: null },
+    { from_id: 'c_guild', to_id: 'c_c', relation: null },
+  ]
+  expect(
+    groupsOf(
+      [
+        { id: 'c_order', name: '기사단' },
+        { id: 'c_guild', name: '길드' },
+      ],
+      rows,
+      drawn,
+    ),
+  ).toEqual([{ id: 'c_order', name: '기사단', members: ['c_a', 'c_b'] }])
+})
+
+test("a faction's area keeps its room round every member", () => {
+  const hull = hullOf(
+    [
+      { x: 0, y: 0 },
+      { x: 200, y: 0 },
+    ],
+    50,
+  )
+  expect(within(hull, { x: 100, y: 0 })).toBe(true)
+  expect(within(hull, { x: -45, y: 0 })).toBe(true)
+  expect(within(hull, { x: 100, y: 60 })).toBe(false)
+  expect(within(hull, { x: 260, y: 0 })).toBe(false)
+})
+
+test("a faction's members lie together and nobody else lies in their area", () => {
+  const ids = ['c_a', 'c_b', 'c_c', 'c_d', 'c_e', 'c_f']
+  // A chain a-b-c-d-e-f; a and f are in one faction although far apart in the chain.
+  const rows = ids.slice(1).map((id, i) => ({ from_id: ids[i] ?? '', to_id: id, relation: '동료' }))
+  const pairs = pairsOf(rows, new Set(ids))
+  const group = { id: 'c_order', name: '기사단', members: ['c_a', 'c_f'] }
+  const at = layout(ids, pairs, [group])
+  const point = (id: string) => at.get(id) ?? { x: NaN, y: NaN }
+  const gap = Math.hypot(point('c_a').x - point('c_f').x, point('c_a').y - point('c_f').y)
+  expect(gap).toBeLessThan(360)
+  const hull = hullOf([point('c_a'), point('c_f')], GROUP_PAD)
+  for (const id of ['c_b', 'c_c', 'c_d', 'c_e']) expect(within(hull, point(id))).toBe(false)
 })

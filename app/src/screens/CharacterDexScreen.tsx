@@ -6,7 +6,7 @@ import { DeleteCardDialog, UndoToast } from '../components/CardDelete'
 import { CharacterBack, CharacterFront } from '../components/CharacterCard'
 import { FlipCard } from '../components/FlipCard'
 import { RelationGraph } from '../components/RelationGraph'
-import { pairsOf } from '../components/relationLayout'
+import { groupsOf, pairsOf } from '../components/relationLayout'
 import { Overlay } from '../components/Overlay'
 import type { DexView, PlanningScreen } from '../stores/navigation'
 import { strings } from '../strings'
@@ -108,6 +108,10 @@ export function CharacterDexScreen({
     queryKey: ['cards', workId, 'all'],
     queryFn: () => api.listCards(workId),
   })
+  const memberships = useQuery({
+    queryKey: ['relations', workId, 'world'],
+    queryFn: () => api.relations(workId, 'world'),
+  })
   const links = useQuery({
     queryKey: ['relations', workId, 'character'],
     queryFn: () => api.relations(workId, 'character'),
@@ -173,8 +177,16 @@ export function CharacterDexScreen({
   }
   const relations = links.data?.relations ?? []
   const pairs = pairsOf(relations, new Set(cards.map((card) => card.id)))
-  // The graph is laid out afresh whenever its cards or lines change.
-  const graphKey = JSON.stringify([cards.map((card) => [card.id, card.name]), pairs])
+  // Factions (세력·조직 world cards) group the characters in their 함께 보기.
+  const groups = groupsOf(
+    (all.data?.cards ?? []).filter(
+      (card) => card.type === 'world' && card.data.category === 'faction',
+    ),
+    memberships.data?.relations ?? [],
+    new Set(cards.map((card) => card.id)),
+  )
+  // The graph is laid out afresh whenever its cards, lines or factions change.
+  const graphKey = JSON.stringify([cards.map((card) => [card.id, card.name]), pairs, groups])
   return (
     <>
       <article className="spread spread-wide">
@@ -230,17 +242,19 @@ export function CharacterDexScreen({
                       ? strings.dex.graphNoLinks
                       : strings.dex.graphHint}
                   </p>
-                  {/* Drawn once the lines are known too: no second layout when they arrive. */}
-                  {cards.length > 0 && (links.isSuccess || links.isError) && (
-                    <RelationGraph
-                      key={graphKey}
-                      cards={cards}
-                      relations={relations}
-                      onPick={(id, origin) => {
-                        setPicked({ id, origin })
-                      }}
-                    />
-                  )}
+                  {/* Drawn once the lines and factions are known too: no second layout when they arrive. */}
+                  {cards.length > 0 &&
+                    [links, memberships, all].every((query) => !query.isPending) && (
+                      <RelationGraph
+                        key={graphKey}
+                        cards={cards}
+                        relations={relations}
+                        groups={groups}
+                        onPick={(id, origin) => {
+                          setPicked({ id, origin })
+                        }}
+                      />
+                    )}
                 </>
               )}
             </div>
