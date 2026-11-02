@@ -30,6 +30,7 @@ function scroller() {
   // jsdom lays nothing out: a box 400px wide over a story 3500px long.
   Object.defineProperty(box, 'clientWidth', { value: 400 })
   Object.defineProperty(box, 'scrollWidth', { value: 3500 })
+  Object.defineProperty(box, 'clientHeight', { value: 300 })
   box.setPointerCapture = () => undefined
   box.releasePointerCapture = () => undefined
   return box
@@ -49,10 +50,19 @@ test('the wheel runs the story across: down goes on, up goes back', () => {
 test('dragging the paper moves the view with the pointer', () => {
   const box = scroller()
   box.scrollLeft = 300
-  fireEvent.pointerDown(box, { button: 0, clientX: 500, clientY: 200, pointerId: 1 })
-  fireEvent.pointerMove(box, { clientX: 380, clientY: 200, pointerId: 1 })
+  fireEvent.pointerDown(box, { button: 0, clientX: 300, clientY: 200, pointerId: 1 })
+  fireEvent.pointerMove(box, { clientX: 180, clientY: 200, pointerId: 1 })
   expect(box.scrollLeft).toBe(420)
   fireEvent.pointerUp(box, { pointerId: 1 })
   fireEvent.pointerMove(box, { clientX: 100, clientY: 200, pointerId: 1 })
   expect(box.scrollLeft).toBe(420)
+})
+
+test('pressing the scrollbar is left to the browser, not a drag of the paper', () => {
+  const box = scroller()
+  box.scrollLeft = 300
+  // Below the 300px client area: on the horizontal scrollbar.
+  fireEvent.pointerDown(box, { button: 0, clientX: 200, clientY: 305, pointerId: 1 })
+  fireEvent.pointerMove(box, { clientX: 100, clientY: 305, pointerId: 1 })
+  expect(box.scrollLeft).toBe(300)
 })

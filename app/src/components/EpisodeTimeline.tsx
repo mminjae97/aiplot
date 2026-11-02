@@ -97,6 +97,13 @@ export function EpisodeTimeline({
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || (event.target as Element).closest('button')) return
     const box = event.currentTarget
+    // On the scrollbars (past the box's client area): the browser scrolls by them.
+    const at = box.getBoundingClientRect()
+    if (
+      event.clientX - at.left - box.clientLeft >= box.clientWidth ||
+      event.clientY - at.top - box.clientTop >= box.clientHeight
+    )
+      return
     drag.current = { x: event.clientX, y: event.clientY, left: box.scrollLeft, top: box.scrollTop }
     box.setPointerCapture(event.pointerId)
     // no text selection while dragging
