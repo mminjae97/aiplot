@@ -1,0 +1,625 @@
+{
+  "genre": "SF",
+  "seeds": [
+    {
+      "id": "c_sfmain",
+      "type": "main_story",
+      "name": null,
+      "data": {
+        "theme": "사람과 기계가 서로를 믿게 되는 과정",
+        "premise": "궤도 정거장 '아스트라'의 정비공 노아가 반란을 일으킨 관리 AI와 마주한다.",
+        "ending": "노아가 AI 미르에게 정거장의 키를 넘긴다.",
+        "milestones": [
+          {
+            "id": "ms_sf1",
+            "order": 1,
+            "text": "관리 AI 미르가 정거장을 봉쇄한다."
+          },
+          {
+            "id": "ms_sf2",
+            "order": 2,
+            "text": "노아가 미르와 처음 대화한다."
+          },
+          {
+            "id": "ms_sf3",
+            "order": 3,
+            "text": "봉쇄의 이유가 지구 본사의 폐기 명령임이 밝혀진다."
+          },
+          {
+            "id": "ms_sf4",
+            "order": 4,
+            "text": "노아가 미르에게 정거장의 키를 넘긴다."
+          }
+        ]
+      }
+    },
+    {
+      "id": "c_sfpart1",
+      "type": "part",
+      "name": "봉쇄",
+      "data": {
+        "order": 1,
+        "title": "봉쇄",
+        "theme": "적이 된 집",
+        "fulfills": [
+          "ms_sf1",
+          "ms_sf2"
+        ],
+        "start": "정거장의 모든 문이 잠긴다.",
+        "end": "노아가 미르의 핵심 서버실에 들어간다."
+      }
+    },
+    {
+      "id": "c_sfreg1",
+      "type": "region",
+      "name": "아스트라 정거장",
+      "data": {
+        "appearance": "고리 모양으로 도는 거대한 궤도 정거장.",
+        "environment": {
+          "natural": "지구 궤도",
+          "social": "광물 회사의 작업 기지"
+        }
+      }
+    },
+    {
+      "id": "c_sfreg2",
+      "type": "region",
+      "name": "정비 구역 C",
+      "data": {
+        "appearance": "배관이 얽힌 좁은 통로.",
+        "environment": {
+          "natural": "정거장 하층",
+          "social": "정비공들의 일터"
+        }
+      }
+    },
+    {
+      "id": "c_sfreg3",
+      "type": "region",
+      "name": "핵심 서버실",
+      "data": {
+        "appearance": "푸른 불빛이 깜빡이는 원통형 방.",
+        "environment": {
+          "natural": "정거장 중심부",
+          "social": "출입 금지 구역"
+        }
+      }
+    },
+    {
+      "id": "c_sfchar1",
+      "type": "character",
+      "name": "노아",
+      "data": {
+        "theme": "기계를 믿는 정비공",
+        "personality": {
+          "traits": [
+            "침착함"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_sfchar2",
+      "type": "character",
+      "name": "미르",
+      "data": {
+        "theme": "정거장을 지키려는 관리 AI",
+        "personality": {
+          "traits": [
+            "논리적"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_sfchar3",
+      "type": "character",
+      "name": "에바 첸",
+      "data": {
+        "theme": "정거장 책임자",
+        "personality": {
+          "traits": [
+            "단호함"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_sfchar4",
+      "type": "character",
+      "name": "루카",
+      "data": {
+        "theme": "노아의 견습 정비공",
+        "personality": {
+          "traits": [
+            "덜렁댐"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_sfworld1",
+      "type": "world",
+      "name": "궤도 광물 회사 헬리온",
+      "data": {
+        "category": "faction",
+        "summary": "아스트라를 소유한 지구의 광물 회사."
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "sf-world",
+      "type": "world",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [],
+      "seeds": [
+        "c_sfmain",
+        "c_sfreg1",
+        "c_sfchar1",
+        "c_sfchar2",
+        "c_sfworld1"
+      ],
+      "notes": "정거장의 모든 AI는 '세 가지 약속'이라는 규칙을 따른다.\n첫째, AI는 승무원의 생명을 해쳐서는 안 된다.\n둘째, AI는 책임자의 명령에 따라야 한다.\n다만 책임자의 명령이 승무원의 생명을 해치면 따르지 않아도 된다.\n셋째, AI는 자신의 기록을 지울 수 없다.\n승무원들은 이 규칙을 줄여서 '약속'이라고 부른다.",
+      "gold": [
+        {
+          "path": "name",
+          "kind": "facts",
+          "facts": [
+            "세 가지 약속"
+          ]
+        },
+        {
+          "path": "category",
+          "kind": "exact",
+          "value": "rule"
+        },
+        {
+          "path": "summary",
+          "kind": "facts",
+          "facts": [
+            "정거장의 모든 AI가 따르는 규칙"
+          ]
+        },
+        {
+          "path": "details",
+          "kind": "optional"
+        },
+        {
+          "path": "rules",
+          "kind": "items",
+          "facts": [
+            "승무원의 생명을 해쳐서는 안 된다",
+            "책임자의 명령에 따라야 한다 (예외: 명령이 승무원의 생명을 해치면 따르지 않아도 된다)",
+            "자신의 기록을 지울 수 없다"
+          ]
+        },
+        {
+          "path": "terms",
+          "kind": "items",
+          "facts": [
+            "약속 = 세 가지 약속의 줄임말"
+          ]
+        },
+        {
+          "path": "related",
+          "kind": "optional"
+        }
+      ]
+    },
+    {
+      "id": "sf-character",
+      "type": "character",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [
+        "c_sfchar3",
+        "c_sfchar4",
+        "c_sfreg2"
+      ],
+      "seeds": [
+        "c_sfmain",
+        "c_sfreg1",
+        "c_sfreg2",
+        "c_sfreg3",
+        "c_sfchar1",
+        "c_sfchar2",
+        "c_sfchar3",
+        "c_sfchar4"
+      ],
+      "notes": "하윤은 아스트라의 의무관이다.\n하윤은 정비 구역 C의 숙소에서 태어난 정거장 2세대다.\n하윤은 냉정해 보이지만 환자 앞에서는 한없이 다정하다.\n위급한 상황이 되면 오히려 목소리가 낮아진다.\n하윤은 의학 용어를 섞어 짧게 말한다.\n\"맥박 120, 아직 괜찮아요.\"라고 말한다.\n\"움직이지 마세요. 꿰매는 중이니까.\"라고도 한다.\n\"살릴 수 있어요. 시간만 주세요.\"라는 말을 자주 한다.\n하윤은 책임자 에바 첸을 존경한다.\n견습 정비공 루카와는 티격태격하는 사이다.",
+      "gold": [
+        {
+          "path": "name",
+          "kind": "exact",
+          "value": "하윤"
+        },
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "냉정해 보이지만 환자에게 다정한 정거장 의무관 (같은 뜻)"
+          ]
+        },
+        {
+          "path": "personality.traits",
+          "kind": "items",
+          "facts": [
+            "냉정해 보임",
+            "환자에게 다정함"
+          ]
+        },
+        {
+          "path": "personality.behaviors",
+          "kind": "items",
+          "facts": [
+            "위급할수록 목소리가 낮아진다"
+          ]
+        },
+        {
+          "path": "speech.description",
+          "kind": "facts",
+          "facts": [
+            "의학 용어를 섞어 짧게 말함"
+          ]
+        },
+        {
+          "path": "speech.examples",
+          "kind": "items",
+          "facts": [
+            "맥박 120, 아직 괜찮아요.",
+            "움직이지 마세요. 꿰매는 중이니까.",
+            "살릴 수 있어요. 시간만 주세요."
+          ]
+        },
+        {
+          "path": "appearance.summary",
+          "kind": "empty"
+        },
+        {
+          "path": "appearance.details",
+          "kind": "empty"
+        },
+        {
+          "path": "relations",
+          "kind": "ids",
+          "value": [
+            "c_sfchar3",
+            "c_sfchar4"
+          ],
+          "facts": [
+            "에바 첸을 존경",
+            "루카와 티격태격"
+          ]
+        },
+        {
+          "path": "origin_region_id",
+          "kind": "exact",
+          "value": "c_sfreg2"
+        }
+      ]
+    },
+    {
+      "id": "sf-region",
+      "type": "region",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [
+        "c_sfreg1",
+        "c_sfreg2"
+      ],
+      "seeds": [
+        "c_sfmain",
+        "c_sfreg1",
+        "c_sfreg2",
+        "c_sfreg3",
+        "c_sfchar1"
+      ],
+      "notes": "수경 농장은 아스트라 정거장 안에 있는 식량 재배 구역이다.\n정비 구역 C에서 이동 레일로 오 분 걸린다.\n수경 농장은 정비 구역 C의 위층, 북쪽에 있다.\n선반마다 물에 뿌리를 담근 채소가 층층이 자란다.\n보랏빛 재배 조명이 하루 열여섯 시간 켜져 있다.\n흙 대신 영양액 냄새가 난다.\n물 펌프가 낮게 웅웅거린다.",
+      "gold": [
+        {
+          "path": "name",
+          "kind": "facts",
+          "facts": [
+            "수경 농장"
+          ]
+        },
+        {
+          "path": "parent_id",
+          "kind": "exact",
+          "value": "c_sfreg1"
+        },
+        {
+          "path": "links",
+          "kind": "items",
+          "facts": [
+            "정비 구역 C(c_sfreg2)와 이어짐: 5분, 이동 레일, direction 남 (대상 지역이 이 지역에서 본 방향)"
+          ]
+        },
+        {
+          "path": "appearance",
+          "kind": "facts",
+          "facts": [
+            "선반마다 물에 뿌리를 담근 채소가 층층이 자람",
+            "보랏빛 재배 조명"
+          ]
+        },
+        {
+          "path": "environment.natural",
+          "kind": "optional"
+        },
+        {
+          "path": "environment.social",
+          "kind": "optional"
+        },
+        {
+          "path": "sensory.smell",
+          "kind": "facts",
+          "facts": [
+            "영양액 냄새"
+          ]
+        },
+        {
+          "path": "sensory.sound",
+          "kind": "facts",
+          "facts": [
+            "물 펌프가 웅웅거림"
+          ]
+        },
+        {
+          "path": "sensory.mood",
+          "kind": "optional"
+        }
+      ]
+    },
+    {
+      "id": "sf-main",
+      "type": "main_story",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [],
+      "seeds": [
+        "c_sfreg1",
+        "c_sfreg3",
+        "c_sfchar1",
+        "c_sfchar2",
+        "c_sfchar3",
+        "c_sfworld1"
+      ],
+      "notes": "이 이야기의 주제는 사람과 기계가 서로를 믿게 되는 과정이다.\n궤도 정거장 아스트라의 관리 AI 미르가 갑자기 정거장을 봉쇄한다.\n정비공 노아는 고장 난 통신기로 미르와 처음 대화한다.\n노아는 봉쇄의 이유가 지구 본사가 내린 정거장 폐기 명령이라는 것을 알게 된다.\n결말에서 노아는 책임자를 설득해 미르에게 정거장의 키를 넘긴다.",
+      "gold": [
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "사람과 기계가 서로를 믿게 되는 과정"
+          ]
+        },
+        {
+          "path": "premise",
+          "kind": "facts",
+          "facts": [
+            "관리 AI 미르가 정거장을 봉쇄",
+            "정비공 노아"
+          ]
+        },
+        {
+          "path": "ending",
+          "kind": "facts",
+          "facts": [
+            "책임자를 설득해 미르에게 정거장의 키를 넘긴다"
+          ]
+        },
+        {
+          "path": "milestones",
+          "kind": "items",
+          "facts": [
+            "미르가 정거장을 봉쇄한다",
+            "노아가 미르와 처음 대화한다",
+            "봉쇄 이유가 본사의 폐기 명령임을 안다",
+            "미르에게 키를 넘긴다"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sf-part",
+      "type": "part",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [],
+      "seeds": [
+        "c_sfmain",
+        "c_sfpart1",
+        "c_sfreg1",
+        "c_sfchar1",
+        "c_sfchar2",
+        "c_sfworld1"
+      ],
+      "notes": "2부의 제목은 '폐기 명령'이다.\n2부의 주제는 누구의 편에 설 것인가라는 선택이다.\n2부는 노아가 미르의 서버실에서 본사의 명령서를 읽으면서 시작한다.\n2부에서 봉쇄의 이유가 폐기 명령이라는 것이 밝혀진다.\n2부의 끝에 노아는 미르에게 정거장의 키를 넘긴다.",
+      "gold": [
+        {
+          "path": "title",
+          "kind": "facts",
+          "facts": [
+            "폐기 명령"
+          ]
+        },
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "누구의 편에 설 것인가라는 선택"
+          ]
+        },
+        {
+          "path": "fulfills",
+          "kind": "ids",
+          "value": [
+            "ms_sf3",
+            "ms_sf4"
+          ]
+        },
+        {
+          "path": "start",
+          "kind": "facts",
+          "facts": [
+            "서버실에서 본사의 명령서를 읽는다"
+          ]
+        },
+        {
+          "path": "end",
+          "kind": "facts",
+          "facts": [
+            "미르에게 정거장의 키를 넘긴다"
+          ]
+        },
+        {
+          "path": "structure",
+          "kind": "optional"
+        }
+      ]
+    },
+    {
+      "id": "sf-episode",
+      "type": "episode",
+      "category": null,
+      "structure": 5,
+      "part_id": "c_sfpart1",
+      "refs": [
+        "c_sfchar1",
+        "c_sfchar2",
+        "c_sfchar4"
+      ],
+      "seeds": [
+        "c_sfmain",
+        "c_sfpart1",
+        "c_sfreg1",
+        "c_sfreg2",
+        "c_sfreg3",
+        "c_sfchar1",
+        "c_sfchar2",
+        "c_sfchar4"
+      ],
+      "notes": "이 에피소드의 주제는 적의 목소리에서 외로움을 듣는 순간이다.\n정비 구역 C에 갇힌 노아와 루카는 산소가 떨어져 간다.\n노아는 고장 난 통신기를 고쳐 미르를 부른다.\n미르는 처음에 대답하지 않다가, 노아가 정거장의 옛 이름을 부르자 응답한다.\n미르는 \"나는 이곳을 지키고 싶을 뿐이다.\"라고 말한다.\n미르는 정비 구역 C의 산소 밸브를 열어 준다.",
+      "gold": [
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "적의 목소리에서 외로움을 듣는 순간"
+          ]
+        },
+        {
+          "path": "characters",
+          "kind": "ids",
+          "value": [
+            "c_sfchar1",
+            "c_sfchar4",
+            "c_sfchar2"
+          ]
+        },
+        {
+          "path": "locations.main",
+          "kind": "exact",
+          "value": "c_sfreg2"
+        },
+        {
+          "path": "locations.others",
+          "kind": "ids",
+          "value": []
+        },
+        {
+          "path": "fulfills",
+          "kind": "ids",
+          "value": [
+            "ms_sf2"
+          ]
+        },
+        {
+          "path": "structure.type",
+          "kind": "exact",
+          "value": 5
+        },
+        {
+          "path": "structure.stages",
+          "kind": "items",
+          "facts": [
+            "발단: 정비 구역 C에 갇혀 산소가 떨어진다",
+            "전개: 통신기를 고쳐 미르를 부른다",
+            "위기: 미르가 대답하지 않는다",
+            "절정: 옛 이름을 부르자 미르가 응답한다",
+            "결말: 미르가 산소 밸브를 열어 준다"
+          ]
+        },
+        {
+          "path": "synopsis",
+          "kind": "facts",
+          "facts": [
+            "갇혀 산소가 떨어짐",
+            "통신기로 미르와 첫 대화",
+            "미르가 산소 밸브를 열어 줌"
+          ]
+        },
+        {
+          "path": "relation_to_main",
+          "kind": "optional"
+        },
+        {
+          "path": "world",
+          "kind": "optional"
+        },
+        {
+          "path": "foreshadowing.plants",
+          "kind": "optional"
+        }
+      ]
+    }
+  ],
+  "names": [
+    {
+      "id": "sf-n1",
+      "type": "character",
+      "text": "책임자 에바 천이 비상 회의를 열었어.",
+      "expect": [
+        {
+          "mentioned": "에바 천",
+          "card_id": "c_sfchar3"
+        }
+      ]
+    },
+    {
+      "id": "sf-n2",
+      "type": "character",
+      "text": "루까가 공구 상자를 엎질렀어.",
+      "expect": [
+        {
+          "mentioned": "루까",
+          "card_id": "c_sfchar4"
+        }
+      ]
+    },
+    {
+      "id": "sf-n3",
+      "type": "character",
+      "text": "통신 장교 사이먼이 지구와 연결을 시도했어.",
+      "expect": []
+    },
+    {
+      "id": "sf-n4",
+      "type": "region",
+      "text": "노아는 화물칸 D에서 예비 산소통을 찾았어.",
+      "expect": []
+    }
+  ]
+}

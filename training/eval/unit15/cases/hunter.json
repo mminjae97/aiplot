@@ -1,0 +1,625 @@
+{
+  "genre": "현대 판타지(헌터)",
+  "seeds": [
+    {
+      "id": "c_humain",
+      "type": "main_story",
+      "name": null,
+      "data": {
+        "theme": "최하급 헌터가 증명하는 노력의 가치",
+        "premise": "F급 헌터 강도윤이 게이트 속에서 시간을 되감는 능력을 얻는다.",
+        "ending": "도윤이 서울 대균열을 닫고 능력을 내려놓는다.",
+        "milestones": [
+          {
+            "id": "ms_hu1",
+            "order": 1,
+            "text": "도윤이 던전에서 죽을 뻔하다 되감기 능력을 얻는다."
+          },
+          {
+            "id": "ms_hu2",
+            "order": 2,
+            "text": "도윤이 길드 '청운'에 들어간다."
+          },
+          {
+            "id": "ms_hu3",
+            "order": 3,
+            "text": "대균열의 원인이 협회장임이 밝혀진다."
+          },
+          {
+            "id": "ms_hu4",
+            "order": 4,
+            "text": "도윤이 서울 대균열을 닫는다."
+          }
+        ]
+      }
+    },
+    {
+      "id": "c_hupart1",
+      "type": "part",
+      "name": "F급의 하루",
+      "data": {
+        "order": 1,
+        "title": "F급의 하루",
+        "theme": "바닥에서 시작하기",
+        "fulfills": [
+          "ms_hu1",
+          "ms_hu2"
+        ],
+        "start": "도윤이 짐꾼으로 던전에 들어간다.",
+        "end": "도윤이 청운 길드의 입단 시험을 통과한다."
+      }
+    },
+    {
+      "id": "c_hureg1",
+      "type": "region",
+      "name": "서울 강남 게이트 구역",
+      "data": {
+        "appearance": "봉쇄선이 둘러쳐진 빌딩 숲.",
+        "environment": {
+          "natural": "도심",
+          "social": "헌터 협회가 관리하는 출입 통제 구역"
+        }
+      }
+    },
+    {
+      "id": "c_hureg2",
+      "type": "region",
+      "name": "인천 폐항구 던전",
+      "data": {
+        "appearance": "녹슨 컨테이너가 미로처럼 쌓인 던전.",
+        "environment": {
+          "natural": "바닷가",
+          "social": "하급 헌터들이 드나드는 곳"
+        }
+      }
+    },
+    {
+      "id": "c_hureg3",
+      "type": "region",
+      "name": "청운 길드 본부",
+      "data": {
+        "appearance": "여의도의 낡은 오피스 빌딩.",
+        "environment": {
+          "natural": "강변",
+          "social": "중소 길드의 사무실"
+        }
+      }
+    },
+    {
+      "id": "c_huchar1",
+      "type": "character",
+      "name": "강도윤",
+      "data": {
+        "theme": "노력으로 증명하는 F급 헌터",
+        "personality": {
+          "traits": [
+            "끈기"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_huchar2",
+      "type": "character",
+      "name": "한서진",
+      "data": {
+        "theme": "청운 길드장",
+        "personality": {
+          "traits": [
+            "침착함"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_huchar3",
+      "type": "character",
+      "name": "백무열",
+      "data": {
+        "theme": "헌터 협회장",
+        "personality": {
+          "traits": [
+            "야심"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_huchar4",
+      "type": "character",
+      "name": "윤채아",
+      "data": {
+        "theme": "청운의 치유 헌터",
+        "personality": {
+          "traits": [
+            "다정함"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_huworld1",
+      "type": "world",
+      "name": "헌터 등급",
+      "data": {
+        "category": "rule",
+        "summary": "헌터는 F부터 S까지 등급을 받는다."
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "hu-world",
+      "type": "world",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [],
+      "seeds": [
+        "c_humain",
+        "c_hureg1",
+        "c_huchar1",
+        "c_huworld1"
+      ],
+      "notes": "게이트는 십 년 전부터 도시 곳곳에 열리기 시작한 균열이다.\n게이트 안에는 몬스터가 사는 던전이 있다.\n게이트가 열린 뒤 일주일 안에 공략하지 않으면 몬스터가 밖으로 쏟아져 나온다.\n이것을 '브레이크'라고 부른다.\n붉은색 게이트는 예외로, 열린 지 하루 만에 브레이크가 일어난다.\n게이트의 크기는 마석 반응으로 측정하고, 측정 장비를 '게이지'라고 부른다.",
+      "gold": [
+        {
+          "path": "name",
+          "kind": "facts",
+          "facts": [
+            "게이트"
+          ]
+        },
+        {
+          "path": "category",
+          "kind": "exact",
+          "value": "rule"
+        },
+        {
+          "path": "summary",
+          "kind": "facts",
+          "facts": [
+            "도시 곳곳에 열리는 균열, 안에 몬스터가 사는 던전"
+          ]
+        },
+        {
+          "path": "details",
+          "kind": "facts",
+          "facts": [
+            "십 년 전부터 열리기 시작",
+            "크기는 마석 반응으로 측정"
+          ]
+        },
+        {
+          "path": "rules",
+          "kind": "items",
+          "facts": [
+            "열린 뒤 일주일 안에 공략하지 않으면 몬스터가 쏟아진다 (예외: 붉은색 게이트는 하루 만에)"
+          ]
+        },
+        {
+          "path": "terms",
+          "kind": "items",
+          "facts": [
+            "브레이크 = 몬스터가 밖으로 쏟아지는 것",
+            "게이지 = 게이트 크기 측정 장비"
+          ]
+        },
+        {
+          "path": "related",
+          "kind": "optional"
+        }
+      ]
+    },
+    {
+      "id": "hu-character",
+      "type": "character",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [
+        "c_huchar1",
+        "c_huchar2",
+        "c_hureg2"
+      ],
+      "seeds": [
+        "c_humain",
+        "c_hureg1",
+        "c_hureg2",
+        "c_hureg3",
+        "c_huchar1",
+        "c_huchar2",
+        "c_huchar3",
+        "c_huchar4"
+      ],
+      "notes": "마태오는 청운 길드의 탱커 헌터다.\n마태오는 인천 폐항구 던전 옆 부두에서 나고 자랐다.\n덩치가 크고 목소리가 커서 무섭게 보이지만 겁이 많다.\n동료가 위험하면 겁에 질려도 방패를 들고 앞에 선다.\n마태오는 사투리를 섞어 쓴다.\n\"내 뒤로 숨으이소!\"가 입버릇이다.\n도윤을 친동생처럼 아낀다.\n길드장 한서진에게는 늘 깍듯하게 군다.",
+      "gold": [
+        {
+          "path": "name",
+          "kind": "exact",
+          "value": "마태오"
+        },
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "겁이 많지만 동료를 지키는 탱커 (같은 뜻)"
+          ]
+        },
+        {
+          "path": "personality.traits",
+          "kind": "items",
+          "facts": [
+            "겁이 많음",
+            "(무섭게 보이는 외모와 달리) 동료를 지키려 함"
+          ]
+        },
+        {
+          "path": "personality.behaviors",
+          "kind": "items",
+          "facts": [
+            "동료가 위험하면 겁에 질려도 방패를 들고 앞에 선다"
+          ]
+        },
+        {
+          "path": "speech.description",
+          "kind": "facts",
+          "facts": [
+            "사투리를 섞어 씀"
+          ]
+        },
+        {
+          "path": "speech.examples",
+          "kind": "items",
+          "facts": [
+            "내 뒤로 숨으이소!"
+          ]
+        },
+        {
+          "path": "appearance.summary",
+          "kind": "facts",
+          "facts": [
+            "큰 덩치"
+          ]
+        },
+        {
+          "path": "appearance.details",
+          "kind": "optional"
+        },
+        {
+          "path": "relations",
+          "kind": "ids",
+          "value": [
+            "c_huchar1",
+            "c_huchar2"
+          ],
+          "facts": [
+            "도윤을 친동생처럼 아낌",
+            "길드장 한서진에게 깍듯함"
+          ]
+        },
+        {
+          "path": "origin_region_id",
+          "kind": "exact",
+          "value": "c_hureg2"
+        }
+      ]
+    },
+    {
+      "id": "hu-region",
+      "type": "region",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [
+        "c_hureg3"
+      ],
+      "seeds": [
+        "c_humain",
+        "c_hureg1",
+        "c_hureg2",
+        "c_hureg3",
+        "c_huchar1"
+      ],
+      "notes": "헌터 시장은 청운 길드 본부에서 걸어서 이십 분 거리의 지하상가다.\n헌터 시장은 청운 길드 본부의 남쪽에 있다.\n마석과 장비를 사고파는 노점이 끝없이 늘어서 있다.\n협회의 단속이 느슨해서 불법 마석도 거래된다.\n늘 쇠 냄새와 기름 냄새가 난다.\n흥정하는 고함 소리가 끊이지 않는다.",
+      "gold": [
+        {
+          "path": "name",
+          "kind": "facts",
+          "facts": [
+            "헌터 시장"
+          ]
+        },
+        {
+          "path": "parent_id",
+          "kind": "empty"
+        },
+        {
+          "path": "links",
+          "kind": "items",
+          "facts": [
+            "청운 길드 본부(c_hureg3)와 이어짐: 20분, 도보, direction 북 (대상 지역이 이 지역에서 본 방향)"
+          ]
+        },
+        {
+          "path": "appearance",
+          "kind": "facts",
+          "facts": [
+            "노점이 끝없이 늘어선 지하상가"
+          ]
+        },
+        {
+          "path": "environment.natural",
+          "kind": "optional"
+        },
+        {
+          "path": "environment.social",
+          "kind": "facts",
+          "facts": [
+            "마석·장비 거래",
+            "단속이 느슨해 불법 마석도 거래"
+          ]
+        },
+        {
+          "path": "sensory.smell",
+          "kind": "facts",
+          "facts": [
+            "쇠 냄새",
+            "기름 냄새"
+          ]
+        },
+        {
+          "path": "sensory.sound",
+          "kind": "facts",
+          "facts": [
+            "흥정하는 고함 소리"
+          ]
+        },
+        {
+          "path": "sensory.mood",
+          "kind": "optional"
+        }
+      ]
+    },
+    {
+      "id": "hu-main",
+      "type": "main_story",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [],
+      "seeds": [
+        "c_hureg1",
+        "c_hureg2",
+        "c_huchar1",
+        "c_huchar2",
+        "c_huchar3",
+        "c_huworld1"
+      ],
+      "notes": "이 이야기의 주제는 재능 없는 사람의 노력도 가치가 있다는 것이다.\nF급 헌터 강도윤은 짐꾼으로 들어간 던전에서 죽을 뻔하다가 시간을 되감는 능력을 얻는다.\n도윤은 작은 길드 '청운'에 들어가 동료를 얻는다.\n서울에 대균열이 열리고, 그 원인이 헌터 협회장 백무열이라는 것이 밝혀진다.\n도윤은 마지막 되감기를 써서 대균열을 닫는다.\n결말에서 도윤은 능력을 잃지만 F급 헌터로 남아 던전에 계속 들어간다.",
+      "gold": [
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "재능 없는 사람의 노력도 가치가 있다"
+          ]
+        },
+        {
+          "path": "premise",
+          "kind": "facts",
+          "facts": [
+            "F급 헌터 강도윤",
+            "던전에서 죽을 뻔하다 시간을 되감는 능력을 얻는다"
+          ]
+        },
+        {
+          "path": "ending",
+          "kind": "facts",
+          "facts": [
+            "능력을 잃지만 F급 헌터로 남아 던전에 계속 들어간다"
+          ]
+        },
+        {
+          "path": "milestones",
+          "kind": "items",
+          "facts": [
+            "되감기 능력을 얻는다",
+            "청운에 들어간다",
+            "대균열의 원인이 협회장 백무열임이 밝혀진다",
+            "마지막 되감기로 대균열을 닫는다"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hu-part",
+      "type": "part",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [],
+      "seeds": [
+        "c_humain",
+        "c_hupart1",
+        "c_hureg1",
+        "c_huchar1",
+        "c_huchar3"
+      ],
+      "notes": "2부의 제목은 '균열 아래'다.\n2부의 주제는 정의라고 믿었던 체계가 무너지는 경험이다.\n2부는 서울 강남에 대균열이 열리면서 시작한다.\n2부에서 대균열의 원인이 협회장 백무열이라는 것이 밝혀진다.\n도윤이 대균열을 닫는 것은 3부의 일이다.\n2부는 도윤이 협회에 쫓기는 몸이 되면서 끝난다.",
+      "gold": [
+        {
+          "path": "title",
+          "kind": "facts",
+          "facts": [
+            "균열 아래"
+          ]
+        },
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "정의라고 믿었던 체계가 무너지는 경험"
+          ]
+        },
+        {
+          "path": "fulfills",
+          "kind": "ids",
+          "value": [
+            "ms_hu3"
+          ]
+        },
+        {
+          "path": "start",
+          "kind": "facts",
+          "facts": [
+            "서울 강남에 대균열이 열린다"
+          ]
+        },
+        {
+          "path": "end",
+          "kind": "facts",
+          "facts": [
+            "도윤이 협회에 쫓기는 몸이 된다"
+          ]
+        },
+        {
+          "path": "structure",
+          "kind": "optional"
+        }
+      ]
+    },
+    {
+      "id": "hu-episode",
+      "type": "episode",
+      "category": null,
+      "structure": 4,
+      "part_id": "c_hupart1",
+      "refs": [
+        "c_huchar1",
+        "c_huchar2"
+      ],
+      "seeds": [
+        "c_humain",
+        "c_hupart1",
+        "c_hureg1",
+        "c_hureg2",
+        "c_hureg3",
+        "c_huchar1",
+        "c_huchar2",
+        "c_huchar4"
+      ],
+      "notes": "이 에피소드의 주제는 처음으로 누군가 나를 믿어 주는 순간이다.\n도윤은 청운 길드 본부에서 입단 시험을 본다.\n길드장 한서진은 도윤에게 인천 폐항구 던전의 보스를 혼자 잡아 오라고 한다.\n도윤은 되감기를 몇 번이나 쓰며 보스의 공격 순서를 외운다.\n결국 보스를 잡고 돌아온 도윤에게 서진은 길드 배지를 건넨다.\n이 에피소드에서 도윤이 청운에 들어간다.",
+      "gold": [
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "처음으로 누군가 나를 믿어 주는 순간"
+          ]
+        },
+        {
+          "path": "characters",
+          "kind": "ids",
+          "value": [
+            "c_huchar1",
+            "c_huchar2"
+          ]
+        },
+        {
+          "path": "locations.main",
+          "kind": "facts",
+          "facts": [
+            "c_hureg3 또는 c_hureg2 (본부와 던전 둘 다 주 무대로 볼 수 있음)"
+          ]
+        },
+        {
+          "path": "locations.others",
+          "kind": "optional"
+        },
+        {
+          "path": "fulfills",
+          "kind": "ids",
+          "value": [
+            "ms_hu2"
+          ]
+        },
+        {
+          "path": "structure.type",
+          "kind": "exact",
+          "value": 4
+        },
+        {
+          "path": "structure.stages",
+          "kind": "items",
+          "facts": [
+            "기: 청운에서 입단 시험을 본다",
+            "승: 폐항구 던전 보스를 혼자 잡으라는 과제, 되감기로 공격 순서를 외운다",
+            "전: 보스를 잡는다",
+            "결: 서진이 길드 배지를 건넨다"
+          ]
+        },
+        {
+          "path": "synopsis",
+          "kind": "facts",
+          "facts": [
+            "입단 시험으로 폐항구 던전 보스를 혼자 잡는다",
+            "되감기를 반복해 성공하고 길드 배지를 받는다"
+          ]
+        },
+        {
+          "path": "relation_to_main",
+          "kind": "optional"
+        },
+        {
+          "path": "world",
+          "kind": "optional"
+        },
+        {
+          "path": "foreshadowing.plants",
+          "kind": "optional"
+        }
+      ]
+    }
+  ],
+  "names": [
+    {
+      "id": "hu-n1",
+      "type": "character",
+      "text": "협회장 백무얼이 기자회견을 열었어.",
+      "expect": [
+        {
+          "mentioned": "백무얼",
+          "card_id": "c_huchar3"
+        }
+      ]
+    },
+    {
+      "id": "hu-n2",
+      "type": "character",
+      "text": "치유 헌터 윤체아가 도윤의 상처를 봐 줬어.",
+      "expect": [
+        {
+          "mentioned": "윤체아",
+          "card_id": "c_huchar4"
+        }
+      ]
+    },
+    {
+      "id": "hu-n3",
+      "type": "character",
+      "text": "도윤은 편의점 사장 박만수에게 외상을 부탁했어.",
+      "expect": []
+    },
+    {
+      "id": "hu-n4",
+      "type": "region",
+      "text": "부산 해운대에도 작은 게이트가 열렸어.",
+      "expect": []
+    }
+  ]
+}

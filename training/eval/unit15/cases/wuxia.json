@@ -1,0 +1,638 @@
+{
+  "genre": "무협",
+  "seeds": [
+    {
+      "id": "c_mumain",
+      "type": "main_story",
+      "name": null,
+      "data": {
+        "theme": "복수 대신 용서를 고르는 검객",
+        "premise": "멸문당한 청운문의 막내 제자 연무현이 원수를 쫓아 강호로 나선다.",
+        "ending": "무현이 원수를 베지 않고 검을 꺾는다.",
+        "milestones": [
+          {
+            "id": "ms_mu1",
+            "order": 1,
+            "text": "청운문이 하룻밤에 멸문당한다."
+          },
+          {
+            "id": "ms_mu2",
+            "order": 2,
+            "text": "무현이 은거 고수 백운노인에게 검을 배운다."
+          },
+          {
+            "id": "ms_mu3",
+            "order": 3,
+            "text": "멸문의 배후가 사형 진목임이 밝혀진다."
+          },
+          {
+            "id": "ms_mu4",
+            "order": 4,
+            "text": "무현이 진목을 용서하고 검을 꺾는다."
+          }
+        ]
+      }
+    },
+    {
+      "id": "c_mupart1",
+      "type": "part",
+      "name": "멸문",
+      "data": {
+        "order": 1,
+        "title": "멸문",
+        "theme": "모든 것을 잃는 밤",
+        "fulfills": [
+          "ms_mu1",
+          "ms_mu2"
+        ],
+        "start": "청운문이 개파 백 주년 잔치를 연다.",
+        "end": "무현이 백운노인의 산을 내려온다."
+      }
+    },
+    {
+      "id": "c_mureg1",
+      "type": "region",
+      "name": "청운산",
+      "data": {
+        "appearance": "구름에 덮인 봉우리에 자리한 문파 터.",
+        "environment": {
+          "natural": "깊은 산",
+          "social": "청운문의 본산"
+        }
+      }
+    },
+    {
+      "id": "c_mureg2",
+      "type": "region",
+      "name": "낙양",
+      "data": {
+        "appearance": "강호인이 모이는 큰 도시.",
+        "environment": {
+          "natural": "강가 평야",
+          "social": "무림맹 지부가 있는 도시"
+        }
+      }
+    },
+    {
+      "id": "c_mureg3",
+      "type": "region",
+      "name": "백운곡",
+      "data": {
+        "appearance": "폭포 아래 숨은 골짜기.",
+        "environment": {
+          "natural": "깊은 골짜기",
+          "social": "은거 고수의 거처"
+        }
+      }
+    },
+    {
+      "id": "c_muchar1",
+      "type": "character",
+      "name": "연무현",
+      "data": {
+        "theme": "복수와 용서 사이의 검객",
+        "personality": {
+          "traits": [
+            "과묵함"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_muchar2",
+      "type": "character",
+      "name": "진목",
+      "data": {
+        "theme": "청운문을 배신한 사형",
+        "personality": {
+          "traits": [
+            "야심"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_muchar3",
+      "type": "character",
+      "name": "백운노인",
+      "data": {
+        "theme": "은거한 검의 고수",
+        "personality": {
+          "traits": [
+            "괴팍함"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_muchar4",
+      "type": "character",
+      "name": "소연화",
+      "data": {
+        "theme": "낙양 객잔의 주인",
+        "personality": {
+          "traits": [
+            "대범함"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_muworld1",
+      "type": "world",
+      "name": "무림맹",
+      "data": {
+        "category": "faction",
+        "summary": "정파 문파들의 연합."
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "mu-world",
+      "type": "world",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [],
+      "seeds": [
+        "c_mumain",
+        "c_mureg1",
+        "c_muchar1",
+        "c_muworld1"
+      ],
+      "notes": "삼십 년 전 정파와 마교가 크게 싸운 전쟁을 '혈하대전'이라고 부른다.\n혈하대전은 황하 강변에서 석 달 동안 이어졌다.\n전쟁 끝에 마교 교주가 쓰러지고 마교는 서역으로 물러났다.\n전쟁 뒤 무림맹이 세워졌다.\n혈하대전에서 살아남은 고수들을 '혈하칠객'이라고 부른다.\n백운노인도 혈하칠객 가운데 한 명이다.",
+      "gold": [
+        {
+          "path": "name",
+          "kind": "facts",
+          "facts": [
+            "혈하대전"
+          ]
+        },
+        {
+          "path": "category",
+          "kind": "exact",
+          "value": "history"
+        },
+        {
+          "path": "summary",
+          "kind": "facts",
+          "facts": [
+            "삼십 년 전 정파와 마교의 전쟁"
+          ]
+        },
+        {
+          "path": "details",
+          "kind": "facts",
+          "facts": [
+            "황하 강변에서 석 달",
+            "마교 교주가 쓰러지고 마교는 서역으로 물러남",
+            "전쟁 뒤 무림맹이 세워짐"
+          ]
+        },
+        {
+          "path": "rules",
+          "kind": "empty"
+        },
+        {
+          "path": "terms",
+          "kind": "items",
+          "facts": [
+            "혈하칠객 = 혈하대전에서 살아남은 고수들"
+          ]
+        },
+        {
+          "path": "related",
+          "kind": "ids",
+          "value": [
+            "c_muworld1"
+          ],
+          "facts": [
+            "무림맹과 관련 (백운노인은 참고 카드에 없으면 제외)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mu-character",
+      "type": "character",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [
+        "c_muchar1",
+        "c_mureg2"
+      ],
+      "seeds": [
+        "c_mumain",
+        "c_mureg1",
+        "c_mureg2",
+        "c_mureg3",
+        "c_muchar1",
+        "c_muchar2",
+        "c_muchar3",
+        "c_muchar4"
+      ],
+      "notes": "당소혜는 사천 당문의 독술사다.\n소혜는 낙양에서 태어나 어려서 당문에 들어갔다.\n소혜는 호기심이 많고 장난이 심하다.\n처음 보는 독초를 보면 맛부터 본다.\n궁지에 몰리면 오히려 웃는다.\n소혜는 하오체를 쓴다.\n\"그 차, 마시지 않는 게 좋을 거요.\"라고 말한다.\n\"독은 겁쟁이의 무기가 아니오. 똑똑한 이의 무기지.\"라는 말을 즐겨 한다.\n\"재미있게 됐구려.\"라는 말도 자주 한다.\n소혜는 왼쪽 눈 밑에 작은 점이 있고 늘 보라색 장갑을 낀다.\n소혜는 무현을 처음엔 감시하다가 동료가 된다.",
+      "gold": [
+        {
+          "path": "name",
+          "kind": "exact",
+          "value": "당소혜"
+        },
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "장난스러운 당문 독술사 (같은 뜻)"
+          ]
+        },
+        {
+          "path": "personality.traits",
+          "kind": "items",
+          "facts": [
+            "호기심이 많음",
+            "장난이 심함"
+          ]
+        },
+        {
+          "path": "personality.behaviors",
+          "kind": "items",
+          "facts": [
+            "처음 보는 독초는 맛부터 본다",
+            "궁지에 몰리면 오히려 웃는다"
+          ]
+        },
+        {
+          "path": "speech.description",
+          "kind": "facts",
+          "facts": [
+            "하오체"
+          ]
+        },
+        {
+          "path": "speech.examples",
+          "kind": "items",
+          "facts": [
+            "그 차, 마시지 않는 게 좋을 거요.",
+            "독은 겁쟁이의 무기가 아니오. 똑똑한 이의 무기지.",
+            "재미있게 됐구려."
+          ]
+        },
+        {
+          "path": "appearance.summary",
+          "kind": "facts",
+          "facts": [
+            "왼쪽 눈 밑의 작은 점",
+            "보라색 장갑"
+          ]
+        },
+        {
+          "path": "appearance.details",
+          "kind": "optional"
+        },
+        {
+          "path": "relations",
+          "kind": "ids",
+          "value": [
+            "c_muchar1"
+          ],
+          "facts": [
+            "무현을 감시하다 동료가 됨"
+          ]
+        },
+        {
+          "path": "origin_region_id",
+          "kind": "exact",
+          "value": "c_mureg2"
+        }
+      ]
+    },
+    {
+      "id": "mu-region",
+      "type": "region",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [
+        "c_mureg2"
+      ],
+      "seeds": [
+        "c_mumain",
+        "c_mureg1",
+        "c_mureg2",
+        "c_mureg3",
+        "c_muchar1"
+      ],
+      "notes": "취운루는 낙양 성 안에 있는 큰 객잔이다.\n삼 층 목조 건물로, 꼭대기 층에서 강이 내려다보인다.\n강호의 소문이 모이는 곳이라 정보를 사고파는 이들이 드나든다.\n늘 술 냄새와 고기 굽는 냄새가 가득하다.\n밤늦도록 비파 소리가 끊이지 않는다.",
+      "gold": [
+        {
+          "path": "name",
+          "kind": "facts",
+          "facts": [
+            "취운루"
+          ]
+        },
+        {
+          "path": "parent_id",
+          "kind": "exact",
+          "value": "c_mureg2"
+        },
+        {
+          "path": "links",
+          "kind": "empty"
+        },
+        {
+          "path": "appearance",
+          "kind": "facts",
+          "facts": [
+            "삼 층 목조 객잔, 꼭대기에서 강이 보임"
+          ]
+        },
+        {
+          "path": "environment.natural",
+          "kind": "optional"
+        },
+        {
+          "path": "environment.social",
+          "kind": "facts",
+          "facts": [
+            "강호의 소문과 정보가 모이는 곳"
+          ]
+        },
+        {
+          "path": "sensory.smell",
+          "kind": "facts",
+          "facts": [
+            "술 냄새",
+            "고기 굽는 냄새"
+          ]
+        },
+        {
+          "path": "sensory.sound",
+          "kind": "facts",
+          "facts": [
+            "밤늦도록 비파 소리"
+          ]
+        },
+        {
+          "path": "sensory.mood",
+          "kind": "optional"
+        }
+      ]
+    },
+    {
+      "id": "mu-main",
+      "type": "main_story",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [],
+      "seeds": [
+        "c_mureg1",
+        "c_mureg2",
+        "c_mureg3",
+        "c_muchar1",
+        "c_muchar2",
+        "c_muchar3",
+        "c_muworld1"
+      ],
+      "notes": "이 이야기의 주제는 복수보다 어려운 용서다.\n청운문의 막내 제자 연무현은 문파가 하룻밤에 멸문당하는 것을 본다.\n무현은 백운곡에 숨어 사는 백운노인에게 검을 배운다.\n강호로 나선 무현은 멸문의 배후가 사형 진목이라는 것을 알게 된다.\n결말에서 무현은 진목을 베지 않고 자신의 검을 꺾는다.",
+      "gold": [
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "복수보다 어려운 용서"
+          ]
+        },
+        {
+          "path": "premise",
+          "kind": "facts",
+          "facts": [
+            "멸문당한 청운문의 막내 제자 연무현"
+          ]
+        },
+        {
+          "path": "ending",
+          "kind": "facts",
+          "facts": [
+            "진목을 베지 않고 자신의 검을 꺾는다"
+          ]
+        },
+        {
+          "path": "milestones",
+          "kind": "items",
+          "facts": [
+            "청운문이 멸문당한다",
+            "백운노인에게 검을 배운다",
+            "배후가 사형 진목임을 안다",
+            "진목을 베지 않고 검을 꺾는다"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mu-part",
+      "type": "part",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [],
+      "seeds": [
+        "c_mumain",
+        "c_mupart1",
+        "c_mureg2",
+        "c_muchar1",
+        "c_muchar2"
+      ],
+      "notes": "2부의 제목은 '낙양의 비'다.\n2부의 주제는 원수가 가까운 사람일 때의 고통이다.\n2부는 무현이 낙양에 도착하면서 시작한다.\n2부에서 멸문의 배후가 진목이라는 것이 밝혀진다.\n무현이 검을 꺾는 것은 2부의 마지막 장면이다.",
+      "gold": [
+        {
+          "path": "title",
+          "kind": "facts",
+          "facts": [
+            "낙양의 비"
+          ]
+        },
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "원수가 가까운 사람일 때의 고통"
+          ]
+        },
+        {
+          "path": "fulfills",
+          "kind": "ids",
+          "value": [
+            "ms_mu3",
+            "ms_mu4"
+          ]
+        },
+        {
+          "path": "start",
+          "kind": "facts",
+          "facts": [
+            "무현이 낙양에 도착한다"
+          ]
+        },
+        {
+          "path": "end",
+          "kind": "facts",
+          "facts": [
+            "무현이 검을 꺾는다"
+          ]
+        },
+        {
+          "path": "structure",
+          "kind": "optional"
+        }
+      ]
+    },
+    {
+      "id": "mu-episode",
+      "type": "episode",
+      "category": null,
+      "structure": 5,
+      "part_id": "c_mupart1",
+      "refs": [
+        "c_muchar1"
+      ],
+      "seeds": [
+        "c_mumain",
+        "c_mupart1",
+        "c_mureg1",
+        "c_mureg2",
+        "c_mureg3",
+        "c_muchar1",
+        "c_muchar2",
+        "c_muchar3"
+      ],
+      "notes": "이 에피소드의 주제는 살아남은 자의 죄책감이다.\n청운산에서 청운문이 개파 백 주년 잔치를 연다.\n잔치가 한창일 때 복면 쓴 자들이 문파를 습격한다.\n사부는 무현을 뒷산 동굴로 밀어 넣고 혼자 싸운다.\n무현은 동굴 틈으로 사부가 쓰러지는 것을 지켜본다.\n날이 밝자 무현은 불탄 문파 터에서 홀로 사부를 묻는다.",
+      "gold": [
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "살아남은 자의 죄책감"
+          ]
+        },
+        {
+          "path": "characters",
+          "kind": "ids",
+          "value": [
+            "c_muchar1"
+          ]
+        },
+        {
+          "path": "locations.main",
+          "kind": "exact",
+          "value": "c_mureg1"
+        },
+        {
+          "path": "locations.others",
+          "kind": "ids",
+          "value": []
+        },
+        {
+          "path": "fulfills",
+          "kind": "ids",
+          "value": [
+            "ms_mu1"
+          ]
+        },
+        {
+          "path": "structure.type",
+          "kind": "exact",
+          "value": 5
+        },
+        {
+          "path": "structure.stages",
+          "kind": "items",
+          "facts": [
+            "발단: 개파 백 주년 잔치",
+            "전개: 복면 쓴 자들의 습격",
+            "위기: 사부가 무현을 동굴에 숨기고 혼자 싸운다",
+            "절정: 사부가 쓰러지는 것을 지켜본다",
+            "결말: 불탄 터에서 홀로 사부를 묻는다"
+          ]
+        },
+        {
+          "path": "synopsis",
+          "kind": "facts",
+          "facts": [
+            "잔치 중 습격으로 멸문",
+            "사부의 희생",
+            "홀로 사부를 묻음"
+          ]
+        },
+        {
+          "path": "relation_to_main",
+          "kind": "optional"
+        },
+        {
+          "path": "world",
+          "kind": "optional"
+        },
+        {
+          "path": "foreshadowing.plants",
+          "kind": "optional"
+        }
+      ]
+    }
+  ],
+  "names": [
+    {
+      "id": "mu-n1",
+      "type": "character",
+      "text": "객잔 주인 소연하가 무현에게 방을 내줬어.",
+      "expect": [
+        {
+          "mentioned": "소연하",
+          "card_id": "c_muchar4"
+        }
+      ],
+      "allow": [
+        {
+          "mentioned": "무현",
+          "card_id": "c_muchar1"
+        }
+      ]
+    },
+    {
+      "id": "mu-n2",
+      "type": "character",
+      "text": "사형 진묵이 무현 앞에 나타났어.",
+      "expect": [
+        {
+          "mentioned": "진묵",
+          "card_id": "c_muchar2"
+        }
+      ]
+    },
+    {
+      "id": "mu-n3",
+      "type": "character",
+      "text": "무현은 산적 두목 왕호를 단칼에 쓰러뜨렸어.",
+      "expect": [],
+      "allow": [
+        {
+          "mentioned": "무현",
+          "card_id": "c_muchar1"
+        }
+      ]
+    },
+    {
+      "id": "mu-n4",
+      "type": "region",
+      "text": "무현은 개봉으로 가는 배를 탔어.",
+      "expect": []
+    }
+  ]
+}

@@ -1,0 +1,640 @@
+{
+  "genre": "판타지",
+  "seeds": [
+    {
+      "id": "c_famain",
+      "type": "main_story",
+      "name": null,
+      "data": {
+        "theme": "빼앗긴 이름을 되찾는 마법사의 귀환",
+        "premise": "이름을 빼앗겨 마법을 잃은 견습 마법사 엘린이 마탑의 이름 장부를 쫓는다.",
+        "ending": "엘린이 이름을 되찾고 이름 장부를 불태워 모두의 이름을 돌려준다.",
+        "milestones": [
+          {
+            "id": "ms_fa1",
+            "order": 1,
+            "text": "엘린이 시험에 떨어져 이름을 빼앗긴다."
+          },
+          {
+            "id": "ms_fa2",
+            "order": 2,
+            "text": "엘린이 마탑 지하의 이름 장부를 알게 된다."
+          },
+          {
+            "id": "ms_fa3",
+            "order": 3,
+            "text": "스승 카덴이 이름 장부의 관리자였음이 드러난다."
+          },
+          {
+            "id": "ms_fa4",
+            "order": 4,
+            "text": "엘린이 이름 장부를 불태운다."
+          }
+        ]
+      }
+    },
+    {
+      "id": "c_fapart1",
+      "type": "part",
+      "name": "이름 없는 견습생",
+      "data": {
+        "order": 1,
+        "title": "이름 없는 견습생",
+        "theme": "잃어버린 것을 깨닫는 시간",
+        "fulfills": [
+          "ms_fa1",
+          "ms_fa2"
+        ],
+        "start": "엘린이 마탑 승급 시험을 준비한다.",
+        "end": "엘린이 이름 장부의 존재를 알고 마탑을 떠난다."
+      }
+    },
+    {
+      "id": "c_fareg1",
+      "type": "region",
+      "name": "마탑 도시 아르칸",
+      "data": {
+        "appearance": "일곱 층의 하얀 마탑을 중심으로 둥글게 퍼진 도시.",
+        "environment": {
+          "natural": "강 하구의 평지",
+          "social": "마법사가 다스리는 도시"
+        }
+      }
+    },
+    {
+      "id": "c_fareg2",
+      "type": "region",
+      "name": "회색 습지",
+      "data": {
+        "appearance": "늘 안개가 낀 갈대 습지.",
+        "environment": {
+          "natural": "얕은 늪과 갈대밭",
+          "social": "이름을 잃은 사람들이 모여 사는 마을"
+        }
+      }
+    },
+    {
+      "id": "c_fareg3",
+      "type": "region",
+      "name": "벨드 요새",
+      "data": {
+        "appearance": "북쪽 국경의 검은 돌 요새.",
+        "environment": {
+          "natural": "눈 덮인 산맥",
+          "social": "국경 수비대"
+        }
+      }
+    },
+    {
+      "id": "c_fachar1",
+      "type": "character",
+      "name": "엘린",
+      "data": {
+        "theme": "빼앗긴 이름을 되찾는 견습 마법사",
+        "personality": {
+          "traits": [
+            "고집",
+            "다정함"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_fachar2",
+      "type": "character",
+      "name": "카덴",
+      "data": {
+        "theme": "이름 장부를 지키는 스승",
+        "personality": {
+          "traits": [
+            "냉정함"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_fachar3",
+      "type": "character",
+      "name": "미라벨",
+      "data": {
+        "theme": "엘린의 동기 견습생",
+        "personality": {
+          "traits": [
+            "명랑함"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_fachar4",
+      "type": "character",
+      "name": "레오",
+      "data": {
+        "theme": "아르칸 경비대장",
+        "personality": {
+          "traits": [
+            "원칙주의"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_faworld1",
+      "type": "world",
+      "name": "이름 마법",
+      "data": {
+        "category": "rule",
+        "summary": "자기 이름을 걸고 쓰는 마법. 이름을 잃으면 마법도 잃는다."
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "fa-world",
+      "type": "world",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [],
+      "seeds": [
+        "c_famain",
+        "c_fareg1",
+        "c_fachar1",
+        "c_fachar2",
+        "c_faworld1"
+      ],
+      "notes": "마탑은 아르칸에 있는 마법사들의 조직이다.\n마탑은 일곱 층으로 나뉘고, 층이 높을수록 지위가 높다.\n견습생은 일 층에서 시작해 해마다 한 번 승급 시험을 본다.\n승급 시험에 떨어진 견습생은 이름을 마탑에 바쳐야 한다.\n다만 탑주의 추천을 받은 견습생은 한 번 더 시험을 볼 수 있다.\n마탑에서는 층을 '단'이라고 부르고, 탑주를 '칠단주'라고 부른다.\n마탑은 왕국의 정치에 끼어들지 않는다는 서약을 지킨다.",
+      "gold": [
+        {
+          "path": "name",
+          "kind": "facts",
+          "facts": [
+            "마탑(을 가리키는 이름)"
+          ]
+        },
+        {
+          "path": "category",
+          "kind": "exact",
+          "value": "faction"
+        },
+        {
+          "path": "summary",
+          "kind": "facts",
+          "facts": [
+            "아르칸에 있는 마법사들의 조직"
+          ]
+        },
+        {
+          "path": "details",
+          "kind": "facts",
+          "facts": [
+            "일곱 층, 높을수록 지위가 높음",
+            "견습생은 일 층에서 시작해 해마다 승급 시험",
+            "왕국 정치에 끼어들지 않는다는 서약"
+          ]
+        },
+        {
+          "path": "rules",
+          "kind": "items",
+          "facts": [
+            "승급 시험에 떨어진 견습생은 이름을 바친다 (예외: 탑주 추천을 받으면 한 번 더 시험)"
+          ]
+        },
+        {
+          "path": "terms",
+          "kind": "items",
+          "facts": [
+            "단 = 층",
+            "칠단주 = 탑주"
+          ]
+        },
+        {
+          "path": "related",
+          "kind": "optional"
+        }
+      ]
+    },
+    {
+      "id": "fa-character",
+      "type": "character",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [
+        "c_fachar1",
+        "c_fareg2"
+      ],
+      "seeds": [
+        "c_famain",
+        "c_fareg1",
+        "c_fareg2",
+        "c_fachar1",
+        "c_fachar2",
+        "c_fachar3",
+        "c_fachar4",
+        "c_faworld1"
+      ],
+      "notes": "세린은 회색 습지에서 나고 자라, 지금도 그곳에서 약초를 파는 상인이다.\n세린은 이름을 잃은 사람들을 몰래 돕는다.\n세린은 겉으로는 무뚝뚝하지만 속정이 깊다.\n돈 이야기가 나오면 누구보다 계산이 빠르다.\n누군가 다치면 말없이 약초부터 꺼낸다.\n세린은 존댓말을 쓰지만 말끝이 짧다.\n세린은 \"값은 나중에 받죠.\"라고 말하며 약을 건넨다.\n또 \"이름이 없어도 배는 고프잖아요.\"라고 말한다.\n화가 나면 \"그만하세요.\"라고 짧게 끊는다.\n세린은 회색 머리를 짧게 자르고 늘 낡은 녹색 망토를 두른다.\n세린은 엘린을 습지에서 구해 준 은인이다.",
+      "gold": [
+        {
+          "path": "name",
+          "kind": "exact",
+          "value": "세린"
+        },
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "이름을 잃은 사람들을 돕는 습지의 약초 상인 (또는 같은 뜻의 인물 주제)"
+          ]
+        },
+        {
+          "path": "personality.traits",
+          "kind": "items",
+          "facts": [
+            "무뚝뚝함",
+            "속정이 깊음",
+            "계산이 빠름"
+          ]
+        },
+        {
+          "path": "personality.behaviors",
+          "kind": "items",
+          "facts": [
+            "돈 이야기가 나오면 계산이 빠르다",
+            "누군가 다치면 말없이 약초를 꺼낸다"
+          ]
+        },
+        {
+          "path": "speech.description",
+          "kind": "facts",
+          "facts": [
+            "존댓말",
+            "말끝이 짧음"
+          ]
+        },
+        {
+          "path": "speech.examples",
+          "kind": "items",
+          "facts": [
+            "값은 나중에 받죠.",
+            "이름이 없어도 배는 고프잖아요.",
+            "그만하세요."
+          ]
+        },
+        {
+          "path": "appearance.summary",
+          "kind": "facts",
+          "facts": [
+            "짧게 자른 회색 머리",
+            "낡은 녹색 망토"
+          ]
+        },
+        {
+          "path": "appearance.details",
+          "kind": "optional"
+        },
+        {
+          "path": "relations",
+          "kind": "ids",
+          "value": [
+            "c_fachar1"
+          ],
+          "facts": [
+            "엘린의 은인"
+          ]
+        },
+        {
+          "path": "origin_region_id",
+          "kind": "exact",
+          "value": "c_fareg2"
+        }
+      ]
+    },
+    {
+      "id": "fa-region",
+      "type": "region",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [
+        "c_fareg1"
+      ],
+      "seeds": [
+        "c_famain",
+        "c_fareg1",
+        "c_fareg2",
+        "c_fareg3",
+        "c_fachar1"
+      ],
+      "notes": "루멘은 아르칸에서 배로 이틀 걸리는 동쪽 항구 도시다.\n루멘은 절벽 아래 좁은 만에 자리 잡았다.\n도시는 붉은 지붕의 집들이 계단처럼 층층이 쌓여 있다.\n바다에서 늘 짙은 안개가 밀려온다.\n루멘은 상인 조합이 다스리고, 마탑의 힘이 닿지 않는다.\n항구에는 생선 굽는 냄새가 가득하다.\n밤이면 등대의 종소리가 울린다.",
+      "gold": [
+        {
+          "path": "name",
+          "kind": "facts",
+          "facts": [
+            "루멘"
+          ]
+        },
+        {
+          "path": "parent_id",
+          "kind": "empty"
+        },
+        {
+          "path": "links",
+          "kind": "items",
+          "facts": [
+            "아르칸(c_fareg1)와 이어짐: 2일, 배, direction 서 (대상 지역이 이 지역에서 본 방향)"
+          ]
+        },
+        {
+          "path": "appearance",
+          "kind": "facts",
+          "facts": [
+            "붉은 지붕의 집들이 층층이 쌓인 항구 도시"
+          ]
+        },
+        {
+          "path": "environment.natural",
+          "kind": "facts",
+          "facts": [
+            "절벽 아래 좁은 만",
+            "바다 안개"
+          ]
+        },
+        {
+          "path": "environment.social",
+          "kind": "facts",
+          "facts": [
+            "상인 조합이 다스림",
+            "마탑의 힘이 닿지 않음"
+          ]
+        },
+        {
+          "path": "sensory.smell",
+          "kind": "facts",
+          "facts": [
+            "생선 굽는 냄새"
+          ]
+        },
+        {
+          "path": "sensory.sound",
+          "kind": "facts",
+          "facts": [
+            "등대의 종소리"
+          ]
+        },
+        {
+          "path": "sensory.mood",
+          "kind": "optional"
+        }
+      ]
+    },
+    {
+      "id": "fa-main",
+      "type": "main_story",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [],
+      "seeds": [
+        "c_fareg1",
+        "c_fareg2",
+        "c_fachar1",
+        "c_fachar2",
+        "c_fachar3",
+        "c_faworld1"
+      ],
+      "notes": "이 이야기의 주제는 빼앗긴 이름을 되찾는 것이다.\n견습 마법사 엘린은 승급 시험에 떨어져 이름을 빼앗기고 마법을 잃는다.\n엘린은 마탑 지하에 모두의 이름을 적은 이름 장부가 있다는 것을 알게 된다.\n엘린은 회색 습지의 이름 없는 사람들과 함께 장부를 쫓는다.\n그러다 스승 카덴이 장부의 관리자였다는 사실이 드러난다.\n결말에서 엘린은 장부를 불태워 모두에게 이름을 돌려주지만, 자신의 마법은 끝내 되찾지 않기로 한다.",
+      "gold": [
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "빼앗긴 이름을 되찾는 것"
+          ]
+        },
+        {
+          "path": "premise",
+          "kind": "facts",
+          "facts": [
+            "시험에 떨어져 이름과 마법을 잃은 견습 마법사 엘린",
+            "이름 장부를 쫓는다"
+          ]
+        },
+        {
+          "path": "ending",
+          "kind": "facts",
+          "facts": [
+            "장부를 불태워 모두에게 이름을 돌려준다",
+            "자신의 마법은 되찾지 않는다"
+          ]
+        },
+        {
+          "path": "milestones",
+          "kind": "items",
+          "facts": [
+            "엘린이 이름(과 마법)을 빼앗긴다",
+            "이름 장부의 존재를 안다",
+            "카덴이 장부의 관리자임이 드러난다",
+            "장부를 불태운다"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fa-part",
+      "type": "part",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [],
+      "seeds": [
+        "c_famain",
+        "c_fapart1",
+        "c_fareg1",
+        "c_fareg2",
+        "c_fachar1",
+        "c_fachar2"
+      ],
+      "notes": "2부의 제목은 '불타는 장부'다.\n2부의 주제는 믿었던 사람과 맞서는 용기다.\n2부는 엘린이 회색 습지 사람들과 마탑으로 돌아오면서 시작한다.\n2부에서 카덴이 장부의 관리자였다는 것이 드러난다.\n2부의 끝에서 엘린은 장부를 불태우고 아르칸을 떠난다.",
+      "gold": [
+        {
+          "path": "title",
+          "kind": "facts",
+          "facts": [
+            "불타는 장부"
+          ]
+        },
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "믿었던 사람과 맞서는 용기"
+          ]
+        },
+        {
+          "path": "fulfills",
+          "kind": "ids",
+          "value": [
+            "ms_fa3",
+            "ms_fa4"
+          ]
+        },
+        {
+          "path": "start",
+          "kind": "facts",
+          "facts": [
+            "엘린이 회색 습지 사람들과 마탑으로 돌아온다"
+          ]
+        },
+        {
+          "path": "end",
+          "kind": "facts",
+          "facts": [
+            "엘린이 장부를 불태우고 아르칸을 떠난다"
+          ]
+        },
+        {
+          "path": "structure",
+          "kind": "optional"
+        }
+      ]
+    },
+    {
+      "id": "fa-episode",
+      "type": "episode",
+      "category": null,
+      "structure": 5,
+      "part_id": "c_fapart1",
+      "refs": [
+        "c_fachar1",
+        "c_fachar3"
+      ],
+      "seeds": [
+        "c_famain",
+        "c_fapart1",
+        "c_fareg1",
+        "c_fareg2",
+        "c_fareg3",
+        "c_fachar1",
+        "c_fachar2",
+        "c_fachar3",
+        "c_fachar4"
+      ],
+      "notes": "이 에피소드의 주제는 실패를 받아들이는 법이다.\n엘린과 미라벨은 아르칸 마탑에서 승급 시험을 치른다.\n엘린은 시험 도중 주문이 엇나가 시험장을 불태울 뻔한다.\n미라벨이 엘린을 감싸지만 감독관은 엘린의 낙방을 선언한다.\n엘린은 이름을 바치는 의식에서 마지막으로 자기 이름을 불러 본다.\n이름을 잃은 엘린은 회색 습지로 쫓겨나, 갈대밭에서 첫날 밤을 보낸다.",
+      "gold": [
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "실패를 받아들이는 법"
+          ]
+        },
+        {
+          "path": "characters",
+          "kind": "ids",
+          "value": [
+            "c_fachar1",
+            "c_fachar3"
+          ]
+        },
+        {
+          "path": "locations.main",
+          "kind": "exact",
+          "value": "c_fareg1"
+        },
+        {
+          "path": "locations.others",
+          "kind": "ids",
+          "value": [
+            "c_fareg2"
+          ]
+        },
+        {
+          "path": "fulfills",
+          "kind": "ids",
+          "value": [
+            "ms_fa1"
+          ]
+        },
+        {
+          "path": "structure.type",
+          "kind": "exact",
+          "value": 5
+        },
+        {
+          "path": "structure.stages",
+          "kind": "items",
+          "facts": [
+            "발단: 엘린과 미라벨이 승급 시험을 치른다",
+            "전개: 주문이 엇나가 시험장을 불태울 뻔한다",
+            "위기: 미라벨이 감싸지만 낙방이 선언된다",
+            "절정: 이름을 바치는 의식에서 마지막으로 자기 이름을 부른다",
+            "결말: 이름을 잃고 회색 습지로 쫓겨난다"
+          ]
+        },
+        {
+          "path": "synopsis",
+          "kind": "facts",
+          "facts": [
+            "승급 시험에서 실수해 낙방",
+            "이름을 바치고 회색 습지로 쫓겨남"
+          ]
+        },
+        {
+          "path": "relation_to_main",
+          "kind": "optional"
+        },
+        {
+          "path": "world",
+          "kind": "optional"
+        },
+        {
+          "path": "foreshadowing.plants",
+          "kind": "optional"
+        }
+      ]
+    }
+  ],
+  "names": [
+    {
+      "id": "fa-n1",
+      "type": "character",
+      "text": "엘린이 아르칸에 돌아오자 경비대장 래오가 문 앞을 막아섰어.",
+      "expect": [
+        {
+          "mentioned": "래오",
+          "card_id": "c_fachar4"
+        }
+      ]
+    },
+    {
+      "id": "fa-n2",
+      "type": "region",
+      "text": "회색 늪지 사람들은 엘린을 반겨 줬어.",
+      "expect": [
+        {
+          "mentioned": "회색 늪지",
+          "card_id": "c_fareg2"
+        }
+      ]
+    },
+    {
+      "id": "fa-n3",
+      "type": "character",
+      "text": "엘린은 시장에서 노점상 리안에게 길을 물었어.",
+      "expect": []
+    },
+    {
+      "id": "fa-n4",
+      "type": "world",
+      "text": "마탑의 견습생들은 별자리 마법도 함께 배워.",
+      "expect": []
+    }
+  ]
+}
