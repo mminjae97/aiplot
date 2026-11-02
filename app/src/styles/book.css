@@ -70,11 +70,9 @@
   pointer-events: none;
 }
 
-/* A section's page in a page block (or on a turning leaf, .leaf-edge): its paper, in its tone
-   (base.css: the tones alternate, so the pages show apart), and the pages' 4px edge below, as
-   the open pages. */
-.book-edge,
-.leaf-edge {
+/* A section's page in a page block: its paper, in its tone (base.css: the tones alternate, so
+   the pages show apart), and the pages' 4px edge below, as the open pages. */
+.book-edge {
   --tone: var(--page-a);
   background:
     linear-gradient(var(--tone), var(--tone)) top / 100% calc(100% - 4px) no-repeat,
@@ -395,25 +393,6 @@
   right: 0;
 }
 
-/* A section's page past a turning leaf's free edge (or past the new open page while a leaf
-   lies on it), as in the page block (.book-edge; pageTurn.ts sets its tone). */
-.leaf-edge {
-  position: absolute;
-  top: 0;
-  /* down over the page's edge below it, as the leaf's faces */
-  height: calc(100% + 4px);
-  backface-visibility: hidden;
-  pointer-events: none;
-}
-
-/* Darkening as the leaf bends (pageTurn.ts: as its outer strip's shading). */
-.leaf-edge-fold {
-  position: absolute;
-  inset: 0;
-  background: rgb(38 22 12);
-  opacity: 0;
-}
-
 /* One leaf: its own 3D view (the leaves are stacked by z-index as they cross the spine), seen
    from straight above with no perspective, so the paper rising toward the reader never grows
    past the page's height. */
@@ -479,6 +458,16 @@
 
 .leaf-face[data-picture] > .leaf-shade {
   inset: 0 1px;
+}
+
+/* A blank face's gutter (pageTurn.ts sets the gradient); a picture has its own. */
+.leaf-gutter {
+  position: absolute;
+  inset: 0;
+}
+
+.leaf-face[data-picture] > .leaf-gutter {
+  display: none;
 }
 
 /* The outer strip's faces end at the free edge (pageTurn.ts). */
