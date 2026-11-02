@@ -17,12 +17,13 @@ export async function withApp(use: (app: ElectronApplication) => Promise<void>):
   env.AIPLOT_DATA_DIR = dataDir
   // Fixture LLM: no GPU or model download (§4).
   env.AIPLOT_FAKE_LLM = '1'
-  const app = await electron.launch({ args: [resolve(__dirname, '../..')], env })
+  let app: ElectronApplication | null = null
   try {
+    app = await electron.launch({ args: [resolve(__dirname, '../..')], env })
     await use(app)
   } finally {
     try {
-      await app.close()
+      await app?.close()
     } finally {
       // Chromium helpers and the server (which stops once Electron is gone) may hold files
       // briefly after close on Windows.

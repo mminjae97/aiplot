@@ -2,8 +2,13 @@ import { expect, test } from '@playwright/test'
 import { strings } from '../../src/strings'
 import { withApp } from './app'
 
-// §19 E2E: library → contents → a card talked over, generated and saved (fixture LLM).
+// §19 E2E: library → contents → a card talked over, generated and saved (fixture LLM). The
+// texts checked below are the fixture LLM's answers (server/tests/fixtures/llm/{chat,source,
+// card}.json): the card is always 테오.
 test('a character is talked over, generated and saved into the dex', async () => {
+  // Server start, a chat turn and a generation each have their own wait below; together they
+  // may run past the default 60s on a slow runner.
+  test.setTimeout(120_000)
   await withApp(async (app) => {
     const win = await app.firstWindow()
     await expect(win.getByText(strings.library.empty)).toBeVisible({ timeout: 45_000 })
