@@ -468,6 +468,19 @@
   transform: rotateY(180deg);
 }
 
+/* A face showing a picture of a page has no paper of its own under it: where the strips meet,
+   the picture's softened edge would let that paper through as a light line (over dark cards
+   most of all); the neighbouring strip, reaching over the seam, shows there instead. Its shade
+   stays off the pixel it reaches over each neighbour, which would be darkened twice. (A blank
+   face keeps both: there the paper is all there is.) */
+.leaf-face[data-picture] {
+  background: none;
+}
+
+.leaf-face[data-picture] > .leaf-shade {
+  inset: 0 1px;
+}
+
 /* The outer strip's faces end at the free edge (pageTurn.ts). */
 .leaf-strip[data-dir='next'] > .leaf-face-free {
   right: 0;

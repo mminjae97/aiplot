@@ -108,6 +108,8 @@ function paint(
   // (Keeping the picture's own paper tone, set on it inline.)
   copy.style.cssText += `;position:absolute;top:0;left:${String(bleed - offset)}px;width:${String(size.width)}px;height:${String(size.height)}px;margin:0;translate:none;transition:none`
   box.prepend(copy)
+  // (No paper of the box's own under it: book.css .leaf-face[data-picture].)
+  box.dataset.picture = 'true'
   out.push({ copy, picture })
 }
 
