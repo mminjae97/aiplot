@@ -1,7 +1,8 @@
 import { type PointerEvent, type RefObject, useEffect, useRef } from 'react'
 import { strings } from '../strings'
 import type { EpisodeCard, MilestoneFulfilment } from '../types'
-import type { Timeline } from './storyLayout'
+import type { Placed, Timeline } from './storyLayout'
+import { type NodeBox, rounded, routeOf } from './timelineRoute'
 
 // Grid sizes, kept tight so the open book shows as much of the story as it can: the lane
 // names on the left, a column per story beat, a lane per region.
@@ -80,6 +81,12 @@ export function EpisodeTimeline({
   const cy = (lane: number, row: number) =>
     (tops[lane] ?? HEAD) + LANE_PAD / 2 + row * ROW + ROW / 2
   const at = new Map(timeline.nodes.map((node) => [node.episodeId, node]))
+  const boxOf = (node: Placed): NodeBox => ({
+    x: cx(node.column),
+    y: cy(node.lane, node.row),
+    width: NODE_WIDTH,
+    height: NODE_HEIGHT,
+  })
   const scrollRef = useRef<HTMLDivElement>(null)
   useWheelAcross(scrollRef)
   // Dragging the paper (not a node or a part's name) moves the view with the pointer.
@@ -212,25 +219,18 @@ export function EpisodeTimeline({
             const from = at.get(arrow.from)
             const to = at.get(arrow.to)
             if (!from || !to) return null
-            const y1 = cy(from.lane, from.row)
-            const y2 = cy(to.lane, to.row)
-            let d: string
-            if (from.column === to.column) {
-              // Same column (simultaneous): a short bow out to the right, edge to edge.
-              const x = cx(from.column) + NODE_WIDTH / 2
-              d = `M ${String(x)} ${String(y1)} C ${String(x + 18)} ${String(y1)}, ${String(x + 18)} ${String(y2)}, ${String(x)} ${String(y2)}`
-            } else {
-              const forward = to.column > from.column
-              const x1 = cx(from.column) + (forward ? NODE_WIDTH / 2 : -NODE_WIDTH / 2)
-              const x2 = cx(to.column) + (forward ? -NODE_WIDTH / 2 : NODE_WIDTH / 2)
-              const bend = Math.max(20, Math.abs(x2 - x1) / 2) * (forward ? 1 : -1)
-              d = `M ${String(x1)} ${String(y1)} C ${String(x1 + bend)} ${String(y1)}, ${String(x2 - bend)} ${String(y2)}, ${String(x2)} ${String(y2)}`
-            }
+            const boxes = timeline.nodes.filter((node) => node !== from && node !== to).map(boxOf)
+            const blocked = (point: { x: number; y: number }) =>
+              boxes.some(
+                (box) =>
+                  Math.abs(point.x - box.x) <= box.width / 2 + 4 &&
+                  Math.abs(point.y - box.y) <= box.height / 2 + 4,
+              )
             return (
               <path
                 key={`${arrow.from}|${arrow.to}|${arrow.kind}`}
                 className={`timeline-arrow timeline-arrow-${arrow.kind}`}
-                d={d}
+                d={rounded(routeOf(boxOf(from), boxOf(to), arrow.kind, blocked))}
                 markerEnd={`url(#arrow-${arrow.kind})`}
               />
             )
