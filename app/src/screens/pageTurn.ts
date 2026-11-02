@@ -217,29 +217,24 @@ function windowed(note: HTMLElement, rect: Box, side: 'left' | 'right', base: st
 }
 
 /** Section `section`'s page as it shows past a leaf's free edge (or past the new open page):
- * `width` px of its paper at `left` in the leaf's outer strip (or the stage), on its back if
- * `back`, ending in `band` px of its page edge (book.css .book-edge) on the outer side (`side`),
- * behind the post-its riding there. `fold` takes the leaf's shading as it bends. */
+ * `width` px of it at `left` in the leaf's outer strip (or the stage), on its back if `back`,
+ * its edge on the outer side (`side`; book.css .leaf-edge), behind the post-its riding there.
+ * `fold` takes the leaf's shading as it bends. */
 function pageEdge(
   section: number,
   left: number,
   back: boolean,
   width: number,
-  band: number,
   side: 'left' | 'right',
 ): { strip: HTMLElement; fold: HTMLElement } {
   const strip = div('leaf-edge')
   const tone = toneOf(section)
-  strip.style.setProperty('--paper', `var(--page-${tone})`)
-  strip.style.setProperty('--band', `var(--page-edge-${tone})`)
+  strip.style.setProperty('--tone', `var(--page-${tone})`)
+  strip.style.setProperty('--tone-edge', `var(--page-edge-${tone})`)
+  strip.dataset.side = side
   strip.style.left = `${String(left)}px`
   strip.style.width = `${String(width)}px`
   strip.style.transform = `${back ? 'rotateY(180deg) ' : ''}translateZ(-2px)`
-  strip.style.backgroundImage = `${
-    side === 'right'
-      ? `linear-gradient(90deg, transparent calc(100% - ${String(band)}px), var(--band) 0)`
-      : `linear-gradient(90deg, var(--band) ${String(band)}px, transparent 0)`
-  }, linear-gradient(var(--paper), var(--paper))`
   const fold = div('leaf-edge-fold')
   strip.append(fold)
   return { strip, fold }
@@ -450,7 +445,11 @@ export function playTurn(
       const out1 = going ? last - at + 1 : at < last ? last - at : null
       const place = (out: number, back: boolean, side: 'left' | 'right') => {
         const span = step * out
-        const { strip, fold } = pageEdge(own, going ? reach : -span, back, span, step, side)
+        // (Reaching in under the leaf's paper, so no seam opens between them as it turns.)
+        const under = 2
+        const { strip, fold } = going
+          ? pageEdge(own, reach - under, back, span + under, side)
+          : pageEdge(own, -span, back, span + under, side)
         outer.append(strip)
         folds.push(fold)
       }
@@ -605,7 +604,6 @@ export function playTurn(
     going ? notes.from + count : notes.from,
     (going ? oldEdge.right : newEdge.right) + step * (count - 1) - pagesRect.left,
     false,
-    step,
     step,
     'right',
   ).strip
