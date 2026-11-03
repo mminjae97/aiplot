@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import FileResponse
 
 from aiplot.api.deps import Db
@@ -109,19 +109,43 @@ def list_covers(db: Db, workId: str) -> CoverList:
         raise work_not_found(workId) from exc
 
 
-@router.post("/works/{workId}/covers", status_code=201)
+def too_large() -> AppError:
+    return AppError(413, "COVER_TOO_LARGE", f"cover is over {covers.MAX_BYTES} bytes")
+
+
+async def cover_body(request: Request) -> bytes:
+    """The upload, refused as soon as it is known to be over the limit (from Content-Length,
+    else while it streams in), never read whole first."""
+    length = request.headers.get("content-length", "")
+    if length.isdigit() and int(length) > covers.MAX_BYTES:
+        raise too_large()
+    data = bytearray()
+    async for chunk in request.stream():
+        data += chunk
+        if len(data) > covers.MAX_BYTES:
+            raise too_large()
+    if not data:
+        raise AppError(422, "VALIDATION_ERROR", "the cover body is empty")
+    return bytes(data)
+
+
+@router.post(
+    "/works/{workId}/covers",
+    status_code=201,
+    openapi_extra={"requestBody": {"content": {"image/webp": {}}, "required": True}},
+)
 def upload_cover(
     db: Db,
     request: Request,
     workId: str,
-    body: Annotated[bytes, Body(media_type="image/webp")],
+    body: Annotated[bytes, Depends(cover_body)],
 ) -> Cover:
     try:
         return covers.add(db, images_dir(request), workId, body)
     except works.WorkNotFoundError as exc:
         raise work_not_found(workId) from exc
     except covers.CoverTooLargeError as exc:
-        raise AppError(413, "COVER_TOO_LARGE", str(exc)) from exc
+        raise too_large() from exc
     except covers.CoverUnsupportedError as exc:
         raise AppError(415, "COVER_UNSUPPORTED", str(exc), "the app sends WebP") from exc
 

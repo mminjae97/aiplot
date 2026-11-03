@@ -1,5 +1,6 @@
 """책 꾸미기 over HTTP: book colour, cover uploads, picking and deleting covers (§12 S0)."""
 
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -164,6 +165,20 @@ def test_upload_rejects(
     response = client.post(f"/api/v1/works/{work['id']}/covers", headers=WEBP, content=data)
     assert (response.status_code, response.json()["code"]) == (status, code)
     assert covers_of(client, work["id"]) == []
+    assert stored(images) == []
+
+
+def test_a_streamed_upload_stops_at_the_limit(client: TestClient, images: Path) -> None:
+    """No Content-Length (chunked): the upload is refused once it passes the limit."""
+    work = create(client)
+
+    def chunks() -> Iterator[bytes]:
+        yield IMAGE
+        for _ in range(8):
+            yield b"\x00" * (1024 * 1024)
+
+    response = client.post(f"/api/v1/works/{work['id']}/covers", headers=WEBP, content=chunks())
+    assert (response.status_code, response.json()["code"]) == (413, "COVER_TOO_LARGE")
     assert stored(images) == []
 
 
