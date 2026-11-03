@@ -143,12 +143,12 @@ def main() -> None:
                 tally[0] += s["verdict"] == "match"
                 tally[1] += 1
             pending += s["verdict"] == "pending"
-            if s["kind"] != "optional" and not empty(s["value"]):
+            if s["kind"] != "optional" and s["verdict"] != "pending" and not empty(s["value"]):
                 filled += 1
                 unsupported += bool(s.get("unsupported"))
         rows.append({"case": case, "result": result, "fields": scored})
 
-    found = expected = false_pairs = negatives = 0
+    found = expected = false_pairs = 0
     name_rows = []
     for result in run["names"]:
         case = names[result["id"]]
@@ -159,8 +159,6 @@ def main() -> None:
         wrong = [p for p in pairs if not any(same(p, e) for e in fine)]
         expected += len(case["expect"])
         found += len(hits)
-        if not case["expect"]:
-            negatives += 1
         false_pairs += len(wrong)
         name_rows.append({"case": case, "result": result, "hits": hits, "wrong": wrong})
 
@@ -179,6 +177,7 @@ def main() -> None:
         "cards": len(run["cards"]),
         "names_found": rate(found, expected),
         "names_expected": expected,
+        # Wrong pairs per name turn.
         "names_false": rate(false_pairs, len(run["names"])),
         "names_false_pairs": false_pairs,
         "chat_first_char_s": {
