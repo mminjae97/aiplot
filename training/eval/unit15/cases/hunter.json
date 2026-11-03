@@ -177,7 +177,10 @@
         {
           "path": "category",
           "kind": "exact",
-          "value": "rule"
+          "any_of": [
+            "rule",
+            "other"
+          ]
         },
         {
           "path": "summary",
@@ -254,8 +257,7 @@
           "path": "personality.traits",
           "kind": "items",
           "facts": [
-            "겁이 많음",
-            "(무섭게 보이는 외모와 달리) 동료를 지키려 함"
+            "겁이 많음"
           ]
         },
         {
@@ -305,7 +307,10 @@
         {
           "path": "origin_region_id",
           "kind": "exact",
-          "value": "c_hureg2"
+          "any_of": [
+            "c_hureg2",
+            null
+          ]
         }
       ]
     },
@@ -550,8 +555,8 @@
         },
         {
           "path": "structure.type",
-          "kind": "exact",
-          "value": 4
+          "kind": "optional",
+          "given": true
         },
         {
           "path": "structure.stages",

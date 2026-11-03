@@ -542,8 +542,8 @@
         },
         {
           "path": "structure.type",
-          "kind": "exact",
-          "value": 4
+          "kind": "optional",
+          "given": true
         },
         {
           "path": "structure.stages",

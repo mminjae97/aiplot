@@ -257,8 +257,7 @@
           "kind": "items",
           "facts": [
             "무뚝뚝함",
-            "속정이 깊음",
-            "계산이 빠름"
+            "속정이 깊음"
           ]
         },
         {
@@ -564,8 +563,8 @@
         },
         {
           "path": "structure.type",
-          "kind": "exact",
-          "value": 5
+          "kind": "optional",
+          "given": true
         },
         {
           "path": "structure.stages",

@@ -16,10 +16,10 @@ one case per card type and four name checks.
   origin region, a linked region, an episode's characters) @-mentions it in `refs`, as a writer
   would.
 - `notes`: the source notes, one sentence per line.
-- `gold`: one entry per scored field. Kinds: `exact` (same value), `ids` (same set of card ids;
-  relations by target), `facts` / `items` (free text: the listed facts or list items are
-  there), `empty` (not in the notes: filled without being marked AI 추정 = unsupported fill),
-  `optional` (not scored).
+- `gold`: one entry per scored field. Kinds: `exact` (same value, or one of `any_of`), `ids`
+  (same set of card ids; relations by target), `facts` / `items` (free text: the listed facts
+  or list items are there), `empty` (not in the notes: filled without being marked AI 추정 =
+  unsupported fill), `optional` (not scored for match; see Judging).
 - `names`: one chat line; `expect` lists the names the turn must flag as similar to an existing
   card (empty = must flag none).
 
@@ -45,6 +45,18 @@ user to check. Rules:
   neighbouring stages is not scored.
 - `unsupported`: the field states something the notes do not (invented facts), not merely a
   rewording or a fair summary.
+- Optional fields: not scored for match. A filled one with no evidence sentence and not marked
+  AI 추정 is judged for `unsupported` like free text (no evidence alone is not invention: the
+  model often leaves evidence out); one the input fixes (`given`, e.g. structure.type) never is.
+
+## Rates
+
+- Field match = matched / scored fields (exact, ids, facts, items). A card the run failed to
+  make counts every one of its scored fields as a miss.
+- Unsupported fill = unsupported / filled fields that can be unsupported (all but exact ones,
+  which are compared, not judged).
+- Name false rate = wrong pairs / turns that must flag none. A pair naming part of the card's
+  name (무현 for 연무현) is fair to ask about, in every turn.
 
 ## Run
 
