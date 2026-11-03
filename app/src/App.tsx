@@ -1,26 +1,31 @@
 import { useEffect, useRef } from 'react'
-import { needsSetup, useHealth, useSetupWatcher } from './api/setup'
+import { needsSetup, setupOpens, useHealth, useSetupWatcher } from './api/setup'
 import { LibraryScreen } from './screens/LibraryScreen'
 import { PlanningBook } from './screens/PlanningBook'
 import { ServerScreen } from './screens/ServerScreen'
 import { SetupScreen } from './screens/SetupScreen'
 import { useNavigation } from './stores/navigation'
 import { useServer } from './stores/server'
+import type { HealthResponse } from './types'
 
-/** Screens once the server is up. A first look at /health sends a missing model to S0-1
- * (§12, §13); after "나중에 하기" the library stays usable without it. */
+/** Screens once the server is up. /health saying llama.cpp or the model is missing, or
+ * llama-server failed, sends the user to S0-1 (§12, §13), at boot or whenever it fails later:
+ * at once from the library; inside a book only a top-bar chip, and S0-1 on the way back to the
+ * library. After "나중에 하기" the library stays usable until llama fails anew. */
 function Connected({ baseUrl }: { baseUrl: string }) {
   const screen = useNavigation((store) => store.screen)
-  const open = useNavigation((store) => store.open)
+  const setupFailed = useNavigation((store) => store.setupFailed)
+  const setupRecovered = useNavigation((store) => store.setupRecovered)
   const health = useHealth()
-  const checked = useRef(false)
+  const previous = useRef<HealthResponse | null>(null)
   useSetupWatcher()
 
   useEffect(() => {
-    if (checked.current || !health.data) return
-    checked.current = true
-    if (needsSetup(health.data)) open({ name: 'setup' })
-  }, [health.data, open])
+    if (!health.data) return
+    if (setupOpens(previous.current, health.data)) setupFailed()
+    else if (!needsSetup(health.data)) setupRecovered()
+    previous.current = health.data
+  }, [health.data, setupFailed, setupRecovered])
 
   if (screen.name === 'setup') return <SetupScreen />
   if (screen.name === 'library') return <LibraryScreen />

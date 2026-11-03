@@ -142,6 +142,11 @@ export const strings = {
     progressLabel: '준비 진행률',
     bytes: (done: string, total: string) => `${done} / ${total}`,
     eta: (text: string) => `${text} 남음`,
+    etaUnderMinute: '1분 미만',
+    etaMinutes: (minutes: number) => `약 ${String(minutes)}분`,
+    etaHours: (hours: number) => `약 ${String(hours)}시간`,
+    etaHoursMinutes: (hours: number, minutes: number) =>
+      `약 ${String(hours)}시간 ${String(minutes)}분`,
     etaUnknown: '남은 시간을 계산하는 중',
     pause: '일시정지',
     paused: '일시정지됨',
@@ -171,6 +176,8 @@ export const strings = {
     chip: (percent: number) => `모델 준비 중 ${String(percent)}%`,
     chipPaused: '모델 준비 일시정지됨',
     chipFailed: '모델 준비가 멈췄어요',
+    chipLlamaFailed: 'AI 모델에 문제가 생겼어요',
+    chipAfterDrawer: '서랍을 닫은 뒤 열 수 있어요',
   },
   drawer: {
     kind: {

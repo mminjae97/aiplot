@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ApiRequestError, api } from '../api/client'
 import { draftKey, sendTurn, withNotes } from '../api/drafts'
 import { streamJob } from '../api/sse'
+import { useNavigation } from '../stores/navigation'
 import { strings } from '../strings'
 import type {
   Card,
@@ -386,6 +387,15 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
       },
     }
   })
+
+  const setDrawerOpen = useNavigation((store) => store.setDrawerOpen)
+  useEffect(() => {
+    // The top bar stays usable under a drawer: nothing there may leave the page while it is open.
+    setDrawerOpen(true)
+    return () => {
+      setDrawerOpen(false)
+    }
+  }, [setDrawerOpen])
 
   useEffect(() => {
     const state = life.current
