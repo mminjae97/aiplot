@@ -11,6 +11,8 @@ import threading
 from dataclasses import dataclass, field
 from typing import Literal
 
+from pydantic import TypeAdapter
+
 from aiplot.db import cards as cards_db
 from aiplot.generated.card.card import Card
 from aiplot.generated.drafts.draft import Draft, DraftTurn
@@ -18,7 +20,10 @@ from aiplot.generated.drafts.draft_create import DraftCreate
 from aiplot.generated.roles.card_output import CardOutput
 from aiplot.services import cards
 from aiplot.services.notes import split_sentences
+from aiplot.services.structure import five_to_four
 from aiplot.services.works import require_open
+
+OUTPUT = TypeAdapter(CardOutput)
 
 CardType = Literal["world", "character", "region", "main_story", "part", "episode"]
 Category = Literal["rule", "faction", "history", "culture", "other"]
@@ -31,6 +36,14 @@ class DraftNotFoundError(LookupError):
 class DraftInvalidError(ValueError):
     """The draft asks for something that does not fit (card of another type, a part that
     is not one, a category for a non-world card)."""
+
+
+class NothingToConvertError(ValueError):
+    """A stage count change before any 카드 생성."""
+
+
+class StructureNotFiveError(ValueError):
+    """The generated card has no 5-stage structure to map onto 기승전결."""
 
 
 @dataclass
@@ -143,4 +156,24 @@ def set_notes(store: DraftStore, draft_id: str, notes: str) -> Draft:
     draft = store.get(draft_id)
     with draft.lock:
         draft.notes = notes
+    return draft.view()
+
+
+def to_four(conn: sqlite3.Connection, store: DraftStore, draft_id: str) -> Draft:
+    """The generated part or episode's 5-stage structure becomes 기승전결 in code (§7: 5→4
+    auto); nothing else of the card changes. Its evidence and AI-guess paths (structure,
+    structure.type, structure.stages) stay as they are, and so does the notes it was made
+    from, so 저장 saves it as it now shows."""
+    draft = store.get(draft_id)
+    require_open(conn, draft.work_id, 1)
+    with draft.lock:
+        generated = draft.generated
+        if generated is None:
+            raise NothingToConvertError("generate the card first")
+        value = generated.model_dump(mode="json")
+        structure = value["data"].get("structure")
+        if not isinstance(structure, dict) or structure.get("type") != 5:
+            raise StructureNotFiveError("the generated card has no 5-stage structure")
+        value["data"]["structure"] = five_to_four(structure)
+        draft.generated = OUTPUT.validate_python(value)
     return draft.view()

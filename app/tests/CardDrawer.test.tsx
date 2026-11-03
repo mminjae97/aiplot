@@ -7,7 +7,7 @@ import { CardDrawer, type DrawerRequest } from '../src/components/CardDrawer'
 import { useNavigation } from '../src/stores/navigation'
 import { useServer } from '../src/stores/server'
 import { strings } from '../src/strings'
-import type { Draft, Work } from '../src/types'
+import type { CardOutput, Draft, FiveStageStructure, FourStageStructure, Work } from '../src/types'
 import { renderBook } from './bookHarness'
 import { NO_DIALOGS } from './serverFixtures'
 
@@ -737,4 +737,199 @@ test('a part shows the milestones it takes', async () => {
   expect(
     await screen.findByText(`${strings.fields.fulfills ?? ''}: 마을이 불탄다 · 왕이 된다`),
   ).toBeTruthy()
+})
+
+const FIVE: FiveStageStructure = {
+  type: 5,
+  stages: [
+    { name: '발단', summary: '테오가 돌아온다.', tension: 1 },
+    { name: '전개', summary: '편지를 찾는다.', tension: 3 },
+    { name: '위기', summary: '미라가 사라진다.', tension: 2 },
+    { name: '절정', summary: '탑에서 맞선다.', tension: 5 },
+    { name: '결말', summary: '항구를 떠난다.', tension: 2 },
+  ],
+}
+// What the server makes of FIVE (§7: 기=발단, 승=전개+위기, 전=절정, 결=결말).
+const FOUR: FourStageStructure = {
+  type: 4,
+  stages: [
+    { name: '기', summary: '테오가 돌아온다.', tension: 1 },
+    { name: '승', summary: '편지를 찾는다. 미라가 사라진다.', tension: 3 },
+    { name: '전', summary: '탑에서 맞선다.', tension: 5 },
+    { name: '결', summary: '항구를 떠난다.', tension: 2 },
+  ],
+}
+
+function episodeOutput(
+  structure: FiveStageStructure | FourStageStructure,
+  theme = '귀환',
+): CardOutput {
+  return {
+    type: 'episode',
+    name: '1화',
+    data: {
+      part_id: 'c_p1',
+      order: 1,
+      theme,
+      relation_to_main: null,
+      fulfills: [],
+      characters: [],
+      locations: { main: null, others: [] },
+      world: [],
+      links: { prev: null, next: null, causes: [] },
+      foreshadowing: { plants: [], payoffs: [] },
+      worldline_id: null,
+      structure,
+      synopsis: null,
+    },
+    evidence: { structure: [0] },
+    ai_guess: [],
+  }
+}
+
+/** A new episode's draft with a generated card. 5→4 answers with FOUR in place of the
+ * structure; a generation answers with `regenerated`. */
+function serveEpisode(generated: CardOutput, regenerated: CardOutput, pinned: string[] = []) {
+  let draft = baseDraft({
+    pinned,
+    type: 'episode',
+    part_id: 'c_p1',
+    notes: '테오가 돌아온다.',
+    sentences: ['테오가 돌아온다.'],
+    turns: [{ role: 'ai', text: '어떤 화인가요?' }],
+    generated,
+  })
+  const calls: Call[] = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, init: RequestInit = {}) => {
+      const path = url.replace('http://127.0.0.1:9100/api/v1', '')
+      const method = init.method ?? 'GET'
+      const body: unknown = typeof init.body === 'string' ? JSON.parse(init.body) : null
+      calls.push({ method, path, body })
+      const json = (data: unknown, status = 200) =>
+        Promise.resolve(new Response(JSON.stringify(data), { status }))
+      if (method === 'POST' && path === '/works/w_1/drafts') return json(draft, 201)
+      if (method === 'GET' && path === '/drafts/dr_1') return json(draft)
+      if (method === 'DELETE' && path === '/drafts/dr_1')
+        return Promise.resolve(new Response(null, { status: 204 }))
+      if (method === 'PUT' && path === '/drafts/dr_1/structure') {
+        const card = draft.generated
+        if (card?.type !== 'episode') return json({ code: 'NOTHING_TO_CONVERT' }, 409)
+        draft = { ...draft, generated: { ...card, data: { ...card.data, structure: FOUR } } }
+        return json(draft)
+      }
+      if (method === 'POST' && path === '/drafts/dr_1/generate') {
+        draft = { ...draft, generated: regenerated }
+        return json({ jobId: 'job_1' }, 202)
+      }
+      if (path === '/jobs/job_1/events') return Promise.resolve(sse([['done', { result: {} }]]))
+      if (path === '/works/w_1/cards') return json({ cards: [part('c_p1', 1, '출발')] })
+      return json({ code: 'NOT_FOUND', message: path, hint: null }, 404)
+    }),
+  )
+  return { calls }
+}
+
+const stageButton = (count: 4 | 5) =>
+  within(screen.getByRole('group', { name: strings.typeSection.structure })).getByRole('button', {
+    name: new RegExp(strings.typeSection.stages(count)),
+  })
+
+test('a pinned structure does not hold the old count once 4→5 is confirmed', async () => {
+  const { calls } = serveEpisode(episodeOutput(FOUR), episodeOutput(FIVE), ['structure', 'theme'])
+  renderDrawer({ workId: 'w_1', type: 'episode', part_id: 'c_p1' })
+  await waitFor(() => {
+    expect(stageButton(4).getAttribute('aria-pressed')).toBe('true')
+  })
+  fireEvent.click(stageButton(5))
+  fireEvent.click(screen.getByRole('button', { name: strings.typeSection.regenerate }))
+  await waitFor(() => {
+    expect(stageButton(5).getAttribute('aria-pressed')).toBe('true')
+  })
+  expect(calls.filter((c) => c.path === '/drafts/dr_1/generate').map((c) => c.body)).toEqual([
+    { pinned: ['theme'], structure: 5 },
+  ])
+})
+
+test('the stage count question keeps the drawer from closing under it', async () => {
+  serveEpisode(episodeOutput(FOUR), episodeOutput(FIVE))
+  renderDrawer({ workId: 'w_1', type: 'episode', part_id: 'c_p1' })
+  await waitFor(() => {
+    expect(stageButton(4).getAttribute('aria-pressed')).toBe('true')
+  })
+  fireEvent.click(stageButton(5))
+  fireEvent.click(screen.getByRole('button', { name: strings.drawer.close }))
+  // Only the stage count question is up.
+  expect(screen.getAllByRole('alertdialog')).toHaveLength(1)
+  expect(
+    screen.getByRole('alertdialog', { name: strings.typeSection.regenerateTitle(5) }),
+  ).toBeTruthy()
+})
+
+test('5→4 maps the stages without the model and keeps the rest of the card', async () => {
+  const { calls } = serveEpisode(episodeOutput(FIVE), episodeOutput(FIVE, '새 주제'))
+  renderDrawer({ workId: 'w_1', type: 'episode', part_id: 'c_p1' })
+  await waitFor(() => {
+    expect(stageButton(5).getAttribute('aria-pressed')).toBe('true')
+  })
+  expect(screen.getByText(strings.typeSection.fiveNote)).toBeTruthy()
+  fireEvent.click(stageButton(4))
+  await waitFor(() => {
+    expect(stageButton(4).getAttribute('aria-pressed')).toBe('true')
+  })
+  // No question, no generation: one PUT, and the card shows 기승전결 with its theme kept.
+  expect(screen.queryByRole('alertdialog')).toBeNull()
+  expect(calls.filter((c) => c.path === '/drafts/dr_1/generate')).toHaveLength(0)
+  expect(calls.filter((c) => c.path === '/drafts/dr_1/structure')).toEqual([
+    { method: 'PUT', path: '/drafts/dr_1/structure', body: { type: 4 } },
+  ])
+  expect(screen.getByText(/승: 편지를 찾는다\. 미라가 사라진다\./)).toBeTruthy()
+  expect(screen.getAllByText('귀환').length).toBeGreaterThan(0)
+  expect(screen.queryByText('새 주제')).toBeNull()
+  expect(screen.getByText(strings.typeSection.fourNote)).toBeTruthy()
+  // The next generation keeps the picked count.
+  fireEvent.click(screen.getByRole('button', { name: strings.preview.regenerate }))
+  await waitFor(() => {
+    expect(calls.find((c) => c.path === '/drafts/dr_1/generate')?.body).toEqual({
+      pinned: [],
+      structure: 4,
+    })
+  })
+})
+
+test('4→5 asks first: keeping the card changes nothing, yes generates again', async () => {
+  const { calls } = serveEpisode(episodeOutput(FOUR), episodeOutput(FIVE, '새 주제'))
+  renderDrawer({ workId: 'w_1', type: 'episode', part_id: 'c_p1' })
+  await waitFor(() => {
+    expect(stageButton(4).getAttribute('aria-pressed')).toBe('true')
+  })
+  fireEvent.click(stageButton(5))
+  const ask = screen.getByRole('alertdialog', { name: strings.typeSection.regenerateTitle(5) })
+  expect(within(ask).getByText(strings.typeSection.regenerateBody)).toBeTruthy()
+  // The safe choice has focus; generating again is red.
+  const keep = within(ask).getByRole('button', { name: strings.typeSection.keepCard })
+  expect(document.activeElement).toBe(keep)
+  const again = within(ask).getByRole('button', { name: strings.typeSection.regenerate })
+  expect(again.hasAttribute('data-danger')).toBe(true)
+  fireEvent.click(keep)
+  expect(screen.queryByRole('alertdialog')).toBeNull()
+  expect(calls.filter((c) => c.path.startsWith('/drafts/dr_1/') && c.method !== 'GET')).toEqual([])
+  expect(stageButton(4).getAttribute('aria-pressed')).toBe('true')
+  // Esc keeps the card too, and leaves the drawer open.
+  fireEvent.click(stageButton(5))
+  fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' })
+  expect(screen.queryByRole('alertdialog')).toBeNull()
+  expect(screen.getByRole('dialog')).toBeTruthy()
+
+  fireEvent.click(stageButton(5))
+  fireEvent.click(screen.getByRole('button', { name: strings.typeSection.regenerate }))
+  await waitFor(() => {
+    expect(stageButton(5).getAttribute('aria-pressed')).toBe('true')
+  })
+  expect(calls.filter((c) => c.path === '/drafts/dr_1/generate').map((c) => c.body)).toEqual([
+    { pinned: [], structure: 5 },
+  ])
+  expect(calls.filter((c) => c.path === '/drafts/dr_1/structure')).toHaveLength(0)
+  expect(screen.getAllByText('새 주제').length).toBeGreaterThan(0)
 })

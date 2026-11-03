@@ -640,6 +640,12 @@ export interface DraftSource {
   notes: string
 }
 /**
+ * PUT /drafts/{draftId}/structure: the user picked another stage count for the generated part or episode (§7). 4 = its 5-stage structure mapped onto 기승전결 in code (기=발단, 승=전개+위기, 전=절정, 결=결말), nothing else of the card changes. 5 (the AI's split of 승) is not built yet.
+ */
+export interface DraftStructure {
+  type: 4
+}
+/**
  * A card being made or edited in the drawer (§8). Lives in server memory only and is gone on DELETE, save or restart: conversations and unsaved drafts are never stored (§6).
  */
 export interface Draft {

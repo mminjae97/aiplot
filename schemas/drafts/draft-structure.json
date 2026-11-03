@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DraftStructure",
+  "description": "PUT /drafts/{draftId}/structure: the user picked another stage count for the generated part or episode (§7). 4 = its 5-stage structure mapped onto 기승전결 in code (기=발단, 승=전개+위기, 전=절정, 결=결말), nothing else of the card changes. 5 (the AI's split of 승) is not built yet.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type"],
+  "properties": {
+    "type": { "const": 4 }
+  }
+}

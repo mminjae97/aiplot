@@ -13,6 +13,7 @@ from aiplot.generated.drafts.draft_create import DraftCreate
 from aiplot.generated.drafts.draft_generate import DraftGenerate
 from aiplot.generated.drafts.draft_message import DraftMessage
 from aiplot.generated.drafts.draft_source import DraftSource
+from aiplot.generated.drafts.draft_structure import DraftStructure
 from aiplot.generated.jobs.job_accepted import JobAccepted
 from aiplot.jobs.queue import JobQueue
 from aiplot.llm.runtime import LlmRuntime
@@ -89,6 +90,24 @@ def put_source(request: Request, draftId: str, body: DraftSource) -> Draft:
         return drafts.set_notes(store(request), draftId, body.notes)
     except drafts.DraftNotFoundError as exc:
         raise draft_not_found(draftId) from exc
+
+
+@router.put("/drafts/{draftId}/structure")
+def put_structure(db: Db, request: Request, draftId: str, body: DraftStructure) -> Draft:
+    """Another stage count for the generated part or episode (§7): 5→4 in code, no model
+    call. body.type is 4 only until the AI's split of 승 (4→5) exists."""
+    try:
+        return drafts.to_four(db, store(request), draftId)
+    except drafts.DraftNotFoundError as exc:
+        raise draft_not_found(draftId) from exc
+    except works.WorkNotFoundError as exc:
+        raise AppError(404, "WORK_NOT_FOUND", f"the work of {draftId} is gone") from exc
+    except works.StageLockedError as exc:
+        raise AppError(423, "STAGE_LOCKED", str(exc), "reopen the stage to change it") from exc
+    except drafts.NothingToConvertError as exc:
+        raise AppError(409, "NOTHING_TO_CONVERT", str(exc), "카드 생성 first") from exc
+    except drafts.StructureNotFiveError as exc:
+        raise AppError(409, "STRUCTURE_NOT_FIVE", str(exc)) from exc
 
 
 @router.delete("/drafts/{draftId}", status_code=204)
