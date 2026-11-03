@@ -189,8 +189,10 @@ def test_added_lines_follow_the_notes_line_ending() -> None:
     assert revised.notes == "A다.\r\nB다.\r\nC다."
 
 
-def test_repeated_sentence_counts_as_changed() -> None:
-    assert apply_edits("A다. B다.", output(added=["A다."])).changed == [2]
+def test_highlight_follows_what_the_model_wrote() -> None:
+    # An added copy of a sentence already there is not added at all (§13: changed = not in the
+    # old notes; see test_a_sentence_already_there_is_not_added_again).
+    assert apply_edits("A다. B다.", output(added=["A다."])).changed == []
     # The highlight follows what the model wrote, not an untouched copy of the same text.
     assert apply_edits("A다. B다. C다.", output([(0, "C다.")])).changed == [0]
     assert apply_edits("A다. B다. C다.", output([(0, "B다.")])).changed == [0]
@@ -240,3 +242,24 @@ def test_casual_changes_are_flagged() -> None:
 )
 def test_is_declarative(sentence: str, declarative: bool) -> None:
     assert is_declarative(sentence) is declarative
+
+
+def test_a_sentence_already_there_is_not_added_again() -> None:
+    notes = "리아는 활을 쓴다.\n리아는 사막 출신이다."
+    revised = apply_edits(
+        notes, output(added=["리아는 활을 쓴다.", "리아는 말이 없다", "리아는 말이 없다."])
+    )
+    # Already in the notes (and added twice): once, and not changed (§13).
+    assert revised.notes == notes + "\n리아는 말이 없다."
+    assert revised.changed == [2]
+    # Nothing new at all leaves the notes as they were.
+    same = apply_edits(notes, output(added=["리아는 사막 출신이다."]))
+    assert (same.notes, same.changed) == (notes, [])
+
+
+def test_sentence_numbers_copied_from_the_notes_go() -> None:
+    notes = "리아는 활을 쓴다.\n리아는 사막 출신이다."
+    revised = apply_edits(
+        notes, output(edits=[(1, "[1] 리아는 북부 출신이다.")], added=["[2] 리아는 검도 쓴다."])
+    )
+    assert revised.notes == "리아는 활을 쓴다.\n리아는 북부 출신이다.\n리아는 검도 쓴다."

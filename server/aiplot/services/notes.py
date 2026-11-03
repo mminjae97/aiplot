@@ -7,6 +7,7 @@ so apostrophes and stray marks never swallow the rest of a line. Edits keep the 
 untouched sentences and the whitespace between them stay byte-identical.
 """
 
+import re
 from collections import Counter
 from dataclasses import dataclass
 
@@ -100,6 +101,15 @@ def is_declarative(sentence: str) -> bool:
     return body.endswith("다")
 
 
+# A sentence number copied from the [n]-numbered notes ("[3] 리아는 …"), like the card role's
+# (card_post.NUMBERED).
+NUMBERED = re.compile(r"(?:^|(?<=\s))\[\d+\]\s*")
+
+
+def unnumbered(text: str) -> str:
+    return NUMBERED.sub("", text).strip()
+
+
 def with_period(text: str) -> str:
     """A model-written sentence missing its final mark gets a period, so it ends itself."""
     text = text.strip()
@@ -133,11 +143,21 @@ def apply_edits(notes: str, output: SourceOutput) -> RevisedNotes:
         # Out-of-range and repeated indexes are model mistakes; the first edit wins.
         if edit.index < len(spans) and edit.index not in seen:
             seen.add(edit.index)
-            text = with_period(edit.text) if edit.text is not None else ""
+            text = with_period(unnumbered(edit.text)) if edit.text is not None else ""
             start, end = spans[edit.index]
             if text != notes[start:end]:  # an unchanged rewrite is not an edit
                 replaced[edit.index] = text or None
-    added = [with_period(line) for line in output.added if line.strip()]
+    # A sentence already in the notes (or added twice) is not added again: §13 changed are the
+    # sentences not in the old notes.
+    present = {notes[a:b] for n, (a, b) in enumerate(spans) if n not in replaced} | {
+        text for text in replaced.values() if text
+    }
+    added: list[str] = []
+    for line in output.added:
+        text = unnumbered(line)
+        if text and with_period(text) not in present:
+            present.add(with_period(text))
+            added.append(with_period(text))
     if not replaced and not added:
         sentences = split_sentences(notes)
         return RevisedNotes(notes=notes, sentences=sentences, changed=[], casual=[])

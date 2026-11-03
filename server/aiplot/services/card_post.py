@@ -11,7 +11,6 @@
 - restores pinned fields from the card shown before.
 """
 
-import re
 import secrets
 import sqlite3
 from types import UnionType
@@ -28,6 +27,7 @@ from aiplot.generated.card.region import RegionData
 from aiplot.generated.card.world import WorldData
 from aiplot.generated.roles.card_output import CardOutput
 from aiplot.services.cards import Scope
+from aiplot.services.notes import NUMBERED
 
 DATA_MODELS: dict[str, type[BaseModel]] = {
     "world": WorldData,
@@ -39,10 +39,6 @@ DATA_MODELS: dict[str, type[BaseModel]] = {
 }
 
 OUTPUT = TypeAdapter(CardOutput)
-
-# A sentence number from <원문> at the start of a value ("[2] 2부는 …"); unit 15 found the
-# model copying them into stages, synopses and situations.
-NUMBERED = re.compile(r"(?:^|(?<=\s))\[\d+\]\s*")
 
 
 def unnumbered(value: Any) -> Any:
