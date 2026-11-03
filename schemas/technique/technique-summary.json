@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TechniqueSummary",
+  "description": "A technique in a list (GET /techniques).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "category",
+    "name",
+    "name_en",
+    "scope",
+    "effects",
+    "situations",
+    "description"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common/technique-id.json"
+    },
+    "category": {
+      "$ref": "technique-category.json"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name_en": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "type": "array",
+      "items": {
+        "$ref": "technique-scope.json"
+      }
+    },
+    "effects": {
+      "type": "array",
+      "items": {
+        "$ref": "technique-effect.json"
+      }
+    },
+    "situations": {
+      "type": "array",
+      "items": {
+        "$ref": "technique-situation.json"
+      }
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

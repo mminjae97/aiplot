@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TechniqueId",
+  "type": "string",
+  "pattern": "^tech_[a-z]{3}_[0-9]{3}$"
+}

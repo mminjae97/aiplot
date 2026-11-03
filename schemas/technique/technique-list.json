@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TechniqueList",
+  "description": "GET /techniques?q=: every technique in id order; q keeps those whose name, English name or an alias contains it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "techniques"
+  ],
+  "properties": {
+    "techniques": {
+      "type": "array",
+      "items": {
+        "$ref": "technique-summary.json"
+      }
+    }
+  }
+}

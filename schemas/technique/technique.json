@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Technique",
+  "description": "A direction technique card (§9), shared across works; from the user's catalog. example is shown to the user only, never put in a prompt.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "category",
+    "name",
+    "name_en",
+    "aliases",
+    "scope",
+    "effects",
+    "situations",
+    "description",
+    "effect_detail",
+    "use_when",
+    "avoid_when",
+    "requires",
+    "mechanism",
+    "prompt_hint",
+    "example",
+    "sources",
+    "pairs_with",
+    "conflicts_with"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common/technique-id.json"
+    },
+    "category": {
+      "$ref": "technique-category.json"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name_en": {
+      "type": "string",
+      "minLength": 1
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "scope": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "technique-scope.json"
+      }
+    },
+    "effects": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "technique-effect.json"
+      }
+    },
+    "situations": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "technique-situation.json"
+      }
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Definition."
+    },
+    "effect_detail": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What the reader feels and why."
+    },
+    "use_when": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "avoid_when": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Cautions."
+    },
+    "requires": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What the story must already hold for the technique to work."
+    },
+    "mechanism": {
+      "type": "string",
+      "minLength": 1,
+      "description": "How to apply it to the chronological story (direct)."
+    },
+    "prompt_hint": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One instruction line for a beat that realizes it (write)."
+    },
+    "example": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A short sample: UI only."
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/TechniqueSource"
+      }
+    },
+    "pairs_with": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "../common/technique-id.json"
+      },
+      "description": "Techniques that combine well."
+    },
+    "conflicts_with": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "../common/technique-id.json"
+      },
+      "description": "Techniques it cannot share a scene with; a pair conflicts if either card lists the other."
+    }
+  },
+  "$defs": {
+    "TechniqueSource": {
+      "title": "TechniqueSource",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "author",
+        "title",
+        "year",
+        "note"
+      ],
+      "properties": {
+        "author": {
+          "type": "string",
+          "description": "Empty for a general term."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "year": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

@@ -31,6 +31,7 @@ export type WorldlineId = string
 export type CoverId = string
 export type DraftId = string
 export type JobId = string
+export type TechniqueId = string
 /**
  * `card` role output (§13). The server constrains and validates with the variant for the requested type. Evidence indexes are the 0-based [n] numbers of the server-split note sentences in the prompt. The server then drops out-of-range indexes, unknown field paths and unknown card ids, assigns ms_/fs_ ids, sets placement fields from context and restores pinned fields (§13).
  */
@@ -56,6 +57,108 @@ export type JobLifecycleEvent =
   | JobDoneEvent
   | JobErrorEvent
   | JobCancelledEvent
+/**
+ * Catalog field (§9): rhe 수사법·문체, str 구성·플롯 구조, tim 시간·속도, voi 시점·서술자·화법, inf 정보 조절·긴장·장르 효과, cha 인물·대화, des 묘사·공간·상징·상호텍스트, ser 도입·결말·연재·매체 차용.
+ */
+export type TechniqueCategory = 'rhe' | 'str' | 'tim' | 'voi' | 'inf' | 'cha' | 'des' | 'ser'
+/**
+ * Fixed effect tags (§9): what a scene wants and what a technique gives.
+ */
+export type TechniqueEffect =
+  | '긴장'
+  | '서스펜스'
+  | '호기심'
+  | '놀람'
+  | '반전'
+  | '공포'
+  | '불안'
+  | '비애'
+  | '연민'
+  | '공감'
+  | '카타르시스'
+  | '해학'
+  | '풍자'
+  | '아이러니'
+  | '여운'
+  | '몰입'
+  | '인물밀착'
+  | '거리두기'
+  | '속도감'
+  | '감속'
+  | '강조'
+  | '통일감'
+  | '완결감'
+  | '순환감'
+  | '운명감'
+  | '모호성'
+  | '신비감'
+  | '경이'
+  | '현실감'
+  | '생동감'
+  | '낯설게하기'
+  | '주제부각'
+  | '상징성'
+  | '기대형성'
+  | '기대배반'
+  | '정보전달'
+  | '존재감'
+  | '비극성'
+  | '설렘'
+  | '해방감'
+  | '답답함'
+  | '혼란'
+  | '메타인식'
+  | '대비'
+  | '리듬'
+  | '성찰'
+/**
+ * The level a technique works at (§9); sentence-only cards are never direction candidates.
+ */
+export type TechniqueScope = '문장' | '장면' | '회차' | '아크' | '작품'
+/**
+ * Fixed situation tags (§9): what happens in a scene.
+ */
+export type TechniqueSituation =
+  | '도입'
+  | '인물등장'
+  | '일상'
+  | '사건발생'
+  | '조사'
+  | '단서제시'
+  | '진실폭로'
+  | '반전'
+  | '갈등고조'
+  | '전투'
+  | '추격'
+  | '위기'
+  | '절정'
+  | '좌절'
+  | '죽음'
+  | '이별'
+  | '재회'
+  | '로맨스'
+  | '배신'
+  | '과거사'
+  | '성장'
+  | '각성'
+  | '복수'
+  | '설전'
+  | '시간경과'
+  | '장소이동'
+  | '세계관설명'
+  | '코미디'
+  | '공포'
+  | '꿈환상'
+  | '동시사건'
+  | '결말'
+  | '회차마무리'
+  | '숨고르기'
+  | '내적갈등'
+  | '대규모사건'
+  | '관계변화'
+  | '비밀'
+  | '징조'
+  | '깨달음'
 /**
  * Shown on the spine and cover; the server trims it.
  */
@@ -834,6 +937,102 @@ export interface SetupItem {
    */
   total_bytes: number
   present_bytes: number
+}
+/**
+ * GET /techniques?q=: every technique in id order; q keeps those whose name, English name or an alias contains it.
+ */
+export interface TechniqueList {
+  techniques: TechniqueSummary[]
+}
+/**
+ * A technique in a list (GET /techniques).
+ */
+export interface TechniqueSummary {
+  id: TechniqueId
+  category: TechniqueCategory
+  name: string
+  name_en: string
+  scope: TechniqueScope[]
+  effects: TechniqueEffect[]
+  situations: TechniqueSituation[]
+  description: string
+}
+/**
+ * A direction technique card (§9), shared across works; from the user's catalog. example is shown to the user only, never put in a prompt.
+ */
+export interface Technique {
+  id: TechniqueId
+  category: TechniqueCategory
+  name: string
+  name_en: string
+  aliases: string[]
+  /**
+   * @minItems 1
+   */
+  scope: [TechniqueScope, ...TechniqueScope[]]
+  /**
+   * @minItems 1
+   */
+  effects: [TechniqueEffect, ...TechniqueEffect[]]
+  /**
+   * @minItems 1
+   */
+  situations: [TechniqueSituation, ...TechniqueSituation[]]
+  /**
+   * Definition.
+   */
+  description: string
+  /**
+   * What the reader feels and why.
+   */
+  effect_detail: string
+  /**
+   * @minItems 1
+   */
+  use_when: [string, ...string[]]
+  /**
+   * Cautions.
+   *
+   * @minItems 1
+   */
+  avoid_when: [string, ...string[]]
+  /**
+   * What the story must already hold for the technique to work.
+   */
+  requires: string
+  /**
+   * How to apply it to the chronological story (direct).
+   */
+  mechanism: string
+  /**
+   * One instruction line for a beat that realizes it (write).
+   */
+  prompt_hint: string
+  /**
+   * A short sample: UI only.
+   */
+  example: string
+  /**
+   * @minItems 1
+   */
+  sources: [TechniqueSource, ...TechniqueSource[]]
+  /**
+   * Techniques that combine well.
+   */
+  pairs_with: TechniqueId[]
+  /**
+   * Techniques it cannot share a scene with; a pair conflicts if either card lists the other.
+   */
+  conflicts_with: TechniqueId[]
+}
+export interface TechniqueSource {
+  /**
+   * Empty for a general term.
+   */
+  author: string
+  title: string
+  year: number | null
+  note: string
 }
 /**
  * GET /works/{workId}/covers: the book's uploaded covers, oldest first.
