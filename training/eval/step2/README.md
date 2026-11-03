@@ -23,8 +23,10 @@ who knows what a character does not, a stated deadline, a twist at the end, thre
 a place revisited), across information, time, voice, dialogue, comedy and description.
 
 `check.py` saves every genre's episodes with their seeds into a throwaway database through the
-app's card save: each must come out complete, and every accepted technique must exist and be a
-candidate.
+app's card save: each must come out complete, every id it references (characters, world, places,
+prev/next/causes, fulfilled milestones) must come out as its relation row (a seed card, another
+case episode or a milestone), and every accepted technique must exist and be a candidate. CI
+runs it.
 
 ## Scoring
 

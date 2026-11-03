@@ -3,9 +3,11 @@
     uv run python eval/step2/check.py
 
 Each genre's episodes are saved, with the unit 15 seed cards they build on, into a throwaway
-database through the app's own card save, and must come out complete (§14 status). Gold
-techniques must exist and be direction candidates: scope 장면 or 회차, not one of the serial
-cards direct always gets (§9). Exits 1 on any problem.
+database through the app's own card save, and must come out complete (§14 status) with every
+reference they make (characters, world, places, links, milestones) written as a relation row,
+i.e. resolved to a seed card, another case episode or a milestone. Gold techniques must exist
+and be direction candidates: scope 장면 or 회차, not one of the serial cards direct always gets
+(§9). Exits 1 on any problem.
 """
 
 import json
@@ -49,6 +51,55 @@ def episode_card(episode: dict[str, Any], work_id: str) -> Any:
     )
 
 
+# The relation row each episode reference must leave on save (:ep = the episode, :ref = the
+# referenced id). Save keeps `data` verbatim but writes a row only for an id that resolves to a
+# card of the work of the right type (or a milestone), so a missing row = a dangling id.
+REFERENCES = [
+    ("characters", "SELECT 1 FROM episode_character WHERE episode_id = :ep AND card_id = :ref"),
+    ("world", "SELECT 1 FROM episode_world WHERE episode_id = :ep AND card_id = :ref"),
+    (
+        "locations.main",
+        "SELECT 1 FROM episode_region WHERE episode_id = :ep AND card_id = :ref AND main = 1",
+    ),
+    (
+        "locations.others",
+        "SELECT 1 FROM episode_region WHERE episode_id = :ep AND card_id = :ref AND main = 0",
+    ),
+    (
+        "links.prev",
+        "SELECT 1 FROM episode_link WHERE from_id = :ref AND to_id = :ep AND kind = 'order'",
+    ),
+    (
+        "links.next",
+        "SELECT 1 FROM episode_link WHERE from_id = :ep AND to_id = :ref AND kind = 'order'",
+    ),
+    (
+        "links.causes",
+        "SELECT 1 FROM episode_link WHERE from_id = :ep AND to_id = :ref AND kind = 'cause'",
+    ),
+    ("fulfills", "SELECT 1 FROM milestone_fill WHERE milestone_id = :ref AND card_id = :ep"),
+]
+
+
+def refs_at(data: dict[str, Any], path: str) -> list[str]:
+    node: Any = data
+    for key in path.split("."):
+        node = node[key]
+    if node is None:
+        return []
+    return list(node) if isinstance(node, list) else [node]
+
+
+def unresolved(conn: Any, episode: dict[str, Any]) -> list[str]:
+    """Every id the episode references must appear as its relation row after save."""
+    return [
+        f"{episode['id']}: {path} {ref} does not resolve"
+        for path, sql in REFERENCES
+        for ref in refs_at(episode["data"], path)
+        if conn.execute(sql, {"ep": episode["id"], "ref": ref}).fetchone() is None
+    ]
+
+
 def check_genre(genre: str, catalog: dict[str, Any]) -> tuple[list[str], int]:
     problems: list[str] = []
     doc, seeds = load(genre)
@@ -60,14 +111,11 @@ def check_genre(genre: str, catalog: dict[str, Any]) -> tuple[list[str], int]:
                 cards.save(conn, episode_card(episode, work_id))
             for episode in doc["episodes"]:
                 row = conn.execute(
-                    "SELECT status, data FROM card WHERE id = ?", (episode["id"],)
+                    "SELECT status FROM card WHERE id = ?", (episode["id"],)
                 ).fetchone()
                 if row["status"] != "complete":
                     problems.append(f"{episode['id']}: saved as {row['status']}")
-                saved = json.loads(row["data"])
-                for key in ("characters", "fulfills", "world"):
-                    if saved[key] != episode["data"][key]:
-                        problems.append(f"{episode['id']}: {key} not kept on save")
+                problems += unresolved(conn, episode)
                 stages = {s["name"] for s in episode["data"]["structure"]["stages"]}
                 scored_stages = [gold["stage"] for gold in episode["gold"]]
                 if len(set(scored_stages)) != 2 or len(scored_stages) != 2:
