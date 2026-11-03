@@ -3,11 +3,18 @@
     uv run python eval/unit15/score.py eval/results/unit15/run1.json \
         --judged eval/results/unit15/judged-run1.json --html eval/results/unit15/report-run1.html
 
-Gold kinds: exact (same value), ids (same set of card ids), empty (not in the notes: filled
-without being marked AI 추정 is an unsupported fill), optional (not scored), and facts / items
-(free text: judged by Claude in --judged, {"case id": {"path": {"match": bool, "unsupported":
-bool, "note": str}}}, then checked by the user in the report). Fields still unjudged show as
-pending and are left out of the rates.
+Gold kinds: exact (same value, or one of `any_of`), ids (same set of card ids), empty (not in
+the notes: filled without being marked AI 추정 is an unsupported fill), optional (not scored
+for match; filled with no evidence sentence and not marked AI 추정, it needs a judgement like
+free text, unless `given` (the input fixed it); unjudged ones are pending),
+and facts / items (free text: judged by Claude in --judged, {"case id": {"path": {"match":
+bool, "unsupported": bool, "note": str}}}, then checked by the user in the report). Fields
+still unjudged show as pending and are left out of the rates. A card the run failed to make
+counts every scored field as a miss.
+
+Unsupported fill = unsupported / filled fields, over fields that can be unsupported (not exact
+or given ones). Name false rate = wrong pairs in the turns that must flag none / those turns.
+A pair naming part of the card's name (무현 for 연무현), or the name with more, is fair.
 """
 
 import argparse
@@ -61,6 +68,18 @@ def guessed(card: dict[str, Any], path: str) -> bool:
     return any(path == g or path.startswith(g + ".") for g in card.get("ai_guess") or [])
 
 
+def evidenced(card: dict[str, Any], path: str) -> bool:
+    """Some evidence sentence backs the field (its own path, a parent or a child)."""
+    evidence = card.get("evidence") or {}
+    return any(
+        (path == key or path.startswith(key + ".") or key.startswith(path + ".")) and indexes
+        for key, indexes in evidence.items()
+    )
+
+
+SCORED = ("exact", "ids", "facts", "items")
+
+
 def score_field(
     gold: dict[str, Any], card: dict[str, Any], judged: dict[str, Any] | None
 ) -> dict[str, Any]:
@@ -70,8 +89,18 @@ def score_field(
     out: dict[str, Any] = {"path": path, "kind": kind, "value": value, "gold": gold}
     if kind == "optional":
         out["verdict"] = "skip"
+        unbacked = not empty(value) and not guessed(card, path) and not evidenced(card, path)
+        if gold.get("given") or not unbacked:
+            out["unsupported"] = False
+        elif judged is not None:
+            out["unsupported"] = bool(judged.get("unsupported"))
+            out["note"] = judged.get("note", "")
+        else:
+            # No evidence is not proof of invention (the model often leaves evidence out).
+            out["unsupported_pending"] = True
     elif kind == "exact":
-        out["verdict"] = "match" if value == gold["value"] else "miss"
+        accepted = gold["any_of"] if "any_of" in gold else [gold["value"]]
+        out["verdict"] = "match" if value in accepted else "miss"
     elif kind == "ids":
         out["verdict"] = "match" if ids_of(path, value) == set(gold["value"]) else "miss"
     elif kind == "empty":
@@ -91,6 +120,13 @@ def score_field(
         out["unsupported"] = bool(judged.get("unsupported"))
         out["note"] = judged.get("note", "")
     return out
+
+
+def given_name(pair: dict[str, Any]) -> bool:
+    """The user wrote part of the card's name (or the name plus more): fair to ask."""
+    mentioned = str(pair.get("mentioned") or "").replace(" ", "")
+    name = str(pair.get("similar_to") or "").replace(" ", "")
+    return bool(mentioned and name) and (mentioned in name or name in mentioned)
 
 
 def same(pair: dict[str, Any], expect: dict[str, Any]) -> bool:
@@ -128,6 +164,11 @@ def main() -> None:
             retried += 1
         if "card" not in result:
             invalid += 1
+            # Every field the card should have had is a miss.
+            for gold in case["gold"]:
+                if gold["kind"] in SCORED:
+                    fields += 1
+                    by_type.setdefault(case["type"], [0, 0])[1] += 1
             rows.append({"case": case, "result": result, "fields": []})
             continue
         card = result["card"]
@@ -142,13 +183,19 @@ def main() -> None:
                 tally = by_type.setdefault(case["type"], [0, 0])
                 tally[0] += s["verdict"] == "match"
                 tally[1] += 1
-            pending += s["verdict"] == "pending"
-            if s["kind"] != "optional" and s["verdict"] != "pending" and not empty(s["value"]):
+            pending += s["verdict"] == "pending" or bool(s.get("unsupported_pending"))
+            if (
+                s["kind"] != "exact"
+                and s["verdict"] != "pending"
+                and not s.get("unsupported_pending")
+                and not s["gold"].get("given")
+                and not empty(s["value"])
+            ):
                 filled += 1
                 unsupported += bool(s.get("unsupported"))
         rows.append({"case": case, "result": result, "fields": scored})
 
-    found = expected = false_pairs = 0
+    found = expected = false_pairs = negatives = 0
     name_rows = []
     for result in run["names"]:
         case = names[result["id"]]
@@ -156,10 +203,13 @@ def main() -> None:
         hits = [e for e in case["expect"] if any(same(p, e) for p in pairs)]
         # `allow`: pairs that are fair to ask about (a given name and the full name).
         fine = case["expect"] + case.get("allow", [])
-        wrong = [p for p in pairs if not any(same(p, e) for e in fine)]
+        wrong = [p for p in pairs if not given_name(p) and not any(same(p, e) for e in fine)]
         expected += len(case["expect"])
+        if not case["expect"]:
+            # The false rate is over the turns that must flag none: their wrong pairs.
+            negatives += 1
+            false_pairs += len(wrong)
         found += len(hits)
-        false_pairs += len(wrong)
         name_rows.append({"case": case, "result": result, "hits": hits, "wrong": wrong})
 
     firsts = [r["first_char_s"] for r in run["names"] if r.get("first_char_s") is not None]
@@ -177,8 +227,8 @@ def main() -> None:
         "cards": len(run["cards"]),
         "names_found": rate(found, expected),
         "names_expected": expected,
-        # Wrong pairs per name turn.
-        "names_false": rate(false_pairs, len(run["names"])),
+        # Wrong pairs per turn that must flag none.
+        "names_false": rate(false_pairs, negatives),
         "names_false_pairs": false_pairs,
         "chat_first_char_s": {
             "median": statistics.median(firsts) if firsts else None,
@@ -195,8 +245,10 @@ def main() -> None:
             "completion_max": max((u["completion_tokens"] for u in card_usage), default=None),
         },
         "card_seconds": {
-            "median": statistics.median(r["total_s"] for r in run["cards"]),
-            "max": max(r["total_s"] for r in run["cards"]),
+            "median": statistics.median(r["total_s"] for r in run["cards"])
+            if run["cards"]
+            else None,
+            "max": max((r["total_s"] for r in run["cards"]), default=None),
         },
     }
     print(json.dumps(summary, ensure_ascii=False, indent=1))
