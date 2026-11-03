@@ -3,6 +3,7 @@ import { type SubmitEvent, useEffect, useRef, useState } from 'react'
 import { ApiRequestError, api } from '../api/client'
 import { strings } from '../strings'
 import type { Work } from '../types'
+import { useModalKeys } from './useModalKeys'
 import { TITLE_MAX, cleanTitle, titleTooLong } from './workTitle'
 
 type Props = {
@@ -21,6 +22,7 @@ function errorText(error: unknown): string {
 /** 제목 바꾸기 (§12 S0): the same title rules as a new book; the book keeps its place. */
 export function RenameDialog({ work, onClose }: Props) {
   const [title, setTitle] = useState(work.title)
+  const box = useRef<HTMLFormElement>(null)
   const input = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
   const rename = useMutation({
@@ -28,17 +30,11 @@ export function RenameDialog({ work, onClose }: Props) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['works'] }),
   })
 
+  // Esc closes, Tab stays inside. The library gives focus back to the book once it is gone.
+  useModalKeys(box, onClose, input)
   useEffect(() => {
-    // The library gives focus back to the book once the dialog is gone.
     input.current?.select()
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [onClose])
+  }, [])
 
   const clean = cleanTitle(title)
   // Checked here too, by the server's rules, so the common cases never wait on it.
@@ -64,6 +60,7 @@ export function RenameDialog({ work, onClose }: Props) {
       }}
     >
       <form
+        ref={box}
         className="new-book"
         role="dialog"
         aria-modal="true"

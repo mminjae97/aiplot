@@ -225,8 +225,16 @@ test('new book keeps focus inside and gives it back to the + book', async () => 
   plus.focus()
   fireEvent.click(plus)
   expect(document.activeElement).toBe(screen.getByLabelText(strings.newBook.label))
-  // The shelf behind the dialog is inert, so Tab cannot reach it.
+  // The shelf behind the dialog is inert, so Tab cannot reach it; Tab cycles in the dialog.
   expect(plus.closest('[inert]')).not.toBeNull()
+  const input = screen.getByLabelText(strings.newBook.label)
+  const cancel = screen.getByRole('button', { name: strings.newBook.cancel })
+  // The create button is off until a title is typed: the cancel button is the last stop.
+  cancel.focus()
+  fireEvent.keyDown(window, { key: 'Tab' })
+  expect(document.activeElement).toBe(input)
+  fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
+  expect(document.activeElement).toBe(cancel)
   fireEvent.click(screen.getByRole('button', { name: strings.newBook.cancel }))
   await waitFor(() => {
     expect(document.activeElement).toBe(plus)

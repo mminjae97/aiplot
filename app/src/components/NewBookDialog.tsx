@@ -1,8 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { type SubmitEvent, useEffect, useRef, useState } from 'react'
+import { type SubmitEvent, useRef, useState } from 'react'
 import { ApiRequestError, api } from '../api/client'
 import { strings } from '../strings'
 import type { Work } from '../types'
+import { useModalKeys } from './useModalKeys'
 import { TITLE_MAX, cleanTitle, titleTooLong } from './workTitle'
 
 type Props = {
@@ -21,6 +22,7 @@ function errorText(error: unknown): string {
 /** "새로 만들기" asks for the title only (§12 S0); the book then opens to its contents. */
 export function NewBookDialog({ onClose, onCreated }: Props) {
   const [title, setTitle] = useState('')
+  const box = useRef<HTMLFormElement>(null)
   const input = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
   const create = useMutation({
@@ -29,19 +31,8 @@ export function NewBookDialog({ onClose, onCreated }: Props) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['works'] }),
   })
 
-  useEffect(() => {
-    // Back to where the user was once the dialog closes (the "+" book).
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    input.current?.focus()
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      previous?.focus()
-    }
-  }, [onClose])
+  // Esc closes, Tab stays inside; the focus goes back to where it was (the "+" book).
+  useModalKeys(box, onClose, input)
 
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -62,6 +53,7 @@ export function NewBookDialog({ onClose, onCreated }: Props) {
       }}
     >
       <form
+        ref={box}
         className="new-book"
         role="dialog"
         aria-modal="true"

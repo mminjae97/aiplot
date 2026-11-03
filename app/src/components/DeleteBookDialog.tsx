@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { type SubmitEvent, useEffect, useRef, useState } from 'react'
+import { type SubmitEvent, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { strings } from '../strings'
 import type { Work, WorkList } from '../types'
+import { useModalKeys } from './useModalKeys'
 import { cleanTitle } from './workTitle'
 
 type Props = {
@@ -15,6 +16,7 @@ type Props = {
  * title is typed. Never the default action. */
 export function DeleteBookDialog({ work, onClose, onDeleted }: Props) {
   const [typed, setTyped] = useState('')
+  const box = useRef<HTMLFormElement>(null)
   const input = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
   const covers = useQuery({
@@ -35,17 +37,9 @@ export function DeleteBookDialog({ work, onClose, onDeleted }: Props) {
     },
   })
 
-  useEffect(() => {
-    // The library gives focus back once the dialog is gone (to the "+" book after a delete).
-    input.current?.focus()
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [onClose])
+  // Esc closes, Tab stays inside. The library gives focus back once the dialog is gone (to the
+  // "+" book after a delete).
+  useModalKeys(box, onClose, input)
 
   // Spacing is forgiven the same way the server cleans titles.
   const matches = cleanTitle(typed) === work.title
@@ -69,6 +63,7 @@ export function DeleteBookDialog({ work, onClose, onDeleted }: Props) {
       }}
     >
       <form
+        ref={box}
         className="new-book delete-book"
         role="alertdialog"
         aria-modal="true"
