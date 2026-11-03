@@ -4,7 +4,7 @@ import type { ServerState } from '../src/api/bridge'
 import { useNavigation } from '../src/stores/navigation'
 import { useServer } from '../src/stores/server'
 import { strings } from '../src/strings'
-import type { Card, CardOutput, Draft, RegionCard, Work } from '../src/types'
+import type { Card, Draft, RegionCard, Work } from '../src/types'
 import { renderBook } from './bookHarness'
 import { NO_DIALOGS } from './serverFixtures'
 
@@ -89,14 +89,19 @@ const DRAFT: Draft = {
     data: CAPITAL.data,
     evidence: {},
     ai_guess: [],
-  } as CardOutput,
+  },
 }
 
 function serve(options: { locked?: boolean; moveFails?: boolean } = {}) {
   const calls: Call[] = []
   let regions: Card[] = [PORT, CAPITAL, NORTH]
   // While set, the region list is read but not answered (a slow refetch).
-  const hold = { cards: false, release: () => undefined as void }
+  const hold = {
+    cards: false,
+    release: () => {
+      // Replaced by the held read.
+    },
+  }
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string, init: RequestInit = {}) => {

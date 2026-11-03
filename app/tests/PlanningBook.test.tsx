@@ -268,7 +268,8 @@ test('a closed story step only explains itself; the book keeps its page and can 
   serve({ main: true })
   renderBook({ name: 'story', workId: 'w_1', step: 'parts' })
   fireEvent.click(await screen.findByRole('tab', { name: strings.story.stepEpisodes }))
-  expect(await screen.findByText(strings.story.needParts)).toBeTruthy()
+  // The main story has no milestones yet: that is why.
+  expect(await screen.findByText(strings.story.needMilestones)).toBeTruthy()
   expect(at()).toEqual({ name: 'story', workId: 'w_1', step: 'parts' })
   expect(prev().getAttribute('aria-disabled')).toBe('false')
   fireEvent.click(prev())

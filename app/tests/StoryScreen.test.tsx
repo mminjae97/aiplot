@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { ServerState } from '../src/api/bridge'
 import { useServer } from '../src/stores/server'
 import { strings } from '../src/strings'
-import type { Card, CardOutput, Completeness, Draft, Work } from '../src/types'
+import type { Card, Completeness, Draft, Work } from '../src/types'
 import { renderBook } from './bookHarness'
 import { NO_DIALOGS } from './serverFixtures'
 
@@ -120,7 +120,7 @@ const DRAFT: Draft = {
     },
     evidence: {},
     ai_guess: [],
-  } as CardOutput,
+  },
 }
 
 function serve(state: State = {}) {

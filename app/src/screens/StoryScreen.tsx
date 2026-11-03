@@ -129,11 +129,7 @@ export function StoryScreen({
   const loaded = mains.isSuccess && partCards.isSuccess && completeness.isSuccess
   // Steps open in order (§8).
   const partsOpen = main !== null
-  const episodesOpen =
-    loaded &&
-    partsOpen &&
-    parts.length > 0 &&
-    milestonesPlaced(milestones)
+  const episodesOpen = loaded && partsOpen && parts.length > 0 && milestonesPlaced(milestones)
   const isOpen = (step: Step) => step === 'main' || (step === 'parts' ? partsOpen : episodesOpen)
   // Each open step is a page of the book; without one asked for (or once the asked one has
   // closed), the furthest open step.

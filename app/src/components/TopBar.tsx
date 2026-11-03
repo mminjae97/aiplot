@@ -17,13 +17,7 @@ type Props = {
 /** Common top bar (§12) and the window's title bar (the window is always maximized: nothing
  * to drag), window buttons at the right. Logo + app name in the library; "← 서재" and the work title
  * inside a book; the title opens the contents. */
-export function TopBar({
-  onBack,
-  backDisabled,
-  title,
-  onTitle,
-  showSetup = true,
-}: Props) {
+export function TopBar({ onBack, backDisabled, title, onTitle, showSetup = true }: Props) {
   return (
     <header className="top-bar">
       {onBack ? (
