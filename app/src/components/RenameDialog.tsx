@@ -3,8 +3,7 @@ import { type SubmitEvent, useEffect, useRef, useState } from 'react'
 import { ApiRequestError, api } from '../api/client'
 import { strings } from '../strings'
 import type { Work } from '../types'
-
-const TITLE_MAX = 100
+import { TITLE_MAX, cleanTitle, titleTooLong } from './workTitle'
 
 type Props = {
   work: Work
@@ -41,9 +40,9 @@ export function RenameDialog({ work, onClose }: Props) {
     }
   }, [onClose])
 
-  const clean = title.split(/\s+/).filter(Boolean).join(' ')
-  // Checked here too so the common cases never wait on the server.
-  const local = clean.length > TITLE_MAX ? strings.newBook.titleTooLong : null
+  const clean = cleanTitle(title)
+  // Checked here too, by the server's rules, so the common cases never wait on it.
+  const local = titleTooLong(clean) ? strings.newBook.titleTooLong : null
   const message = local ?? (rename.isError ? errorText(rename.error) : null)
   const unchanged = clean === work.title
 

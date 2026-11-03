@@ -1,15 +1,18 @@
 // Book colours (§12 책 꾸미기): the spine always, and the cloth cover when there is no
 // illustration. Cover lettering keeps at least 4.5:1 on every colour (§5).
+import { strings } from '../strings'
+
+const names = strings.decorate.presets
 
 /** Cloth presets: muted, so the brass stays the accent. The first seven are also the defaults. */
 export const PRESETS = [
-  { color: '#6e2c28', name: '버건디' },
-  { color: '#2f4a3a', name: '숲초록' },
-  { color: '#2c3a55', name: '남색' },
-  { color: '#6b4f22', name: '황토' },
-  { color: '#465156', name: '청회색' },
-  { color: '#5a3a4f', name: '자두색' },
-  { color: '#3f3428', name: '고동색' },
+  { color: '#6e2c28', name: names.burgundy },
+  { color: '#2f4a3a', name: names.forest },
+  { color: '#2c3a55', name: names.navy },
+  { color: '#6b4f22', name: names.ochre },
+  { color: '#465156', name: names.slate },
+  { color: '#5a3a4f', name: names.plum },
+  { color: '#3f3428', name: names.umber },
 ] as const
 
 // Gilt on dark cloth; dark ink once the cloth is too light for gilt (styles/base.css).

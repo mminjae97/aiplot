@@ -3,8 +3,7 @@ import { type SubmitEvent, useEffect, useRef, useState } from 'react'
 import { ApiRequestError, api } from '../api/client'
 import { strings } from '../strings'
 import type { Work } from '../types'
-
-const TITLE_MAX = 100
+import { TITLE_MAX, cleanTitle, titleTooLong } from './workTitle'
 
 type Props = {
   onClose: () => void
@@ -50,13 +49,9 @@ export function NewBookDialog({ onClose, onCreated }: Props) {
     // Per-call callbacks are dropped after unmount: closing before the answer stays closed.
     create.mutate({ title }, { onSuccess: onCreated })
   }
-  // Checked here too so the common cases never wait on the server.
-  const local =
-    title.trim() === ''
-      ? null
-      : title.trim().length > TITLE_MAX
-        ? strings.newBook.titleTooLong
-        : null
+  const clean = cleanTitle(title)
+  // Checked here too, by the server's rules, so the common cases never wait on it.
+  const local = titleTooLong(clean) ? strings.newBook.titleTooLong : null
   const message = local ?? (create.isError ? errorText(create.error) : null)
 
   return (
@@ -99,7 +94,7 @@ export function NewBookDialog({ onClose, onCreated }: Props) {
             type="submit"
             className="paper-button"
             data-primary
-            disabled={title.trim() === '' || local !== null || create.isPending}
+            disabled={clean === '' || local !== null || create.isPending}
             aria-busy={create.isPending}
           >
             {create.isPending && <span className="spinner" aria-hidden="true" />}

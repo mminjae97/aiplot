@@ -269,6 +269,29 @@ test('new book explains server title errors and closes with Escape', async () =>
   })
 })
 
+test('new book counts the title as the server does', async () => {
+  serve([])
+  window.aiplot = bridge(READY)
+  connectServer()
+  renderApp()
+  fireEvent.click(await screen.findByRole('button', { name: strings.library.newBook }))
+  const input = screen.getByLabelText(strings.newBook.label)
+  const create = screen.getByRole('button', { name: strings.newBook.create })
+  // 100 emoji: 200 UTF-16 units, 100 characters to the server.
+  fireEvent.change(input, { target: { value: '📚'.repeat(100) } })
+  expect(screen.queryByText(strings.newBook.titleTooLong)).toBeNull()
+  expect(create).toHaveProperty('disabled', false)
+  // Inner spaces count once: 104 typed, 100 once cleaned.
+  fireEvent.change(input, { target: { value: `${'가'.repeat(50)}     ${'가'.repeat(49)}` } })
+  expect(screen.queryByText(strings.newBook.titleTooLong)).toBeNull()
+  fireEvent.change(input, { target: { value: '📚'.repeat(101) } })
+  expect(screen.getByText(strings.newBook.titleTooLong)).toBeTruthy()
+  expect(create).toHaveProperty('disabled', true)
+  // Spaces only (ideographic ones too) is blank.
+  fireEvent.change(input, { target: { value: ' \u3000 ' } })
+  expect(create).toHaveProperty('disabled', true)
+})
+
 test('server says the title is too long', async () => {
   serve([], {
     'POST /works': new Response(
