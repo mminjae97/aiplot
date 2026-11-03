@@ -296,7 +296,7 @@ flowchart LR
 | 이론 | 핵심 내용 | 이 앱에서의 적용 |
 |---|---|---|
 | [혼합 주도형 UI (Horvitz, CHI 1999)](https://www.microsoft.com/en-us/research/publication/principles-mixed-initiative-user-interfaces/) | 자동화와 직접 조작을 결합, AI의 추측을 보여주고 사용자가 고쳐 저장 | 카드 정리, 연출 계획, 원고 모두 "AI 초안 → 사용자 수정 → 확정" 흐름 |
-| [Human-AI 상호작용 가이드라인 18개 (Microsoft, CHI 2019)](https://www.microsoft.com/en-us/research/blog/guidelines-for-human-ai-interaction-design/) | 할 수 있는 것과 정확도 알리기, 쉬운 수정, 불확실하면 선택지 제시, 이유 설명, 세분화된 피드백, 전역 설정 | 장면별 기법 카드 1~3장 추천, 근거 카드 표시, 비트별 피드백, 자동화 수준 설정 |
+| [Human-AI 상호작용 가이드라인 18개 (Microsoft, CHI 2019)](https://www.microsoft.com/en-us/research/blog/guidelines-for-human-ai-interaction-design/) | 할 수 있는 것과 정확도 알리기, 쉬운 수정, 불확실하면 선택지 제시, 이유 설명, 세분화된 피드백, 전역 설정 | 장면별 기법 조합 1~3개 추천, 근거 카드 표시, 비트별 피드백, 자동화 수준 설정 |
 | [Nielsen 10 휴리스틱](https://www.nngroup.com/articles/ten-usability-heuristics/) | 시스템 상태 가시성, 사용자 통제(실행 취소), 오류 예방, 회상보다 인식, 효율성, 미니멀 디자인 | 상단 단계 표시, 버전 기록·되돌리기, 카드 참조 자동완성, 단축키 |
 | [점진적 공개 (NN/g)](https://www.nngroup.com/videos/progressive-disclosure/) | 주요 기능만 먼저 보이고, 부가 옵션은 보조 화면으로 미룸 | 카드 필수 항목만 먼저, 고급 항목·근거·원문은 펼쳐 보기 |
 | [응답 시간 한계 0.1/1/10초 (Nielsen)](https://www.uxtigers.com/post/time-scales-ux) | 1초 안이면 사고 흐름 유지, 10초를 넘으면 주의가 흩어짐 | 카드 편집은 즉시 반응, 생성은 스트리밍 출력, 10초 이상 작업은 진행률 표시 |
@@ -587,7 +587,7 @@ flowchart LR
 ### 전역 설정과 안내
 
 - **자동화 수준 설정**: "비트마다 확인", "화마다 확인", "에피소드 자동" 중 고르고, 기본값은 "화마다 확인"이다. 연출 계획서는 에피소드 단위로 확정한다. (전역 설정)
-- **첫 실행 안내**: 앱이 할 수 있는 것과 한계를 알린다. 예: 로컬 모델의 한국어 문장 품질 한계, 한 화 생성에 걸리는 대략적 시간. 이어서 베이스 모델(약 5GB)을 내려받거나 이미 있는 파일 경로를 지정한다. (할 수 있는 것과 정확도 알리기)
+- **첫 실행 안내**: 앱이 할 수 있는 것과 한계를 알린다. 예: 로컬 모델의 한국어 문장 품질 한계, 한 화 생성에 걸리는 대략적 시간. 이어서 베이스 모델(약 6GB)을 내려받거나 이미 있는 파일 경로를 지정한다. (할 수 있는 것과 정확도 알리기)
 - **모델 관리**: 설정에서 내려받은 모델·LoRA·ComfyUI의 목록, 경로, 용량을 보고, 다시 받거나 지울 수 있다. 베이스와 맞지 않는 LoRA는 표시만 하고 불러오지 않는다.
 - **단축키**: 재생성, 다음 비트, 카드 검색 등 자주 쓰는 동작에 단축키를 제공한다. (유연성과 효율성)
 
@@ -730,12 +730,13 @@ erDiagram
 
 | 테이블 | 주요 컬럼 | 역할 |
 |---|---|---|
-| `work` | id, title, stage, locked_stage, last_item, updated_at | 작품(책) 하나, 현재 단계와 잠금 상태 |
+| `work` | id, title, stage, locked_stage, last_item, color, cover_id, updated_at | 작품(책) 하나, 현재 단계와 잠금 상태, 책 색과 쓰는 표지(없으면 기본 색·천 표지) |
+| `work_cover` | id, work_id, path, created_at | 그 책에 올린 표지 그림 (`{데이터}/images/covers/` 아래 파일) |
 | `card` | id, work_id, type, name, source_notes, data(JSON), evidence, ai_guess, pinned_fields, status, schema_version | 여섯 종류 카드의 공통 부분과 원문, 초안/저장 상태 |
 | `world` | card_id, category, summary | 세계관 카드, 규칙·용어는 data에 |
 | `character` | card_id, theme, personality, speech, appearance_init, origin_region_id | 캐릭터 카드 |
 | `region` | card_id, parent_region_id, environment, sensory, map_x, map_y | 지역 카드, 상위 지역을 자기 참조. map_x·map_y는 지도에서 끌어 옮긴 화면 위치 |
-| `region_link` | from_id, to_id, travel_time, direction | 인접 지역과 이동 시간, 방향. 지역 지도의 연결선과 이동 개연성 검사에 쓴다 |
+| `region_link` | from_id, to_id, travel_value, travel_unit, travel_mode, direction | 인접 지역과 이동 시간, 방향. 지역 지도의 연결선과 이동 개연성 검사에 쓴다 |
 | `main_story` | card_id, theme, premise, ending | 메인 스토리 카드 |
 | `milestone` | id, main_id, order, text | 메인이 거쳐야 할 지점 |
 | `part` | card_id, main_id, order, start, end | 파트 카드 |
@@ -756,7 +757,7 @@ erDiagram
 | `chapter` | id, plan_id, work_id, number, target_chars, read, progress_summary, summary_long, summary_short | 화 |
 | `beat` | id, chapter_id, order, source_stage, pov, mode, focus, density, tension, feedback | 비트 연출 지시와 사용자 피드백 |
 | `beat_technique` | beat_id, technique_id | 비트가 실현하는 기법 |
-| `beat_version` | id, beat_id, version, text, chars, origin(생성·직접 수정), created_at | 원고 버전, 가장 최근 것이 현재 원고 |
+| `beat_version` | id, beat_id, version, text, chars, origin(생성·직접 수정), prompt_version, style_id, style_version, created_at | 원고 버전, 가장 최근 것이 현재 원고 |
 | `state_record` | id, beat_id, card_id, key, value | 비트 시점의 상태. key는 고정 목록(상태 기록 항목 참고) |
 | `warning` | id, version_id, card_id, kind, status, reason | 개연성 경고와 무시 사유 |
 | `snapshot` | id, work_id, stage, path, created_at | 단계 되돌리기 전 자동 백업 |
@@ -858,8 +859,11 @@ erDiagram
 | `GET /works` | 서재 목록 (제목, 단계, 화 수, 진행 중 작업) |
 | `POST /works` | 새 작품 |
 | `GET /works/{workId}` | 목차 정보 (항목별 상태, 잠금, 마지막 작업 항목) |
-| `PATCH /works/{workId}` | 제목, 마지막 작업 위치 |
-| `DELETE /works/{workId}` | 작품 삭제 |
+| `PATCH /works/{workId}` | 제목, 책 색, 쓰는 표지 (보낸 키만 바꿈) |
+| `DELETE /works/{workId}` | 작품 삭제 (표지 파일 포함) |
+| `GET/POST /works/{workId}/covers` | 표지 목록, 표지 올리기 (앱이 1:1.5로 자른 600×900 WebP, 5MB 이하) |
+| `GET /works/{workId}/covers/{coverId}/image` | 표지 그림 |
+| `DELETE /works/{workId}/covers/{coverId}` | 표지 삭제 (쓰던 표지면 천 표지로) |
 | `POST /works/{workId}/stage/advance` | 다음 단계 시작, 앞 단계 잠금 |
 | `GET /works/{workId}/stage/reopen-preview?stage=` | 다시 열 때 지워질 항목과 개수 |
 | `POST /works/{workId}/stage/reopen` | 스냅샷 생성 후 이후 단계 삭제 (원고가 있으면 제목 확인 필요) |
@@ -1219,7 +1223,7 @@ flowchart LR
 
 > 아래 명령은 개발 1단계에서 만든다. 만들기 전까지는 예정 형태다.
 
-**요구 사항**: Windows 10/11 64비트, NVIDIA GPU VRAM 8GB 이상, Node 22 LTS, Python 3.12, uv. 디스크는 베이스 모델 약 5GB, 이미지 생성을 쓰면 수 GB가 더 필요하다.
+**요구 사항**: Windows 10/11 64비트, NVIDIA GPU VRAM 8GB 이상, Node 22 LTS, Python 3.12, uv. 디스크는 베이스 모델 약 6GB, 이미지 생성을 쓰면 수 GB가 더 필요하다.
 
 ```bash
 # 스키마에서 TypeScript 타입과 Pydantic 모델 생성
