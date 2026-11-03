@@ -261,6 +261,18 @@ test('milestones show their part; an unassigned one keeps the episodes closed', 
   expect(screen.getByText(strings.story.needParts)).toBeTruthy()
 })
 
+test('a main story without milestones keeps the episodes closed and says why', async () => {
+  serve({ noMilestones: true, parts: [part('c_p1', 1, '항구')] })
+  renderStory()
+  // Parts are open (a main story is saved); episodes are not, though no milestone is left over.
+  await screen.findByText(strings.story.newPart)
+  expect(tab(strings.story.stepParts).getAttribute('aria-selected')).toBe('true')
+  expect(tab(strings.story.stepEpisodes).hasAttribute('data-later')).toBe(true)
+  fireEvent.click(tab(strings.story.stepEpisodes))
+  expect(screen.getByText(strings.story.needMilestones)).toBeTruthy()
+  expect(screen.queryByText(strings.story.needParts)).toBeNull()
+})
+
 test('every milestone in one part opens the timeline: parts, lanes, nodes, completeness', async () => {
   const { calls } = serve({
     parts: [part('c_p2', 2, '남쪽으로'), part('c_p1', 1, '항구')],

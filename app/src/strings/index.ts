@@ -402,6 +402,8 @@ export const strings = {
     stepEpisodes: '③ 에피소드',
     needMain: '메인 스토리를 먼저 저장하면 부를 만들 수 있어요.',
     needParts: '주요 사건이 모두 부 하나씩에 배정되면 에피소드를 만들 수 있어요.',
+    needMilestones:
+      '메인 스토리에 주요 사건이 아직 없어요. 주요 사건을 하나 이상 정해 부에 배정하면 에피소드를 만들 수 있어요.',
     noMain: '아직 메인 스토리가 없어요.',
     createMain: '메인 스토리 만들기',
     milestones: '주요 사건',

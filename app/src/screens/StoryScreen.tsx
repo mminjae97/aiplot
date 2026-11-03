@@ -13,7 +13,7 @@ import { useArrival } from '../components/useArrival'
 import type { PlanningScreen, StoryStep } from '../stores/navigation'
 import { strings } from '../strings'
 import type { Card, EpisodeCard, MainStoryCard, PartCard } from '../types'
-import { STORY_STEPS } from './planningPages'
+import { milestonesPlaced, STORY_STEPS } from './planningPages'
 import type { PageProps } from './PlanningBook'
 
 type Step = StoryStep
@@ -30,8 +30,8 @@ function isEpisode(card: Card): card is EpisodeCard {
 }
 
 /** S1-3 story (§8): ① the main story, ② its parts, ③ the episodes, each step opening once
- * the one before is done (parts need a saved main story; episodes need every milestone in
- * exactly one part). */
+ * the one before is done (parts need a saved main story; episodes need at least one milestone
+ * and every milestone in exactly one part). */
 export function StoryScreen({
   screen,
   turn,
@@ -133,7 +133,7 @@ export function StoryScreen({
     loaded &&
     partsOpen &&
     parts.length > 0 &&
-    milestones.every((milestone) => milestone.parts.length === 1)
+    milestonesPlaced(milestones)
   const isOpen = (step: Step) => step === 'main' || (step === 'parts' ? partsOpen : episodesOpen)
   // Each open step is a page of the book; without one asked for (or once the asked one has
   // closed), the furthest open step.
@@ -410,7 +410,11 @@ export function StoryScreen({
               step === 'episodes' &&
               (!episodesOpen ? (
                 <p className="story-later">
-                  {partsOpen ? strings.story.needParts : strings.story.needMain}
+                  {!partsOpen
+                    ? strings.story.needMain
+                    : milestones.length === 0
+                      ? strings.story.needMilestones
+                      : strings.story.needParts}
                 </p>
               ) : (
                 <div className="story-board">
