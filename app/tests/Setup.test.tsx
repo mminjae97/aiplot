@@ -96,6 +96,10 @@ function serve() {
   const state = {
     health: health('missing_model'),
     jobId: null as string | null,
+    // /health answers 500 this many more times (the server busy right after start).
+    healthFailures: 0,
+    // pause/resume/cancel answer with this error instead of the job.
+    controlError: null as string | null,
   }
   const calls: Call[] = []
   let open = false
@@ -110,7 +114,13 @@ function serve() {
       calls.push({ method, path, body })
       const json = (data: unknown, status = 200) =>
         Promise.resolve(new Response(JSON.stringify(data), { status }))
-      if (path === '/health') return json(state.health)
+      if (path === '/health') {
+        if (state.healthFailures > 0) {
+          state.healthFailures -= 1
+          return json({ code: 'INTERNAL_ERROR', message: 'busy', hint: null }, 500)
+        }
+        return json(state.health)
+      }
       if (path === '/setup') return json(setupStatus(state.jobId))
       if (path === '/works') return json({ works: [] })
       if (path === '/setup/download' || path === '/setup/paths') {
@@ -132,7 +142,12 @@ function serve() {
         })
         return Promise.resolve(new Response(stream, { status: 200 }))
       }
-      if (path.startsWith('/jobs/job_1/')) return json({ jobId: 'job_1' })
+      if (path.startsWith('/jobs/job_1/')) {
+        if (state.controlError !== null) {
+          return json({ code: state.controlError, message: path, hint: null }, 409)
+        }
+        return json({ jobId: 'job_1' })
+      }
       // One open book (an empty world book) with a card drawer to open.
       if (path === '/works/w_1') return json(WORK)
       if (path.startsWith('/works/w_1/cards')) return json({ cards: [] })
@@ -205,6 +220,25 @@ test('a missing model opens the first-run screen, which can be put off', async (
   expect(screen.getByRole('button', { name: strings.setup.resume })).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: strings.setup.later }))
   expect(await screen.findByText(strings.library.empty)).toBeTruthy()
+})
+
+test('a first /health that fails is asked again, so S0-1 still opens', async () => {
+  const { state } = serve()
+  state.healthFailures = 1
+  renderApp()
+  expect(
+    await screen.findByRole('heading', { name: strings.setup.title }, { timeout: 4000 }),
+  ).toBeTruthy()
+})
+
+test('a pause the server refuses says why', async () => {
+  const { state, event } = serve()
+  renderApp()
+  fireEvent.click(await screen.findByRole('button', { name: strings.setup.resume }))
+  await event(1, 'progress', { done: 3 * GB, total: 6 * GB, etaSec: 720, step: 'base.gguf' })
+  state.controlError = 'JOB_FINISHED'
+  fireEvent.click(await screen.findByRole('button', { name: strings.setup.pause }))
+  expect(await screen.findByText(strings.setup.errors.JOB_FINISHED ?? '-')).toBeTruthy()
 })
 
 test('the fixture LLM needs no first run', async () => {

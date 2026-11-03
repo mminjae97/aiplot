@@ -59,7 +59,10 @@ export function useHealth() {
     queryKey: ['health'],
     queryFn: api.health,
     refetchInterval: (query) => {
-      const state = query.state.data?.llama.state
+      // No answer yet, or the last poll failed (the server busy or restarting; queries do not
+      // retry): keep asking, or S0-1 would never open.
+      if (query.state.data === undefined || query.state.status === 'error') return 2000
+      const state = query.state.data.llama.state
       // The model loads in the background after its files arrive. stopped: between processes
       // (boot, or new files swapped in); starting follows.
       if (state === 'starting' || state === 'stopped') return 2000
@@ -110,27 +113,42 @@ function apply(live: JobLive, event: JobEvent): JobLive {
   }
 }
 
-const wait = (ms: number, signal: AbortSignal) =>
+export const wait = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve) => {
-    const timer = setTimeout(resolve, ms)
-    signal.addEventListener('abort', () => {
+    const abort = () => {
       clearTimeout(timer)
       resolve()
-    })
+    }
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', abort)
+      resolve()
+    }, ms)
+    signal.addEventListener('abort', abort, { once: true })
   })
 
-async function follow(client: QueryClient, jobId: string, signal: AbortSignal): Promise<void> {
-  let after: number | null = null
-  // Set from the event callback, so read through a call (no stale narrowing).
-  const seen = { final: false }
+// Reconnecting after a dropped stream: 1 s, doubled after each failed attempt up to 10 s.
+const RECONNECT_MS = 1000
+const RECONNECT_MAX_MS = 10_000
+
+export async function follow(
+  client: QueryClient,
+  jobId: string,
+  signal: AbortSignal,
+): Promise<void> {
+  // Set from the event callback, so read through a call (no stale narrowing). after: the last
+  // event handled, kept even when the stream throws mid-way, so a reconnect replays nothing.
+  const seen = { final: false, after: null as number | null }
   const ended = () => seen.final || signal.aborted
   const update = (event: JobEvent) => {
     client.setQueryData<JobLive>(jobKey(jobId), (old) => apply(old ?? EMPTY, event))
+    if (event.id !== null) seen.after = event.id
     if (FINAL_EVENTS.has(event.type)) seen.final = true
   }
+  let delay = RECONNECT_MS
   while (!ended()) {
+    let failed = false
     try {
-      after = await streamJob(jobId, update, { after, signal })
+      await streamJob(jobId, update, { after: seen.after, signal })
     } catch (error) {
       // The job is gone (finished long ago, or a restarted server): stop following.
       if (error instanceof ApiRequestError && error.status === 404) {
@@ -140,9 +158,12 @@ async function follow(client: QueryClient, jobId: string, signal: AbortSignal): 
         }))
         break
       }
+      failed = true
     }
-    // The stream dropped (server busy or restarting): pick it up again after the last event.
-    if (!ended()) await wait(1000, signal)
+    // The stream dropped (server busy or restarting): pick it up again after the last event,
+    // waiting longer while it keeps failing.
+    if (!ended()) await wait(failed ? delay : RECONNECT_MS, signal)
+    delay = failed ? Math.min(delay * 2, RECONNECT_MAX_MS) : RECONNECT_MS
   }
   if (signal.aborted) return
   await Promise.all([
@@ -161,9 +182,12 @@ export function useSetupWatcher(): void {
   const running = setup.data?.job_id ?? null
 
   useEffect(() => {
-    // A job started before this screen opened (or by another click) is followed too.
-    if (running !== null && running !== jobId) followJob(running)
-  }, [running, jobId, followJob])
+    // A job started before this screen opened (or by another click) is followed too. A cached
+    // /setup can still name a job that has ended (read before it did): never go back to it.
+    if (running === null || running === jobId) return
+    if (client.getQueryData<JobLive>(jobKey(running))?.final != null) return
+    followJob(running)
+  }, [client, running, jobId, followJob])
 
   useEffect(() => {
     if (jobId === null) return
