@@ -1,0 +1,29 @@
+body {
+  max-width: 1100px;
+  margin: 24px auto;
+  padding: 0 16px;
+  background: #f6f0e4;
+  color: #2e2219;
+  font-family: 'Source Han Sans KR', sans-serif;
+  line-height: 1.55;
+}
+section {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border: 1px solid #dccfb4;
+  border-radius: 6px;
+  background: #fffaf0;
+}
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+td, th { padding: 4px 6px; border-top: 1px solid #e6dcc6; text-align: left; vertical-align: top; }
+tr.ok td:last-child { color: #2f6a3a; }
+tr.bad td:last-child { color: #a3322a; font-weight: 700; }
+tr.wait td:last-child { color: #9a6a12; }
+tr.skip td:last-child { color: #8c7c66; }
+pre { margin: 0; font-size: 12px; white-space: pre-wrap; }
+.none { color: #8c7c66; }
+.note { color: #5a4a3a; font-size: 12px; font-weight: 400; }
+.small { color: #6b5a48; font-size: 12px; }
+table.sum td { padding: 6px; font-size: 15px; }
+ol.notes { padding: 8px 8px 8px 32px; background: #f3ead6; }
+code { color: #7a5a1e; font-size: 12px; }

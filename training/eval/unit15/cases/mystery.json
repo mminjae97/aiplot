@@ -1,0 +1,618 @@
+{
+  "genre": "추리",
+  "seeds": [
+    {
+      "id": "c_mymain",
+      "type": "main_story",
+      "name": null,
+      "data": {
+        "theme": "기억을 믿지 못하는 형사의 진실 찾기",
+        "premise": "기억을 잃는 병을 앓는 형사 윤재희가 십 년 전 실종 사건을 다시 쫓는다.",
+        "ending": "재희가 범인이 자신의 옛 파트너임을 밝힌다.",
+        "milestones": [
+          {
+            "id": "ms_my1",
+            "order": 1,
+            "text": "재희가 실종 사건의 새 단서를 받는다."
+          },
+          {
+            "id": "ms_my2",
+            "order": 2,
+            "text": "재희가 자신의 수첩이 조작된 것을 알게 된다."
+          },
+          {
+            "id": "ms_my3",
+            "order": 3,
+            "text": "실종자의 유해가 발견된다."
+          },
+          {
+            "id": "ms_my4",
+            "order": 4,
+            "text": "범인이 옛 파트너 오진혁임이 밝혀진다."
+          }
+        ]
+      }
+    },
+    {
+      "id": "c_mypart1",
+      "type": "part",
+      "name": "지워진 수첩",
+      "data": {
+        "order": 1,
+        "title": "지워진 수첩",
+        "theme": "의심의 시작",
+        "fulfills": [
+          "ms_my1",
+          "ms_my2"
+        ],
+        "start": "재희에게 익명의 사진이 도착한다.",
+        "end": "재희가 수첩의 찢긴 쪽을 찾는다."
+      }
+    },
+    {
+      "id": "c_myreg1",
+      "type": "region",
+      "name": "해안시 경찰서",
+      "data": {
+        "appearance": "바다가 보이는 낡은 경찰서.",
+        "environment": {
+          "natural": "항구 도시",
+          "social": "강력팀 사무실"
+        }
+      }
+    },
+    {
+      "id": "c_myreg2",
+      "type": "region",
+      "name": "등대섬",
+      "data": {
+        "appearance": "배로만 갈 수 있는 작은 섬.",
+        "environment": {
+          "natural": "바위섬",
+          "social": "등대지기 한 가족만 사는 곳"
+        }
+      }
+    },
+    {
+      "id": "c_myreg3",
+      "type": "region",
+      "name": "재희의 오피스텔",
+      "data": {
+        "appearance": "메모가 벽을 덮은 원룸.",
+        "environment": {
+          "natural": "도심",
+          "social": "혼자 사는 집"
+        }
+      }
+    },
+    {
+      "id": "c_mychar1",
+      "type": "character",
+      "name": "윤재희",
+      "data": {
+        "theme": "기억을 믿지 못하는 형사",
+        "personality": {
+          "traits": [
+            "집요함"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_mychar2",
+      "type": "character",
+      "name": "오진혁",
+      "data": {
+        "theme": "재희의 옛 파트너",
+        "personality": {
+          "traits": [
+            "친절함"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_mychar3",
+      "type": "character",
+      "name": "한수아",
+      "data": {
+        "theme": "십 년 전 실종된 소녀",
+        "personality": {
+          "traits": [
+            "밝음"
+          ],
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "c_mychar4",
+      "type": "character",
+      "name": "도민준",
+      "data": {
+        "theme": "재희의 신입 파트너",
+        "personality": {
+          "traits": [
+            "눈치가 빠름"
+          ],
+          "behaviors": []
+        }
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "my-world",
+      "type": "world",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [],
+      "seeds": [
+        "c_mymain",
+        "c_myreg1",
+        "c_mychar1",
+        "c_mychar2"
+      ],
+      "notes": "재희는 잠들 때마다 그날의 기억이 흐려지는 희귀병을 앓는다.\n이 병의 이름은 '야간 망각증'이다.\n잠든 지 여섯 시간이 지나면 그날 기억의 대부분이 사라진다.\n다만 손으로 직접 쓴 기록을 다시 읽으면 기억이 돌아온다.\n그래서 재희는 모든 것을 수첩에 적는다.\n동료들은 재희의 수첩을 '두 번째 뇌'라고 부른다.",
+      "gold": [
+        {
+          "path": "name",
+          "kind": "facts",
+          "facts": [
+            "야간 망각증"
+          ]
+        },
+        {
+          "path": "category",
+          "kind": "facts",
+          "facts": [
+            "rule 또는 other"
+          ]
+        },
+        {
+          "path": "summary",
+          "kind": "facts",
+          "facts": [
+            "잠들 때마다 그날의 기억이 흐려지는 희귀병"
+          ]
+        },
+        {
+          "path": "details",
+          "kind": "facts",
+          "facts": [
+            "재희는 모든 것을 수첩에 적는다"
+          ]
+        },
+        {
+          "path": "rules",
+          "kind": "items",
+          "facts": [
+            "잠든 지 여섯 시간이 지나면 그날 기억 대부분이 사라진다 (예외: 손으로 쓴 기록을 다시 읽으면 기억이 돌아온다)"
+          ]
+        },
+        {
+          "path": "terms",
+          "kind": "items",
+          "facts": [
+            "두 번째 뇌 = 재희의 수첩"
+          ]
+        },
+        {
+          "path": "related",
+          "kind": "optional"
+        }
+      ]
+    },
+    {
+      "id": "my-character",
+      "type": "character",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [
+        "c_mychar3",
+        "c_mychar2",
+        "c_myreg2"
+      ],
+      "seeds": [
+        "c_mymain",
+        "c_myreg1",
+        "c_myreg2",
+        "c_myreg3",
+        "c_mychar1",
+        "c_mychar2",
+        "c_mychar3",
+        "c_mychar4"
+      ],
+      "notes": "고은숙은 등대섬의 등대지기다.\n은숙은 등대섬에서 나고 자라 평생 섬을 떠난 적이 없다.\n은숙은 말수가 적고 사람을 쉽게 믿지 않는다.\n낯선 배가 섬에 다가오면 등대 위에서 망원경으로 오래 지켜본다.\n은숙은 섬 사투리를 쓰고, 말이 느리다.\n\"그 아이는 바다로 안 갔어.\"라고 되풀이한다.\n\"형사 양반, 배 시간 놓치겠소.\"라고도 말한다.\n\"섬은 다 기억해.\"라고 중얼거린다.\n은숙은 실종된 한수아를 마지막으로 본 사람이다.\n은숙은 오진혁을 몹시 싫어한다.",
+      "gold": [
+        {
+          "path": "name",
+          "kind": "exact",
+          "value": "고은숙"
+        },
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "실종된 소녀를 마지막으로 본, 섬을 떠나지 않는 등대지기 (같은 뜻)"
+          ]
+        },
+        {
+          "path": "personality.traits",
+          "kind": "items",
+          "facts": [
+            "말수가 적음",
+            "사람을 쉽게 믿지 않음"
+          ]
+        },
+        {
+          "path": "personality.behaviors",
+          "kind": "items",
+          "facts": [
+            "낯선 배가 다가오면 망원경으로 오래 지켜본다"
+          ]
+        },
+        {
+          "path": "speech.description",
+          "kind": "facts",
+          "facts": [
+            "섬 사투리",
+            "느린 말"
+          ]
+        },
+        {
+          "path": "speech.examples",
+          "kind": "items",
+          "facts": [
+            "그 아이는 바다로 안 갔어.",
+            "형사 양반, 배 시간 놓치겠소.",
+            "섬은 다 기억해."
+          ]
+        },
+        {
+          "path": "appearance.summary",
+          "kind": "empty"
+        },
+        {
+          "path": "appearance.details",
+          "kind": "empty"
+        },
+        {
+          "path": "relations",
+          "kind": "ids",
+          "value": [
+            "c_mychar3",
+            "c_mychar2"
+          ],
+          "facts": [
+            "한수아를 마지막으로 본 사람",
+            "오진혁을 몹시 싫어함"
+          ]
+        },
+        {
+          "path": "origin_region_id",
+          "kind": "exact",
+          "value": "c_myreg2"
+        }
+      ]
+    },
+    {
+      "id": "my-region",
+      "type": "region",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [
+        "c_myreg1"
+      ],
+      "seeds": [
+        "c_mymain",
+        "c_myreg1",
+        "c_myreg2",
+        "c_myreg3",
+        "c_mychar1"
+      ],
+      "notes": "해안시 수산시장은 해안시 경찰서에서 걸어서 십 분 거리다.\n시장은 경찰서의 북쪽에 있다.\n천막 지붕 아래 좌판이 길게 늘어서 있다.\n새벽 네 시에 경매가 시작되고 정오면 문을 닫는다.\n상인들은 서로의 사정을 훤히 알아서 소문이 빠르다.\n비린내와 얼음 녹는 냄새가 진동한다.\n경매꾼의 외침과 수레 바퀴 소리가 뒤섞인다.",
+      "gold": [
+        {
+          "path": "name",
+          "kind": "facts",
+          "facts": [
+            "해안시 수산시장"
+          ]
+        },
+        {
+          "path": "parent_id",
+          "kind": "empty"
+        },
+        {
+          "path": "links",
+          "kind": "items",
+          "facts": [
+            "경찰서(c_myreg1)와 이어짐: 10분, 도보, direction 남 (대상 지역이 이 지역에서 본 방향)"
+          ]
+        },
+        {
+          "path": "appearance",
+          "kind": "facts",
+          "facts": [
+            "천막 지붕 아래 길게 늘어선 좌판"
+          ]
+        },
+        {
+          "path": "environment.natural",
+          "kind": "optional"
+        },
+        {
+          "path": "environment.social",
+          "kind": "facts",
+          "facts": [
+            "새벽 네 시 경매, 정오에 닫음",
+            "상인들끼리 소문이 빠름"
+          ]
+        },
+        {
+          "path": "sensory.smell",
+          "kind": "facts",
+          "facts": [
+            "비린내",
+            "얼음 녹는 냄새"
+          ]
+        },
+        {
+          "path": "sensory.sound",
+          "kind": "facts",
+          "facts": [
+            "경매꾼의 외침",
+            "수레 바퀴 소리"
+          ]
+        },
+        {
+          "path": "sensory.mood",
+          "kind": "optional"
+        }
+      ]
+    },
+    {
+      "id": "my-main",
+      "type": "main_story",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [],
+      "seeds": [
+        "c_myreg1",
+        "c_myreg2",
+        "c_mychar1",
+        "c_mychar2",
+        "c_mychar3"
+      ],
+      "notes": "이 이야기의 주제는 자신의 기억조차 믿을 수 없을 때 진실을 찾는 일이다.\n형사 윤재희는 잠들면 기억이 흐려지는 병을 앓는다.\n어느 날 재희는 십 년 전 실종된 한수아의 사진을 익명으로 받는다.\n재희는 자신의 수첩 몇 쪽이 누군가에게 찢겨 나갔다는 것을 알게 된다.\n등대섬에서 수아의 유해가 발견된다.\n결말에서 재희는 범인이 옛 파트너 오진혁이라는 것을 밝혀낸다.",
+      "gold": [
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "자신의 기억조차 믿을 수 없을 때 진실을 찾는 일"
+          ]
+        },
+        {
+          "path": "premise",
+          "kind": "facts",
+          "facts": [
+            "기억이 흐려지는 병을 앓는 형사 윤재희",
+            "십 년 전 실종 사건을 다시 쫓는다(익명 사진)"
+          ]
+        },
+        {
+          "path": "ending",
+          "kind": "facts",
+          "facts": [
+            "범인이 옛 파트너 오진혁임을 밝힌다"
+          ]
+        },
+        {
+          "path": "milestones",
+          "kind": "items",
+          "facts": [
+            "익명 사진(새 단서)을 받는다",
+            "수첩이 찢겨(조작되어) 있음을 안다",
+            "등대섬에서 유해가 발견된다",
+            "범인이 오진혁임을 밝힌다"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "my-part",
+      "type": "part",
+      "category": null,
+      "structure": null,
+      "part_id": null,
+      "refs": [],
+      "seeds": [
+        "c_mymain",
+        "c_mypart1",
+        "c_myreg2",
+        "c_mychar1",
+        "c_mychar2"
+      ],
+      "notes": "2부의 제목은 '등대가 꺼진 밤'이다.\n2부의 주제는 믿었던 사람을 의심해야 하는 고통이다.\n2부는 등대섬에서 수아의 유해가 발견되면서 시작한다.\n2부의 끝에 재희는 범인이 오진혁이라는 것을 밝힌다.",
+      "gold": [
+        {
+          "path": "title",
+          "kind": "facts",
+          "facts": [
+            "등대가 꺼진 밤"
+          ]
+        },
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "믿었던 사람을 의심해야 하는 고통"
+          ]
+        },
+        {
+          "path": "fulfills",
+          "kind": "ids",
+          "value": [
+            "ms_my3",
+            "ms_my4"
+          ]
+        },
+        {
+          "path": "start",
+          "kind": "facts",
+          "facts": [
+            "등대섬에서 수아의 유해가 발견된다"
+          ]
+        },
+        {
+          "path": "end",
+          "kind": "facts",
+          "facts": [
+            "범인이 오진혁임을 밝힌다"
+          ]
+        },
+        {
+          "path": "structure",
+          "kind": "optional"
+        }
+      ]
+    },
+    {
+      "id": "my-episode",
+      "type": "episode",
+      "category": null,
+      "structure": 4,
+      "part_id": "c_mypart1",
+      "refs": [
+        "c_mychar1",
+        "c_mychar4"
+      ],
+      "seeds": [
+        "c_mymain",
+        "c_mypart1",
+        "c_myreg1",
+        "c_myreg2",
+        "c_myreg3",
+        "c_mychar1",
+        "c_mychar2",
+        "c_mychar4"
+      ],
+      "notes": "이 에피소드의 주제는 자기 글씨를 의심하는 순간이다.\n재희는 오피스텔에서 수첩을 다시 읽다가 날짜가 하루 비어 있는 것을 발견한다.\n재희는 신입 파트너 도민준과 함께 경찰서 기록실을 뒤진다.\n그날 재희와 함께 근무한 사람이 오진혁이었다는 기록이 나온다.\n재희는 수첩의 찢긴 자국을 손가락으로 쓸어 본다.\n이 에피소드에서 재희가 수첩이 조작된 것을 알게 된다.",
+      "gold": [
+        {
+          "path": "theme",
+          "kind": "facts",
+          "facts": [
+            "자기 글씨를 의심하는 순간"
+          ]
+        },
+        {
+          "path": "characters",
+          "kind": "ids",
+          "value": [
+            "c_mychar1",
+            "c_mychar4"
+          ]
+        },
+        {
+          "path": "locations.main",
+          "kind": "facts",
+          "facts": [
+            "c_myreg1 또는 c_myreg3 (다른 하나는 others에)"
+          ]
+        },
+        {
+          "path": "locations.others",
+          "kind": "optional"
+        },
+        {
+          "path": "fulfills",
+          "kind": "ids",
+          "value": [
+            "ms_my2"
+          ]
+        },
+        {
+          "path": "structure.type",
+          "kind": "exact",
+          "value": 4
+        },
+        {
+          "path": "structure.stages",
+          "kind": "items",
+          "facts": [
+            "기: 수첩에서 하루가 비어 있는 것을 발견",
+            "승: 도민준과 기록실을 뒤진다",
+            "전: 그날 오진혁과 근무한 기록이 나온다",
+            "결: 찢긴 자국을 쓸어 보며 조작을 깨닫는다"
+          ]
+        },
+        {
+          "path": "synopsis",
+          "kind": "facts",
+          "facts": [
+            "수첩의 빈 날짜",
+            "기록실에서 오진혁과 근무한 기록 발견",
+            "수첩 조작을 깨달음"
+          ]
+        },
+        {
+          "path": "relation_to_main",
+          "kind": "optional"
+        },
+        {
+          "path": "world",
+          "kind": "optional"
+        },
+        {
+          "path": "foreshadowing.plants",
+          "kind": "optional"
+        }
+      ]
+    }
+  ],
+  "names": [
+    {
+      "id": "my-n1",
+      "type": "character",
+      "text": "오지혁이 재희에게 커피를 건넸어.",
+      "expect": [
+        {
+          "mentioned": "오지혁",
+          "card_id": "c_mychar2"
+        }
+      ]
+    },
+    {
+      "id": "my-n2",
+      "type": "character",
+      "text": "신입 도민중이 사건 파일을 들고 왔어.",
+      "expect": [
+        {
+          "mentioned": "도민중",
+          "card_id": "c_mychar4"
+        }
+      ]
+    },
+    {
+      "id": "my-n3",
+      "type": "character",
+      "text": "재희는 법의관 최성원에게 부검 결과를 물었어.",
+      "expect": []
+    },
+    {
+      "id": "my-n4",
+      "type": "region",
+      "text": "재희는 해안시 터미널에서 버스를 탔어.",
+      "expect": []
+    }
+  ]
+}
