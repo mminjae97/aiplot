@@ -64,7 +64,37 @@ test('a lane per region used, in region order; other places leave markers', () =
   const laneOf = new Map(timeline.nodes.map((node) => [node.episodeId, node.lane]))
   expect(laneOf.get('c_e4')).toBe(0)
   expect(laneOf.get('c_e1')).toBe(1)
-  expect(timeline.markers).toEqual([{ episodeId: 'c_e2', column: 1, lane: 2, row: 0 }])
+  // c_e3's main place is there at the same time: the marker goes under its node.
+  expect(timeline.markers).toEqual([{ episodeId: 'c_e2', column: 1, lane: 2, row: 1 }])
+})
+
+test("a simultaneous episode's marker takes a free row in the cell, never under a node", () => {
+  // c_b visits the isle where c_a, at the same time, has its main place; either one first.
+  for (const placement of [
+    [row('c_b', 'c_p1', '1'), row('c_a', 'c_p1', '1')],
+    [row('c_a', 'c_p1', '1'), row('c_b', 'c_p1', '1')],
+  ]) {
+    const timeline = timelineOf({
+      parts: [{ id: 'c_p1', label: '제1부' }],
+      placement,
+      settings: [row('c_a', 'c_isle', 'main'), row('c_b', 'c_port', 'main'), row('c_b', 'c_isle')],
+      links: [],
+      milestones: [],
+      regions: new Map([
+        ['c_port', '북부 항구'],
+        ['c_isle', '등대 섬'],
+      ]),
+      nowhere: '장소 미정',
+    })
+    const isle = timeline.lanes.findIndex((lane) => lane.id === 'c_isle')
+    expect(timeline.nodes.find((node) => node.episodeId === 'c_a')).toMatchObject({
+      column: 0,
+      lane: isle,
+      row: 0,
+    })
+    expect(timeline.markers).toEqual([{ episodeId: 'c_b', column: 0, lane: isle, row: 1 }])
+    expect(timeline.lanes[isle]?.rows).toBe(2)
+  }
 })
 
 test('episodes without a main place get the 장소 미정 lane', () => {

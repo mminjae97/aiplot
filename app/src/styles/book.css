@@ -266,7 +266,11 @@
   pointer-events: auto;
   cursor: var(--cursor-pointer);
   transition: filter var(--motion);
-  animation: note-right var(--motion) ease-out backwards;
+  /* Shown once as the book opens, from under the page. One animation for both sides, so a
+     note changing sides without a turn (a contents item, a 함께 보기 link) never restarts it:
+     it shows in its new place at once. */
+  --note-from: -8px;
+  animation: note-in var(--motion) ease-out backwards;
 }
 
 .book-note[data-side='ahead'] {
@@ -280,7 +284,7 @@
   border-radius: 3px 0 0 3px;
   text-align: right;
   box-shadow: -1px 2px 3px rgb(0 0 0 / 22%);
-  animation-name: note-left;
+  --note-from: 8px;
 }
 
 /* A note lies on its own page: over that page's layer, under the layers lying over it. */
@@ -340,17 +344,10 @@
   filter: brightness(1.06);
 }
 
-@keyframes note-right {
+@keyframes note-in {
   from {
     opacity: 0;
-    translate: -8px 0;
-  }
-}
-
-@keyframes note-left {
-  from {
-    opacity: 0;
-    translate: 8px 0;
+    translate: var(--note-from) 0;
   }
 }
 

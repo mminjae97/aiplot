@@ -526,6 +526,7 @@ export function StoryScreen({
             onDone={() => {
               setUndo(null)
             }}
+            returnFocus={() => tabRefs.current.get(step)}
             onRestored={() => {
               setUndo(null)
             }}

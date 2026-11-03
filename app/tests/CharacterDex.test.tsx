@@ -290,6 +290,27 @@ test('함께 보기 opens the dex with that character picked up', async () => {
   expect(await screen.findByRole('dialog', { name: '테오' })).toBeTruthy()
 })
 
+test('a card picked up from 함께 보기 goes back onto its grid card when put down', async () => {
+  serve()
+  renderBook({ name: 'world', workId: 'w_1' })
+  fireEvent.click(await screen.findByRole('button', { name: /조수 마법/ }))
+  // The link the focus was on goes with the world book's page.
+  const link = await screen.findByRole('button', { name: '테오' })
+  link.focus()
+  fireEvent.click(link)
+  const card = await screen.findByRole('dialog', { name: '테오' })
+  expect(link.isConnected).toBe(false)
+  fireEvent.keyDown(window, { key: 'Escape' })
+  await waitFor(() => {
+    expect(card.isConnected).toBe(false)
+  })
+  await waitFor(() => {
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: strings.dex.flip('테오') }),
+    )
+  })
+})
+
 test('a link to a card that is not in the dex picks nothing up', async () => {
   serve()
   renderBook({ name: 'characters', workId: 'w_1', cardId: 'c_gone' })

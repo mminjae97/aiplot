@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest'
 import {
+  adjacentOf,
   areasOf,
   directionOf,
   layout,
@@ -27,6 +28,31 @@ test('travel reads as amount and mode', () => {
   expect(travelText({ value: 1.5, unit: 'hour', mode: null })).toBe('1.5시간')
   expect(travelText({ value: 30, unit: 'minute', mode: '도보' })).toBe('30분 · 도보')
   expect(travelText(null)).toBeNull()
+})
+
+test("a card's back lists each linked region once, from its own row when it has one", () => {
+  const names = new Map([
+    ['a', '수도'],
+    ['b', '항구'],
+    ['c', '숲'],
+  ])
+  const adjacent = adjacentOf(
+    'a',
+    [
+      // Stored per card: the other's row comes first here.
+      { from_id: 'b', to_id: 'a', travel: { value: 2, unit: 'day', mode: '배' }, direction: '서' },
+      { from_id: 'a', to_id: 'b', travel: null, direction: '동' },
+      { from_id: 'c', to_id: 'a', travel: { value: 3, unit: 'hour', mode: null }, direction: '북' },
+      { from_id: 'c', to_id: 'b', travel: null, direction: null },
+      { from_id: 'a', to_id: 'x', travel: null, direction: null },
+    ],
+    names,
+  )
+  expect(adjacent).toEqual([
+    { id: 'b', name: '항구', travel: '2일 · 배', way: '동' },
+    // Only the other's row: its journey, but not its way (that is from c).
+    { id: 'c', name: '숲', travel: '3시간', way: null },
+  ])
 })
 
 test('compass words become screen directions, north up', () => {

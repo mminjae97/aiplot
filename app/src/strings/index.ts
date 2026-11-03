@@ -406,6 +406,10 @@ export const strings = {
     episodesHeading: '나오는 에피소드',
     noEpisodes: '아직 이 지역에서 일어나는 에피소드가 없어요.',
     adjacent: '이어진 지역',
+    travelUnit: { minute: '분', hour: '시간', day: '일' },
+    // React Flow's screen-reader text (ariaLabelConfig).
+    nodeHint: 'Enter 키로 카드를 뒤집어 봐요.',
+    edgeHint: '두 지역 사이의 길이에요.',
     editSource: '원문 수정',
     delete: '삭제',
   },
@@ -426,6 +430,9 @@ export const strings = {
     graphNoCards: '캐릭터가 생기면 여기에 관계도가 그려져요.',
     graphNoLinks: '아직 이어진 관계가 없어요. 캐릭터 원문에 관계를 적으면 선이 생겨요.',
     graphHint: '끌어서 옮기고, 휠로 확대해요. 옮긴 자리는 저장되지 않아요.',
+    // React Flow's screen-reader text (ariaLabelConfig).
+    graphNodeHint: 'Enter 키로 카드를 뒤집어 봐요.',
+    graphEdgeHint: '두 인물의 관계예요.',
     legend: '선의 뜻',
     kinds: { love: '사랑', friendly: '우호', hostile: '적대', neutral: '중립' },
     mutual: '서로',

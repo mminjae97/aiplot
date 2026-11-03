@@ -12,6 +12,7 @@ import {
   type SimulationLinkDatum,
   type SimulationNodeDatum,
 } from 'd3-force'
+import { strings } from '../strings'
 import type { RegionLinkRow, RegionTravel } from '../types'
 
 export type Point = { x: number; y: number }
@@ -37,7 +38,7 @@ export function lengthOf(travel: RegionTravel | null): number {
 /** The line's label: 3일 · 말. */
 export function travelText(travel: RegionTravel | null): string | null {
   if (!travel) return null
-  const unit = { minute: '분', hour: '시간', day: '일' }[travel.unit]
+  const unit = strings.map.travelUnit[travel.unit]
   const amount = `${String(Number(travel.value.toFixed(1)))}${unit}`
   return travel.mode ? `${amount} · ${travel.mode}` : amount
 }
@@ -81,6 +82,39 @@ export function linesOf(rows: RegionLinkRow[], drawn: ReadonlySet<string>): Line
     byKey.set(key, line)
   }
   return [...byKey.values()]
+}
+
+/** A region's neighbours for its card's back, one per other region: links are stored per
+ * card, so A→B and B→A both come back. The journey and the way (written as from this region)
+ * come from this card's own row when it has one, else the journey from the other's. */
+export function adjacentOf(
+  id: string,
+  rows: RegionLinkRow[],
+  names: ReadonlyMap<string, string>,
+): { id: string; name: string; travel: string | null; way: string | null }[] {
+  const byOther = new Map<
+    string,
+    { travel: RegionTravel | null; way: string | null; own: boolean }
+  >()
+  for (const row of rows) {
+    const own = row.from_id === id
+    const other = own ? row.to_id : row.to_id === id ? row.from_id : null
+    if (other === null || other === id || !names.get(other)) continue
+    const seen = byOther.get(other)
+    if (seen === undefined) {
+      byOther.set(other, { travel: row.travel, way: own ? row.direction : null, own })
+    } else if (own && !seen.own) {
+      byOther.set(other, { travel: row.travel ?? seen.travel, way: row.direction, own })
+    } else {
+      seen.travel ??= row.travel
+    }
+  }
+  return [...byOther].map(([other, link]) => ({
+    id: other,
+    name: names.get(other) ?? '',
+    travel: travelText(link.travel),
+    way: link.way,
+  }))
 }
 
 /** Lines for the layout, which places only tokens: a line to a parent (drawn as an area)

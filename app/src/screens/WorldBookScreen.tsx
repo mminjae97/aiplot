@@ -54,6 +54,7 @@ export function WorldBookScreen({
   })
 
   const tabRefs = useRef(new Map<Tab, HTMLButtonElement>())
+  const newRef = useRef<HTMLButtonElement>(null)
   // Read-only until the work says otherwise: a locked book never offers edits while loading.
   const locked = (work.data?.locked_stage ?? 1) >= 1
   const entries = (worlds.data?.cards ?? []).filter(isWorld)
@@ -203,6 +204,7 @@ export function WorldBookScreen({
                 )}
                 {!locked && (
                   <button
+                    ref={newRef}
                     type="button"
                     className="paper-button world-new"
                     onClick={() => {
@@ -371,6 +373,8 @@ export function WorldBookScreen({
             onDone={() => {
               setUndo(null)
             }}
+            // The entry is gone from the page: + 새 설정, else the open bookmark.
+            returnFocus={() => newRef.current ?? tabRefs.current.get(tab)}
             onRestored={(card) => {
               setUndo(null)
               if (isWorld(card)) show(card)

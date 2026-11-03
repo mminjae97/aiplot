@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { strings } from '../strings'
 import type { CardRelation, RegionCard, RegionLinkRow } from '../types'
 import { labelOf, undecided } from './cardFields'
-import { travelText } from './regionLayout'
+import { adjacentOf } from './regionLayout'
 
 /** The front of a region's card: its name on a paper token, as on the map. */
 export function RegionFront({ card }: { card: RegionCard }) {
@@ -54,14 +54,7 @@ export function RegionBack({
   onDelete,
 }: BackProps) {
   const { data } = card
-  const adjacent = links.flatMap((link) => {
-    const other =
-      link.from_id === card.id ? link.to_id : link.to_id === card.id ? link.from_id : null
-    const name = other ? names.get(other) : undefined
-    if (!other || !name) return []
-    const way = link.from_id === card.id ? link.direction : null
-    return [{ id: other, name, travel: travelText(link.travel), way }]
-  })
+  const adjacent = adjacentOf(card.id, links, names)
   const parentId = parents.find((row) => row.from_id === card.id)?.to_id
   const parent = parentId ? names.get(parentId) : undefined
   const senses = [
