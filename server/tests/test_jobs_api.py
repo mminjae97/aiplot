@@ -8,10 +8,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 from fastapi.testclient import TestClient
 
-from aiplot.api.auth import require_token
 from aiplot.generated.jobs.job_accepted import JobAccepted
 from aiplot.jobs.queue import JobContext, JobQueue
 from aiplot.main import API_PREFIX, create_app
@@ -36,7 +35,7 @@ async def slow(ctx: JobContext) -> None:
 @pytest.fixture
 def client(tmp_path: Path) -> Iterator[TestClient]:
     app = create_app(token=TOKEN, db_path=tmp_path / "aiplot.db")
-    probe = APIRouter(prefix=f"{API_PREFIX}/probe", dependencies=[Depends(require_token)])
+    probe = APIRouter(prefix=f"{API_PREFIX}/probe")
 
     @probe.post("/jobs/{kind}", status_code=202)
     def start(request: Request, kind: str) -> JobAccepted:

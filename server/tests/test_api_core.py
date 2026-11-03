@@ -3,10 +3,9 @@
 from pathlib import Path
 
 import pytest
-from fastapi import APIRouter, Depends, FastAPI
+from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
-from aiplot.api.auth import require_token
 from aiplot.api.errors import AppError
 from aiplot.main import API_PREFIX, create_app
 
@@ -16,7 +15,8 @@ AUTH = {"Authorization": f"Bearer {TOKEN}"}
 
 def app_with_probe_routes(db_path: Path) -> FastAPI:
     app = create_app(token=TOKEN, db_path=db_path)
-    probe = APIRouter(prefix=f"{API_PREFIX}/probe", dependencies=[Depends(require_token)])
+    # No dependency: the token middleware guards every route under /api/v1.
+    probe = APIRouter(prefix=f"{API_PREFIX}/probe")
 
     @probe.get("/locked")
     def locked() -> None:
@@ -25,6 +25,10 @@ def app_with_probe_routes(db_path: Path) -> FastAPI:
     @probe.get("/count")
     def count(n: int) -> int:
         return n
+
+    @probe.post("/body")
+    def body(value: dict[str, int]) -> dict[str, int]:
+        return value
 
     @probe.get("/crash")
     def crash() -> None:
@@ -78,6 +82,22 @@ def test_app_error_body(client: TestClient) -> None:
 def test_auth_runs_before_validation(client: TestClient) -> None:
     response = client.get("/api/v1/probe/count?n=abc")
     assert response.status_code == 401
+
+
+@pytest.mark.parametrize("headers", [{}, {"Authorization": "Bearer wrong"}])
+def test_auth_runs_before_body_parsing(client: TestClient, headers: dict[str, str]) -> None:
+    """§16: missing/wrong token is 401 on every route, before a malformed body is read."""
+    bad = {**headers, "Content-Type": "application/json"}
+    response = client.post("/api/v1/probe/body", content=b"{not json", headers=bad)
+    assert response.status_code == 401
+    assert response.json()["code"] == "UNAUTHORIZED"
+    assert response.headers["WWW-Authenticate"] == "Bearer"
+    # A real route of the app too, and one that does not exist.
+    assert client.post("/api/v1/works", content=b"{", headers=bad).status_code == 401
+    assert client.get("/api/v1/nope").status_code == 401
+    # With the token, the same body is a validation error.
+    ok = {**AUTH, "Content-Type": "application/json"}
+    assert client.post("/api/v1/probe/body", content=b"{not json", headers=ok).status_code == 422
 
 
 def test_validation_error_body(client: TestClient) -> None:
