@@ -90,6 +90,15 @@ test('strong hostility beats family and love; short words count only as whole wo
   expect(kindOf('라이벌이자 절친')).toBe('friendly')
 })
 
+test('family beats love, spouses stay love, and 연적 is mere rivalry', () => {
+  for (const text of ['사랑하는 딸', '사랑하는 동생', '사랑하는 형', '사랑하는 스승'])
+    expect(kindOf(text)).toBe('friendly')
+  for (const text of ['사랑하는 아내', '첫사랑', '사랑하는 남편', '약혼자'])
+    expect(kindOf(text)).toBe('love')
+  expect(kindOf('연적이자 친구')).toBe('friendly')
+  expect(kindOf('원수가 된 동생')).toBe('hostile')
+})
+
 test('a line takes the strongest side, solid only when both sides feel it', () => {
   const pair = (ab: string | null, ba: string | null) => ({ id: 'x', a: 'c_a', b: 'c_b', ab, ba })
   expect(styleOf(pair('연인', '약혼자'))).toEqual({
