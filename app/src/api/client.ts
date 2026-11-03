@@ -13,6 +13,7 @@ import type {
   Draft,
   DraftCreate,
   DraftGenerate,
+  DraftStructure,
   HealthResponse,
   Job,
   JobAccepted,
@@ -125,6 +126,12 @@ export const api = {
   generateCard: (draftId: string, body: DraftGenerate) =>
     request<JobAccepted>(`${draft(draftId)}/generate`, {
       method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  /** 5→4 on the generated part or episode, in code on the server (§7): no model call. */
+  putStructure: (draftId: string, body: DraftStructure) =>
+    request<Draft>(`${draft(draftId)}/structure`, {
+      method: 'PUT',
       body: JSON.stringify(body),
     }),
   saveDraft: (draftId: string) => request<Card>(`${draft(draftId)}/save`, { method: 'POST' }),

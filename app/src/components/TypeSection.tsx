@@ -100,7 +100,8 @@ function StructurePicker({
               data-recommended={recommended || undefined}
               disabled={busy}
               onClick={() => {
-                // Another stage count: the card is generated again with it (§7).
+                // Another stage count (§7): 5→4 is mapped in code, else the drawer asks
+                // before the card is generated again with it.
                 if (current !== count) onPick(count)
               }}
             >
@@ -112,7 +113,11 @@ function StructurePicker({
         })}
       </div>
       <p className="notes-empty">
-        {current === null ? strings.typeSection.noStructure : strings.typeSection.structureNote}
+        {current === null
+          ? strings.typeSection.noStructure
+          : current === 5
+            ? strings.typeSection.fiveNote
+            : strings.typeSection.fourNote}
       </p>
     </>
   )

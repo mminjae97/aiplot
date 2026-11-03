@@ -517,3 +517,99 @@ def test_an_edited_episode_keeps_where_it_stands_now_not_its_old_data(
     # Its part's card is gone: the generation context names the part it is in now.
     prompt = llm.requests[-1].messages[-1]["content"]
     assert "c_part2" in prompt and "c_part1" not in prompt
+
+
+def test_five_stages_map_onto_four_in_code() -> None:
+    from aiplot.services.structure import five_to_four
+
+    five: dict[str, Any] = {
+        "type": 5,
+        "stages": [
+            {"name": "발단", "summary": "테오가 돌아온다.", "tension": 1},
+            {"name": "전개", "summary": "흉터의 비밀이 드러난다.", "tension": 3},
+            {"name": "위기", "summary": " 미라가 사라진다. ", "tension": 2},
+            {"name": "절정", "summary": "탑에서 맞선다.", "tension": 5},
+            {"name": "결말", "summary": None, "tension": None},
+        ],
+    }
+    assert five_to_four(five) == {
+        "type": 4,
+        "stages": [
+            {"name": "기", "summary": "테오가 돌아온다.", "tension": 1},
+            {"name": "승", "summary": "흉터의 비밀이 드러난다. 미라가 사라진다.", "tension": 3},
+            {"name": "전", "summary": "탑에서 맞선다.", "tension": 5},
+            {"name": "결", "summary": None, "tension": None},
+        ],
+    }
+    # 승 from one side only, or from neither.
+    five["stages"][1] = {"name": "전개", "summary": None, "tension": None}
+    joined = {"name": "승", "summary": "미라가 사라진다.", "tension": 2}
+    assert five_to_four(five)["stages"][1] == joined
+    five["stages"][2] = {"name": "위기", "summary": "", "tension": None}
+    assert five_to_four(five)["stages"][1] == {"name": "승", "summary": None, "tension": None}
+
+
+def test_a_generated_card_goes_from_five_stages_to_four_without_the_model(
+    client: TestClient, conn: sqlite3.Connection, llm: Scripted
+) -> None:
+    story(conn)
+    value = episode("c_new")
+    llm.say("card", output("episode", value, evidence={"structure": [0], "theme": [1]}))
+    draft_id = open_draft(client, {"type": "episode", "part_id": "c_part1"})
+    assert generate(client, draft_id, {"structure": 5})["status"] == "done"
+    before = generated(client, draft_id)
+    calls = len(llm.requests)
+    response = client.put(f"/api/v1/drafts/{draft_id}/structure", headers=AUTH, json={"type": 4})
+    assert response.status_code == 200, response.json()
+    after = response.json()["generated"]
+    assert len(llm.requests) == calls
+    assert after["data"]["structure"] == {
+        "type": 4,
+        "stages": [
+            {"name": "기", "summary": "발단 요약", "tension": 1},
+            {"name": "승", "summary": "전개 요약 위기 요약", "tension": 3},
+            {"name": "전", "summary": "절정 요약", "tension": 5},
+            {"name": "결", "summary": "결말 요약", "tension": 2},
+        ],
+    }
+    # Nothing else changes: other fields, evidence, AI guesses.
+    assert after["evidence"] == {"structure": [0], "theme": [1]}
+    assert {**after, "data": {**after["data"], "structure": None}} == {
+        **before,
+        "data": {**before["data"], "structure": None},
+    }
+    assert generated(client, draft_id) == after
+    # 저장 saves it as shown.
+    saved = save_draft(client, draft_id).json()
+    assert saved["data"]["structure"] == after["data"]["structure"]
+
+
+def test_structure_change_refusals(
+    client: TestClient, conn: sqlite3.Connection, llm: Scripted
+) -> None:
+    def put(draft_id: str, body: dict[str, Any]) -> Any:
+        return client.put(f"/api/v1/drafts/{draft_id}/structure", headers=AUTH, json=body)
+
+    assert error(put("dr_ghost", {"type": 4})) == (404, "DRAFT_NOT_FOUND")
+    story(conn)
+    draft_id = open_draft(client, {"type": "episode", "part_id": "c_part1"})
+    assert error(put(draft_id, {"type": 4})) == (409, "NOTHING_TO_CONVERT")
+    # 4→5 is the AI's split of 승, not built yet.
+    assert error(put(draft_id, {"type": 5})) == (422, "VALIDATION_ERROR")
+    llm.say("card", output("episode", episode("c_new")))
+    assert generate(client, draft_id)["status"] == "done"
+    assert put(draft_id, {"type": 4}).status_code == 200
+    # Already four stages.
+    assert error(put(draft_id, {"type": 4})) == (409, "STRUCTURE_NOT_FIVE")
+    # A card type without a structure.
+    llm.say("card", output("character", fixture("character")))
+    draft_id = open_draft(client, {"type": "character"})
+    assert generate(client, draft_id)["status"] == "done"
+    assert error(put(draft_id, {"type": 4})) == (409, "STRUCTURE_NOT_FIVE")
+    # An undecided structure.
+    llm.say("card", output("episode", episode("c_new", structure=None)))
+    draft_id = open_draft(client, {"type": "episode", "part_id": "c_part1"})
+    assert generate(client, draft_id)["status"] == "done"
+    assert error(put(draft_id, {"type": 4})) == (409, "STRUCTURE_NOT_FIVE")
+    conn.execute("UPDATE work SET stage = 2, locked_stage = 1")
+    assert error(put(draft_id, {"type": 4})) == (423, "STAGE_LOCKED")

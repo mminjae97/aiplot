@@ -322,8 +322,18 @@ export const strings = {
     five: '발단·전개·위기·절정·결말 — 갈등이 점점 터져 오르는 이야기',
     four: '기·승·전·결 — 상황이 뒤집히는 이야기',
     recommended: '✦ 추천',
-    structureNote: '다른 단계 수를 고르면 그 구조로 카드를 다시 만들어요.',
-    noStructure: '원문에 구조가 정해지면 추천이 나와요. 미리 고르면 그 구조로 만들어요.',
+    fiveNote:
+      '4단계를 고르면 발단은 기, 전개와 위기는 승, 절정은 전, 결말은 결로 옮겨요. 다른 칸은 그대로예요.',
+    fourNote:
+      '5단계를 고르면 그 구조로 카드를 다시 만들어요. 고정하지 않은 다른 칸도 바뀔 수 있어요.',
+    noStructure: '원문에 구조가 정해지면 추천이 나와요. 고르면 그 구조로 카드를 다시 만들어요.',
+    converting: '4단계로 옮기는 중',
+    convertFailed: '4단계로 옮기지 못했어요. 다시 시도해 주세요.',
+    regenerateTitle: (count: number) => `${String(count)}단계로 카드를 다시 만들까요?`,
+    regenerateBody:
+      '단계 수를 바꾸려면 카드를 다시 만들어야 해요. 고정하지 않은 다른 칸도 다시 쓸 수 있어요.',
+    regenerate: '다시 만들기',
+    keepCard: '지금 카드 두기',
     milestones: '이 부가 이루는 사건',
     noMilestones: '메인 스토리에 주요 사건이 아직 없어요.',
     loadingMilestones: '사건을 불러오는 중',

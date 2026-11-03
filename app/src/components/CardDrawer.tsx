@@ -168,12 +168,17 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
   const [confirming, setConfirming] = useState(false)
   // The stage count picked for a part or an episode (§7): sent with every generation.
   const [structure, setStructure] = useState<4 | 5 | null>(null)
+  // 5→4 on the generated card, in code on the server (§7).
+  const [converting, setConverting] = useState(false)
+  // A stage count that needs the card generated again, waiting for the user's yes.
+  const [asking, setAsking] = useState<4 | 5 | null>(null)
   // The notes the shown card was generated from: once they change, the card is stale.
   const [generatedFrom, setGeneratedFrom] = useState<string | null>(null)
   // The notes the drawer opened with (a saved card's, else none): closing asks once they differ.
   const [openedNotes, setOpenedNotes] = useState('')
   const panel = useRef<HTMLDivElement>(null)
   const keepWriting = useRef<HTMLButtonElement>(null)
+  const keepCard = useRef<HTMLButtonElement>(null)
   // Lifecycle, outside render: the draft once created, whether the drawer is still mounted,
   // the running turn's and generation's streams.
   const life = useRef({
@@ -215,7 +220,8 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
   const headline = useHeadline(request, generated, saved.data, cards.data?.cards ?? [])
   const pins = pinned ?? current?.pinned ?? []
   const stale = generated !== null && generatedFrom !== null && current?.notes !== generatedFrom
-  const quiet = stage === 'idle' && generating === null && editing === null && !saving
+  const quiet =
+    stage === 'idle' && generating === null && editing === null && !saving && !converting
   const canGenerate = quiet && !confirming && current !== undefined && current.notes.trim() !== ''
   const canSave = quiet && generated !== null && !stale
 
@@ -238,6 +244,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     requestClose,
     editing,
     confirming,
+    asking,
     generate: (): void => undefined,
     save: (): void => undefined,
   })
@@ -347,6 +354,41 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     }
   }
 
+  /** Another stage count for the generated part or episode (§7): 5→4 maps the stages in code
+   * and changes nothing else; any other change needs the card generated again, so it asks
+   * first (the AI's split of 승 for 4→5 is not built yet). */
+  const pickStructure = async (count: 4 | 5, current: 4 | 5 | null) => {
+    if (draftId === null || !canGenerate) return
+    if (!(current === 5 && count === 4)) {
+      setAsking(count)
+      return
+    }
+    setConverting(true)
+    setGenError(null)
+    setSaveError(null)
+    try {
+      const updated = await api.putStructure(draftId, { type: 4 })
+      queryClient.setQueryData(draftKey(updated.id), updated)
+      setStructure(4)
+    } catch (err) {
+      setGenError(
+        err instanceof ApiRequestError && err.code in strings.drawer.errors
+          ? errorText(err.code)
+          : strings.typeSection.convertFailed,
+      )
+    } finally {
+      setConverting(false)
+    }
+  }
+
+  const regenerateWith = (count: 4 | 5) => {
+    setAsking(null)
+    // The pick holds once a card with it came back; a failure keeps the old.
+    void generate(count).then((ok) => {
+      if (ok) setStructure(count)
+    })
+  }
+
   const cancelGeneration = () => {
     if (generating?.jobId) void api.cancelJob(generating.jobId).catch(() => undefined)
   }
@@ -378,6 +420,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
       requestClose,
       editing,
       confirming,
+      asking,
       generate: () => {
         void generate()
       },
@@ -441,6 +484,8 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     const onKey = (event: KeyboardEvent) => {
       if (event.isComposing) return
       const now = latest.current
+      // The stage count question takes its own keys (Esc = keep the card).
+      if (now.asking !== null) return
       if (event.key === 'Escape') {
         // An open notes editor takes Esc for itself (SourcePanel); never lose its text.
         if (now.confirming) return
@@ -475,6 +520,10 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
   useEffect(() => {
     if (confirming) keepWriting.current?.focus()
   }, [confirming])
+
+  useEffect(() => {
+    if (asking !== null) keepCard.current?.focus()
+  }, [asking])
 
   const saveNotes = async (notes: string) => {
     if (draftId === null) return
@@ -523,7 +572,14 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     <div
       className="drawer-backdrop"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && editing === null && !confirming) requestClose()
+        if (
+          event.target === event.currentTarget &&
+          editing === null &&
+          !confirming &&
+          asking === null
+        ) {
+          requestClose()
+        }
       }}
     >
       <div
@@ -568,7 +624,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
             {strings.drawer.opening}
           </p>
         ) : (
-          <div className="drawer-body" inert={confirming}>
+          <div className="drawer-body" inert={confirming || asking !== null}>
             <div className="drawer-left">
               <ChatPanel
                 workId={request.workId}
@@ -651,6 +707,12 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                   {genError}
                 </p>
               )}
+              {converting && (
+                <p className="notes-empty" role="status">
+                  <span className="spinner" aria-hidden="true" />
+                  {strings.typeSection.converting}
+                </p>
+              )}
               {generated === null ? (
                 <p className="notes-empty">
                   {current.notes.trim() ? strings.drawer.previewEmpty : strings.preview.needNotes}
@@ -664,10 +726,11 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                     structure={structure}
                     busy={!canGenerate}
                     onStructure={(count) => {
-                      // The pick holds once a card with it came back; a failure keeps the old.
-                      void generate(count).then((ok) => {
-                        if (ok) setStructure(count)
-                      })
+                      const now =
+                        generated.type === 'part' || generated.type === 'episode'
+                          ? (generated.data.structure?.type ?? null)
+                          : null
+                      void pickStructure(count, now)
                     }}
                   />
                   <CardPreview
@@ -733,6 +796,47 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                 </>
               )}
             </section>
+          </div>
+        )}
+        {asking !== null && <div className="drawer-scrim" aria-hidden="true" />}
+        {asking !== null && (
+          <div
+            className="drawer-confirm"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="structure-confirm-title"
+            aria-describedby="structure-confirm-body"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.stopPropagation()
+                setAsking(null)
+              }
+            }}
+          >
+            <h3 id="structure-confirm-title">{strings.typeSection.regenerateTitle(asking)}</h3>
+            <p id="structure-confirm-body">{strings.typeSection.regenerateBody}</p>
+            <div className="preview-actions">
+              <button
+                ref={keepCard}
+                type="button"
+                className="paper-button"
+                onClick={() => {
+                  setAsking(null)
+                }}
+              >
+                {strings.typeSection.keepCard}
+              </button>
+              <button
+                type="button"
+                className="paper-button"
+                data-danger
+                onClick={() => {
+                  regenerateWith(asking)
+                }}
+              >
+                {strings.typeSection.regenerate}
+              </button>
+            </div>
           </div>
         )}
         {confirming && <div className="drawer-scrim" aria-hidden="true" />}
