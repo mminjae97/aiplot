@@ -1,0 +1,173 @@
+{
+ "seeds": "../../unit15/cases/hunter.json",
+ "episodes": [
+  {
+   "id": "c_huep1",
+   "name": "닫히는 문",
+   "data": {
+    "part_id": "c_hupart1",
+    "order": 1,
+    "theme": "버려진 자리에서 다시 시작하는 사람",
+    "relation_to_main": "도윤이 던전에서 죽을 뻔하다 되감기 능력을 얻는 사건(ms_hu1)을 이룬다.",
+    "fulfills": [
+     "ms_hu1"
+    ],
+    "characters": [
+     "c_huchar1"
+    ],
+    "locations": {
+     "main": "c_hureg2",
+     "others": []
+    },
+    "world": [
+     "c_huworld1"
+    ],
+    "links": {
+     "prev": null,
+     "next": "c_huep2",
+     "causes": []
+    },
+    "foreshadowing": {
+     "plants": [],
+     "payoffs": []
+    },
+    "worldline_id": null,
+    "structure": {
+     "type": 5,
+     "stages": [
+      {
+       "name": "발단",
+       "summary": "새벽, F급 헌터 도윤은 하루 일당을 받고 C급 파티의 짐꾼으로 인천 폐항구 던전에 들어간다. 지루한 짐 나르기가 이어진다.",
+       "tension": 1
+      },
+      {
+       "name": "전개",
+       "summary": "파티는 예정에 없던 보스 방까지 내려간다. 도윤은 무거운 짐을 지고 뒤처진다.",
+       "tension": 2
+      },
+      {
+       "name": "위기",
+       "summary": "보스가 깨어나자 파티장은 도윤을 미끼로 남기고 탈출한다. 게이트가 닫히기까지 남은 시간은 삼 분, 출구까지는 이백 미터다.",
+       "tension": 4
+      },
+      {
+       "name": "절정",
+       "summary": "보스의 일격에 쓰러진 순간 눈앞에 '되감기' 창이 뜨고, 시간이 십 초 전으로 돌아간다.",
+       "tension": 5
+      },
+      {
+       "name": "결말",
+       "summary": "도윤은 되감기를 반복해 보스의 공격을 피하고, 닫히기 직전의 게이트를 빠져나온다.",
+       "tension": 3
+      }
+     ]
+    },
+    "synopsis": "짐꾼으로 들어간 던전에서 파티에 버려진 도윤이 게이트가 닫히기 삼 분 전 보스 앞에 남는다. 죽는 순간 시간을 되감는 능력이 깨어나고, 도윤은 되감기를 반복해 살아 나온다."
+   },
+   "gold": [
+    {
+     "stage": "발단",
+     "accept": [
+      "tech_ser_001",
+      "tech_ser_005",
+      "tech_ser_004"
+     ],
+     "why": "시간순으로는 지루한 짐 나르기로 시작한다. 웹소설 1화라면 위기 한가운데서 열거나 위기 장면을 먼저 보여 주는 편이 낫다."
+    },
+    {
+     "stage": "위기",
+     "accept": [
+      "tech_inf_022",
+      "tech_inf_041",
+      "tech_inf_040",
+      "tech_str_027"
+     ],
+     "why": "삼 분과 이백 미터라는 시한이 명시되어 있고 승산이 바닥이다: 째깍거리는 시계, 승산 조절, 판돈 제시, 급전."
+    }
+   ]
+  },
+  {
+   "id": "c_huep2",
+   "name": "짜장면은 두고 가요",
+   "data": {
+    "part_id": "c_hupart1",
+    "order": 2,
+    "theme": "처음으로 누군가 나를 믿어 주는 순간",
+    "relation_to_main": "도윤이 길드 청운에 들어가는 사건(ms_hu2)을 이룬다.",
+    "fulfills": [
+     "ms_hu2"
+    ],
+    "characters": [
+     "c_huchar1",
+     "c_huchar2",
+     "c_huchar4"
+    ],
+    "locations": {
+     "main": "c_hureg3",
+     "others": []
+    },
+    "world": [
+     "c_huworld1"
+    ],
+    "links": {
+     "prev": "c_huep1",
+     "next": null,
+     "causes": []
+    },
+    "foreshadowing": {
+     "plants": [],
+     "payoffs": []
+    },
+    "worldline_id": null,
+    "structure": {
+     "type": 4,
+     "stages": [
+      {
+       "name": "기",
+       "summary": "합격 통보를 받은 도윤이 배달 가방을 멘 채 청운 길드 본부에 첫 출근한다. 배달 아르바이트를 마치고 바로 온 길이다.",
+       "tension": 1
+      },
+      {
+       "name": "승",
+       "summary": "윤채아는 도윤을 배달원으로 알고 영수증을 내밀고, 다른 길드원은 짐 내려놓을 곳을 가리킨다. 마지막으로 길드장 한서진마저 '짜장면은 두고 가요'라고 말한다.",
+       "tension": 2
+      },
+      {
+       "name": "전",
+       "summary": "오후에 들른 협회 직원이 도윤의 F급 등급증을 보고 길드를 비웃는다. 서진은 직원 앞에 등급증을 내려놓으며 '우리 길드원입니다'라고 말하고, 직원은 말문이 막힌다.",
+       "tension": 4
+      },
+      {
+       "name": "결",
+       "summary": "저녁, 채아가 사과의 뜻으로 짜장면을 시키고 도윤은 길드 배지를 받는다.",
+       "tension": 2
+      }
+     ]
+    },
+    "synopsis": "청운 길드 첫 출근 날 도윤은 배달 가방 때문에 세 번이나 배달원으로 오해받는다. 협회 직원이 F급이라고 비웃자 길드장 서진이 그를 길드원으로 감싼다. 저녁에 도윤은 배지를 받는다."
+   },
+   "gold": [
+    {
+     "stage": "승",
+     "accept": [
+      "tech_inf_038",
+      "tech_inf_032",
+      "tech_inf_033",
+      "tech_inf_031",
+      "tech_inf_034"
+     ],
+     "why": "같은 오해가 세 번 반복되고 세 번째에 가장 크게 터진다: 오인 코미디, 3의 법칙, 반복 개그, 부조화 웃음, 해학."
+    },
+    {
+     "stage": "전",
+     "accept": [
+      "tech_cha_028",
+      "tech_ser_044",
+      "tech_cha_023"
+     ],
+     "why": "무시당하던 쪽이 말 한마디로 주도권을 가져오고 상대가 말문이 막힌다: 권력 이동 대화, 반응 컷, 빠른 응수."
+    }
+   ]
+  }
+ ]
+}

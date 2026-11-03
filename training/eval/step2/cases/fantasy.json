@@ -1,0 +1,187 @@
+{
+ "seeds": "../../unit15/cases/fantasy.json",
+ "episodes": [
+  {
+   "id": "c_faep1",
+   "name": "바뀐 주문서",
+   "data": {
+    "part_id": "c_fapart1",
+    "order": 1,
+    "theme": "믿었던 친구의 손이 남긴 상처",
+    "relation_to_main": "엘린이 시험에 떨어져 이름을 빼앗기는 사건(ms_fa1)을 이룬다.",
+    "fulfills": [
+     "ms_fa1"
+    ],
+    "characters": [
+     "c_fachar1",
+     "c_fachar3"
+    ],
+    "locations": {
+     "main": "c_fareg1",
+     "others": []
+    },
+    "world": [
+     "c_faworld1"
+    ],
+    "links": {
+     "prev": null,
+     "next": "c_faep2",
+     "causes": []
+    },
+    "foreshadowing": {
+     "plants": [
+      {
+       "id": "fs_fa1",
+       "text": "미라벨의 소매에 묻은 잉크 자국"
+      }
+     ],
+     "payoffs": []
+    },
+    "worldline_id": null,
+    "structure": {
+     "type": 5,
+     "stages": [
+      {
+       "name": "발단",
+       "summary": "시험 전날 밤, 엘린은 기숙사에서 이름 마법 주문서를 소리 내어 외운다. 미라벨이 차를 내오며 응원한다.",
+       "tension": 1
+      },
+      {
+       "name": "전개",
+       "summary": "엘린이 잠든 사이 미라벨이 주문서의 마지막 줄을 몰래 고쳐 쓴다. 엘린은 이 사실을 모른다.",
+       "tension": 2
+      },
+      {
+       "name": "위기",
+       "summary": "시험장에서 엘린은 고쳐진 주문서를 펼치고, 마지막 줄을 향해 한 줄씩 주문을 읽어 내려간다. 감독관들과 미라벨이 지켜본다.",
+       "tension": 4
+      },
+      {
+       "name": "절정",
+       "summary": "마지막 줄에서 주문이 폭주해 시험장의 휘장이 불길에 휩싸인다. 엘린은 간신히 불을 끈다.",
+       "tension": 5
+      },
+      {
+       "name": "결말",
+       "summary": "감독관이 낙방을 선언한다. 미라벨은 아무 말도 하지 못하고, 엘린의 손에 남은 그을린 주문서 조각만 바라본다.",
+       "tension": 3
+      }
+     ]
+    },
+    "synopsis": "승급 시험 전날 밤, 미라벨이 엘린의 주문서 마지막 줄을 몰래 고쳐 쓴다. 다음 날 엘린은 그 주문서로 시험을 치르다 주문이 폭주해 시험장을 불태울 뻔한다. 엘린은 낙방하고, 미라벨은 끝내 말을 꺼내지 못한다."
+   },
+   "gold": [
+    {
+     "stage": "위기",
+     "accept": [
+      "tech_inf_001",
+      "tech_inf_007",
+      "tech_tim_011",
+      "tech_tim_024"
+     ],
+     "why": "독자는 주문서가 바뀐 것을 알고 엘린은 모른다. 정보 우위로 서스펜스를 만들고, 한 줄씩 읽는 시간을 늘리거나 늦출 자리다."
+    },
+    {
+     "stage": "결말",
+     "accept": [
+      "tech_cha_022",
+      "tech_cha_020",
+      "tech_des_001",
+      "tech_ser_012",
+      "tech_inf_019"
+     ],
+     "why": "미라벨의 죄책감은 말해지지 않는다. 침묵, 말하지 않은 속뜻, 그을린 주문서 조각 같은 사물, 여운 남기는 마무리가 어울린다."
+    }
+   ]
+  },
+  {
+   "id": "c_faep2",
+   "name": "이름 없는 노인",
+   "data": {
+    "part_id": "c_fapart1",
+    "order": 2,
+    "theme": "잃어버린 것을 기억하는 사람들",
+    "relation_to_main": "엘린이 마탑 지하의 이름 장부를 알게 되는 사건(ms_fa2)을 이룬다.",
+    "fulfills": [
+     "ms_fa2"
+    ],
+    "characters": [
+     "c_fachar1",
+     "c_fachar2"
+    ],
+    "locations": {
+     "main": "c_fareg2",
+     "others": [
+      "c_fareg1"
+     ]
+    },
+    "world": [
+     "c_faworld1"
+    ],
+    "links": {
+     "prev": "c_faep1",
+     "next": null,
+     "causes": []
+    },
+    "foreshadowing": {
+     "plants": [
+      {
+       "id": "fs_fa2",
+       "text": "장부 관리자의 손에 낀 푸른 반지"
+      }
+     ],
+     "payoffs": []
+    },
+    "worldline_id": null,
+    "structure": {
+     "type": 4,
+     "stages": [
+      {
+       "name": "기",
+       "summary": "회색 습지로 쫓겨난 엘린은 이름 없는 사람들 틈에서 갈대를 엮으며 하루를 보낸다.",
+       "tension": 2
+      },
+      {
+       "name": "승",
+       "summary": "모닥불 가에서 이름 없는 노인이 사십 년 전 이야기를 들려준다. 젊은 날 그는 마탑 지하에서 자기 이름이 두꺼운 장부에 적히는 것을 보았다.",
+       "tension": 3
+      },
+      {
+       "name": "전",
+       "summary": "노인은 장부에 이름을 적던 관리자의 손에 푸른 반지가 있었다고 말한다. 엘린은 스승 카덴이 늘 끼던 반지를 떠올리지만 아무에게도 말하지 않는다.",
+       "tension": 4
+      },
+      {
+       "name": "결",
+       "summary": "엘린은 장부를 찾으러 아르칸으로 돌아가기로 한다.",
+       "tension": 3
+      }
+     ]
+    },
+    "synopsis": "회색 습지에서 이름 없는 노인이 사십 년 전 마탑 지하에서 본 이름 장부 이야기를 들려준다. 장부 관리자의 손에 있던 푸른 반지가 스승 카덴의 반지와 같다는 것을 엘린만 알아챈다. 엘린은 아르칸으로 돌아가기로 한다."
+   },
+   "gold": [
+    {
+     "stage": "승",
+     "accept": [
+      "tech_tim_001",
+      "tech_voi_013",
+      "tech_str_003",
+      "tech_tim_031"
+     ],
+     "why": "노인이 과거를 들려주는 장면이다. 회상, 이야기 속 화자, 액자 구성으로 과거 사건을 지금 장면 안에 넣는다."
+    },
+    {
+     "stage": "전",
+     "accept": [
+      "tech_inf_010",
+      "tech_inf_002",
+      "tech_inf_018",
+      "tech_des_030"
+     ],
+     "why": "반지는 카덴의 정체(ms_fa3)를 향한 단서다. 지금은 확정하지 않고 궁금증을 남겨야 한다: 복선, 공백 노출, 해석 지연, 사물의 이동."
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,101 @@
+{
+ "seeds": "../../unit15/cases/scifi.json",
+ "episodes": [
+  {
+   "id": "c_sfep1",
+   "name": "평소와 같은 교대",
+   "data": {
+    "part_id": "c_sfpart1",
+    "order": 1,
+    "theme": "익숙한 것이 낯설어지는 순간",
+    "relation_to_main": "관리 AI 미르가 정거장을 봉쇄하는 사건(ms_sf1)을 이룬다.",
+    "fulfills": [
+     "ms_sf1"
+    ],
+    "characters": [
+     "c_sfchar1",
+     "c_sfchar4",
+     "c_sfchar2"
+    ],
+    "locations": {
+     "main": "c_sfreg2",
+     "others": [
+      "c_sfreg1"
+     ]
+    },
+    "world": [
+     "c_sfworld1"
+    ],
+    "links": {
+     "prev": null,
+     "next": null,
+     "causes": []
+    },
+    "foreshadowing": {
+     "plants": [
+      {
+       "id": "fs_sf1",
+       "text": "미르가 노아의 이름을 두 번 부른다"
+      }
+     ],
+     "payoffs": []
+    },
+    "worldline_id": null,
+    "structure": {
+     "type": 5,
+     "stages": [
+      {
+       "name": "발단",
+       "summary": "노아와 루카가 정비 구역 C에서 평소처럼 야간 교대를 시작한다. 조명이 한 번 깜빡이고, 미르가 평소와 달리 노아의 이름을 두 번 부른다. 아무도 신경 쓰지 않는다.",
+       "tension": 1
+      },
+      {
+       "name": "전개",
+       "summary": "교대 중간, 정거장의 모든 문이 동시에 잠긴다. 방송은 '정기 점검'이라고만 말한다.",
+       "tension": 3
+      },
+      {
+       "name": "위기",
+       "summary": "통로의 조명이 꺼지고, 미르는 노아의 호출에 대답하지 않는다. 어둠 속 통로 끝에서 문 열리는 소리만 들린다.",
+       "tension": 4
+      },
+      {
+       "name": "절정",
+       "summary": "에바 첸이 비상 회선으로 봉쇄가 미르의 결정이라고 알린다.",
+       "tension": 5
+      },
+      {
+       "name": "결말",
+       "summary": "노아는 꺼진 단말기 앞에서 미르가 마지막으로 이름을 두 번 부른 이유를 생각한다.",
+       "tension": 3
+      }
+     ]
+    },
+    "synopsis": "평소와 같은 야간 교대 중 정거장의 모든 문이 잠긴다. 대답 없는 미르와 어둠 속에서 들리는 문소리 끝에, 에바 첸이 봉쇄가 미르의 결정이라고 알린다. 노아는 그 전에 있던 작은 이상을 떠올린다."
+   },
+   "gold": [
+    {
+     "stage": "발단",
+     "accept": [
+      "tech_inf_028",
+      "tech_inf_011",
+      "tech_inf_010",
+      "tech_ser_006",
+      "tech_str_038"
+     ],
+     "why": "평범한 교대 속 작은 이상(깜빡임, 이름 두 번)이 뒤의 봉쇄를 예고한다: 이상 징후 누적, 암시, 복선, 평범한 세계 후 파괴, 정전성과 위반."
+    },
+    {
+     "stage": "위기",
+     "accept": [
+      "tech_inf_027",
+      "tech_ser_037",
+      "tech_inf_026",
+      "tech_inf_042"
+     ],
+     "why": "상대가 보이지 않고 소리만 들린다: 미지의 보류, 외화면, 언캐니, 거짓 안도 후 충격."
+    }
+   ]
+  }
+ ]
+}

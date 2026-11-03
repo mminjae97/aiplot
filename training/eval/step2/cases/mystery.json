@@ -1,0 +1,94 @@
+{
+ "seeds": "../../unit15/cases/mystery.json",
+ "episodes": [
+  {
+   "id": "c_myep1",
+   "name": "사진 뒷면",
+   "data": {
+    "part_id": "c_mypart1",
+    "order": 1,
+    "theme": "자기 기억을 의심하는 순간",
+    "relation_to_main": "재희가 실종 사건의 새 단서를 받는 사건(ms_my1)을 이룬다.",
+    "fulfills": [
+     "ms_my1"
+    ],
+    "characters": [
+     "c_mychar1",
+     "c_mychar4",
+     "c_mychar2"
+    ],
+    "locations": {
+     "main": "c_myreg1",
+     "others": [
+      "c_myreg2",
+      "c_myreg3"
+     ]
+    },
+    "world": [],
+    "links": {
+     "prev": null,
+     "next": null,
+     "causes": []
+    },
+    "foreshadowing": {
+     "plants": [
+      {
+       "id": "fs_my1",
+       "text": "재희의 수첩에 적힌 '오진혁을 믿지 마'"
+      }
+     ],
+     "payoffs": []
+    },
+    "worldline_id": null,
+    "structure": {
+     "type": 4,
+     "stages": [
+      {
+       "name": "기",
+       "summary": "재희는 오피스텔에서 눈을 뜨자마자 어제의 수첩을 읽는다. 우편함에는 십 년 전 실종된 한수아의 사진이 익명으로 와 있다.",
+       "tension": 2
+      },
+      {
+       "name": "승",
+       "summary": "재희와 민준은 사진 속 장소가 등대섬이라는 것을 알아낸다. 사진 뒷면의 필체가 등대섬 등대지기의 것과 닮아, 민준은 등대지기를 의심한다.",
+       "tension": 3
+      },
+      {
+       "name": "전",
+       "summary": "옛 파트너 오진혁이 사건 기록을 건네며 등대지기를 조사하라고 거든다. 재희는 오진혁을 믿고 등대섬 배편을 끊는다.",
+       "tension": 3
+      },
+      {
+       "name": "결",
+       "summary": "그날 밤 재희는 수첩의 앞쪽에서 자기 필체로 적힌 '오진혁을 믿지 마'라는 문장을 발견한다. 언제 썼는지 기억나지 않는다.",
+       "tension": 5
+      }
+     ]
+    },
+    "synopsis": "기억을 잃는 형사 재희에게 실종된 한수아의 사진이 익명으로 도착한다. 사진 뒷면의 필체 때문에 등대지기가 의심받고, 옛 파트너 오진혁도 그쪽을 가리킨다. 그날 밤 재희는 자기 수첩에서 오진혁을 믿지 말라는, 기억에 없는 문장을 찾는다."
+   },
+   "gold": [
+    {
+     "stage": "승",
+     "accept": [
+      "tech_inf_013",
+      "tech_inf_015",
+      "tech_inf_018",
+      "tech_inf_002"
+     ],
+     "why": "필체 단서는 진범(오진혁)에게서 눈을 돌리게 한다: 레드 헤링, 정보 묻기, 해석 지연, 공백 노출."
+    },
+    {
+     "stage": "결",
+     "accept": [
+      "tech_inf_003",
+      "tech_ser_011",
+      "tech_tim_010",
+      "tech_inf_002"
+     ],
+     "why": "앞의 믿음을 뒤집는 문장이 회차 끝에 나온다: 놀람형 은폐, 반전 결말, 가정적 생략, 공백 노출."
+    }
+   ]
+  }
+ ]
+}
