@@ -7,7 +7,7 @@ import { App } from '../src/App'
 import { useNavigation } from '../src/stores/navigation'
 import { connectServer, useServer } from '../src/stores/server'
 import { strings } from '../src/strings'
-import type { HealthResponse, SetupStatus } from '../src/types'
+import type { Draft, HealthResponse, SetupStatus, Work } from '../src/types'
 
 const READY: ServerState = {
   status: 'ready',
@@ -66,6 +66,31 @@ function setupStatus(jobId: string | null): SetupStatus {
 
 type Call = { method: string; path: string; body: unknown }
 
+const WORK: Work = {
+  id: 'w_1',
+  title: '책',
+  stage: 1,
+  locked_stage: 0,
+  last_item: null,
+  color: null,
+  cover_id: null,
+  updated_at: '2026-11-03T00:00:00.000Z',
+}
+
+const DRAFT: Draft = {
+  id: 'dr_1',
+  work_id: 'w_1',
+  type: 'world',
+  card_id: null,
+  category: 'rule',
+  part_id: null,
+  notes: '',
+  sentences: [],
+  turns: [],
+  pinned: [],
+  generated: null,
+}
+
 /** The setup endpoints behind fetch; the job's SSE stream is pushed by the test. */
 function serve() {
   const state = {
@@ -108,6 +133,14 @@ function serve() {
         return Promise.resolve(new Response(stream, { status: 200 }))
       }
       if (path.startsWith('/jobs/job_1/')) return json({ jobId: 'job_1' })
+      // One open book (an empty world book) with a card drawer to open.
+      if (path === '/works/w_1') return json(WORK)
+      if (path.startsWith('/works/w_1/cards')) return json({ cards: [] })
+      if (path.startsWith('/works/w_1/relations')) return json({ relations: [] })
+      if (method === 'POST' && path === '/works/w_1/drafts') return json(DRAFT, 201)
+      if (method === 'GET' && path === '/drafts/dr_1') return json(DRAFT)
+      if (method === 'DELETE' && path === '/drafts/dr_1')
+        return Promise.resolve(new Response(null, { status: 204 }))
       return json({ code: 'NOT_FOUND', message: path, hint: null }, 404)
     }),
   )
@@ -144,7 +177,12 @@ function renderApp() {
 
 beforeEach(() => {
   useServer.setState({ state: null })
-  useNavigation.setState({ screen: { name: 'library' }, highlight: null })
+  useNavigation.setState({
+    screen: { name: 'library' },
+    highlight: null,
+    setupPending: false,
+    drawerOpen: false,
+  })
   useSetupJob.setState({ jobId: null })
   window.aiplot = bridge()
   connectServer()
@@ -321,22 +359,107 @@ test('llama-server failing after the first check opens S0-1, once per failure', 
   ).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: strings.setup.later }))
   expect(await screen.findByText(strings.library.empty)).toBeTruthy()
-  // A poll, rendered before the next: TanStack Query tells observers on a timer.
-  const poll = async () => {
-    await act(async () => {
-      await client.refetchQueries({ queryKey: ['health'] })
-      await new Promise((resolve) => setTimeout(resolve, 20))
-    })
-  }
   // The same failure does not send the user back.
-  await poll()
-  await poll()
+  await poll(client)
+  await poll(client)
   expect(screen.queryByRole('heading', { name: strings.setup.title })).toBeNull()
   // It ran again and failed anew: S0-1 opens again.
   state.health = health('ready')
-  await poll()
+  await poll(client)
   expect(screen.queryByRole('heading', { name: strings.setup.title })).toBeNull()
   state.health = health('error')
-  await poll()
+  await poll(client)
   expect(await screen.findByText(new RegExp(strings.setup.llamaError))).toBeTruthy()
+})
+
+/** A /health poll, rendered before the next: TanStack Query tells observers on a timer. */
+async function poll(client: QueryClient) {
+  await act(async () => {
+    await client.refetchQueries({ queryKey: ['health'] })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  })
+}
+
+/** The app open at the world book, llama running. */
+async function renderBook() {
+  const served = serve()
+  served.state.health = health('ready')
+  useNavigation.setState({ screen: { name: 'world', workId: 'w_1' } })
+  const client = renderApp()
+  await screen.findByRole('button', { name: strings.worldBook.newEntry })
+  return { ...served, client }
+}
+
+const chipName = strings.setup.chipLlamaFailed
+const setupHeading = () => screen.queryByRole('heading', { name: strings.setup.title })
+
+test('inside a book a failure only shows the chip; S0-1 opens on the way to the library', async () => {
+  const { state, client } = await renderBook()
+  state.health = health('error')
+  await poll(client)
+  expect(await screen.findByRole('button', { name: chipName })).toBeTruthy()
+  // The book stays open.
+  expect(useNavigation.getState().screen).toEqual({ name: 'world', workId: 'w_1' })
+  expect(setupHeading()).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: strings.contents.back }))
+  expect(await screen.findByText(new RegExp(strings.setup.llamaError))).toBeTruthy()
+  // Once per failure: "나중에 하기" holds while it lasts, and no chip is left behind.
+  fireEvent.click(screen.getByRole('button', { name: strings.setup.later }))
+  expect(await screen.findByText(strings.library.empty)).toBeTruthy()
+  await poll(client)
+  expect(setupHeading()).toBeNull()
+  expect(screen.queryByRole('button', { name: chipName })).toBeNull()
+})
+
+test('the chip opens S0-1 at once when no drawer is open', async () => {
+  const { state, client } = await renderBook()
+  state.health = health('error')
+  await poll(client)
+  fireEvent.click(await screen.findByRole('button', { name: chipName }))
+  expect(await screen.findByText(new RegExp(strings.setup.llamaError))).toBeTruthy()
+  // S0-1 has shown it: the library no longer waits for it.
+  fireEvent.click(screen.getByRole('button', { name: strings.setup.later }))
+  expect(await screen.findByText(strings.library.empty)).toBeTruthy()
+})
+
+test('a failure under an open card drawer keeps its draft; the chip only explains', async () => {
+  const { state, client, calls } = await renderBook()
+  fireEvent.click(screen.getByRole('button', { name: strings.worldBook.newEntry }))
+  await waitFor(() => {
+    expect(useNavigation.getState().drawerOpen).toBe(true)
+  })
+  await waitFor(() => {
+    expect(calls.some((c) => c.method === 'POST' && c.path === '/works/w_1/drafts')).toBe(true)
+  })
+  state.health = health('error')
+  await poll(client)
+  const chip = await screen.findByRole('button', { name: chipName })
+  expect(chip.getAttribute('aria-disabled')).toBe('true')
+  fireEvent.click(chip)
+  expect(await screen.findByText(strings.setup.chipAfterDrawer)).toBeTruthy()
+  await poll(client)
+  expect(setupHeading()).toBeNull()
+  expect(useNavigation.getState().screen).toEqual({ name: 'world', workId: 'w_1' })
+  expect(calls.some((c) => c.method === 'DELETE' && c.path === '/drafts/dr_1')).toBe(false)
+  // Closed (nothing unsaved): the chip leads to S0-1 now.
+  fireEvent.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: strings.drawer.close }),
+  )
+  await waitFor(() => {
+    expect(useNavigation.getState().drawerOpen).toBe(false)
+  })
+  expect(screen.queryByText(strings.setup.chipAfterDrawer)).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: chipName }))
+  expect(await screen.findByText(new RegExp(strings.setup.llamaError))).toBeTruthy()
+})
+
+test('the fixture LLM never shows the chip or opens S0-1 from a book', async () => {
+  const { state, client } = await renderBook()
+  state.health = health('fake')
+  await poll(client)
+  await poll(client)
+  expect(screen.queryByRole('button', { name: chipName })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: strings.contents.back }))
+  expect(await screen.findByText(strings.library.empty)).toBeTruthy()
+  expect(setupHeading()).toBeNull()
 })

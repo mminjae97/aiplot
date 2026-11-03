@@ -227,7 +227,15 @@
   color: var(--danger);
 }
 
-.top-bar .setup-chip + .window-controls {
+/* Why the chip waits (a card drawer is open); empty until asked. */
+.top-bar .setup-chip-note:not(:empty) {
+  margin-left: 12px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.top-bar .setup-chip + .window-controls,
+.top-bar .setup-chip-note + .window-controls {
   margin-left: 16px;
 }
 
