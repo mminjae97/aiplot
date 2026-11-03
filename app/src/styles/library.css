@@ -47,6 +47,26 @@
   white-space: nowrap;
 }
 
+/* The work title leads back to the contents: plain words, underlined on hover. */
+.top-bar-title-link {
+  max-width: 100%;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  padding: 4px 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: var(--cursor-pointer);
+}
+
+.top-bar-title-link:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
 .library {
   height: calc(100% - var(--top-bar));
   display: flex;

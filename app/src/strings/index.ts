@@ -381,6 +381,7 @@ export const strings = {
     prev: '이전 페이지',
     next: '다음 페이지',
     sections: '책갈피',
+    toContents: '목차로 가기',
     notes: {
       contents: '목차',
       world: '세계관',

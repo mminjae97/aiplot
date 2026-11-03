@@ -209,6 +209,26 @@ test('turning to another section plays a leaf; tabs within a section change in p
   expect(leaf()).toBe('prev')
 })
 
+test('the work title in the top bar turns back to the contents, as the 목차 note does', async () => {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }))
+  serve()
+  const view = renderBook({ name: 'regions', workId: 'w_1' })
+  const title = await screen.findByRole('button', { name: WORK.title })
+  expect(title.closest('h1')).not.toBeNull()
+  fireEvent.click(title)
+  expect(at()).toEqual({ name: 'contents', workId: 'w_1' })
+  expect(view.container.querySelector('.book-leaf')?.getAttribute('data-dir')).toBe('prev')
+  // On the contents it is the heading only.
+  await screen.findByRole('heading', { name: strings.contents.heading })
+  expect(screen.queryByRole('button', { name: WORK.title })).toBeNull()
+  expect(screen.getByRole('heading', { level: 1, name: WORK.title })).toBeTruthy()
+})
+
 test('without motion (reduced, or no way to ask) pages turn with no leaf', async () => {
   serve()
   const view = renderBook({ name: 'contents', workId: 'w_1' })
@@ -239,6 +259,7 @@ test('while a drawer is open the book takes no input and pages do not turn', asy
   expect(screen.getByRole('button', { name: strings.contents.back }).hasAttribute('disabled')).toBe(
     true,
   )
+  expect(screen.getByRole('button', { name: WORK.title }).hasAttribute('disabled')).toBe(true)
   fireEvent.keyDown(window, { key: 'PageDown' })
   expect(at()).toEqual({ name: 'world', workId: 'w_1' })
 })
