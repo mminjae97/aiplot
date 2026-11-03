@@ -51,10 +51,18 @@ user to check. Rules:
 
 ## Rates
 
-- Field match = matched / scored fields (exact, ids, facts, items). A card the run failed to
-  make counts every one of its scored fields as a miss.
+- Field match = matched / scored fields (exact, ids, facts, items). A facts / items field with
+  no judged entry is pending and left out, except an empty one: that is a miss without a
+  judgement. A card the run failed to make counts every one of its scored fields as a miss.
 - Unsupported fill = unsupported / filled fields that can be unsupported (all but exact ones,
-  which are compared, not judged, and given ones, which the input fixes).
+  which are compared, not judged, and given ones, which the input fixes). A filled field with
+  no judged entry that needs one (facts / items, an optional one with no evidence and no AI
+  추정 mark, an ids field whose ids miss the gold) is unsupported pending: left out of this rate
+  and counted as pending until judged. Ids that match the gold count as supported.
+- Pending = fields still waiting for a judgement, for match or for unsupported.
+- A run missing any case or name turn (run.py `--cases`, `--skip-names`) is a partial run:
+  score.py prints the scored cards and name turns against the case files' totals, warns
+  PARTIAL RUN on stderr and sets `partial_run` (with the missing ids) in its JSON.
 - Name false rate = wrong pairs in the turns that must flag none / those turns. A pair naming
   part of the card's name (무현 for 연무현), or the name with more, is fair to ask about.
 

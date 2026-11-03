@@ -9,8 +9,10 @@ for match; filled with no evidence sentence and not marked AI 추정, it needs a
 free text, unless `given` (the input fixed it); unjudged ones are pending),
 and facts / items (free text: judged by Claude in --judged, {"case id": {"path": {"match":
 bool, "unsupported": bool, "note": str}}}, then checked by the user in the report). Fields
-still unjudged show as pending and are left out of the rates. A card the run failed to make
-counts every scored field as a miss.
+still unjudged show as pending and are left out of the rates, except an empty facts / items
+field: a miss without a judgement. An ids field holding ids that miss the gold needs a
+judgement for unsupported (pending until then). A card the run failed to make counts every
+scored field as a miss. A run missing any case or name turn is flagged PARTIAL RUN.
 
 Unsupported fill = unsupported / filled fields, over fields that can be unsupported (not exact
 or given ones). Name false rate = wrong pairs in the turns that must flag none / those turns.
@@ -21,6 +23,7 @@ import argparse
 import html
 import json
 import statistics
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -103,6 +106,9 @@ def score_field(
         out["verdict"] = "match" if value in accepted else "miss"
     elif kind == "ids":
         out["verdict"] = "match" if ids_of(path, value) == set(gold["value"]) else "miss"
+        if out["verdict"] == "miss" and judged is None and not empty(value):
+            # Wrong ids may still be ones the notes give: unsupported needs a judgement.
+            out["unsupported_pending"] = True
     elif kind == "empty":
         out["verdict"] = "skip"
         out["unsupported"] = not empty(value) and not guessed(card, path)
@@ -110,6 +116,9 @@ def score_field(
         out["verdict"] = "match" if judged.get("match") else "miss"
         out["unsupported"] = bool(judged.get("unsupported"))
         out["note"] = judged.get("note", "")
+    elif empty(value):
+        # Nothing there to judge: the gold's facts are missing.
+        out["verdict"] = "miss"
     else:
         out["verdict"] = "pending"
     # An ids field may be judged too: its relation words (a match can still miss) and ids the
@@ -212,9 +221,28 @@ def main() -> None:
         found += len(hits)
         name_rows.append({"case": case, "result": result, "hits": hits, "wrong": wrong})
 
+    # A run made with run.py --cases or --skip-names scores like a full one: say so.
+    missing_cases = sorted(set(cases) - {r["id"] for r in run["cards"]})
+    missing_names = sorted(set(names) - {r["id"] for r in run["names"]})
+    partial = bool(missing_cases or missing_names)
+    print(
+        f"scored {len(run['cards'])} / {len(cases)} cards, "
+        f"{len(run['names'])} / {len(names)} name turns",
+        file=sys.stderr,
+    )
+    if partial:
+        print(
+            f"PARTIAL RUN: missing cards {missing_cases or 'none'}, "
+            f"name turns {missing_names or 'none'}; rates are not comparable to a full run",
+            file=sys.stderr,
+        )
+
     firsts = [r["first_char_s"] for r in run["names"] if r.get("first_char_s") is not None]
     card_usage = [r["usage"] for r in run["cards"] if r.get("usage")]
     summary = {
+        "partial_run": partial,
+        "missing_cases": missing_cases,
+        "missing_name_turns": missing_names,
         "field_match": rate(matched, fields),
         "fields_scored": fields,
         "fields_pending": pending,
@@ -225,6 +253,9 @@ def main() -> None:
         "json_invalid": invalid,
         "json_retried": retried,
         "cards": len(run["cards"]),
+        "cards_expected": len(cases),
+        "name_turns": len(run["names"]),
+        "name_turns_expected": len(names),
         "names_found": rate(found, expected),
         "names_expected": expected,
         # Wrong pairs per turn that must flag none.
@@ -321,7 +352,14 @@ def summary_table(s: dict[str, Any]) -> str:
     ]
     by_type = ", ".join(f"{TYPE_KO[t]} {pct(v)}" for t, v in s["field_match_by_type"].items())
     rows.append(["종류별 일치율", by_type, ""])
-    return "<table class='sum'>" + "".join(tr(r) for r in rows) + "</table>"
+    warning = ""
+    if s["partial_run"]:
+        warning = (
+            "<p class='warn'>일부만 실행한 결과예요 (카드 "
+            f"{s['cards']} / {s['cards_expected']}장, 이름 대화 "
+            f"{s['name_turns']} / {s['name_turns_expected']}개). 전체 실행과 비교할 수 없어요.</p>"
+        )
+    return warning + "<table class='sum'>" + "".join(tr(r) for r in rows) + "</table>"
 
 
 def wanted(gold: dict[str, Any]) -> str:
