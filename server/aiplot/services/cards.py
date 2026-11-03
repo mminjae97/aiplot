@@ -109,8 +109,7 @@ def complete(conn: sqlite3.Connection, card: Card) -> bool:
                 and structure is not None
                 # §15: exactly 기승전결 or 발단…결말, in order (card_post names generated
                 # stages by position; data that arrives any other way is checked here).
-                and tuple(stage.name for stage in structure.stages)
-                == STAGE_NAMES[structure.type]
+                and tuple(stage.name for stage in structure.stages) == STAGE_NAMES[structure.type]
                 and all(filled(stage.summary) for stage in structure.stages)
             )
     return False
