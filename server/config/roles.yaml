@@ -20,7 +20,9 @@ roles:
   card:
     profile: qwen3-8b-uncensor-q5km
     lora: null
-    prompt: 3
+    prompt: 5
     thinking: true
     sampling: { temperature: 0.3 }
-    max_tokens: 4096
+    # Unit 15: long thinking on part cards ran past 4096 (twice on one card). With ctx 8192
+    # this leaves room for prompts up to ~3.39k tokens (measured up to ~3.33k).
+    max_tokens: 4800

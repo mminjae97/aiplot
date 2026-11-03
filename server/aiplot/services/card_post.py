@@ -4,9 +4,14 @@
 - drops references to cards that are not in the work (or not of the right type), and to itself;
 - gives milestones and foreshadowing server ids, keeping an id whose text did not change;
 - places a new episode or part (part, order, prev) and keeps an edited card's placement;
+- drops a parent region that is also a linked one (a region is not inside its neighbour);
+- keeps a part's milestones to those no other part has, and an episode's to its part's (§7:
+  each milestone is in exactly one part);
+- strips sentence numbers ("[2] ") the model copied from the numbered notes into text;
 - restores pinned fields from the card shown before.
 """
 
+import re
 import secrets
 import sqlite3
 from types import UnionType
@@ -34,6 +39,21 @@ DATA_MODELS: dict[str, type[BaseModel]] = {
 }
 
 OUTPUT = TypeAdapter(CardOutput)
+
+# A sentence number from <원문> at the start of a value ("[2] 2부는 …"); unit 15 found the
+# model copying them into stages, synopses and situations.
+NUMBERED = re.compile(r"(?:^|(?<=\s))\[\d+\]\s*")
+
+
+def unnumbered(value: Any) -> Any:
+    """Every string inside, without sentence numbers copied from the notes."""
+    if isinstance(value, str):
+        return NUMBERED.sub("", value).strip()
+    if isinstance(value, list):
+        return [unnumbered(item) for item in value]
+    if isinstance(value, dict):
+        return {key: unnumbered(item) for key, item in value.items()}
+    return value
 
 
 def nested_model(annotation: Any) -> type[BaseModel] | None:
@@ -137,7 +157,9 @@ def process(
     generated one, else saved), whose pinned fields come back."""
     card_type = output.type
     value = output.model_dump(mode="json")
-    data: dict[str, Any] = value["data"]
+    # First, so an item whose text is unchanged but for a copied number keeps its id.
+    value["name"] = unnumbered(value["name"])
+    value["data"] = data = unnumbered(value["data"])
     scope = Scope(conn, work_id, card_id or "")
     saved_data: dict[str, Any] = saved["data"] if saved is not None else {}
 
@@ -152,11 +174,20 @@ def process(
             data["parent_id"] = scope.one(data["parent_id"], "region")
             regions = scope.ids("region")
             data["links"] = [link for link in data["links"] if link["target_id"] in regions]
+            # A linked region is a neighbour: the model also put it as the parent (unit 15).
+            if data["parent_id"] in {link["target_id"] for link in data["links"]}:
+                data["parent_id"] = None
         case "main_story":
             keep_ids(data["milestones"], saved_data.get("milestones", []), "ms")
         case "part":
             milestones = cards_db.milestone_ids(conn, work_id)
-            data["fulfills"] = [m for m in dict.fromkeys(data["fulfills"]) if m in milestones]
+            # Unit 15: the model also listed milestones of other parts.
+            taken = cards_db.part_milestones(conn, work_id)
+            data["fulfills"] = [
+                m
+                for m in dict.fromkeys(data["fulfills"])
+                if m in milestones and taken.get(m, card_id) == card_id
+            ]
             if saved is not None:
                 data["order"] = saved_data.get("order")
             else:
@@ -186,6 +217,10 @@ def process(
                 data["links"]["next"] = (saved_data.get("links") or {}).get("next")
             else:
                 place_episode(conn, data, part_id, work_id)
+            if data["part_id"] is not None:
+                # Unit 15: the model also listed milestones of later parts.
+                parts = cards_db.part_milestones(conn, work_id)
+                data["fulfills"] = [m for m in data["fulfills"] if parts.get(m) == data["part_id"]]
 
     if shown is not None:
         for path in pinned:

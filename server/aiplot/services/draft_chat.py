@@ -24,6 +24,7 @@ from aiplot.llm.client import LlmError, Message
 from aiplot.llm.router import Router
 from aiplot.services import draft_context as context
 from aiplot.services.drafts import DraftState
+from aiplot.services.names import similar_names
 from aiplot.services.notes import EmptyNotesError, RevisedNotes, apply_edits
 from aiplot.services.works import require_open
 
@@ -47,7 +48,10 @@ class Turn:
     notes: str
     chat: list[Message]
     names: str
-    card_ids: set[str]
+    # Every other card of the work by (id, name), and the edited card's own name: the
+    # similar-name check.
+    cards: list[tuple[str, str]]
+    own_name: str | None
 
 
 def prepare(conn: sqlite3.Connection, draft: DraftState, text: str, refs: list[str]) -> Turn:
@@ -80,7 +84,8 @@ def prepare(conn: sqlite3.Connection, draft: DraftState, text: str, refs: list[s
         notes=notes,
         chat=chat,
         names=context.name_lines(rows, draft.card_id),
-        card_ids={row.id for row in rows},
+        cards=[(row.id, row.name) for row in rows if row.id != draft.card_id and row.name],
+        own_name=next((row.name for row in rows if row.id == draft.card_id), None),
     )
 
 
@@ -114,18 +119,13 @@ async def revise(
     return kept
 
 
-def name_checks(turn: Turn, pairs: list[SimilarName]) -> list[SimilarName]:
-    """Pairs about cards that exist (or none), never a card with itself (§13)."""
-    kept = []
-    for pair in pairs:
-        if pair.mentioned.strip() == pair.similar_to.strip():
-            continue
-        if pair.card_id is not None and (
-            pair.card_id not in turn.card_ids or pair.card_id == turn.draft.card_id
-        ):
-            continue
-        kept.append(pair)
-    return kept
+def name_checks(turn: Turn) -> list[SimilarName]:
+    """Names the user wrote that are a letter or two off another card's name (§13): found in
+    code (services/names), never by the model."""
+    return [
+        SimilarName(mentioned=p.mentioned, similar_to=p.similar_to, card_id=p.card_id)
+        for p in similar_names(turn.text, turn.cards, turn.own_name)
+    ]
 
 
 async def converse(router: Router, turn: Turn) -> AsyncIterator[tuple[str, BaseModel]]:
@@ -195,6 +195,6 @@ async def events(router: Router, turn: Turn) -> AsyncIterator[tuple[str, BaseMod
             sentences=revised.sentences,
             changed=revised.changed,
             questions=output.questions[:3],
-            similar_names=name_checks(turn, output.similar_names),
+            similar_names=name_checks(turn),
         ),
     )
