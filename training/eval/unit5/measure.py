@@ -40,7 +40,9 @@ from aiplot.services.notes import EmptyNotesError, apply_edits, numbered
 from pydantic import BaseModel
 
 HERE = Path(__file__).parent
-STYLE_FILE = SERVER_DIR / "data" / "style" / "webnovel-style-v1.md"
+STYLE_DIR = SERVER_DIR / "data" / "style"
+# The style to use (§10); --style picks another for the write role and its token count.
+STYLE_FILE = STYLE_DIR / "webnovel-style-v2.md"
 # Room to see natural reply lengths: card system prompt + notes + this stays under ctx 8192.
 MEASURE_MAX_TOKENS = 6000
 WRITE_MAX_TOKENS = 1500
@@ -314,6 +316,9 @@ async def main() -> None:
     parser.add_argument(
         "--cases", nargs="+", metavar="ID", help="only these card cases; skips refusals and writing"
     )
+    parser.add_argument(
+        "--style", type=Path, default=STYLE_FILE, help="style framework file for the write role"
+    )
     args = parser.parse_args()
 
     cases = json.loads((HERE / "cases.json").read_text(encoding="utf-8"))
@@ -329,9 +334,10 @@ async def main() -> None:
     config = measure_config(args.profile)
     client = LlamaClient(args.url)
     router = Router(config, client, lora_dir=HERE / "no-lora")
-    write_system = style_system_prompt()
+    write_system = style_system_prompt(args.style)
     results: dict[str, Any] = {
         "profile": args.profile,
+        "style": args.style.name,
         "gguf": config.profiles[args.profile].gguf.file,
         "started_at": datetime.now(UTC).isoformat(),
         "measure_max_tokens": MEASURE_MAX_TOKENS,
