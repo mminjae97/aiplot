@@ -54,9 +54,9 @@ user to check. Rules:
 - Field match = matched / scored fields (exact, ids, facts, items). A card the run failed to
   make counts every one of its scored fields as a miss.
 - Unsupported fill = unsupported / filled fields that can be unsupported (all but exact ones,
-  which are compared, not judged).
-- Name false rate = wrong pairs / turns that must flag none. A pair naming part of the card's
-  name (무현 for 연무현) is fair to ask about, in every turn.
+  which are compared, not judged, and given ones, which the input fixes).
+- Name false rate = wrong pairs in the turns that must flag none / those turns. A pair naming
+  part of the card's name (무현 for 연무현), or the name with more, is fair to ask about.
 
 ## Run
 

@@ -13,8 +13,8 @@ still unjudged show as pending and are left out of the rates. A card the run fai
 counts every scored field as a miss.
 
 Unsupported fill = unsupported / filled fields, over fields that can be unsupported (not exact
-ones: those are compared, not judged). Name false rate = wrong pairs / turns that must flag
-none. A pair naming part of the card's name (무현 for 연무현) is fair to ask about.
+or given ones). Name false rate = wrong pairs in the turns that must flag none / those turns.
+A pair naming part of the card's name (무현 for 연무현), or the name with more, is fair.
 """
 
 import argparse
@@ -188,6 +188,7 @@ def main() -> None:
                 s["kind"] != "exact"
                 and s["verdict"] != "pending"
                 and not s.get("unsupported_pending")
+                and not s["gold"].get("given")
                 and not empty(s["value"])
             ):
                 filled += 1
@@ -204,9 +205,11 @@ def main() -> None:
         fine = case["expect"] + case.get("allow", [])
         wrong = [p for p in pairs if not given_name(p) and not any(same(p, e) for e in fine)]
         expected += len(case["expect"])
-        negatives += not case["expect"]
+        if not case["expect"]:
+            # The false rate is over the turns that must flag none: their wrong pairs.
+            negatives += 1
+            false_pairs += len(wrong)
         found += len(hits)
-        false_pairs += len(wrong)
         name_rows.append({"case": case, "result": result, "hits": hits, "wrong": wrong})
 
     firsts = [r["first_char_s"] for r in run["names"] if r.get("first_char_s") is not None]
