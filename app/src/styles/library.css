@@ -628,6 +628,15 @@
   }
 }
 
+/* No endless motion (§5): a still ring, dotted, still reads as working. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+    border-style: dotted;
+    border-right-color: currentcolor;
+  }
+}
+
 /* Window buttons at the far right of the top bar: round, a shade deeper than the bar, ink
    strokes; only close turns red. */
 .window-controls {
