@@ -13,6 +13,8 @@ port = int(sys.argv[sys.argv.index("--port") + 1])
 mode = os.environ.get("FAKE_LLAMA_MODE", "ok")
 print(f"fake llama-server args: {' '.join(sys.argv[1:])}", flush=True)
 print(f"api key from env: {'yes' if os.environ.get('LLAMA_API_KEY') else 'no'}", flush=True)
+ours = sorted(k for k in os.environ if k.upper().startswith("AIPLOT_"))
+print(f"aiplot env: {','.join(ours) or 'none'}", flush=True)
 if mode == "crash":
     print("CUDA error: out of memory", flush=True)
     sys.exit(1)

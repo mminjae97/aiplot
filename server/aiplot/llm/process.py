@@ -6,10 +6,13 @@ unresponsive server (several failed /health checks in a row) is restarted at mos
 times per session; after that the state is "error" until `retry()` (the "다시 시도" button).
 
 Other local programs must not reach the model or the prompts it holds: llama-server gets a
-fresh API key per start through LLAMA_API_KEY (not argv, which other processes can read), and a
-port counts as ours only after our own child prints that it listens there. Every start picks a
-fresh port, so a port taken in between only costs one restart. Callers get the address and key
-from `endpoint()` per request, which answers only while that child is alive and confirmed.
+fresh API key per start through LLAMA_API_KEY (not argv, which other processes can read) and
+none of our AIPLOT_* variables (the API token among them), and a port counts as ours only after
+our own child prints that it listens there. Every start, the first one too, picks a fresh port,
+so a port taken in between only costs one restart. Callers get the address and key from
+`endpoint()` per request, which answers only while that child is alive and confirmed.
+
+Restart and give-up lines in the log carry the VRAM reading at the failure (§17).
 """
 
 import asyncio
@@ -26,8 +29,9 @@ from typing import Literal
 
 import httpx2 as httpx
 
-from aiplot.generated.common.health import LlamaHealth
+from aiplot.generated.common.health import LlamaHealth, VramUsage
 from aiplot.llm.config import Profile
+from aiplot.llm.vram import read as read_vram
 from aiplot.llm.winjob import KillOnCloseJob
 
 State = Literal["missing_binary", "missing_model", "starting", "ready", "error", "stopped"]
@@ -49,6 +53,17 @@ def free_port() -> int:
         s.bind(("127.0.0.1", 0))
         port: int = s.getsockname()[1]
         return port
+
+
+def child_env(api_key: str) -> dict[str, str]:
+    """Our environment without AIPLOT_* (the API token, the data dir…): llama-server needs none
+    of it. Its own key goes in LLAMA_API_KEY."""
+    env = {k: v for k, v in os.environ.items() if not k.upper().startswith("AIPLOT_")}
+    return env | {"LLAMA_API_KEY": api_key}
+
+
+def vram_text(usage: VramUsage | None) -> str:
+    return "VRAM unknown" if usage is None else f"VRAM {usage.used_mb}/{usage.total_mb} MB"
 
 
 class LlamaProcess:
@@ -88,7 +103,6 @@ class LlamaProcess:
         self._tail: deque[str] = deque(maxlen=TAIL_LINES)
         self._listening = threading.Event()
         self._pump_thread: threading.Thread | None = None
-        self._spawned = False
         self._wake = asyncio.Event()
         self._stopping = False
         self._task: asyncio.Task[None] | None = None
@@ -172,21 +186,31 @@ class LlamaProcess:
                 continue
             self.state, self.message = "starting", None
             failure = await self._run_once()
-            await self._kill()
             if self._stopping:
+                await self._kill()
                 return
             if self._paths_changed:
+                await self._kill()
                 self._paths_changed = False
                 continue
+            # Read while the failed child may still hold its memory (§17: failures + VRAM).
+            gpu = vram_text(await read_vram())
+            await self._kill()
             if self.restarts >= MAX_RESTARTS:
                 self.state, self.message = "error", failure
-                self._log.error("llama-server gave up after %d restarts: %s", MAX_RESTARTS, failure)
+                self._log.error(
+                    "llama-server gave up after %d restarts: %s (%s)", MAX_RESTARTS, failure, gpu
+                )
                 self._wake.clear()
                 await self._wake.wait()
                 continue
             self.restarts += 1
             self._log.warning(
-                "restarting llama-server (%d/%d): %s", self.restarts, MAX_RESTARTS, failure
+                "restarting llama-server (%d/%d): %s (%s)",
+                self.restarts,
+                MAX_RESTARTS,
+                failure,
+                gpu,
             )
 
     def _missing(self) -> tuple[State, str] | None:
@@ -212,21 +236,20 @@ class LlamaProcess:
             base_url=self.url, headers=headers, timeout=self._health_timeout
         ) as http:
             if not await self._wait_ready(http):
-                return self._failure("did not become ready")
+                return await self._failure("did not become ready")
             self.state = "ready"
             self._log.info("llama-server ready on port %d (%s)", self.port, self.profile.id)
             return await self._watch(http)
 
     def _spawn(self) -> None:
-        if self._spawned:
-            self.port = free_port()
-        self._spawned = True
+        # Every spawn, the first too: the port picked at boot may be taken by now.
+        self.port = free_port()
         self.api_key = secrets.token_urlsafe(32)
         self._tail.clear()
         self._listening.clear()
         self._process = subprocess.Popen(
             self.argv(),
-            env=os.environ | {"LLAMA_API_KEY": self.api_key},
+            env=child_env(self.api_key),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -268,24 +291,25 @@ class LlamaProcess:
             if self._stopping:
                 break
             if self._exited():
-                return self._failure("exited")
+                return await self._failure("exited")
             try:
                 ok = (await http.get("/health")).status_code == 200
             except httpx.HTTPError:
                 ok = False
             failed = 0 if ok else failed + 1
             if failed >= UNRESPONSIVE_CHECKS:
-                return self._failure("stopped answering /health")
+                return await self._failure("stopped answering /health")
         return "stopped"
 
     def _exited(self) -> bool:
         return self._process is not None and self._process.poll() is not None
 
-    def _failure(self, what: str) -> str:
+    async def _failure(self, what: str) -> str:
         code = self._process.poll() if self._process is not None else None
         if code is not None and self._pump_thread is not None:
             # The cause (e.g. "out of memory") is often in the last lines still in the pipe.
-            self._pump_thread.join(PUMP_DRAIN_SEC)
+            # Off the event loop: the API keeps answering while the pipe drains.
+            await asyncio.to_thread(self._pump_thread.join, PUMP_DRAIN_SEC)
         detail = f" (exit {code})" if code is not None else ""
         # Copy first: the pump thread appends while we read (list() copies under the GIL).
         lines = list(self._tail)

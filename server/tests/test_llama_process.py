@@ -2,16 +2,20 @@
 
 import asyncio
 import logging
+import subprocess
 import sys
 import threading
+import time
 from collections.abc import AsyncIterator, Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
 
+from aiplot.generated.common.health import VramUsage
 from aiplot.llm.config import load_llm_config
 from aiplot.llm.process import MAX_RESTARTS, LlamaProcess, free_port
+from aiplot.llm.runtime import llama_runtime
 from aiplot.llm.winjob import KillOnCloseJob
 
 pytestmark = pytest.mark.anyio
@@ -146,7 +150,9 @@ async def test_api_key_goes_through_env_not_argv(running: LlamaProcess) -> None:
     assert "api key from env: yes" in running._tail
 
 
-async def test_impostor_on_the_port_is_never_trusted(tmp_path: Path) -> None:
+async def test_impostor_on_the_port_is_never_trusted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     install(tmp_path)
     process = make(tmp_path)
 
@@ -158,9 +164,13 @@ async def test_impostor_on_the_port_is_never_trusted(tmp_path: Path) -> None:
         def log_message(self, format: str, *args: object) -> None:
             pass
 
-    impostor = ThreadingHTTPServer(("127.0.0.1", process.port), Impostor)
+    impostor = ThreadingHTTPServer(("127.0.0.1", 0), Impostor)
     threading.Thread(target=impostor.serve_forever, daemon=True).start()
-    taken = process.port
+    taken = impostor.server_address[1]
+    # The first pick lands on the impostor's port: our child cannot bind it and never says it
+    # listens there, so the 200 answering on it is never taken for ours.
+    picks = iter([taken])
+    monkeypatch.setattr("aiplot.llm.process.free_port", lambda: next(picks, None) or free_port())
     try:
         process.start()
         await until(process, lambda p: p.state == "ready")
@@ -169,6 +179,114 @@ async def test_impostor_on_the_port_is_never_trusted(tmp_path: Path) -> None:
     finally:
         impostor.shutdown()
         await process.stop()
+
+
+async def test_every_spawn_picks_a_fresh_port(tmp_path: Path) -> None:
+    """§13 fresh port per restart, the first start too: the port picked at boot may be taken
+    by the time the files are there."""
+    install(tmp_path)
+    process = make(tmp_path)
+    booted = process.port
+    blocker = ThreadingHTTPServer(("127.0.0.1", booted), BaseHTTPRequestHandler)
+    try:
+        process.start()
+        await until(process, lambda p: p.state == "ready")
+        assert process.port != booted
+        assert process.restarts == 0
+        first = process.port
+        assert process.process is not None
+        process.process.kill()
+        await until(process, lambda p: p.state == "ready" and p.restarts == 1)
+        assert process.port != first
+    finally:
+        blocker.server_close()
+        await process.stop()
+
+
+async def test_child_gets_none_of_our_aiplot_variables(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("AIPLOT_TOKEN", "secret")
+    monkeypatch.setenv("AIPLOT_DATA_DIR", str(tmp_path))
+    install(tmp_path)
+    process = make(tmp_path)
+    process.start()
+    try:
+        await until(process, lambda p: p.state == "ready")
+        assert "aiplot env: none" in process._tail
+        assert "api key from env: yes" in process._tail
+    finally:
+        await process.stop()
+
+
+async def test_draining_the_pipe_never_blocks_the_event_loop(tmp_path: Path) -> None:
+    process = make(tmp_path)
+    process._process = subprocess.Popen([sys.executable, "-c", "pass"])
+    process._process.wait()
+    # A pump still reading: _failure waits up to PUMP_DRAIN_SEC for it.
+    process._pump_thread = threading.Thread(target=time.sleep, args=(0.5,), daemon=True)
+    process._pump_thread.start()
+    ticks = 0
+
+    async def tick() -> None:
+        nonlocal ticks
+        while True:
+            ticks += 1
+            await asyncio.sleep(0.01)
+
+    ticker = asyncio.create_task(tick())
+    await asyncio.sleep(0)
+    before = ticks
+    message = await process._failure("exited")
+    ticker.cancel()
+    assert message.startswith("llama-server exited (exit 0)")
+    assert ticks - before >= 10
+
+
+async def test_stopping_the_runtime_closes_the_llama_client(tmp_path: Path) -> None:
+    runtime = llama_runtime(tmp_path)
+    assert runtime.client is not None
+    await runtime.stop()
+    assert runtime.client._http.is_closed
+
+
+class Lines(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__(logging.WARNING)
+        self.lines: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.lines.append(record.getMessage())
+
+
+async def test_failures_are_logged_with_vram(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """§17: logs keep failures + VRAM."""
+
+    async def reading() -> VramUsage:
+        return VramUsage(used_mb=7012, total_mb=8192)
+
+    monkeypatch.setattr("aiplot.llm.process.read_vram", reading)
+    monkeypatch.setenv("FAKE_LLAMA_MODE", "crash")
+    install(tmp_path)
+    process = make(tmp_path)
+    # On the logger itself: "llama" may not propagate (setup_logging in other tests).
+    log = logging.getLogger("llama.test")
+    handler = Lines()
+    log.addHandler(handler)
+    try:
+        process.start()
+        await until(process, lambda p: p.state == "error")
+        await process.stop()
+    finally:
+        log.removeHandler(handler)
+    lines = handler.lines
+    restarts = [line for line in lines if line.startswith("restarting llama-server")]
+    gave_up = [line for line in lines if line.startswith("llama-server gave up")]
+    assert len(restarts) == MAX_RESTARTS and len(gave_up) == 1
+    for line in restarts + gave_up:
+        assert "out of memory" in line and "VRAM 7012/8192 MB" in line
 
 
 async def test_endpoint_only_for_the_confirmed_live_child(running: LlamaProcess) -> None:
