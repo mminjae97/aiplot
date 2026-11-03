@@ -4,6 +4,7 @@ import { StrictMode } from 'react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { ServerState } from '../src/api/bridge'
 import { CardDrawer, type DrawerRequest } from '../src/components/CardDrawer'
+import { display } from '../src/components/cardFields'
 import { useServer } from '../src/stores/server'
 import { strings } from '../src/strings'
 import type { CharacterCard, CharacterCardOutput, Draft } from '../src/types'
@@ -271,6 +272,42 @@ test('editing shows only what changed, with the old value struck', async () => {
   // The new name: the cards that point at this one are listed before saving (§8).
   expect(await screen.findByText(strings.preview.references)).toBeTruthy()
   expect(screen.getByText('1화')).toBeTruthy()
+})
+
+test('changed relations list the cards that point at this one too (§8)', async () => {
+  const base = output({ name: '테오도르' })
+  serve({
+    generated: {
+      ...base,
+      data: { ...base.data, relations: [{ target_id: 'c_mira', relation: '원수' }] },
+    },
+  })
+  renderDrawer({ workId: 'w_1', type: 'character', card_id: 'c_teo' })
+  await generated()
+  expect(await screen.findByText(strings.preview.references)).toBeTruthy()
+  expect(screen.getByText(strings.preview.referencesLinksNote)).toBeTruthy()
+  expect(screen.getByText('1화')).toBeTruthy()
+})
+
+test('a structure reads as its stage count, then a stage per line', () => {
+  const structure = {
+    type: 4,
+    stages: [
+      { name: '기', summary: '테오가 돌아온다', tension: 1 },
+      { name: '승', summary: null, tension: 2 },
+    ],
+  }
+  expect(display(structure, new Map())).toBe(
+    `${strings.typeSection.stages(4)}\n기: 테오가 돌아온다\n승: —`,
+  )
+})
+
+test('the same name, relations and characters list nothing', async () => {
+  const { calls } = serve({ generated: output({ name: '테오도르' }) })
+  renderDrawer({ workId: 'w_1', type: 'character', card_id: 'c_teo' })
+  await generated()
+  expect(screen.queryByText(strings.preview.references)).toBeNull()
+  expect(calls.some((c) => c.path === '/cards/c_teo/references')).toBe(false)
 })
 
 test('a stream that ends without a result is a failed generation', async () => {

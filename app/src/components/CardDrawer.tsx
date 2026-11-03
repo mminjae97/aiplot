@@ -4,7 +4,15 @@ import { ApiRequestError, api } from '../api/client'
 import { draftKey, sendTurn, withNotes } from '../api/drafts'
 import { streamJob } from '../api/sse'
 import { strings } from '../strings'
-import type { Card, Draft, DraftCreate, DraftTurn, SimilarName } from '../types'
+import type {
+  Card,
+  CardOutput,
+  Draft,
+  DraftCreate,
+  DraftTurn,
+  PartCard,
+  SimilarName,
+} from '../types'
 import { CardPreview } from './CardPreview'
 import { ChatPanel } from './ChatPanel'
 import { SourcePanel } from './SourcePanel'
@@ -32,6 +40,105 @@ function saveErrorText(code: string): string {
   if (code === 'CARD_STALE') return strings.preview.stale
   if (code === 'CARD_CONFLICT') return strings.preview.conflict
   return strings.drawer.errors[code] ?? strings.preview.saveFailed
+}
+
+/** Same items in any order? (a list of relations or characters, for the edit-mode check) */
+function sameItems(a: readonly unknown[], b: readonly unknown[]): boolean {
+  const key = (items: readonly unknown[]) =>
+    items
+      .map((item) => JSON.stringify(item))
+      .sort()
+      .join('\n')
+  return a.length === b.length && key(a) === key(b)
+}
+
+/** Did the generated card change what other cards show of the saved one (§8: its name,
+ * a character's relations, an episode's characters)? */
+function changesReferences(generated: CardOutput, saved: Card): boolean {
+  if (generated.name !== saved.name) return true
+  if (generated.type === 'character' && saved.type === 'character') {
+    return !sameItems(generated.data.relations, saved.data.relations)
+  }
+  if (generated.type === 'episode' && saved.type === 'episode') {
+    return !sameItems(generated.data.characters, saved.data.characters)
+  }
+  return false
+}
+
+/** What the header says beside the kind (§8): a world card's category, an episode's part and
+ * main region, a part's milestones. From the generated card when there is one, else from the
+ * saved card's relation rows, else from what the drawer was opened with. */
+function useHeadline(
+  request: DrawerRequest,
+  generated: CardOutput | null,
+  saved: Card | undefined,
+  cards: readonly Card[],
+): { details: string[]; milestones: string[] | null } {
+  const cardId = request.card_id ?? null
+  const savedEpisode = request.type === 'episode' && cardId !== null && generated === null
+  const placement = useQuery({
+    queryKey: ['relations', request.workId, 'episode_part'],
+    queryFn: () => api.relations(request.workId, 'episode_part'),
+    enabled: savedEpisode,
+  })
+  const settings = useQuery({
+    queryKey: ['relations', request.workId, 'episode_region'],
+    queryFn: () => api.relations(request.workId, 'episode_region'),
+    enabled: savedEpisode,
+  })
+  const completeness = useQuery({
+    queryKey: ['completeness', request.workId],
+    queryFn: () => api.completeness(request.workId),
+    enabled: request.type === 'part',
+  })
+
+  if (request.type === 'world') {
+    let category = request.category ?? null
+    if (generated?.type === 'world') category = generated.data.category ?? category
+    else if (saved?.type === 'world') category = saved.data.category ?? category
+    return { details: category ? [strings.drawer.category[category]] : [], milestones: null }
+  }
+  if (request.type === 'episode') {
+    let partId = request.part_id ?? null
+    let regionId: string | null = null
+    if (generated?.type === 'episode') {
+      partId = generated.data.part_id
+      regionId = generated.data.locations.main
+    } else if (cardId !== null) {
+      partId = placement.data?.relations.find((r) => r.from_id === cardId)?.to_id ?? null
+      regionId =
+        settings.data?.relations.find((r) => r.from_id === cardId && r.relation === 'main')
+          ?.to_id ?? null
+    }
+    const parts = cards
+      .filter((card): card is PartCard => card.type === 'part')
+      .sort((a, b) => (a.data.order ?? Infinity) - (b.data.order ?? Infinity))
+    const index = parts.findIndex((card) => card.id === partId)
+    const part = parts[index]
+    const region = cards.find((card) => card.id === regionId)
+    return {
+      details: [
+        ...(part
+          ? [
+              `${strings.story.partLabel(index + 1)}${part.data.title ? ` · ${part.data.title}` : ''}`,
+            ]
+          : []),
+        region?.name ?? strings.drawer.noPlace,
+      ],
+      milestones: null,
+    }
+  }
+  if (request.type === 'part') {
+    const all = completeness.data?.milestones ?? []
+    const mine =
+      generated?.type === 'part'
+        ? all.filter((milestone) => generated.data.fulfills.includes(milestone.id))
+        : cardId !== null
+          ? all.filter((milestone) => milestone.parts.includes(cardId))
+          : []
+    return { details: [], milestones: mine.map((milestone) => milestone.text) }
+  }
+  return { details: [], milestones: null }
 }
 
 /** The card drawer (§8): chat and source notes on the left, the card on the right. Its
@@ -63,6 +170,8 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
   const [structure, setStructure] = useState<4 | 5 | null>(null)
   // The notes the shown card was generated from: once they change, the card is stale.
   const [generatedFrom, setGeneratedFrom] = useState<string | null>(null)
+  // The notes the drawer opened with (a saved card's, else none): closing asks once they differ.
+  const [openedNotes, setOpenedNotes] = useState('')
   const panel = useRef<HTMLDivElement>(null)
   const keepWriting = useRef<HTMLButtonElement>(null)
   // Lifecycle, outside render: the draft once created, whether the drawer is still mounted,
@@ -95,22 +204,33 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
   const generated = current?.generated ?? null
   const nameChanged =
     saved.data !== undefined && generated !== null && generated.name !== saved.data.name
+  // Other cards show this one's name, relations or characters: list them before saving (§8).
+  const referencesChanged =
+    saved.data !== undefined && generated !== null && changesReferences(generated, saved.data)
   const references = useQuery({
     queryKey: ['card', request.card_id ?? '', 'references'],
     queryFn: () => api.cardReferences(request.card_id ?? ''),
-    enabled: nameChanged,
+    enabled: referencesChanged,
   })
+  const headline = useHeadline(request, generated, saved.data, cards.data?.cards ?? [])
   const pins = pinned ?? current?.pinned ?? []
   const stale = generated !== null && generatedFrom !== null && current?.notes !== generatedFrom
   const quiet = stage === 'idle' && generating === null && editing === null && !saving
   const canGenerate = quiet && !confirming && current !== undefined && current.notes.trim() !== ''
   const canSave = quiet && generated !== null && !stale
 
+  // What closing would lose: a card not saved yet, notes built up or changed since opening,
+  // or text typed into the notes editor.
+  const unsaved =
+    generated !== null ||
+    (current !== undefined && current.notes !== openedNotes) ||
+    (editing !== null && editing !== current?.notes)
+
   const requestClose = () => {
     // Mid-save the drawer stays: closing would delete the draft under the save.
     if (saving) return
-    // A generated card not saved yet: ask first (§8 unsaved close asks to save).
-    if (generated !== null) setConfirming(true)
+    // Ask first (§8 unsaved close asks to save).
+    if (unsaved) setConfirming(true)
     else onClose()
   }
   // What the window's key listener (set up once) needs to read now.
@@ -122,7 +242,8 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     save: (): void => undefined,
   })
 
-  const turn = async (id: string, text: string, refs: string[]) => {
+  /** True when the server kept the turn (the AI answered); a failed turn leaves none. */
+  const turn = async (id: string, text: string, refs: string[]): Promise<boolean> => {
     const controller = new AbortController()
     stream.current = controller
     setStage('replying')
@@ -132,6 +253,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     setQuestions([])
     setNames([])
     const alive = () => !controller.signal.aborted
+    let kept = false
     try {
       await sendTurn(
         id,
@@ -141,6 +263,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
             if (alive()) setPending((old) => old && { ...old, reply: old.reply + piece })
           },
           onReplied: () => {
+            kept = true
             if (alive()) setStage('organizing')
           },
           onSource: (update) => {
@@ -159,14 +282,15 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     } catch (err) {
       if (alive()) setError(errorText(err instanceof ApiRequestError ? err.code : ''))
     }
-    if (!alive()) return
+    if (!alive()) return kept
     // The turns as the server keeps them, swapped in with the pending ones in one render.
     const fresh = await api.getDraft(id).catch(() => null)
-    if (!alive()) return
+    if (!alive()) return kept
     if (fresh) queryClient.setQueryData(draftKey(id), fresh)
     setPending(null)
     setStage('idle')
     stream.current = null
+    return kept
   }
 
   /** True when a card came back (a failed or cancelled one changes nothing). */
@@ -279,6 +403,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
             return
           }
           state.id = created.id
+          setOpenedNotes(created.notes)
           queryClient.setQueryData(draftKey(created.id), created)
           setDraftId(created.id)
           // A new card: the AI asks first (§12 empty cards → the LLM asks first).
@@ -367,14 +492,16 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     }
   }
 
-  const send = (text: string, refs: string[]) => {
+  const send = (text: string, refs: string[]): Promise<boolean> => {
     // Never while the notes are edited by hand or a card is being made from them.
-    if (draftId !== null && editing === null && generating === null) void turn(draftId, text, refs)
+    if (draftId !== null && editing === null && generating === null) {
+      return turn(draftId, text, refs)
+    }
+    return Promise.resolve(false)
   }
 
   const kind = strings.drawer.kind[request.type]
   const turns: DraftTurn[] = current?.turns ?? []
-  const category = request.category ? strings.drawer.category[request.category] : null
   // Ids read as names: cards, the main story's milestones, episodes' planted foreshadowing.
   const cardNames = new Map<string, string>()
   for (const card of cards.data?.cards ?? []) {
@@ -409,10 +536,19 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
       >
         <header className="drawer-head">
           <p className="drawer-kind">
-            {kind} · {request.card_id ? strings.drawer.edit : strings.drawer.new}
-            {category && ` · ${category}`}
+            {[kind, request.card_id ? strings.drawer.edit : strings.drawer.new, ...headline.details]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
           <h2 id="drawer-title">{title}</h2>
+          {headline.milestones !== null && (
+            <p className="drawer-meta">
+              {strings.fields.fulfills}:{' '}
+              {headline.milestones.length > 0
+                ? headline.milestones.join(' · ')
+                : strings.drawer.noMilestones}
+            </p>
+          )}
           <button
             type="button"
             className="drawer-close"
@@ -465,7 +601,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                 }}
                 onSameName={(pair) => {
                   setNames((old) => old.filter((p) => p !== pair))
-                  send(
+                  void send(
                     strings.drawer.sameMessage(pair.mentioned, pair.similar_to),
                     pair.card_id ? [pair.card_id] : [],
                   )
@@ -547,10 +683,14 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                     }}
                     onSelect={setSelected}
                   />
-                  {nameChanged && (references.data?.references.length ?? 0) > 0 && (
+                  {referencesChanged && (references.data?.references.length ?? 0) > 0 && (
                     <div className="preview-references" role="note">
                       <h4>{strings.preview.references}</h4>
-                      <p>{strings.preview.referencesNote}</p>
+                      <p>
+                        {nameChanged
+                          ? strings.preview.referencesNote
+                          : strings.preview.referencesLinksNote}
+                      </p>
                       <ul>
                         {references.data?.references.map((ref) => (
                           <li key={`${ref.card_id}:${ref.field}`}>
@@ -610,8 +750,16 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
               }
             }}
           >
-            <h3 id="drawer-confirm-title">{strings.preview.unsavedTitle}</h3>
-            <p id="drawer-confirm-body">{strings.preview.unsavedBody}</p>
+            <h3 id="drawer-confirm-title">
+              {generated !== null ? strings.preview.unsavedTitle : strings.drawer.closeTitle}
+            </h3>
+            <p id="drawer-confirm-body">
+              {generated !== null
+                ? strings.preview.unsavedBody
+                : request.card_id
+                  ? strings.drawer.closeBodyEdit
+                  : strings.drawer.closeBody}
+            </p>
             <div className="preview-actions">
               <button
                 type="button"
@@ -622,7 +770,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                   onClose()
                 }}
               >
-                {strings.preview.discard}
+                {generated !== null ? strings.preview.discard : strings.drawer.closeDiscard}
               </button>
               <button
                 ref={keepWriting}
@@ -634,19 +782,21 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
               >
                 {strings.preview.keep}
               </button>
-              <button
-                type="button"
-                className="paper-button"
-                data-primary
-                disabled={!canSave}
-                aria-busy={saving}
-                onClick={() => {
-                  void save()
-                }}
-              >
-                {saving && <span className="spinner" aria-hidden="true" />}
-                {strings.preview.save}
-              </button>
+              {generated !== null && (
+                <button
+                  type="button"
+                  className="paper-button"
+                  data-primary
+                  disabled={!canSave}
+                  aria-busy={saving}
+                  onClick={() => {
+                    void save()
+                  }}
+                >
+                  {saving && <span className="spinner" aria-hidden="true" />}
+                  {strings.preview.save}
+                </button>
+              )}
             </div>
           </div>
         )}

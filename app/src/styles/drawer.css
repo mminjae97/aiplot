@@ -55,6 +55,13 @@
   overflow-wrap: anywhere;
 }
 
+.drawer-meta {
+  margin-top: 2px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  overflow-wrap: anywhere;
+}
+
 .drawer-close {
   position: absolute;
   top: 14px;

@@ -419,3 +419,322 @@ test('a mention counts only as the whole @name', async () => {
     })
   })
 })
+
+/** Answers some paths itself, the rest as `serve` does. */
+function route(answer: (method: string, path: string) => unknown) {
+  const base = vi.mocked(fetch)
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, init: RequestInit = {}) => {
+      const path = url.replace('http://127.0.0.1:9100/api/v1', '')
+      const data = answer(init.method ?? 'GET', path)
+      return data === undefined
+        ? base(url, init)
+        : Promise.resolve(new Response(JSON.stringify(data), { status: 200 }))
+    }),
+  )
+}
+
+const chatInput = () => screen.getByLabelText<HTMLTextAreaElement>(strings.drawer.inputLabel)
+
+/** Picks 레오 from the @ list into an empty input. */
+async function mentionLeo(): Promise<void> {
+  chatInput().setSelectionRange(0, 0)
+  fireEvent.change(chatInput(), { target: { value: '@레' } })
+  await screen.findAllByRole('option')
+  fireEvent.keyDown(chatInput(), { key: 'Enter' })
+}
+
+const FAILED_TURN: [string, unknown][] = [
+  ['error', { code: 'LLM_UNAVAILABLE', message: 'x' }],
+  ['done', {}],
+]
+
+test('a mention counts with a particle after the name', async () => {
+  const { calls } = serve(turnOf)
+  renderDrawer()
+  await screen.findByText(REPLY)
+  await mentionLeo()
+  fireEvent.change(chatInput(), { target: { value: '@레오가 검을 들었다.' } })
+  fireEvent.keyDown(chatInput(), { key: 'Enter' })
+  await waitFor(() => {
+    expect(calls.filter((c) => c.path === '/drafts/dr_1/messages').at(-1)?.body).toEqual({
+      text: '@레오가 검을 들었다.',
+      refs: ['c_leo'],
+    })
+  })
+})
+
+test('a failed turn gives its words and mentions back to the input', async () => {
+  let fail = true
+  const { calls } = serve((text) => (text && fail ? FAILED_TURN : turnOf(text)))
+  renderDrawer()
+  await screen.findByText(REPLY)
+  await mentionLeo()
+  fireEvent.change(chatInput(), { target: { value: '@레오가 왔다.' } })
+  fireEvent.keyDown(chatInput(), { key: 'Enter' })
+  expect(await screen.findByText(strings.drawer.errors.LLM_UNAVAILABLE ?? '')).toBeTruthy()
+  await waitFor(() => {
+    expect(chatInput().value).toBe('@레오가 왔다.')
+  })
+  // Sent again once the AI is back: the mention still goes with it.
+  fail = false
+  await waitFor(() => {
+    expect(screen.getByRole('button', { name: strings.drawer.send })).toHaveProperty(
+      'disabled',
+      false,
+    )
+  })
+  fireEvent.keyDown(chatInput(), { key: 'Enter' })
+  await waitFor(() => {
+    expect(calls.filter((c) => c.path === '/drafts/dr_1/messages').at(-1)?.body).toEqual({
+      text: '@레오가 왔다.',
+      refs: ['c_leo'],
+    })
+  })
+  await screen.findByText('알겠어요.')
+  expect(chatInput().value).toBe('')
+})
+
+test('a failed turn never overwrites words typed while it ran', async () => {
+  serve((text) => (text ? FAILED_TURN : turnOf(text)))
+  let release = (): void => undefined
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const base = vi.mocked(fetch)
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, init: RequestInit = {}) =>
+      url.endsWith('/drafts/dr_1/messages') && init.body !== '{"text":"","refs":[]}'
+        ? gate.then(() => base(url, init))
+        : base(url, init),
+    ),
+  )
+  renderDrawer()
+  await screen.findByText(REPLY)
+  fireEvent.change(chatInput(), { target: { value: '첫 말.' } })
+  fireEvent.keyDown(chatInput(), { key: 'Enter' })
+  expect(chatInput().value).toBe('')
+  fireEvent.change(chatInput(), { target: { value: '새 말' } })
+  release()
+  expect(await screen.findByText(strings.drawer.errors.LLM_UNAVAILABLE ?? '')).toBeTruthy()
+  await waitFor(() => {
+    expect(screen.getByRole('button', { name: strings.drawer.send })).toHaveProperty(
+      'disabled',
+      false,
+    )
+  })
+  expect(chatInput().value).toBe('새 말')
+})
+
+test('closing with notes built up but no card asks first', async () => {
+  serve(turnOf)
+  const { onClose } = renderDrawer()
+  await screen.findByText(REPLY)
+  fireEvent.change(chatInput(), { target: { value: '테오는 북부 항구 출신이야.' } })
+  fireEvent.keyDown(chatInput(), { key: 'Enter' })
+  await screen.findByText('테오는 북부 항구 출신이다.', { exact: false })
+  fireEvent.keyDown(window, { key: 'Escape' })
+  const ask = await screen.findByRole('alertdialog', { name: strings.drawer.closeTitle })
+  expect(within(ask).getByText(strings.drawer.closeBody)).toBeTruthy()
+  // The safe choice has focus; closing is red; nothing to save yet.
+  expect(document.activeElement).toBe(
+    within(ask).getByRole('button', { name: strings.preview.keep }),
+  )
+  const discard = within(ask).getByRole('button', { name: strings.drawer.closeDiscard })
+  expect(discard.hasAttribute('data-danger')).toBe(true)
+  expect(within(ask).queryByRole('button', { name: strings.preview.save })).toBeNull()
+  fireEvent.click(within(ask).getByRole('button', { name: strings.preview.keep }))
+  expect(screen.queryByRole('alertdialog')).toBeNull()
+  // An outside click asks too.
+  fireEvent.mouseDown(document.querySelector('.drawer-backdrop') as Element)
+  expect(screen.getByRole('alertdialog')).toBeTruthy()
+  expect(onClose).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: strings.drawer.closeDiscard }))
+  expect(onClose).toHaveBeenCalledOnce()
+})
+
+test('the close button asks before dropping notes typed by hand', async () => {
+  serve(turnOf)
+  const { onClose } = renderDrawer()
+  await screen.findByText(REPLY)
+  fireEvent.click(await editButton())
+  fireEvent.change(screen.getByLabelText(strings.drawer.editNotesLabel), {
+    target: { value: '고치는 중이다.' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: strings.drawer.close }))
+  expect(screen.getByRole('alertdialog', { name: strings.drawer.closeTitle })).toBeTruthy()
+  expect(onClose).not.toHaveBeenCalled()
+})
+
+test('a card opened for editing closes at once while its notes are as saved', async () => {
+  serve(turnOf)
+  route((method, path) =>
+    method === 'POST' && path === '/works/w_1/drafts'
+      ? baseDraft({
+          card_id: 'c_teo',
+          notes: '테오는 활을 쓴다.',
+          sentences: ['테오는 활을 쓴다.'],
+        })
+      : undefined,
+  )
+  const { onClose } = renderDrawer({ workId: 'w_1', type: 'character', card_id: 'c_teo' })
+  await screen.findByText('테오는 활을 쓴다.')
+  fireEvent.keyDown(window, { key: 'Escape' })
+  expect(onClose).toHaveBeenCalledOnce()
+})
+
+const WORLD_DATA = {
+  category: 'faction' as const,
+  summary: '북부의 기사단',
+  details: null,
+  rules: [],
+  terms: [],
+  related: [],
+}
+
+test('a world card shows its saved category, with no tab hint', async () => {
+  serve(turnOf)
+  route((_method, path) =>
+    path === '/cards/c_w'
+      ? {
+          id: 'c_w',
+          work_id: 'w_1',
+          type: 'world',
+          name: '은빛 기사단',
+          status: 'complete',
+          source_notes: '',
+          data: WORLD_DATA,
+          evidence: {},
+          ai_guess: [],
+          pinned: [],
+          schema_version: 1,
+        }
+      : undefined,
+  )
+  renderDrawer({ workId: 'w_1', type: 'world', card_id: 'c_w' })
+  expect(
+    await screen.findByText(
+      `${strings.drawer.kind.world} · ${strings.drawer.edit} · ${strings.drawer.category.faction}`,
+    ),
+  ).toBeTruthy()
+})
+
+test('a new world card shows the generated category over the tab hint', async () => {
+  serve(turnOf)
+  route((method, path) =>
+    method === 'POST' && path === '/works/w_1/drafts'
+      ? baseDraft({
+          type: 'world',
+          category: 'rule',
+          notes: '기사단이 있다.',
+          sentences: ['기사단이 있다.'],
+          turns: [{ role: 'ai', text: '어떤 설정인가요?' }],
+          generated: {
+            type: 'world',
+            name: '은빛 기사단',
+            data: WORLD_DATA,
+            evidence: {},
+            ai_guess: [],
+          },
+        })
+      : undefined,
+  )
+  renderDrawer({ workId: 'w_1', type: 'world', category: 'rule' })
+  expect(
+    await screen.findByText(
+      `${strings.drawer.kind.world} · ${strings.drawer.new} · ${strings.drawer.category.faction}`,
+    ),
+  ).toBeTruthy()
+})
+
+function part(id: string, order: number, title: string) {
+  return {
+    id,
+    work_id: 'w_1',
+    type: 'part',
+    name: title,
+    status: 'complete',
+    source_notes: '',
+    data: { order, title, theme: null, fulfills: [], start: null, end: null, structure: null },
+    evidence: {},
+    ai_guess: [],
+    pinned: [],
+    schema_version: 1,
+  }
+}
+
+test('an episode shows its part and main region from the relation rows', async () => {
+  serve(turnOf)
+  route((_method, path) => {
+    if (path === '/works/w_1/cards') {
+      return {
+        cards: [
+          part('c_p2', 2, '귀환'),
+          part('c_p1', 1, '출발'),
+          { id: 'c_port', type: 'region', name: '북부 항구' },
+          { id: 'c_lemon', type: 'region', name: '레몬 숲' },
+        ],
+      }
+    }
+    if (path === '/works/w_1/relations?kind=episode_part') {
+      return { relations: [{ from_id: 'c_ep', to_id: 'c_p2', relation: '1' }] }
+    }
+    if (path === '/works/w_1/relations?kind=episode_region') {
+      return {
+        relations: [
+          { from_id: 'c_ep', to_id: 'c_lemon', relation: null },
+          { from_id: 'c_ep', to_id: 'c_port', relation: 'main' },
+        ],
+      }
+    }
+    return undefined
+  })
+  renderDrawer({ workId: 'w_1', type: 'episode', card_id: 'c_ep' })
+  const head = [
+    strings.drawer.kind.episode,
+    strings.drawer.edit,
+    strings.story.partLabel(2),
+    '귀환',
+    '북부 항구',
+  ]
+  expect(await screen.findByText(head.join(' · '))).toBeTruthy()
+})
+
+test('a new episode shows the part it goes to, its place undecided', async () => {
+  serve(turnOf)
+  route((_method, path) =>
+    path === '/works/w_1/cards' ? { cards: [part('c_p1', 1, '출발')] } : undefined,
+  )
+  renderDrawer({ workId: 'w_1', type: 'episode', part_id: 'c_p1' })
+  const head = [
+    strings.drawer.kind.episode,
+    strings.drawer.new,
+    strings.story.partLabel(1),
+    '출발',
+    strings.drawer.noPlace,
+  ]
+  expect(await screen.findByText(head.join(' · '))).toBeTruthy()
+})
+
+test('a part shows the milestones it takes', async () => {
+  serve(turnOf)
+  route((_method, path) =>
+    path === '/works/w_1/completeness'
+      ? {
+          milestones: [
+            { id: 'ms_1', order: 1, text: '마을이 불탄다', parts: ['c_p1'], episodes: [] },
+            { id: 'ms_2', order: 2, text: '스승을 만난다', parts: [], episodes: [] },
+            { id: 'ms_3', order: 3, text: '왕이 된다', parts: ['c_p1'], episodes: [] },
+          ],
+          foreshadowing: [],
+          incomplete: [],
+        }
+      : undefined,
+  )
+  renderDrawer({ workId: 'w_1', type: 'part', card_id: 'c_p1' })
+  expect(
+    await screen.findByText(`${strings.fields.fulfills ?? ''}: 마을이 불탄다 · 왕이 된다`),
+  ).toBeTruthy()
+})
