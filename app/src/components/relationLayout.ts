@@ -35,45 +35,25 @@ export function pairsOf(relations: CardRelation[], drawn: ReadonlySet<string>): 
 export type RelationKind = 'love' | 'friendly' | 'hostile' | 'neutral'
 
 // Words that say the kind, checked in this order (the first list with a word in the text
-// wins): strong hostility before everything ("아버지의 원수" is hostile), then love, then
-// friendship (family, teachers, comrades too), then mere rivalry ("라이벌이자 절친" is
-// friendly). Words of two letters or more match inside a word; one-letter words (형, 딸, 적)
-// only as a whole word or with a particle after it, so 형사 or 목적 do not count.
+// wins): strong hostility over everything ("아버지의 원수", "원수가 된 동생" are hostile), then
+// family (teachers, comrades too) over love ("사랑하는 딸" is friendly; spouses and engagement
+// are love), then love, then the rest of friendship, then mere rivalry, 연적 too ("연적이자
+// 친구" is friendly). Words of two letters or more match inside a word; one-letter words (형,
+// 딸, 적) only as a whole word or with a particle after it, so 형사 or 목적 do not count.
 const WORDS: [Exclude<RelationKind, 'neutral'>, string[]][] = [
   [
     'hostile',
-    [
-      '원수',
-      '숙적',
-      '적대',
-      '연적',
-      '배신',
-      '복수',
-      '증오',
-      '죽인',
-      '죽이려',
-      '노림',
-      '노리는',
-      '적',
-    ],
-  ],
-  [
-    'love',
-    ['사랑', '연인', '애인', '연모', '첫사랑', '짝사랑', '약혼', '정혼', '남편', '아내', '부부'],
+    ['원수', '숙적', '적대', '배신', '복수', '증오', '죽인', '죽이려', '노림', '노리는', '적'],
   ],
   [
     'friendly',
     [
-      '친구',
-      '절친',
-      '소꿉',
-      '우정',
       '동료',
       '전우',
-      '룸메이트',
       '스승',
       '제자',
       '은사',
+      '사부',
       '가족',
       '아버지',
       '어머니',
@@ -99,6 +79,20 @@ const WORDS: [Exclude<RelationKind, 'neutral'>, string[]][] = [
       '삼촌',
       '이모',
       '고모',
+    ],
+  ],
+  [
+    'love',
+    ['사랑', '연인', '애인', '연모', '첫사랑', '짝사랑', '약혼', '정혼', '남편', '아내', '부부'],
+  ],
+  [
+    'friendly',
+    [
+      '친구',
+      '절친',
+      '소꿉',
+      '우정',
+      '룸메이트',
       '은인',
       '신뢰',
       '존경',
@@ -116,7 +110,7 @@ const WORDS: [Exclude<RelationKind, 'neutral'>, string[]][] = [
       '단골',
     ],
   ],
-  ['hostile', ['라이벌', '경쟁', '경멸', '미워', '거슬', '견제', '대립', '넘어서', '이용']],
+  ['hostile', ['연적', '라이벌', '경쟁', '경멸', '미워', '거슬', '견제', '대립', '넘어서', '이용']],
 ]
 
 // Words that hold one of the words above without its meaning.
@@ -138,7 +132,12 @@ export function kindOf(relation: string | null): RelationKind {
         ? token.includes(word)
         : token.startsWith(word) && TAIL.test(token.slice(word.length)),
     )
-  for (const [kind, words] of WORDS) if (words.some(says)) return kind
+  // A 연적 is a rival in love: the love it names is for someone else, never between the two.
+  const rival = says('연적')
+  for (const [kind, words] of WORDS) {
+    if (kind === 'love' && rival) continue
+    if (words.some(says)) return kind
+  }
   return 'neutral'
 }
 
