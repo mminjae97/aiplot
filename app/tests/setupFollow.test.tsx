@@ -1,14 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import {
-  type JobLive,
-  follow,
-  jobKey,
-  useSetupJob,
-  useSetupWatcher,
-  wait,
-} from '../src/api/setup'
+import { type JobLive, follow, jobKey, useSetupJob, useSetupWatcher, wait } from '../src/api/setup'
 import { useServer } from '../src/stores/server'
 import type { SetupStatus } from '../src/types'
 
@@ -100,9 +93,11 @@ test('a cached /setup naming a job that has ended is not followed again', async 
     job_id: 'job_A',
   }
   // The new job's stream stays open; /setup still names the old one.
+  const asked: string[] = []
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string) => {
+      asked.push(url)
       if (url.endsWith('/setup')) return Promise.resolve(new Response(JSON.stringify(stale)))
       return Promise.resolve(new Response(new ReadableStream<Uint8Array>()))
     }),
@@ -121,7 +116,7 @@ test('a cached /setup naming a job that has ended is not followed again', async 
     </QueryClientProvider>,
   )
   await waitFor(() => {
-    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).endsWith('/setup'))).toBe(true)
+    expect(asked.some((url) => url.endsWith('/setup'))).toBe(true)
   })
   await new Promise((resolve) => setTimeout(resolve, 20))
   expect(useSetupJob.getState().jobId).toBe('job_B')
