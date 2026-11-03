@@ -10,6 +10,7 @@ import {
 import { api } from '../api/client'
 import { strings } from '../strings'
 import type { Card, DraftTurn } from '../types'
+import { mentions } from './mention'
 
 type Props = {
   workId: string
@@ -20,20 +21,13 @@ type Props = {
   /** No sending (e.g. while the notes are edited by hand). */
   locked: boolean
   error: string | null
-  onSend: (text: string, refs: string[]) => void
+  /** Resolves true once the server keeps the turn; false (e.g. the AI could not answer)
+   * gives the words back to the input. */
+  onSend: (text: string, refs: string[]) => Promise<boolean>
 }
 
 // The @ word being typed just before the caret, if any.
 const MENTION = /@([^\s@]*)$/
-
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-/** True when the message still names the card as a whole @word (not @레오 in @레오나). */
-function mentions(message: string, name: string): boolean {
-  return new RegExp(`@${escapeRegExp(name)}(?=$|[\\s.,!?…'"’”」』)])`).test(message)
-}
 
 function Mentions({
   cards,
@@ -127,12 +121,19 @@ export function ChatPanel({ workId, turns, pending, stage, locked, error, onSend
     const message = text.trim()
     if (!message || busy) return
     // Only cards still named in the message count as mentioned.
-    onSend(
-      message,
-      refs.filter((r) => mentions(message, r.name)).map((r) => r.id),
-    )
+    const named = refs.filter((r) => mentions(message, r.name))
     setText('')
     setRefs([])
+    void onSend(
+      message,
+      named.map((r) => r.id),
+    ).then((kept) => {
+      // A failed turn leaves no trace on the server: the words come back, unless the user
+      // has started on new ones (or the drawer is gone).
+      if (kept || !input.current || input.current.value !== '') return
+      setText(message)
+      setRefs(named)
+    })
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {

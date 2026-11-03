@@ -118,7 +118,8 @@ export function display(value: unknown, names: Map<string, string>): string {
     const record = value as Record<string, unknown>
     // Structure: its kind, then its stages, one per line.
     if (Array.isArray(record.stages)) {
-      const kind = typeof record.type === 'number' ? `${String(record.type)}단계\n` : ''
+      const kind =
+        typeof record.type === 'number' ? `${strings.typeSection.stages(record.type)}\n` : ''
       return (
         kind +
         (record.stages as Record<string, unknown>[])
