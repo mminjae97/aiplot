@@ -1,0 +1,62 @@
+# GENERATED from schemas/ by `npm run codegen` in schemas/. Do not edit.
+
+from __future__ import annotations
+
+from typing import Annotated, Literal
+
+from pydantic import Field
+
+type TechniqueEffect = Annotated[
+    Literal[
+        "긴장",
+        "서스펜스",
+        "호기심",
+        "놀람",
+        "반전",
+        "공포",
+        "불안",
+        "비애",
+        "연민",
+        "공감",
+        "카타르시스",
+        "해학",
+        "풍자",
+        "아이러니",
+        "여운",
+        "몰입",
+        "인물밀착",
+        "거리두기",
+        "속도감",
+        "감속",
+        "강조",
+        "통일감",
+        "완결감",
+        "순환감",
+        "운명감",
+        "모호성",
+        "신비감",
+        "경이",
+        "현실감",
+        "생동감",
+        "낯설게하기",
+        "주제부각",
+        "상징성",
+        "기대형성",
+        "기대배반",
+        "정보전달",
+        "존재감",
+        "비극성",
+        "설렘",
+        "해방감",
+        "답답함",
+        "혼란",
+        "메타인식",
+        "대비",
+        "리듬",
+        "성찰",
+    ],
+    Field(
+        description="Fixed effect tags (§9): what a scene wants and what a technique gives.",
+        title="TechniqueEffect",
+    ),
+]

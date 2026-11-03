@@ -14,13 +14,15 @@ import uvicorn
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from aiplot.api import cards, drafts, health, jobs, setup, works
+from aiplot.api import cards, drafts, health, jobs, setup, techniques, works
 from aiplot.api.auth import require_token
 from aiplot.api.errors import install_error_handlers
+from aiplot.db.connection import connect
 from aiplot.db.migrate import MigrationError, init_db
 from aiplot.jobs.queue import JobQueue
 from aiplot.llm.runtime import LLAMA_LOGGER, LlmRuntime, fake_runtime, llama_runtime
 from aiplot.parent import parse_pid, watch
+from aiplot.services import techniques as technique_cards
 from aiplot.services.drafts import DraftStore
 from aiplot.services.trash import Trash
 
@@ -103,6 +105,7 @@ def create_app(
     api.include_router(works.router)
     api.include_router(cards.router)
     api.include_router(drafts.router)
+    api.include_router(techniques.router)
     app.include_router(api)
     return app
 
@@ -209,6 +212,15 @@ def setup_logging(log_dir: Path, *, dev: bool) -> None:
     )
 
 
+def load_techniques(db_path: Path) -> None:
+    """The shared technique catalog (§9) from the data files, every start."""
+    conn = connect(db_path)
+    try:
+        technique_cards.sync(conn, technique_cards.load())
+    finally:
+        conn.close()
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="aiplot")
     parser.add_argument("--dev", action="store_true", help="run with development defaults")
@@ -220,8 +232,12 @@ def main(argv: list[str] | None = None) -> None:
     setup_logging(settings.data_dir / "logs", dev=args.dev)
     try:
         init_db(settings.db_path)
+        load_techniques(settings.db_path)
     except MigrationError:
         logger.exception("database migration failed")
+        raise SystemExit(1) from None
+    except technique_cards.TechniqueDataError:
+        logger.exception("technique cards are broken")
         raise SystemExit(1) from None
     data_dir = settings.data_dir
     llm = fake_runtime(data_dir) if settings.fake_llm else llama_runtime(data_dir)

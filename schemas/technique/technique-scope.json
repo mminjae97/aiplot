@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TechniqueScope",
+  "description": "The level a technique works at (§9); sentence-only cards are never direction candidates.",
+  "type": "string",
+  "enum": [
+    "문장",
+    "장면",
+    "회차",
+    "아크",
+    "작품"
+  ]
+}

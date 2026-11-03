@@ -1,0 +1,56 @@
+# GENERATED from schemas/ by `npm run codegen` in schemas/. Do not edit.
+
+from __future__ import annotations
+
+from typing import Annotated, Literal
+
+from pydantic import Field
+
+type TechniqueSituation = Annotated[
+    Literal[
+        "도입",
+        "인물등장",
+        "일상",
+        "사건발생",
+        "조사",
+        "단서제시",
+        "진실폭로",
+        "반전",
+        "갈등고조",
+        "전투",
+        "추격",
+        "위기",
+        "절정",
+        "좌절",
+        "죽음",
+        "이별",
+        "재회",
+        "로맨스",
+        "배신",
+        "과거사",
+        "성장",
+        "각성",
+        "복수",
+        "설전",
+        "시간경과",
+        "장소이동",
+        "세계관설명",
+        "코미디",
+        "공포",
+        "꿈환상",
+        "동시사건",
+        "결말",
+        "회차마무리",
+        "숨고르기",
+        "내적갈등",
+        "대규모사건",
+        "관계변화",
+        "비밀",
+        "징조",
+        "깨달음",
+    ],
+    Field(
+        description="Fixed situation tags (§9): what happens in a scene.",
+        title="TechniqueSituation",
+    ),
+]
