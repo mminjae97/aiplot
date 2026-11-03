@@ -142,6 +142,11 @@ export const strings = {
     progressLabel: '준비 진행률',
     bytes: (done: string, total: string) => `${done} / ${total}`,
     eta: (text: string) => `${text} 남음`,
+    etaUnderMinute: '1분 미만',
+    etaMinutes: (minutes: number) => `약 ${String(minutes)}분`,
+    etaHours: (hours: number) => `약 ${String(hours)}시간`,
+    etaHoursMinutes: (hours: number, minutes: number) =>
+      `약 ${String(hours)}시간 ${String(minutes)}분`,
     etaUnknown: '남은 시간을 계산하는 중',
     pause: '일시정지',
     paused: '일시정지됨',

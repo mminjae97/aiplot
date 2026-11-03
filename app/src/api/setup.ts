@@ -47,15 +47,26 @@ export function needsSetup(health: HealthResponse): boolean {
   return SETUP_STATES.has(health.llama.state)
 }
 
+/** Whether this /health answer sends the user to S0-1: only when llama enters a setup state
+ * (the first answer counts as entering). Staying in one never does, so "나중에 하기" holds
+ * for that failure; a new one after llama ran or started again (retry) opens S0-1 again. */
+export function setupOpens(previous: HealthResponse | null, next: HealthResponse): boolean {
+  return needsSetup(next) && (previous === null || !needsSetup(previous))
+}
+
 export function useHealth() {
   return useQuery({
     queryKey: ['health'],
     queryFn: api.health,
-    // The model loads in the background after its files arrive.
     refetchInterval: (query) => {
       const state = query.state.data?.llama.state
-      // stopped: between processes (boot, or new files swapped in); starting follows.
-      return state === 'starting' || state === 'stopped' ? 2000 : false
+      // The model loads in the background after its files arrive. stopped: between processes
+      // (boot, or new files swapped in); starting follows.
+      if (state === 'starting' || state === 'stopped') return 2000
+      // A running llama-server can still fail later (OOM, driver): its error must reach S0-1.
+      // Missing files, error and the fixture LLM change only through setup actions, which
+      // refetch health themselves.
+      return state === 'ready' ? 5000 : false
     },
   })
 }

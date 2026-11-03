@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { AiplotBridge, ServerState } from '../src/api/bridge'
-import { useSetupJob } from '../src/api/setup'
+import { setupOpens, useSetupJob } from '../src/api/setup'
 import { App } from '../src/App'
 import { useNavigation } from '../src/stores/navigation'
 import { connectServer, useServer } from '../src/stores/server'
@@ -134,11 +134,12 @@ function serve() {
 
 function renderApp() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
+  render(
     <QueryClientProvider client={client}>
       <App />
     </QueryClientProvider>,
   )
+  return client
 }
 
 beforeEach(() => {
@@ -290,4 +291,52 @@ test('a stopped llama-server between processes reads as loading', async () => {
     },
     { timeout: 4000 },
   )
+})
+
+test('S0-1 opens on entering a setup state, never while one lasts or with the fixture LLM', () => {
+  expect(setupOpens(null, health('missing_model'))).toBe(true)
+  expect(setupOpens(null, health('error'))).toBe(true)
+  expect(setupOpens(health('starting'), health('error'))).toBe(true)
+  expect(setupOpens(health('ready'), health('error'))).toBe(true)
+  expect(setupOpens(health('stopped'), health('missing_binary'))).toBe(true)
+  // The same failure, polled again or after "나중에 하기".
+  expect(setupOpens(health('error'), health('error'))).toBe(false)
+  expect(setupOpens(health('missing_model'), health('error'))).toBe(false)
+  for (const state of ['fake', 'starting', 'stopped', 'ready'] as const) {
+    expect(setupOpens(null, health(state))).toBe(false)
+    expect(setupOpens(health('error'), health(state))).toBe(false)
+  }
+})
+
+test('llama-server failing after the first check opens S0-1, once per failure', async () => {
+  const { state } = serve()
+  // Files present: right after boot the model is still loading.
+  state.health = health('starting')
+  const client = renderApp()
+  expect(await screen.findByText(strings.library.empty)).toBeTruthy()
+  // Three restarts later it gave up (OOM, driver), seen by the next poll.
+  state.health = health('error')
+  expect(
+    await screen.findByText(new RegExp(strings.setup.llamaError), {}, { timeout: 4000 }),
+  ).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: strings.setup.later }))
+  expect(await screen.findByText(strings.library.empty)).toBeTruthy()
+  // A poll, rendered before the next: TanStack Query tells observers on a timer.
+  const poll = async () => {
+    await act(async () => {
+      await client.refetchQueries({ queryKey: ['health'] })
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    })
+  }
+  // The same failure does not send the user back.
+  await poll()
+  await poll()
+  expect(screen.queryByRole('heading', { name: strings.setup.title })).toBeNull()
+  // It ran again and failed anew: S0-1 opens again.
+  state.health = health('ready')
+  await poll()
+  expect(screen.queryByRole('heading', { name: strings.setup.title })).toBeNull()
+  state.health = health('error')
+  await poll()
+  expect(await screen.findByText(new RegExp(strings.setup.llamaError))).toBeTruthy()
 })

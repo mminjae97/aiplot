@@ -1,25 +1,27 @@
 import { useEffect, useRef } from 'react'
-import { needsSetup, useHealth, useSetupWatcher } from './api/setup'
+import { setupOpens, useHealth, useSetupWatcher } from './api/setup'
 import { LibraryScreen } from './screens/LibraryScreen'
 import { PlanningBook } from './screens/PlanningBook'
 import { ServerScreen } from './screens/ServerScreen'
 import { SetupScreen } from './screens/SetupScreen'
 import { useNavigation } from './stores/navigation'
 import { useServer } from './stores/server'
+import type { HealthResponse } from './types'
 
-/** Screens once the server is up. A first look at /health sends a missing model to S0-1
- * (§12, §13); after "나중에 하기" the library stays usable without it. */
+/** Screens once the server is up. /health saying llama.cpp or the model is missing, or
+ * llama-server failed, sends the user to S0-1 (§12, §13), at boot or whenever it fails later;
+ * after "나중에 하기" the library stays usable until llama fails anew. */
 function Connected({ baseUrl }: { baseUrl: string }) {
   const screen = useNavigation((store) => store.screen)
   const open = useNavigation((store) => store.open)
   const health = useHealth()
-  const checked = useRef(false)
+  const previous = useRef<HealthResponse | null>(null)
   useSetupWatcher()
 
   useEffect(() => {
-    if (checked.current || !health.data) return
-    checked.current = true
-    if (needsSetup(health.data)) open({ name: 'setup' })
+    if (!health.data) return
+    if (setupOpens(previous.current, health.data)) open({ name: 'setup' })
+    previous.current = health.data
   }, [health.data, open])
 
   if (screen.name === 'setup') return <SetupScreen />

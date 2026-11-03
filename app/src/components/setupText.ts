@@ -9,12 +9,12 @@ export function formatBytes(bytes: number): string {
 }
 
 export function formatEta(seconds: number): string {
-  if (seconds < 60) return '1분 미만'
+  if (seconds < 60) return strings.setup.etaUnderMinute
   const minutes = Math.round(seconds / 60)
-  if (minutes < 60) return `약 ${String(minutes)}분`
+  if (minutes < 60) return strings.setup.etaMinutes(minutes)
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
-  return rest === 0 ? `약 ${String(hours)}시간` : `약 ${String(hours)}시간 ${String(rest)}분`
+  return rest === 0 ? strings.setup.etaHours(hours) : strings.setup.etaHoursMinutes(hours, rest)
 }
 
 /** The server's step ("<file>" or "verify <file>") in words (§5: Korean UI text). */
