@@ -71,6 +71,16 @@ export const strings = {
     coverIllustration: '일러스트',
     color: '색상',
     custom: '직접 고르기',
+    // Cloth preset names (components/bookColor.ts PRESETS).
+    presets: {
+      burgundy: '버건디',
+      forest: '숲초록',
+      navy: '남색',
+      ochre: '황토',
+      slate: '청회색',
+      plum: '자두색',
+      umber: '고동색',
+    },
     illustrations: '이 책의 일러스트',
     noIllustrations: '아직 올린 일러스트가 없어요.',
     upload: '일러스트 올리기',

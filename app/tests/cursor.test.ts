@@ -1,4 +1,6 @@
 import { afterEach, expect, test } from 'vitest'
+import quill from '../src/assets/cursor/quill.svg'
+import quillHover from '../src/assets/cursor/quill-hover.svg'
 import { installCursor, nearEdge } from '../src/cursor'
 
 let stop: (() => void) | undefined
@@ -37,4 +39,29 @@ test('near an edge the app hides the cursor and draws the quill itself', () => {
   move(400, 400)
   expect(document.documentElement.hasAttribute('data-edge-cursor')).toBe(false)
   expect(image?.hidden).toBe(true)
+})
+
+test('the drawn quill turns gilt over clickables, not over aria-disabled ones', () => {
+  stop = installCursor()
+  const image = document.querySelector<HTMLImageElement>('.app-cursor')
+  const live = document.createElement('button')
+  const off = document.createElement('button')
+  off.setAttribute('aria-disabled', 'true')
+  off.append(document.createElement('span'))
+  document.body.append(live, off)
+  const over = (target: Element) => {
+    target.dispatchEvent(
+      Object.assign(new MouseEvent('pointermove', { clientX: 400, clientY: 10, bubbles: true }), {
+        pointerType: 'mouse',
+      }),
+    )
+    return image?.getAttribute('src')
+  }
+  expect(over(live)).toBe(quillHover)
+  // A desk side with nothing to turn to (.book-turn): plain, as CSS draws it.
+  expect(over(off)).toBe(quill)
+  expect(over(off.firstElementChild ?? off)).toBe(quill)
+  expect(over(document.body)).toBe(quill)
+  live.remove()
+  off.remove()
 })

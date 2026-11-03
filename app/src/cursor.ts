@@ -44,7 +44,11 @@ export function installCursor(): () => void {
     // Set once on entering the edge: each change restyles the whole page.
     if (!root.hasAttribute('data-edge-cursor')) root.setAttribute('data-edge-cursor', '')
     const target = event.target instanceof Element ? event.target : null
-    const source = target?.closest(CLICKABLE) ? quillHover : quill
+    // The nearest clickable thing decides: one marked aria-disabled (a desk side with nothing
+    // to turn to, a menu item not built yet) keeps the plain quill, as in CSS.
+    const clickable = target?.closest(CLICKABLE)
+    const source =
+      clickable && clickable.getAttribute('aria-disabled') !== 'true' ? quillHover : quill
     if (image.getAttribute('src') !== source) image.src = source
     image.style.transform = `translate(${String(x - HOT_X)}px, ${String(y - HOT_Y)}px)`
     image.hidden = false

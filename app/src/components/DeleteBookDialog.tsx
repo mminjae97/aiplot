@@ -3,6 +3,7 @@ import { type SubmitEvent, useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { strings } from '../strings'
 import type { Work, WorkList } from '../types'
+import { cleanTitle } from './workTitle'
 
 type Props = {
   work: Work
@@ -47,13 +48,17 @@ export function DeleteBookDialog({ work, onClose, onDeleted }: Props) {
   }, [onClose])
 
   // Spacing is forgiven the same way the server cleans titles.
-  const matches = typed.split(/\s+/).filter(Boolean).join(' ') === work.title
+  const matches = cleanTitle(typed) === work.title
   const coverCount = covers.data?.covers.length ?? 0
 
-  const submit = (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  const confirm = () => {
     if (!matches || remove.isPending) return
     remove.mutate(undefined, { onSuccess: onDeleted })
+  }
+  // Enter in the title field never deletes (§5: irreversible is never the default): only a
+  // click (or Space/Enter on the red button itself) does.
+  const submit = (event: SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault()
   }
 
   return (
@@ -96,9 +101,10 @@ export function DeleteBookDialog({ work, onClose, onDeleted }: Props) {
             {strings.deleteBook.cancel}
           </button>
           <button
-            type="submit"
+            type="button"
             className="paper-button"
             data-danger
+            onClick={confirm}
             disabled={!matches || remove.isPending}
             aria-busy={remove.isPending}
           >

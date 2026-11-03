@@ -352,6 +352,21 @@ test('rename keeps the book in place and focus on it', async () => {
   expect(document.activeElement).toBe(renamed)
 })
 
+test('rename counts the title as the server does', async () => {
+  serve([book('w_a', '안개의 항구')])
+  renderApp()
+  await choose('안개의 항구', strings.bookMenu.rename)
+  const dialog = screen.getByRole('dialog', { name: strings.rename.title })
+  const input = within(dialog).getByLabelText(strings.rename.label)
+  const save = within(dialog).getByRole('button', { name: strings.rename.save })
+  fireEvent.change(input, { target: { value: '📚'.repeat(100) } })
+  expect(within(dialog).queryByText(strings.newBook.titleTooLong)).toBeNull()
+  expect(save).toHaveProperty('disabled', false)
+  fireEvent.change(input, { target: { value: `${'📚'.repeat(50)}   ${'📚'.repeat(50)}` } })
+  expect(within(dialog).getByText(strings.newBook.titleTooLong)).toBeTruthy()
+  expect(save).toHaveProperty('disabled', true)
+})
+
 test('an unchanged title just closes', async () => {
   const { calls } = serve([book('w_a', '안개의 항구')])
   renderApp()
@@ -381,6 +396,12 @@ test('delete names what goes, needs the title typed, and is never the default', 
   fireEvent.submit(input)
   expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
   fireEvent.change(input, { target: { value: ' 안개의  항구 ' } })
+  expect(remove).toHaveProperty('disabled', false)
+  // Nor with the right one: the red button is no submit button, Enter never deletes.
+  expect(remove).toHaveProperty('type', 'button')
+  fireEvent.submit(input)
+  expect(screen.getByRole('alertdialog')).toBeTruthy()
+  expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
   fireEvent.click(remove)
   await waitFor(() => {
     expect(screen.queryByRole('alertdialog')).toBeNull()
