@@ -189,7 +189,7 @@ def test_added_lines_follow_the_notes_line_ending() -> None:
     assert revised.notes == "A다.\r\nB다.\r\nC다."
 
 
-def test_repeated_sentence_counts_as_changed() -> None:
+def test_highlight_follows_what_the_model_wrote() -> None:
     # An added copy of a sentence already there is not added at all (§13: changed = not in the
     # old notes; see test_a_sentence_already_there_is_not_added_again).
     assert apply_edits("A다. B다.", output(added=["A다."])).changed == []
