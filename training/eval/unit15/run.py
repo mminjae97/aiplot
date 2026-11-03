@@ -148,83 +148,93 @@ async def run_card(
     router: Router, counter: CountingClient, case: dict[str, Any], seeds: list[dict[str, Any]]
 ) -> dict[str, Any]:
     picked = [s for s in seeds if s["id"] in case["seeds"]]
-    with tempfile.TemporaryDirectory() as tmp:
-        conn, work_id = open_work(Path(tmp), picked)
-        try:
-            store = drafts.DraftStore()
-            view = drafts.create(
-                conn,
-                store,
-                work_id,
-                DraftCreate(type=case["type"], category=case["category"], part_id=case["part_id"]),
-            )
-            draft = store.get(view.id)
-            draft.notes = case["notes"]
-            draft.refs = list(case["refs"])
-            generation = draft_card.prepare(conn, draft, None, case["structure"])
-            before = len(counter.attempts)
-            started = time.perf_counter()
+    before = len(counter.attempts)
+    started: float | None = None
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            conn, work_id = open_work(Path(tmp), picked)
             try:
+                store = drafts.DraftStore()
+                view = drafts.create(
+                    conn,
+                    store,
+                    work_id,
+                    DraftCreate(
+                        type=case["type"], category=case["category"], part_id=case["part_id"]
+                    ),
+                )
+                draft = store.get(view.id)
+                draft.notes = case["notes"]
+                draft.refs = list(case["refs"])
+                generation = draft_card.prepare(conn, draft, None, case["structure"])
+                before = len(counter.attempts)
+                started = time.perf_counter()
                 result = await router.complete_json(
                     "card", generation.turns, draft_card.OUTPUTS[case["type"]]
                 )
-            except LlmError as exc:
+                output = card_post.OUTPUT.validate_python(result.value.model_dump(mode="json"))
+                cleaned = card_post.process(
+                    conn,
+                    output,
+                    work_id=work_id,
+                    card_id=None,
+                    part_id=case["part_id"],
+                    sentences=len(split_sentences(case["notes"])),
+                    saved=None,
+                    shown=None,
+                    pinned=[],
+                )
                 return {
                     "id": case["id"],
-                    "error": exc.code,
-                    "message": str(exc)[:500],
+                    "card": cleaned.model_dump(mode="json"),
                     "attempts": len(counter.attempts) - before,
                     "total_s": round(time.perf_counter() - started, 1),
+                    "usage": asdict(result.usage) if result.usage is not None else None,
+                    "prompt": generation.turns[0]["content"],
                 }
-            output = card_post.OUTPUT.validate_python(result.value.model_dump(mode="json"))
-            cleaned = card_post.process(
-                conn,
-                output,
-                work_id=work_id,
-                card_id=None,
-                part_id=case["part_id"],
-                sentences=len(split_sentences(case["notes"])),
-                saved=None,
-                shown=None,
-                pinned=[],
-            )
-            return {
-                "id": case["id"],
-                "card": cleaned.model_dump(mode="json"),
-                "attempts": len(counter.attempts) - before,
-                "total_s": round(time.perf_counter() - started, 1),
-                "usage": asdict(result.usage) if result.usage is not None else None,
-                "prompt": generation.turns[0]["content"],
-            }
-        finally:
-            conn.close()
+            finally:
+                conn.close()
+    except Exception as exc:
+        # Any failure is this case's error (scored like a failed card); the run goes on.
+        return {
+            "id": case["id"],
+            "error": exc.code if isinstance(exc, LlmError) else type(exc).__name__,
+            "message": str(exc)[:500],
+            "attempts": len(counter.attempts) - before,
+            "total_s": round(time.perf_counter() - started, 1) if started is not None else 0.0,
+        }
 
 
 async def run_name(
     router: Router, case: dict[str, Any], seeds: list[dict[str, Any]]
 ) -> dict[str, Any]:
-    with tempfile.TemporaryDirectory() as tmp:
-        conn, work_id = open_work(Path(tmp), seeds)
-        try:
-            store = drafts.DraftStore()
-            view = drafts.create(conn, store, work_id, DraftCreate(type=case["type"]))
-            turn = draft_chat.prepare(conn, store.get(view.id), case["text"], [])
-        finally:
-            conn.close()
     started = time.perf_counter()
     first: float | None = None
     reply: list[str] = []
     source: dict[str, Any] | None = None
     error: dict[str, str] | None = None
-    async for name, event in draft_chat.events(router, turn):
-        if isinstance(event, DraftReplyEvent):
-            first = first or time.perf_counter() - started
-            reply.append(event.text)
-        elif isinstance(event, DraftSourceEvent):
-            source = event.model_dump(mode="json")
-        elif isinstance(event, DraftErrorEvent):
-            error = {"code": event.code, "message": event.message}
-        del name
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            conn, work_id = open_work(Path(tmp), seeds)
+            try:
+                store = drafts.DraftStore()
+                view = drafts.create(conn, store, work_id, DraftCreate(type=case["type"]))
+                turn = draft_chat.prepare(conn, store.get(view.id), case["text"], [])
+            finally:
+                conn.close()
+        started = time.perf_counter()
+        async for name, event in draft_chat.events(router, turn):
+            if isinstance(event, DraftReplyEvent):
+                first = first or time.perf_counter() - started
+                reply.append(event.text)
+            elif isinstance(event, DraftSourceEvent):
+                source = event.model_dump(mode="json")
+            elif isinstance(event, DraftErrorEvent):
+                error = {"code": event.code, "message": event.message}
+            del name
+    except Exception as exc:
+        # Any failure is this turn's error; the run goes on.
+        error = {"code": type(exc).__name__, "message": str(exc)[:500]}
     return {
         "id": case["id"],
         "first_char_s": round(first, 2) if first is not None else None,
@@ -254,6 +264,8 @@ async def main() -> None:
         "cards": [],
         "names": [],
     }
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    # Written after every case, so a crash keeps what was done (no finished_at until the end).
     for genre, data in genres.items():
         for case in data["cases"]:
             if args.cases and case["id"] not in args.cases:
@@ -262,6 +274,7 @@ async def main() -> None:
             results["cards"].append(
                 {"genre": genre, **await run_card(router, counter, case, data["seeds"])}
             )
+            write(args.out, results)
         if args.skip_names:
             continue
         for case in data["names"]:
@@ -269,11 +282,18 @@ async def main() -> None:
                 continue
             print(f"name {case['id']}", flush=True)
             results["names"].append({"genre": genre, **await run_name(router, case, data["seeds"])})
+            write(args.out, results)
     await counter.client.aclose()
     results["finished_at"] = datetime.now(UTC).isoformat()
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(results, ensure_ascii=False, indent=1), encoding="utf-8")
+    write(args.out, results)
     print(f"wrote {args.out}")
+
+
+def write(path: Path, results: dict[str, Any]) -> None:
+    """Whole file to a temp name, then swapped in: an interrupted write never leaves half."""
+    temp = path.with_name(path.name + ".tmp")
+    temp.write_text(json.dumps(results, ensure_ascii=False, indent=1), encoding="utf-8")
+    temp.replace(path)
 
 
 if __name__ == "__main__":

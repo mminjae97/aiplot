@@ -75,4 +75,9 @@ uv run python eval/unit15/score.py eval/results/unit15/run.json \
     --judged eval/results/unit15/judged.json --html eval/results/unit15/report.html
 ```
 
+run.py writes its result after every case, so a crash keeps what was done (`finished_at` only
+once it ends). A case that fails in any way (model error, invalid output, a crash in the app's
+code) records the error under its id and the run goes on; the scorer counts it as a failed
+card.
+
 Results (raw model output, judgements, reports) stay out of git (eval/.gitignore).
