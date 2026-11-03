@@ -50,6 +50,22 @@
       }
     },
     {
+      "id": "c_ropart2",
+      "type": "part",
+      "name": "진짜 계절",
+      "data": {
+        "order": 2,
+        "title": "진짜 계절",
+        "theme": "가짜가 진짜가 되는 때",
+        "fulfills": [
+          "ms_ro3",
+          "ms_ro4"
+        ],
+        "start": "하늘이 이준의 오래된 사진을 발견한다.",
+        "end": "두 사람이 계약서를 찢는다."
+      }
+    },
+    {
       "id": "c_roreg1",
       "type": "region",
       "name": "연남동 꽃집 '하늘정원'",
@@ -494,6 +510,7 @@
       "seeds": [
         "c_romain",
         "c_ropart1",
+        "c_ropart2",
         "c_roreg1",
         "c_roreg2",
         "c_roreg3",
