@@ -144,6 +144,9 @@ def test_sync_mirrors_the_files_and_keeps_rows_of_cards_still_there(
     assert [r[0] for r in conn.execute("SELECT id FROM technique_card")] == ["tech_ser_001"]
     row = conn.execute("SELECT rowid, name FROM technique_card").fetchone()
     assert tuple(row) == (rowid, "바뀐 이름")
+    # The name lives in its column only; data holds the other fields.
+    data = json.loads(conn.execute("SELECT data FROM technique_card").fetchone()[0])
+    assert not {"id", "category", "name"} & set(data)
     assert conn.execute("SELECT count(*) FROM technique_relation").fetchone()[0] == 0
 
 

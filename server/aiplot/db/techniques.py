@@ -1,8 +1,23 @@
 """SQL for the technique tables (§14): the shared catalog, replaced from the data files."""
 
+import json
 import sqlite3
 
 from aiplot.generated.technique.technique import Technique
+
+# Columns of their own; data holds the card's other fields (§14).
+COLUMNS = {"id", "category", "name"}
+
+
+def to_technique(row: sqlite3.Row) -> Technique:
+    return Technique.model_validate(
+        {
+            "id": row["id"],
+            "category": row["category"],
+            "name": row["name"],
+            **json.loads(row["data"]),
+        }
+    )
 
 
 def replace_all(conn: sqlite3.Connection, techniques: list[Technique]) -> None:
@@ -17,7 +32,7 @@ def replace_all(conn: sqlite3.Connection, techniques: list[Technique]) -> None:
         "INSERT INTO technique_card (id, category, name, data) VALUES (?, ?, ?, ?) "
         "ON CONFLICT (id) DO UPDATE SET "
         "category = excluded.category, name = excluded.name, data = excluded.data",
-        [(t.id, t.category, t.name, t.model_dump_json()) for t in techniques],
+        [(t.id, t.category, t.name, t.model_dump_json(exclude=COLUMNS)) for t in techniques],
     )
     conn.executemany(
         "INSERT INTO technique_tag (technique_id, kind, tag) VALUES (?, ?, ?)",
@@ -47,10 +62,14 @@ def replace_all(conn: sqlite3.Connection, techniques: list[Technique]) -> None:
 
 
 def list_all(conn: sqlite3.Connection) -> list[Technique]:
-    rows = conn.execute("SELECT data FROM technique_card ORDER BY id").fetchall()
-    return [Technique.model_validate_json(row["data"]) for row in rows]
+    rows = conn.execute(
+        "SELECT id, category, name, data FROM technique_card ORDER BY id"
+    ).fetchall()
+    return [to_technique(row) for row in rows]
 
 
 def get(conn: sqlite3.Connection, technique_id: str) -> Technique | None:
-    row = conn.execute("SELECT data FROM technique_card WHERE id = ?", (technique_id,)).fetchone()
-    return Technique.model_validate_json(row["data"]) if row else None
+    row = conn.execute(
+        "SELECT id, category, name, data FROM technique_card WHERE id = ?", (technique_id,)
+    ).fetchone()
+    return to_technique(row) if row else None

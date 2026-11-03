@@ -1,6 +1,6 @@
 -- Direction technique cards (§9, §14): shared across works, loaded from server/data/techniques
--- at every server start (services/techniques.sync). data holds the whole card; the tag and
--- relation tables mirror it for narrowing candidates and checking combinations.
+-- at every server start (services/techniques.sync). data holds the card's other fields; the
+-- tag and relation tables mirror them for narrowing candidates and checking combinations.
 
 CREATE TABLE technique_card (
     id TEXT PRIMARY KEY,
