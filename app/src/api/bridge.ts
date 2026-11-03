@@ -6,7 +6,8 @@ export type ServerState =
   | { status: 'starting'; restarts: number }
   | { status: 'ready'; baseUrl: string; token: string; restarts: number }
   // missing: no server executable; failed: it stopped or hung more than 3 times in a row.
-  | { status: 'error'; reason: 'missing' | 'failed'; restarts: number }
+  // detail: the last lines the server printed (or its exit code) when it exited on its own.
+  | { status: 'error'; reason: 'missing' | 'failed'; restarts: number; detail?: string }
 
 export interface AiplotBridge {
   server: {

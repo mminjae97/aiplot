@@ -261,6 +261,33 @@ input {
   justify-self: center;
 }
 
+.server-detail {
+  display: grid;
+  gap: 6px;
+  max-width: 46em;
+  margin: 0;
+  text-align: left;
+}
+
+.server-detail figcaption {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.server-detail pre {
+  max-height: 10em;
+  margin: 0;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--paper-edge);
+  background: var(--paper);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* Scrolling stays (wheel, touchpad, keyboard); only the bar is hidden. Rows cut at the
    window edge show there is more. */
 .library,

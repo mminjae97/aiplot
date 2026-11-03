@@ -121,6 +121,28 @@ test('failed server shows the cause and retries', async () => {
   expect(screen.getByText(strings.server.failed)).toBeTruthy()
 })
 
+test('a server that exited on its own shows what it last printed', async () => {
+  window.aiplot = bridge({
+    status: 'error',
+    reason: 'failed',
+    restarts: 3,
+    detail: 'aiplot.db.migrate.MigrationError: database version 9 is newer than this app (7)',
+  })
+  connectServer()
+  renderApp()
+  expect(await screen.findByText(strings.server.dbNewer)).toBeTruthy()
+  expect(screen.getByText(/database version 9 is newer/)).toBeTruthy()
+  expect(screen.getByRole('button', { name: strings.server.retry })).toBeTruthy()
+})
+
+test('an unknown exit says the server stopped and shows its last lines', async () => {
+  window.aiplot = bridge({ status: 'error', reason: 'failed', restarts: 3, detail: 'exit code 3' })
+  connectServer()
+  renderApp()
+  expect(await screen.findByText(strings.server.exited)).toBeTruthy()
+  expect(screen.getByText('exit code 3')).toBeTruthy()
+})
+
 test('missing server offers no retry', async () => {
   window.aiplot = bridge({ status: 'error', reason: 'missing', restarts: 0 })
   connectServer()
