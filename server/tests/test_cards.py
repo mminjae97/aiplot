@@ -213,7 +213,9 @@ def test_episode_rows_and_status(conn: sqlite3.Connection) -> None:
             {
                 "structure": {
                     **episode["data"]["structure"],
-                    "stages": [{**stage, "name": name} for stage, name in zip(stages, wrong)],
+                    "stages": [
+                        {**stage, "name": name} for stage, name in zip(stages, wrong, strict=True)
+                    ],
                 }
             }
             for wrong in (
