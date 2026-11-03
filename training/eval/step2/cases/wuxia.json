@@ -1,0 +1,179 @@
+{
+ "seeds": "../../unit15/cases/wuxia.json",
+ "episodes": [
+  {
+   "id": "c_muep1",
+   "name": "백 주년의 밤",
+   "data": {
+    "part_id": "c_mupart1",
+    "order": 1,
+    "theme": "살아남은 자의 죄책감",
+    "relation_to_main": "청운문이 하룻밤에 멸문당하는 사건(ms_mu1)을 이룬다.",
+    "fulfills": [
+     "ms_mu1"
+    ],
+    "characters": [
+     "c_muchar1",
+     "c_muchar2"
+    ],
+    "locations": {
+     "main": "c_mureg1",
+     "others": []
+    },
+    "world": [
+     "c_muworld1"
+    ],
+    "links": {
+     "prev": null,
+     "next": "c_muep2",
+     "causes": []
+    },
+    "foreshadowing": {
+     "plants": [
+      {
+       "id": "fs_mu1",
+       "text": "습격자 가운데 한 명이 청운문의 보법을 쓴다"
+      }
+     ],
+     "payoffs": []
+    },
+    "worldline_id": null,
+    "structure": {
+     "type": 5,
+     "stages": [
+      {
+       "name": "발단",
+       "summary": "청운산에서 청운문이 개파 백 주년 잔치를 연다. 막내 무현은 사형 진목과 술잔을 나르며 웃는다.",
+       "tension": 1
+      },
+      {
+       "name": "전개",
+       "summary": "잔치가 한창인 같은 시각, 산문 밖에서는 복면 쓴 자들이 담을 넘는다. 안에서는 아무도 모른다.",
+       "tension": 3
+      },
+      {
+       "name": "위기",
+       "summary": "습격이 시작되고 사부는 무현을 뒷산 동굴로 밀어 넣는다. 복면인 하나가 청운문의 보법으로 움직인다.",
+       "tension": 4
+      },
+      {
+       "name": "절정",
+       "summary": "무현은 동굴 틈으로 사부가 쓰러지는 것을 소리도 내지 못하고 지켜본다.",
+       "tension": 5
+      },
+      {
+       "name": "결말",
+       "summary": "날이 밝자 무현은 불탄 문파 터에서 홀로 사부를 묻는다. 진목의 시신은 어디에도 없다.",
+       "tension": 3
+      }
+     ]
+    },
+    "synopsis": "청운문 개파 백 주년 잔치 날 밤, 복면 쓴 자들이 문파를 습격한다. 사부는 무현을 동굴에 숨기고 홀로 싸우다 쓰러지고, 무현은 그 모습을 지켜본다. 날이 밝자 무현은 홀로 사부를 묻는다."
+   },
+   "gold": [
+    {
+     "stage": "전개",
+     "accept": [
+      "tech_tim_028",
+      "tech_inf_001",
+      "tech_inf_007",
+      "tech_ser_037"
+     ],
+     "why": "잔치와 담을 넘는 복면인이 같은 시각에 벌어지고 안에서는 모른다: 동시 사건 교차, 정보 우위, 극적 아이러니, 외화면."
+    },
+    {
+     "stage": "절정",
+     "accept": [
+      "tech_tim_011",
+      "tech_ser_035",
+      "tech_voi_038",
+      "tech_tim_027"
+     ],
+     "why": "숨어서 지켜보는 짧은 순간이 이야기의 중심이다: 시간 늘이기, 클로즈업, 인물의 지각 그대로, 심리적 시간."
+    }
+   ]
+  },
+  {
+   "id": "c_muep2",
+   "name": "백운곡의 삼 년",
+   "data": {
+    "part_id": "c_mupart1",
+    "order": 2,
+    "theme": "검보다 먼저 마음을 다스리는 법",
+    "relation_to_main": "무현이 은거 고수 백운노인에게 검을 배우는 사건(ms_mu2)을 이룬다.",
+    "fulfills": [
+     "ms_mu2"
+    ],
+    "characters": [
+     "c_muchar1",
+     "c_muchar3"
+    ],
+    "locations": {
+     "main": "c_mureg3",
+     "others": []
+    },
+    "world": [],
+    "links": {
+     "prev": "c_muep1",
+     "next": null,
+     "causes": []
+    },
+    "foreshadowing": {
+     "plants": [],
+     "payoffs": []
+    },
+    "worldline_id": null,
+    "structure": {
+     "type": 4,
+     "stages": [
+      {
+       "name": "기",
+       "summary": "무현은 백운곡 입구의 너럭바위에 앉아 사흘 밤낮을 기다린 끝에 백운노인의 제자가 된다.",
+       "tension": 2
+      },
+      {
+       "name": "승",
+       "summary": "삼 년 동안 무현은 물을 긷고, 장작을 패고, 같은 초식을 만 번씩 휘두른다. 계절이 세 번 바뀐다.",
+       "tension": 2
+      },
+      {
+       "name": "전",
+       "summary": "노인은 마지막 시험으로 무현에게 원수의 얼굴을 떠올리며 검을 휘두르게 한다. 무현의 검이 처음으로 흔들린다.",
+       "tension": 4
+      },
+      {
+       "name": "결",
+       "summary": "하산하는 날, 무현은 처음 왔던 날 앉았던 너럭바위를 다시 지나며 잠시 멈춘다.",
+       "tension": 3
+      }
+     ]
+    },
+    "synopsis": "멸문 뒤 백운곡을 찾은 무현이 사흘을 기다려 백운노인의 제자가 된다. 삼 년의 수련 끝에 원수를 떠올리는 시험에서 검이 흔들리고, 무현은 처음 앉았던 바위를 지나 산을 내려간다."
+   },
+   "gold": [
+    {
+     "stage": "승",
+     "accept": [
+      "tech_ser_039",
+      "tech_tim_006",
+      "tech_tim_008",
+      "tech_tim_022",
+      "tech_ser_034",
+      "tech_tim_014"
+     ],
+     "why": "삼 년의 반복 수련을 짧게 지나가야 한다: 몽타주, 요약, 명시적 생략, 장면-요약 교대, 점프 컷, 괄복 서술."
+    },
+    {
+     "stage": "결",
+     "accept": [
+      "tech_des_031",
+      "tech_str_010",
+      "tech_ser_032",
+      "tech_des_019"
+     ],
+     "why": "처음과 같은 장소를 다시 지나 변화를 보여 준다: 장소 재방문 대비, 수미상관, 매치 컷, 모티프 반복."
+    }
+   ]
+  }
+ ]
+}

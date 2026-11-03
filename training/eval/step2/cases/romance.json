@@ -1,0 +1,180 @@
+{
+ "seeds": "../../unit15/cases/romance.json",
+ "episodes": [
+  {
+   "id": "c_roep1",
+   "name": "가족 식사",
+   "data": {
+    "part_id": "c_ropart1",
+    "order": 1,
+    "theme": "거짓말로 지키는 사이",
+    "relation_to_main": "계약 연애가 시작된 뒤(ms_ro1) 두 사람이 처음으로 가족 앞에서 연인을 연기한다.",
+    "fulfills": [
+     "ms_ro1"
+    ],
+    "characters": [
+     "c_rochar1",
+     "c_rochar2",
+     "c_rochar3"
+    ],
+    "locations": {
+     "main": "c_roreg2",
+     "others": []
+    },
+    "world": [],
+    "links": {
+     "prev": null,
+     "next": "c_roep2",
+     "causes": []
+    },
+    "foreshadowing": {
+     "plants": [
+      {
+       "id": "fs_ro1",
+       "text": "할머니가 하늘의 꽃 이름을 정확히 알고 있다"
+      }
+     ],
+     "payoffs": []
+    },
+    "worldline_id": null,
+    "structure": {
+     "type": 4,
+     "stages": [
+      {
+       "name": "기",
+       "summary": "이준은 하늘을 데리고 청담동 본가의 주말 가족 식사에 간다. 차 안에서 둘은 첫 만남 이야기를 급히 맞춘다.",
+       "tension": 2
+      },
+      {
+       "name": "승",
+       "summary": "식탁에서 할머니 차영순은 두 사람의 첫 만남을 캐묻는다. 하늘과 이준은 서로의 거짓말에 말을 맞추고, 할머니는 알고도 모른 척하는 듯 웃는다.",
+       "tension": 4
+      },
+      {
+       "name": "전",
+       "summary": "할머니가 하늘에게만 따로 정원을 보여 주며 꽃 이름을 하나씩 짚는다. 하늘은 할머니가 자기 꽃집을 이미 알고 있다는 것을 눈치챈다.",
+       "tension": 3
+      },
+      {
+       "name": "결",
+       "summary": "돌아오는 차 안, 이준이 처음으로 '하늘 씨' 대신 '하늘아'라고 부르다 멈칫하고 말을 고친다. 하늘은 창밖만 본다.",
+       "tension": 3
+      }
+     ]
+    },
+    "synopsis": "계약 연애를 시작한 하늘과 이준이 본가 가족 식사에서 처음 연인을 연기한다. 할머니는 두 사람을 날카롭게 떠보고, 하늘은 할머니가 모든 걸 알고 있는지도 모른다고 느낀다. 돌아오는 길에 이준의 호칭이 흔들린다."
+   },
+   "gold": [
+    {
+     "stage": "승",
+     "accept": [
+      "tech_cha_018",
+      "tech_inf_007",
+      "tech_cha_020",
+      "tech_cha_028"
+     ],
+     "why": "할머니는 거짓을 의심하고, 두 사람은 할머니가 의심하는 걸 안다. 누가 무엇을 아는지 쌓는 심리전: 마음 읽기 층위, 극적 아이러니, 서브텍스트, 권력 이동."
+    },
+    {
+     "stage": "결",
+     "accept": [
+      "tech_cha_017",
+      "tech_cha_020",
+      "tech_cha_022",
+      "tech_cha_031"
+     ],
+     "why": "관계 변화가 호칭 하나로 드러나고 둘 다 말하지 않는다: 호칭 변화, 서브텍스트, 침묵, 고백 지연."
+    }
+   ]
+  },
+  {
+   "id": "c_roep2",
+   "name": "응접실 문 앞에서",
+   "data": {
+    "part_id": "c_ropart1",
+    "order": 2,
+    "theme": "지키고 싶은 것을 처음 말하는 용기",
+    "relation_to_main": "이준이 하늘의 꽃집을 지키려 가족과 맞서는 사건(ms_ro2)을 이룬다.",
+    "fulfills": [
+     "ms_ro2"
+    ],
+    "characters": [
+     "c_rochar1",
+     "c_rochar2",
+     "c_rochar3"
+    ],
+    "locations": {
+     "main": "c_roreg2",
+     "others": [
+      "c_roreg1"
+     ]
+    },
+    "world": [],
+    "links": {
+     "prev": "c_roep1",
+     "next": null,
+     "causes": []
+    },
+    "foreshadowing": {
+     "plants": [],
+     "payoffs": [
+      "fs_ro1"
+     ]
+    },
+    "worldline_id": null,
+    "structure": {
+     "type": 5,
+     "stages": [
+      {
+       "name": "발단",
+       "summary": "하늘의 꽃집에 건물 매각 공고가 붙는다. 하늘은 이준에게 알리지 않는다.",
+       "tension": 2
+      },
+      {
+       "name": "전개",
+       "summary": "이준은 공고를 보고 본가로 찾아가 할머니에게 매각을 멈춰 달라고 한다.",
+       "tension": 3
+      },
+      {
+       "name": "위기",
+       "summary": "할머니는 '계약 연애를 끝내고 정혼을 받아들이면 건물을 팔지 않겠다, 아니면 다음 주에 판다'며 이준에게 고르라고 한다.",
+       "tension": 4
+      },
+      {
+       "name": "절정",
+       "summary": "이준은 할머니에게 꽃집도 하늘도 놓지 않겠다고 말한다. 서류를 들고 찾아온 하늘은 응접실 문밖에서 그 말을 듣는다. 이준은 하늘이 듣고 있는 줄 모른다.",
+       "tension": 5
+      },
+      {
+       "name": "결말",
+       "summary": "할머니는 답을 미루고, 하늘은 들은 말을 품은 채 조용히 돌아선다.",
+       "tension": 3
+      }
+     ]
+    },
+    "synopsis": "꽃집 건물 매각을 두고 할머니가 이준에게 계약 연애를 끝낼지 꽃집을 잃을지 고르라고 한다. 이준은 둘 다 놓지 않겠다고 맞서고, 문밖의 하늘이 그 말을 몰래 듣는다."
+   },
+   "gold": [
+    {
+     "stage": "위기",
+     "accept": [
+      "tech_inf_023",
+      "tech_cha_015",
+      "tech_inf_040",
+      "tech_tim_024"
+     ],
+     "why": "둘 중 하나를 골라야 하는 압박과 기한(다음 주)이 걸려 있다: 딜레마 압박, 압박 속 선택, 판돈 제시, 지연."
+    },
+    {
+     "stage": "절정",
+     "accept": [
+      "tech_cha_030",
+      "tech_inf_007",
+      "tech_cha_028"
+     ],
+     "why": "하늘이 문밖에서 듣고 이준은 그걸 모른다: 엿듣기, 극적 아이러니, 할머니 앞에서 주도권이 넘어가는 대화."
+    }
+   ]
+  }
+ ]
+}
