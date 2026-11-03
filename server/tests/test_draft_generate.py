@@ -464,6 +464,44 @@ def test_a_linked_region_is_not_also_the_parent_and_sentence_numbers_go(
     assert generated(client, draft_id)["data"]["parent_id"] == "c_isle"
 
 
+def test_new_cards_are_placed_again_at_save(
+    client: TestClient, conn: sqlite3.Connection, llm: Scripted
+) -> None:
+    """Two drafts generated side by side were both placed after the same last card; the one
+    saved second must still go after the first, with no link dropped."""
+    episodes_open(conn)
+    save(conn, episode("c_e1", part_id="c_part1", order=1))
+    llm.say("card", output("episode", episode("c_new")))
+    first = open_draft(client, {"type": "episode", "part_id": "c_part1"})
+    second = open_draft(client, {"type": "episode", "part_id": "c_part1"})
+    for draft_id in (first, second):
+        assert generate(client, draft_id)["status"] == "done"
+        data = generated(client, draft_id)["data"]
+        assert (data["order"], data["links"]["prev"]) == (2, "c_e1")
+    a = save_draft(client, first).json()
+    b = save_draft(client, second).json()
+    assert (a["data"]["order"], a["data"]["links"]["prev"]) == (2, "c_e1")
+    assert (b["data"]["order"], b["data"]["links"]["prev"]) == (3, a["id"])
+    orders = conn.execute(
+        'SELECT card_id, "order" FROM episode WHERE part_id = \'c_part1\' ORDER BY "order"'
+    ).fetchall()
+    assert [tuple(r) for r in orders] == [("c_e1", 1), (a["id"], 2), (b["id"], 3)]
+    links = conn.execute("SELECT from_id, to_id FROM episode_link WHERE kind = 'order'")
+    assert {tuple(r) for r in links} == {("c_e1", a["id"]), (a["id"], b["id"])}
+
+    # Parts the same way: c_part1 and c_part2 hold orders 1 and 2.
+    part = fixture("part")
+    part["data"] = {**part["data"], "fulfills": []}
+    llm.say("card", output("part", part))
+    first = open_draft(client, {"type": "part"})
+    second = open_draft(client, {"type": "part"})
+    for draft_id in (first, second):
+        assert generate(client, draft_id)["status"] == "done"
+        assert generated(client, draft_id)["data"]["order"] == 3
+    assert save_draft(client, first).json()["data"]["order"] == 3
+    assert save_draft(client, second).json()["data"]["order"] == 4
+
+
 def test_milestones_stay_with_their_one_part(
     client: TestClient, conn: sqlite3.Connection, llm: Scripted
 ) -> None:

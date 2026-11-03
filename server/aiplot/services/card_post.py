@@ -140,6 +140,27 @@ def place_episode(
     data["links"]["prev"] = rows[0][0] if rows else None
 
 
+def place_part(conn: sqlite3.Connection, data: dict[str, Any], work_id: str) -> None:
+    """A new part goes after the part with the highest order (§8)."""
+    data["order"] = cards_db.last_part_order(conn, work_id) + 1
+
+
+def place_new(
+    conn: sqlite3.Connection,
+    card_type: str,
+    data: dict[str, Any],
+    part_id: str | None,
+    work_id: str,
+) -> None:
+    """Placement of a new episode or part, from the tables as they are now. Run at generation
+    and again at 저장, inside its transaction: another card saved in between (an episode in the
+    same part, a part) moved the end its placement was taken from."""
+    if card_type == "episode":
+        place_episode(conn, data, part_id, work_id)
+    elif card_type == "part":
+        place_part(conn, data, work_id)
+
+
 def process(
     conn: sqlite3.Connection,
     output: CardOutput,
@@ -190,7 +211,7 @@ def process(
             if saved is not None:
                 data["order"] = saved_data.get("order")
             else:
-                data["order"] = cards_db.last_part_order(conn, work_id) + 1
+                place_part(conn, data, work_id)
         case "episode":
             data["characters"] = scope.keep(data["characters"], "character")
             data["locations"]["main"] = scope.one(data["locations"]["main"], "region")

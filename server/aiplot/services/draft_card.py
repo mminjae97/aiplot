@@ -6,6 +6,7 @@ the notes, the card and its relations in one transaction and closes the draft.
 """
 
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -215,6 +216,22 @@ def cancel(jobs: JobQueue, draft: DraftState) -> None:
         jobs.cancel(job)
 
 
+def placer(draft: DraftState) -> Callable[[sqlite3.Connection, Card], Card] | None:
+    """A new episode or part is placed again inside the save's transaction (order, prev/next,
+    worldline; part order): what generation saw may be stale by 저장 (another episode saved
+    into the same part would share its order, and relinking would drop a link). An edited
+    card keeps the placement card_post read where it stands."""
+    if draft.card_id is not None or draft.type not in ("episode", "part"):
+        return None
+
+    def place(conn: sqlite3.Connection, card: Card) -> Card:
+        value = card.model_dump(mode="json")
+        card_post.place_new(conn, draft.type, value["data"], draft.part_id, draft.work_id)
+        return cards.CARD.validate_python(value)
+
+    return place
+
+
 def save(conn: sqlite3.Connection, store: DraftStore, jobs: JobQueue, draft_id: str) -> Card:
     """Notes + card + relation rows in one transaction (cards.save); the drawer then closes.
     Runs on the event loop (async route), so two saves of one draft never interleave."""
@@ -240,7 +257,7 @@ def save(conn: sqlite3.Connection, store: DraftStore, jobs: JobQueue, draft_id: 
     }
     if draft.type == "region":
         value["position"] = None
-    saved = cards.save(conn, cards.CARD.validate_python(value))
+    saved = cards.save(conn, cards.CARD.validate_python(value), placer(draft))
     store.remove(draft_id)
     cancel(jobs, draft)
     return saved
