@@ -145,6 +145,15 @@ def story(conn: sqlite3.Connection) -> None:
     save(conn, fixture("world", id="c_tide"))
 
 
+def episodes_open(conn: sqlite3.Connection) -> None:
+    """story() plus part 2 holding ms_2: every milestone is in one part, so the episode step
+    is open (§8) and new episode drafts may be created."""
+    story(conn)
+    part = fixture("part", id="c_part2", name="2부")
+    part["data"] = {**part["data"], "order": 2, "title": "2부", "fulfills": ["ms_2"]}
+    save(conn, part)
+
+
 def test_episode_rows_and_status(conn: sqlite3.Connection) -> None:
     story(conn)
     milestone = rows(conn, 'SELECT id FROM milestone ORDER BY "order"')[0][0]

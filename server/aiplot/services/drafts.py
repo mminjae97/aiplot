@@ -35,7 +35,22 @@ class DraftNotFoundError(LookupError):
 
 class DraftInvalidError(ValueError):
     """The draft asks for something that does not fit (card of another type, a part that
-    is not one, a category for a non-world card)."""
+    is not one, a category for a non-world card, a new card before its stage is open)."""
+
+
+def require_creation_order(conn: sqlite3.Connection, work_id: str, card_type: str) -> None:
+    """§7 main → parts → episodes (§8 story steps): a new part needs a saved main story; a new
+    episode needs one with at least one milestone, every milestone in exactly one part."""
+    if card_type not in ("part", "episode"):
+        return
+    if cards_db.main_story_of(conn, work_id) is None:
+        raise DraftInvalidError(f"a new {card_type} needs a saved main story first")
+    if card_type == "episode":
+        counts = cards_db.milestone_part_counts(conn, work_id)
+        if not counts:
+            raise DraftInvalidError("a new episode needs a main story with milestones")
+        if any(count != 1 for count in counts.values()):
+            raise DraftInvalidError("a new episode needs every milestone in exactly one part")
 
 
 class NothingToConvertError(ValueError):
@@ -136,6 +151,8 @@ def create(conn: sqlite3.Connection, store: DraftStore, work_id: str, body: Draf
             raise DraftInvalidError("only a new episode is placed in a part")
         if part is None or part.type != "part" or part.work_id != work_id:
             raise DraftInvalidError(f"{body.part_id} is not a part of this work")
+    if saved is None:
+        require_creation_order(conn, work_id, body.type)
     draft = DraftState(
         id=new_draft_id(),
         work_id=work_id,
