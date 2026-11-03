@@ -453,6 +453,26 @@ test('a failure under an open card drawer keeps its draft; the chip only explain
   expect(await screen.findByText(new RegExp(strings.setup.llamaError))).toBeTruthy()
 })
 
+test('the download chip under an open card drawer also only explains', async () => {
+  const { state, calls, event } = await renderBook()
+  fireEvent.click(screen.getByRole('button', { name: strings.worldBook.newEntry }))
+  await waitFor(() => {
+    expect(useNavigation.getState().drawerOpen).toBe(true)
+  })
+  state.jobId = 'job_1'
+  act(() => {
+    useSetupJob.getState().follow('job_1')
+  })
+  await event(1, 'progress', { done: 3 * GB, total: 6 * GB, etaSec: 720, step: 'base.gguf' })
+  const chip = await screen.findByRole('button', { name: strings.setup.chip(50) })
+  expect(chip.getAttribute('aria-disabled')).toBe('true')
+  fireEvent.click(chip)
+  expect(await screen.findByText(strings.setup.chipAfterDrawer)).toBeTruthy()
+  expect(setupHeading()).toBeNull()
+  expect(useNavigation.getState().screen).toEqual({ name: 'world', workId: 'w_1' })
+  expect(calls.some((c) => c.method === 'DELETE' && c.path === '/drafts/dr_1')).toBe(false)
+})
+
 test('the fixture LLM never shows the chip or opens S0-1 from a book', async () => {
   const { state, client } = await renderBook()
   state.health = health('fake')
