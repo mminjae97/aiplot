@@ -312,6 +312,7 @@ export const strings = {
     pinShort: '고정',
     evidenceHint: '항목을 누르면 근거 문장이 원문에 표시돼요.',
     before: '이전',
+    unchanged: '바뀐 칸이 없어요. 저장해도 카드는 그대로예요.',
     references: '이 카드를 가리키는 카드',
     referencesNote: '이름이 바뀌면 아래 카드에서도 새 이름으로 보여요.',
     referencesLinksNote: '관계나 등장인물이 바뀌면 아래 카드에서 보이는 내용도 함께 바뀌어요.',
