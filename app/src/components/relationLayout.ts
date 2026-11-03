@@ -132,7 +132,12 @@ export function kindOf(relation: string | null): RelationKind {
         ? token.includes(word)
         : token.startsWith(word) && TAIL.test(token.slice(word.length)),
     )
-  for (const [kind, words] of WORDS) if (words.some(says)) return kind
+  // A 연적 is a rival in love: the love it names is for someone else, never between the two.
+  const rival = says('연적')
+  for (const [kind, words] of WORDS) {
+    if (kind === 'love' && rival) continue
+    if (words.some(says)) return kind
+  }
   return 'neutral'
 }
 

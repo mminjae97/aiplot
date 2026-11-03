@@ -91,6 +91,9 @@ test('strong hostility beats family and love; short words count only as whole wo
 })
 
 test('family beats love, spouses stay love, and 연적 is mere rivalry', () => {
+  // A rival in love names the love for someone else: still a rivalry line.
+  expect(kindOf('같은 여자를 사랑하는 연적')).toBe('hostile')
+  expect(kindOf('사랑의 연적')).toBe('hostile')
   for (const text of ['사랑하는 딸', '사랑하는 동생', '사랑하는 형', '사랑하는 스승'])
     expect(kindOf(text)).toBe('friendly')
   for (const text of ['사랑하는 아내', '첫사랑', '사랑하는 남편', '약혼자'])
