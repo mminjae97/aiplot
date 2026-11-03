@@ -34,6 +34,7 @@ from aiplot.generated.card.completeness import (
 from aiplot.generated.card.region import RegionTravel
 from aiplot.generated.card.region_links import RegionLinkRow
 from aiplot.generated.card.relations import CardRelation
+from aiplot.services.structure import STAGE_NAMES
 from aiplot.services.trash import Deleted, Trash
 from aiplot.services.works import WorkNotFoundError, require_open
 
@@ -106,6 +107,10 @@ def complete(conn: sqlite3.Connection, card: Card) -> bool:
                 and db.count_episode_characters(conn, card.id) >= 1
                 and db.has_main_region(conn, card.id)
                 and structure is not None
+                # §15: exactly 기승전결 or 발단…결말, in order (card_post names generated
+                # stages by position; data that arrives any other way is checked here).
+                and tuple(stage.name for stage in structure.stages)
+                == STAGE_NAMES[structure.type]
                 and all(filled(stage.summary) for stage in structure.stages)
             )
     return False

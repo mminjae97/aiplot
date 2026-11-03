@@ -584,6 +584,56 @@ def test_a_generated_card_goes_from_five_stages_to_four_without_the_model(
     assert saved["data"]["structure"] == after["data"]["structure"]
 
 
+def test_structure_stages_are_named_by_position(
+    client: TestClient, conn: sqlite3.Connection, llm: Scripted
+) -> None:
+    """§15: exactly 기승전결 or 발단…결말. The model may repeat a stage name; stages are in story
+    order, so each one takes its position's name and keeps its summary and tension."""
+    story(conn)
+    value = episode("c_new")
+    stages = value["data"]["structure"]["stages"]
+    value["data"]["structure"]["stages"] = [
+        {**stage, "name": name}
+        for stage, name in zip(stages, ["발단", "발단", "위기", "절정", "결말"], strict=True)
+    ]
+    llm.say("card", output("episode", value))
+    draft_id = open_draft(client, {"type": "episode", "part_id": "c_part1"})
+    assert generate(client, draft_id)["status"] == "done"
+    named = generated(client, draft_id)["data"]["structure"]
+    assert named["stages"] == [
+        {**stage, "name": name}
+        for stage, name in zip(stages, ["발단", "전개", "위기", "절정", "결말"], strict=True)
+    ]
+    # 5→4 then keeps every stage (it maps by name).
+    response = client.put(f"/api/v1/drafts/{draft_id}/structure", headers=AUTH, json={"type": 4})
+    four = response.json()["generated"]["data"]["structure"]["stages"]
+    assert [stage["summary"] for stage in four] == [
+        "발단 요약",
+        "전개 요약 위기 요약",
+        "절정 요약",
+        "결말 요약",
+    ]
+
+    four_value = episode("c_new")
+    four_value["data"]["structure"] = {
+        "type": 4,
+        "stages": [
+            {"name": name, "summary": f"{i} 요약", "tension": 2}
+            for i, name in enumerate(["기", "기", "결", "결"])
+        ],
+    }
+    llm.say("card", output("episode", four_value))
+    draft_id = open_draft(client, {"type": "episode", "part_id": "c_part1"})
+    assert generate(client, draft_id)["status"] == "done"
+    named = generated(client, draft_id)["data"]["structure"]
+    assert [(s["name"], s["summary"]) for s in named["stages"]] == [
+        ("기", "0 요약"),
+        ("승", "1 요약"),
+        ("전", "2 요약"),
+        ("결", "3 요약"),
+    ]
+
+
 def test_structure_change_refusals(
     client: TestClient, conn: sqlite3.Connection, llm: Scripted
 ) -> None:

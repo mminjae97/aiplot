@@ -8,7 +8,9 @@
 - keeps a part's milestones to those no other part has, and an episode's to its part's (§7:
   each milestone is in exactly one part);
 - strips sentence numbers ("[2] ") the model copied from the numbered notes into text;
-- restores pinned fields from the card shown before.
+- restores pinned fields from the card shown before;
+- names structure stages by position (§15: exactly 기승전결 or 발단…결말; the model may
+  repeat one).
 """
 
 import secrets
@@ -28,6 +30,7 @@ from aiplot.generated.card.world import WorldData
 from aiplot.generated.roles.card_output import CardOutput
 from aiplot.services.cards import Scope
 from aiplot.services.notes import NUMBERED
+from aiplot.services.structure import name_by_position
 
 DATA_MODELS: dict[str, type[BaseModel]] = {
     "world": WorldData,
@@ -231,6 +234,10 @@ def process(
             elif path in field_paths(card_type):
                 shown_data = shown.get("data") or {}
                 set_path(data, path, get_path(shown_data, path), shown_data)
+
+    # Last, so a pinned structure is named the same way.
+    if isinstance(data.get("structure"), dict):
+        name_by_position(data["structure"])
 
     paths = field_paths(card_type)
     value["evidence"] = {

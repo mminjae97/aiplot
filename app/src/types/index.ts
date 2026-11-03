@@ -395,7 +395,7 @@ export interface PartData {
 export interface FourStageStructure {
   type: 4
   /**
-   * One entry per stage, in story order; names unique (checked by the server).
+   * One entry per stage, in story order; the server sets each name by its position (§15: exactly the type's sequence).
    *
    * @minItems 4
    * @maxItems 4
@@ -410,7 +410,7 @@ export interface FourStage {
 export interface FiveStageStructure {
   type: 5
   /**
-   * One entry per stage, in story order; names unique (checked by the server).
+   * One entry per stage, in story order; the server sets each name by its position (§15: exactly the type's sequence).
    *
    * @minItems 5
    * @maxItems 5
