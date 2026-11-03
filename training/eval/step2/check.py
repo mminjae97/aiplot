@@ -69,7 +69,12 @@ def check_genre(genre: str, catalog: dict[str, Any]) -> tuple[list[str], int]:
                     if saved[key] != episode["data"][key]:
                         problems.append(f"{episode['id']}: {key} not kept on save")
                 stages = {s["name"] for s in episode["data"]["structure"]["stages"]}
+                scored_stages = [gold["stage"] for gold in episode["gold"]]
+                if len(set(scored_stages)) != 2 or len(scored_stages) != 2:
+                    problems.append(f"{episode['id']}: want two distinct scored stages")
                 for gold in episode["gold"]:
+                    if not gold["accept"]:
+                        problems.append(f"{episode['id']}: {gold['stage']} accepts nothing")
                     scored += 1
                     if gold["stage"] not in stages:
                         problems.append(f"{episode['id']}: no stage {gold['stage']}")
