@@ -23,6 +23,6 @@ roles:
     prompt: 5
     thinking: true
     sampling: { temperature: 0.3 }
-    # Unit 15: long thinking on part cards ran past 4096 (twice on one card); prompt + this
-    # stays within ctx 8192 (card prompts measured up to ~3.3k tokens).
+    # Unit 15: long thinking on part cards ran past 4096 (twice on one card). With ctx 8192
+    # this leaves room for prompts up to ~3.39k tokens (measured up to ~3.33k).
     max_tokens: 4800
