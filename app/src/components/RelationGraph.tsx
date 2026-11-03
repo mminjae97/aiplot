@@ -278,9 +278,9 @@ const arrowOf = (kind: RelationKind) =>
 
 // React Flow's screen-reader text, in Korean; nodes open a card, nothing is selected.
 const ARIA = {
-  'node.a11yDescription.default': 'Enter 키로 카드를 뒤집어 봐요.',
-  'node.a11yDescription.keyboardDisabled': 'Enter 키로 카드를 뒤집어 봐요.',
-  'edge.a11yDescription.default': '두 인물의 관계예요.',
+  'node.a11yDescription.default': strings.dex.graphNodeHint,
+  'node.a11yDescription.keyboardDisabled': strings.dex.graphNodeHint,
+  'edge.a11yDescription.default': strings.dex.graphEdgeHint,
 }
 
 function graphOf(cards: CharacterCard[], relations: CardRelation[], groups: Group[]) {

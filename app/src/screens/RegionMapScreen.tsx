@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { CardDrawer, type DrawerRequest } from '../components/CardDrawer'
 import { DeleteCardDialog, UndoToast } from '../components/CardDelete'
@@ -14,6 +14,13 @@ import type { PageProps } from './PlanningBook'
 
 function isRegion(card: Card): card is RegionCard {
   return card.type === 'region'
+}
+
+/** A region's place on the map to give the focus back to: its token, or the name of the area
+ * it is drawn as. */
+function regionTarget(id: string): HTMLElement | null {
+  const node = document.querySelector<HTMLElement>(`.react-flow__node[data-id="${id}"]`)
+  return node?.querySelector<HTMLElement>('.map-area-name') ?? node
 }
 
 /** S1-2 region map (§8): regions on a sheet of paper, lines as long as the journey, parents
@@ -33,6 +40,7 @@ export function RegionMapScreen({
   const [moveFailed, setMoveFailed] = useState(false)
   // Bumped when a move could not be saved: the map is drawn again from what is saved.
   const [revision, setRevision] = useState(0)
+  const addRef = useRef<HTMLButtonElement>(null)
 
   const work = useQuery({ queryKey: ['works', workId], queryFn: () => api.getWork(workId) })
   const regions = useQuery({
@@ -100,6 +108,7 @@ export function RegionMapScreen({
             </h2>
             {!locked && (
               <button
+                ref={addRef}
                 type="button"
                 className="dex-tab"
                 onClick={() => {
@@ -165,6 +174,8 @@ export function RegionMapScreen({
             onClose={() => {
               setPicked(null)
             }}
+            // Opened from a link on another page (함께 보기): back onto its region here.
+            returnFocus={() => regionTarget(current.id) ?? addRef.current}
             front={<RegionFront card={current} />}
             back={
               <RegionBack
@@ -216,6 +227,7 @@ export function RegionMapScreen({
             onDone={() => {
               setUndo(null)
             }}
+            returnFocus={() => addRef.current}
             onRestored={() => {
               setUndo(null)
             }}

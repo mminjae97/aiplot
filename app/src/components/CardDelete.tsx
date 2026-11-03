@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { ApiRequestError, api } from '../api/client'
 import { strings } from '../strings'
-import { useModalKeys } from './useModalKeys'
+import { focusWhenFree, useModalKeys } from './useModalKeys'
 import type { Card } from '../types'
 
 type ConfirmProps = {
@@ -199,26 +199,52 @@ type ToastProps = {
   onDone: () => void
   /** The card is back. */
   onRestored: (card: Card) => void
+  /** Where the focus goes when the toast goes by itself while it had the focus, if the place
+   * the focus was before it is gone (the screen's add button, its list…). */
+  returnFocus: () => HTMLElement | null | undefined
 }
 
 /** 되돌리기 (§8): a toast for the few seconds the server keeps a deleted card. */
-export function UndoToast({ card, until, onDone, onRestored }: ToastProps) {
+export function UndoToast({ card, until, onDone, onRestored, returnFocus }: ToastProps) {
   const queryClient = useQueryClient()
   const [failed, setFailed] = useState(false)
   const [busy, setBusy] = useState(false)
+  const toast = useRef<HTMLDivElement>(null)
   const undo = useRef<HTMLButtonElement>(null)
+  // Where the focus was before the toast took it; kept in a ref so StrictMode's re-run keeps it.
+  const before = useRef<Element | null>(null)
+  const done = useRef(onDone)
+  const elsewhere = useRef(returnFocus)
+  useEffect(() => {
+    done.current = onDone
+    elsewhere.current = returnFocus
+  }, [onDone, returnFocus])
 
   useEffect(() => {
+    before.current ??= document.activeElement
     undo.current?.focus()
   }, [])
 
   useEffect(() => {
     const left = Math.max(0, new Date(until).getTime() - Date.now())
-    const timer = window.setTimeout(onDone, left)
+    const timer = window.setTimeout(() => {
+      // Gone by itself: a keyboard user on 되돌리기 keeps a place on the page (§8).
+      const active = document.activeElement
+      const had =
+        active === null || active === document.body || (toast.current?.contains(active) ?? false)
+      done.current()
+      if (!had) return
+      const back = before.current
+      focusWhenFree(() =>
+        back instanceof HTMLElement && back.isConnected && back !== document.body
+          ? back
+          : elsewhere.current(),
+      )
+    }, left)
     return () => {
       window.clearTimeout(timer)
     }
-  }, [until, onDone])
+  }, [until])
 
   const restore = async () => {
     setBusy(true)
@@ -235,7 +261,7 @@ export function UndoToast({ card, until, onDone, onRestored }: ToastProps) {
   }
 
   return (
-    <div className="undo-toast" role="status">
+    <div ref={toast} className="undo-toast" role="status">
       <p>
         {failed
           ? strings.cardDelete.restoreFailed

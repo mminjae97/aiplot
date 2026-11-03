@@ -11,15 +11,26 @@ type Props = {
   /** Another dialog sits on top (delete): this one takes no input meanwhile. */
   covered?: boolean
   onClose: () => void
+  /** Where the focus goes on close when the element it came from is gone (a link on a page
+   * turned away from): the card on this page. */
+  returnFocus?: () => HTMLElement | null | undefined
 }
 
 /** A card picked up from the dex or the graph (§8 S1-1): it grows to the middle of the window
  * and flips (0.3s) to its back. Esc, 닫기 or a click beside it puts it down. */
-export function FlipCard({ origin, label, front, back, covered = false, onClose }: Props) {
+export function FlipCard({
+  origin,
+  label,
+  front,
+  back,
+  covered = false,
+  onClose,
+  returnFocus,
+}: Props) {
   const box = useRef<HTMLDivElement>(null)
   const card = useRef<HTMLDivElement>(null)
   const close = useRef<HTMLButtonElement>(null)
-  useModalKeys(box, onClose, close)
+  useModalKeys(box, onClose, close, returnFocus)
 
   // FLIP: start at the origin's place and size, then let the transition carry it to the
   // middle while the faces turn. Reduced motion makes both instant (styles/dex.css).

@@ -304,9 +304,9 @@ export function RegionMap({ cards, links, parents, episodes, locked, onPick, onM
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
         ariaLabelConfig={{
-          'node.a11yDescription.default': 'Enter 키로 카드를 뒤집어 봐요.',
-          'node.a11yDescription.keyboardDisabled': 'Enter 키로 카드를 뒤집어 봐요.',
-          'edge.a11yDescription.default': '두 지역 사이의 길이에요.',
+          'node.a11yDescription.default': strings.map.nodeHint,
+          'node.a11yDescription.keyboardDisabled': strings.map.nodeHint,
+          'edge.a11yDescription.default': strings.map.edgeHint,
         }}
       />
     </div>

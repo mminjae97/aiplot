@@ -4,9 +4,9 @@
 import type { CardRelation, MilestoneFulfilment } from '../types'
 
 export type TimelinePart = { id: string; label: string }
-/** `rows`: how many episodes stack in its busiest column (simultaneous, same place). */
+/** `rows`: how many nodes and markers stack in its busiest column (simultaneous, same place). */
 export type Lane = { id: string | null; label: string; rows: number }
-/** `row`: the episode's place in its lane's stack within that column. */
+/** `row`: its place in its lane's stack within that column (nodes first, then markers). */
 export type Placed = { episodeId: string; column: number; lane: number; row: number }
 export type Span = { partId: string; label: string; first: number; last: number }
 export type Arrow = { from: string; to: string; kind: 'order' | 'cause' }
@@ -79,19 +79,26 @@ export function timelineOf(input: Input): Timeline {
 
   const nodes: Placed[] = []
   const markers: Placed[] = []
-  // Simultaneous episodes in the same place stack in their cell instead of covering each other.
+  // Simultaneous episodes in the same place stack in their cell instead of covering each other;
+  // markers take the free rows under the cell's nodes, so a node never hides one.
   const filled = new Map<string, number>()
-  for (const [episodeId, at] of columnOf) {
-    const lane = laneOf(mainOf.get(episodeId) ?? null)
+  const take = (at: number, lane: number) => {
     const cell = `${String(at)}|${String(lane)}`
     const row = filled.get(cell) ?? 0
     filled.set(cell, row + 1)
     const home = lanes[lane]
     if (home) home.rows = Math.max(home.rows, row + 1)
-    nodes.push({ episodeId, column: at, lane, row })
+    return row
+  }
+  for (const [episodeId, at] of columnOf) {
+    const lane = laneOf(mainOf.get(episodeId) ?? null)
+    nodes.push({ episodeId, column: at, lane, row: take(at, lane) })
+  }
+  for (const [episodeId, at] of columnOf) {
     for (const region of othersOf.get(episodeId) ?? []) {
       if (region === mainOf.get(episodeId)) continue
-      markers.push({ episodeId, column: at, lane: laneOf(region), row: 0 })
+      const lane = laneOf(region)
+      markers.push({ episodeId, column: at, lane, row: take(at, lane) })
     }
   }
 

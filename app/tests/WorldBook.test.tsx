@@ -72,7 +72,7 @@ const TEO = { id: 'c_teo', type: 'character', name: '테오' } as unknown as Car
 
 type Call = { method: string; path: string; body: unknown }
 
-function serve(options: { locked?: boolean; references?: boolean } = {}) {
+function serve(options: { locked?: boolean; references?: boolean; restoreFor?: number } = {}) {
   let worlds: Card[] = [TIDE, GUILD, OATH]
   const calls: Call[] = []
   vi.stubGlobal(
@@ -104,7 +104,7 @@ function serve(options: { locked?: boolean; references?: boolean } = {}) {
         worlds = worlds.filter((card) => card.id !== 'c_tide')
         return json({
           deleted: ['c_tide'],
-          restore_until: new Date(Date.now() + 10_000).toISOString(),
+          restore_until: new Date(Date.now() + (options.restoreFor ?? 10_000)).toISOString(),
         })
       }
       if (method === 'POST' && path === '/cards/c_tide/restore') {
@@ -297,6 +297,28 @@ test('after a delete 되돌리기 takes the focus and the back button waits for 
   const undo = await screen.findByRole('button', { name: strings.cardDelete.undo })
   expect(document.activeElement).toBe(undo)
   expect(back.hasAttribute('disabled')).toBe(false)
+})
+
+test('when the toast goes by itself the focus lands on + 새 설정, not on the page body', async () => {
+  serve({ restoreFor: 200 })
+  renderWorld()
+  fireEvent.click(await screen.findByRole('button', { name: /조수 마법/ }))
+  fireEvent.click(screen.getByRole('button', { name: strings.worldBook.delete }))
+  fireEvent.click(
+    within(screen.getByRole('alertdialog')).getByRole('button', {
+      name: strings.cardDelete.delete,
+    }),
+  )
+  const undo = await screen.findByRole('button', { name: strings.cardDelete.undo })
+  expect(document.activeElement).toBe(undo)
+  await waitFor(() => {
+    expect(screen.queryByRole('button', { name: strings.cardDelete.undo })).toBeNull()
+  })
+  await waitFor(() => {
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: strings.worldBook.newEntry }),
+    )
+  })
 })
 
 test('nothing can be edited before the work says whether planning is locked', async () => {
