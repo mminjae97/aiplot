@@ -157,7 +157,9 @@ def process(
     generated one, else saved), whose pinned fields come back."""
     card_type = output.type
     value = output.model_dump(mode="json")
-    data: dict[str, Any] = value["data"]
+    # First, so an item whose text is unchanged but for a copied number keeps its id.
+    value["name"] = unnumbered(value["name"])
+    value["data"] = data = unnumbered(value["data"])
     scope = Scope(conn, work_id, card_id or "")
     saved_data: dict[str, Any] = saved["data"] if saved is not None else {}
 
@@ -219,9 +221,6 @@ def process(
                 # Unit 15: the model also listed milestones of later parts.
                 parts = cards_db.part_milestones(conn, work_id)
                 data["fulfills"] = [m for m in data["fulfills"] if parts.get(m) == data["part_id"]]
-
-    value["name"] = unnumbered(value["name"])
-    value["data"] = data = unnumbered(data)
 
     if shown is not None:
         for path in pinned:

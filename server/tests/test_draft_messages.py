@@ -235,8 +235,9 @@ def test_similar_names_come_from_the_users_words_not_the_model(
     # Whatever the model says about names is not used.
     model_pairs = [{"mentioned": "티오", "similar_to": "테오", "card_id": None}]
     llm.say("source", source(added=["래오는 친구다."], similar_names=model_pairs))
-    update = events(turn(client, draft_id, "래오는 친구야. 태오도 왔어."))[-2][1]
-    # 래오 is one letter off 레오; 태오 is off the card being edited, which is never offered.
+    update = events(turn(client, draft_id, "래오는 친구야. 태오도 왔어. 테오도 웃었어."))[-2][1]
+    # 래오 is one letter off 레오; 태오 is off the card being edited, which is never offered;
+    # 테오, the edited card's own name, is one letter off 레오 but is that card.
     assert update["similar_names"] == [
         {"mentioned": "래오", "similar_to": "레오", "card_id": "c_leo"}
     ]

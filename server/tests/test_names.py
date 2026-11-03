@@ -30,8 +30,25 @@ def test_names_a_letter_off_are_found_with_their_particles() -> None:
     assert pairs("에바 천이 회의를 열었어.") == [("에바 천", "c_eva")]
 
 
+def test_stacked_particles_come_off_too() -> None:
+    for text in [
+        "래오에게는 말하지 마.",
+        "래오한테도 물어봐.",
+        "래오님은 바빠.",
+        "범인은 래오였다.",
+        "래오씨가 왔어.",
+    ]:
+        assert pairs(text) == [("래오", "c_leo")], text
+
+
 def test_the_same_name_or_part_of_it_is_not_a_look_alike() -> None:
     assert pairs("레오와 무현이 만났어.") == []
+
+
+def test_the_edited_cards_own_name_is_not_a_look_alike() -> None:
+    # Editing 테오 (not among the cards offered): its name is one letter off 레오.
+    assert [p.mentioned for p in similar_names("테오는 활을 쏜다.", CARDS, "테오")] == []
+    assert [p.mentioned for p in similar_names("테오는 활을 쏜다.", CARDS)] == ["테오"]
 
 
 def test_different_words_are_not_flagged() -> None:

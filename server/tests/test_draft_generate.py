@@ -201,6 +201,13 @@ def test_milestone_ids_are_the_servers_and_stay(
     again = [m["id"] for m in generated(client, draft_id)["data"]["milestones"]]
     assert again[0] != first[0] and again[1:] == first[1:]
 
+    # A sentence number copied in front of an unchanged text keeps its id too (and goes).
+    answer["milestones"][1]["text"] = f"[3] {texts[1]}"
+    llm.say("card", output("main_story", {"name": main["name"], "data": answer}))
+    generate(client, draft_id)
+    numbered = generated(client, draft_id)["data"]["milestones"]
+    assert numbered[1] == {"id": first[1], "order": 2, "text": texts[1]}
+
 
 def test_a_new_episode_goes_last_in_its_part(
     client: TestClient, conn: sqlite3.Connection, llm: Scripted

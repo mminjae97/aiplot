@@ -17,7 +17,8 @@ HANGUL_LAST = 0xD7A3
 PARTICLES = sorted(
     [
         "에게서", "한테서", "으로부터", "이랑", "에서", "에게", "한테", "께서", "으로", "이나",
-        "이며", "이고", "이다", "이자", "처럼", "까지", "부터", "보다", "하고", "님", "은", "는",
+        "이며", "이고", "이었다", "였다", "이다", "이자", "처럼", "까지", "부터", "보다", "하고",
+        "님", "씨", "은", "는",
         "이", "가", "을", "를", "의", "에", "와", "과", "도", "만", "로", "랑",
     ],
     key=len,
@@ -59,13 +60,15 @@ def distance(a: list[str], b: list[str]) -> int:
 
 
 def stems(word: str) -> list[str]:
-    """The word, and the word without a particle after it (keeping at least one syllable)."""
+    """The word, and the word without each particle after it in turn, stacked ones too
+    (래오에게는 → 래오에게 → 래오), keeping at least one syllable."""
     out = [word]
-    for particle in PARTICLES:
-        if word.endswith(particle) and len(word) > len(particle):
-            out.append(word[: -len(particle)])
-            break
-    return out
+    while True:
+        particle = next((p for p in PARTICLES if word.endswith(p) and len(word) > len(p)), None)
+        if particle is None:
+            return out
+        word = word[: -len(particle)]
+        out.append(word)
 
 
 def syllables(text: str) -> int:
@@ -79,17 +82,18 @@ def allowed(name: str) -> int:
     return 2 if syllables(name) >= 4 else 1
 
 
-def similar_names(text: str, cards: list[tuple[str, str]]) -> list[Similar]:
+def similar_names(text: str, cards: list[tuple[str, str]], own: str | None = None) -> list[Similar]:
     """Names in `text` close to a card's name but not the same: one pair per mentioned name,
     with the closest card. A name that is part of a card's name (무현 for 연무현), or the
-    whole of one, is that card, not a look-alike."""
+    whole of one, is that card, not a look-alike. `own`: the name of the card being edited,
+    never a look-alike of another card's (it is in `cards` as neither)."""
     words = WORD.findall(text)
     candidates: list[str] = []
     for i, word in enumerate(words):
         candidates += stems(word)
         if i + 1 < len(words):
             candidates += [f"{word} {stem}" for stem in stems(words[i + 1])]
-    known = {name for _, name in cards}
+    known = {name for _, name in cards} | ({own} if own else set())
     found: dict[str, Similar] = {}
     best: dict[str, int] = {}
     for candidate in dict.fromkeys(candidates):

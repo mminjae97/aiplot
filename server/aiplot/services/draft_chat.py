@@ -48,8 +48,10 @@ class Turn:
     notes: str
     chat: list[Message]
     names: str
-    # Every other card of the work by (id, name): the similar-name check.
+    # Every other card of the work by (id, name), and the edited card's own name: the
+    # similar-name check.
     cards: list[tuple[str, str]]
+    own_name: str | None
 
 
 def prepare(conn: sqlite3.Connection, draft: DraftState, text: str, refs: list[str]) -> Turn:
@@ -83,6 +85,7 @@ def prepare(conn: sqlite3.Connection, draft: DraftState, text: str, refs: list[s
         chat=chat,
         names=context.name_lines(rows, draft.card_id),
         cards=[(row.id, row.name) for row in rows if row.id != draft.card_id and row.name],
+        own_name=next((row.name for row in rows if row.id == draft.card_id), None),
     )
 
 
@@ -121,7 +124,7 @@ def name_checks(turn: Turn) -> list[SimilarName]:
     code (services/names), never by the model."""
     return [
         SimilarName(mentioned=p.mentioned, similar_to=p.similar_to, card_id=p.card_id)
-        for p in similar_names(turn.text, turn.cards)
+        for p in similar_names(turn.text, turn.cards, turn.own_name)
     ]
 
 
