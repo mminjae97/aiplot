@@ -233,8 +233,9 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     (editing !== null && editing !== current?.notes)
 
   const requestClose = () => {
-    // Mid-save the drawer stays: closing would delete the draft under the save.
-    if (saving) return
+    // Mid-save the drawer stays: closing would delete the draft under the save. The stage
+    // count question answers first (its own Esc keeps the card).
+    if (saving || asking !== null) return
     // Ask first (§8 unsaved close asks to save).
     if (unsaved) setConfirming(true)
     else onClose()
@@ -301,7 +302,10 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
   }
 
   /** True when a card came back (a failed or cancelled one changes nothing). */
-  const generate = async (count: 4 | 5 | null = structure): Promise<boolean> => {
+  const generate = async (
+    count: 4 | 5 | null = structure,
+    pinnedNow: string[] = pins,
+  ): Promise<boolean> => {
     if (draftId === null || !canGenerate) return false
     const controller = new AbortController()
     genStream.current = controller
@@ -312,7 +316,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     try {
       const accepted = await api.generateCard(
         draftId,
-        count === null ? { pinned: pins } : { pinned: pins, structure: count },
+        count === null ? { pinned: pinnedNow } : { pinned: pinnedNow, structure: count },
       )
       if (!alive()) return false
       setGenerating((old) => old && { ...old, jobId: accepted.jobId })
@@ -383,8 +387,12 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
 
   const regenerateWith = (count: 4 | 5) => {
     setAsking(null)
-    // The pick holds once a card with it came back; a failure keeps the old.
-    void generate(count).then((ok) => {
+    // The pick holds once a card with it came back; a failure keeps the old. A pinned
+    // structure would bring the old stages back: the user just chose to change them.
+    void generate(
+      count,
+      pins.filter((path) => path !== 'structure'),
+    ).then((ok) => {
       if (ok) setStructure(count)
     })
   }

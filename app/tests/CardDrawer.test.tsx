@@ -789,8 +789,9 @@ function episodeOutput(
 
 /** A new episode's draft with a generated card. 5→4 answers with FOUR in place of the
  * structure; a generation answers with `regenerated`. */
-function serveEpisode(generated: CardOutput, regenerated: CardOutput) {
+function serveEpisode(generated: CardOutput, regenerated: CardOutput, pinned: string[] = []) {
   let draft = baseDraft({
+    pinned,
     type: 'episode',
     part_id: 'c_p1',
     notes: '테오가 돌아온다.',
@@ -834,6 +835,37 @@ const stageButton = (count: 4 | 5) =>
   within(screen.getByRole('group', { name: strings.typeSection.structure })).getByRole('button', {
     name: new RegExp(strings.typeSection.stages(count)),
   })
+
+test('a pinned structure does not hold the old count once 4→5 is confirmed', async () => {
+  const { calls } = serveEpisode(episodeOutput(FOUR), episodeOutput(FIVE), ['structure', 'theme'])
+  renderDrawer({ workId: 'w_1', type: 'episode', part_id: 'c_p1' })
+  await waitFor(() => {
+    expect(stageButton(4).getAttribute('aria-pressed')).toBe('true')
+  })
+  fireEvent.click(stageButton(5))
+  fireEvent.click(screen.getByRole('button', { name: strings.typeSection.regenerate }))
+  await waitFor(() => {
+    expect(stageButton(5).getAttribute('aria-pressed')).toBe('true')
+  })
+  expect(calls.filter((c) => c.path === '/drafts/dr_1/generate').map((c) => c.body)).toEqual([
+    { pinned: ['theme'], structure: 5 },
+  ])
+})
+
+test('the stage count question keeps the drawer from closing under it', async () => {
+  serveEpisode(episodeOutput(FOUR), episodeOutput(FIVE))
+  renderDrawer({ workId: 'w_1', type: 'episode', part_id: 'c_p1' })
+  await waitFor(() => {
+    expect(stageButton(4).getAttribute('aria-pressed')).toBe('true')
+  })
+  fireEvent.click(stageButton(5))
+  fireEvent.click(screen.getByRole('button', { name: strings.drawer.close }))
+  // Only the stage count question is up.
+  expect(screen.getAllByRole('alertdialog')).toHaveLength(1)
+  expect(
+    screen.getByRole('alertdialog', { name: strings.typeSection.regenerateTitle(5) }),
+  ).toBeTruthy()
+})
 
 test('5→4 maps the stages without the model and keeps the rest of the card', async () => {
   const { calls } = serveEpisode(episodeOutput(FIVE), episodeOutput(FIVE, '새 주제'))
