@@ -426,3 +426,53 @@ def test_closing_a_draft_stops_its_generation() -> None:
 
     draft_card.cancel(Jobs(), Draft())  # type: ignore[arg-type]
     assert cancelled == ["job_1"]
+
+
+def test_a_linked_region_is_not_also_the_parent_and_sentence_numbers_go(
+    client: TestClient, conn: sqlite3.Connection, llm: Scripted
+) -> None:
+    save(conn, region("c_city", "아르칸"))
+    save(conn, region("c_isle", "섬"))
+    value = fixture("region", name="루멘")
+    link = {"target_id": "c_city", "travel": None, "direction": "서쪽"}
+    value["data"] = {
+        **value["data"],
+        "parent_id": "c_city",
+        "links": [link],
+        "appearance": "[2] 붉은 지붕의 집들이 층층이 쌓여 있다.",
+    }
+    llm.say("card", output("region", value))
+    draft_id = open_draft(client, {"type": "region"}, "루멘은 아르칸의 동쪽 항구다.")
+    assert generate(client, draft_id)["status"] == "done"
+    card = generated(client, draft_id)
+    # Unit 15: the model put the neighbour it is linked to as its parent as well.
+    assert card["data"]["parent_id"] is None
+    assert card["data"]["links"] == [link]
+    assert card["data"]["appearance"] == "붉은 지붕의 집들이 층층이 쌓여 있다."
+
+    # A parent that is not a neighbour stays.
+    value["data"] = {**value["data"], "parent_id": "c_isle"}
+    llm.say("card", output("region", value))
+    assert generate(client, draft_id)["status"] == "done"
+    assert generated(client, draft_id)["data"]["parent_id"] == "c_isle"
+
+
+def test_milestones_stay_with_their_one_part(
+    client: TestClient, conn: sqlite3.Connection, llm: Scripted
+) -> None:
+    story(conn)  # main story ms_1, ms_2; part 1 fulfils ms_1
+    # A new part cannot take ms_1 from part 1 (unit 15: the model listed other parts' too).
+    value = fixture("part", name="2부", fulfills=None)
+    value["data"] = {**value["data"], "title": "2부", "fulfills": ["ms_1", "ms_2"]}
+    llm.say("card", output("part", value))
+    draft_id = open_draft(client, {"type": "part"}, "2부에서 비밀이 드러난다.")
+    assert generate(client, draft_id)["status"] == "done"
+    assert generated(client, draft_id)["data"]["fulfills"] == ["ms_2"]
+
+    # An episode of part 1 fulfils only part 1's milestones.
+    value = episode("c_new")
+    value["data"] = {**value["data"], "fulfills": ["ms_1", "ms_2"]}
+    llm.say("card", output("episode", value))
+    draft_id = open_draft(client, {"type": "episode", "part_id": "c_part1"})
+    assert generate(client, draft_id, {"structure": 4})["status"] == "done"
+    assert generated(client, draft_id)["data"]["fulfills"] == ["ms_1"]

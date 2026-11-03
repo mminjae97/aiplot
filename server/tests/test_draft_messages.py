@@ -226,25 +226,20 @@ def test_a_casual_result_stands_when_the_extra_try_fails(client: TestClient, llm
     assert found[-2][1]["notes"].endswith("테오는 활을 써.")
 
 
-def test_similar_names_keep_only_real_pairs(
+def test_similar_names_come_from_the_users_words_not_the_model(
     client: TestClient, conn: sqlite3.Connection, llm: Scripted
 ) -> None:
     save(conn, character("c_leo", "레오", relations=[]))
     save(conn, character("c_teo", "테오", relations=[]))
     draft_id = open_draft(client, {"type": "character", "card_id": "c_teo"})
-    pairs = [
-        {"mentioned": "래오", "similar_to": "레오", "card_id": "c_leo"},
-        {"mentioned": "티오", "similar_to": "테오", "card_id": None},
-        {"mentioned": "레오", "similar_to": "레오", "card_id": "c_leo"},
-        {"mentioned": "레오", "similar_to": "리오", "card_id": "c_ghost"},
-        {"mentioned": "테오", "similar_to": "태오", "card_id": "c_teo"},
+    # Whatever the model says about names is not used.
+    model_pairs = [{"mentioned": "티오", "similar_to": "테오", "card_id": None}]
+    llm.say("source", source(added=["래오는 친구다."], similar_names=model_pairs))
+    update = events(turn(client, draft_id, "래오는 친구야. 태오도 왔어."))[-2][1]
+    # 래오 is one letter off 레오; 태오 is off the card being edited, which is never offered.
+    assert update["similar_names"] == [
+        {"mentioned": "래오", "similar_to": "레오", "card_id": "c_leo"}
     ]
-    llm.say("source", source(added=["래오는 친구다."], similar_names=pairs))
-    update = events(turn(client, draft_id, "래오는 친구야."))[-2][1]
-    assert update["similar_names"] == pairs[:2]
-    # The card being edited is not offered as its own look-alike.
-    prompt = llm.requests[-1].messages[-1]["content"]
-    assert "c_leo 캐릭터 레오" in prompt and "c_teo" not in prompt
 
 
 def test_mentioned_cards_join_the_context(
