@@ -4,7 +4,7 @@ import type { ServerState } from '../src/api/bridge'
 import { useNavigation } from '../src/stores/navigation'
 import { useServer } from '../src/stores/server'
 import { strings } from '../src/strings'
-import type { Card, RegionCard, Work } from '../src/types'
+import type { Card, CardOutput, Draft, RegionCard, Work } from '../src/types'
 import { renderBook } from './bookHarness'
 import { NO_DIALOGS } from './serverFixtures'
 
@@ -72,9 +72,31 @@ const TIDE = {
 
 type Call = { method: string; path: string; body: unknown }
 
-function serve(options: { locked?: boolean } = {}) {
+const DRAFT: Draft = {
+  id: 'dr_1',
+  work_id: 'w_1',
+  type: 'region',
+  card_id: null,
+  category: null,
+  part_id: null,
+  notes: '왕도는 남쪽에 있다.',
+  sentences: ['왕도는 남쪽에 있다.'],
+  turns: [{ role: 'ai', text: '어떤 곳인가요?' }],
+  pinned: [],
+  generated: {
+    type: 'region',
+    name: '왕도',
+    data: CAPITAL.data,
+    evidence: {},
+    ai_guess: [],
+  } as CardOutput,
+}
+
+function serve(options: { locked?: boolean; moveFails?: boolean } = {}) {
   const calls: Call[] = []
-  const regions: Card[] = [PORT, CAPITAL, NORTH]
+  let regions: Card[] = [PORT, CAPITAL, NORTH]
+  // While set, the region list is read but not answered (a slow refetch).
+  const hold = { cards: false, release: () => undefined as void }
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string, init: RequestInit = {}) => {
@@ -85,7 +107,38 @@ function serve(options: { locked?: boolean } = {}) {
       const json = (data: unknown, status = 200) =>
         Promise.resolve(new Response(JSON.stringify(data), { status }))
       if (path === '/works/w_1') return json(work(options.locked ? 1 : 0))
-      if (path === '/works/w_1/cards?type=region') return json({ cards: regions })
+      if (path === '/works/w_1/cards?type=region') {
+        if (!hold.cards) return json({ cards: regions })
+        return new Promise<Response>((resolve) => {
+          hold.release = () => {
+            hold.cards = false
+            resolve(new Response(JSON.stringify({ cards: regions })))
+          }
+        })
+      }
+      if (method === 'PATCH' && path === '/cards/c_port') {
+        if (options.moveFails)
+          return json({ code: 'INTERNAL_ERROR', message: 'x', hint: null }, 500)
+        return json(PORT)
+      }
+      if (path === '/cards/c_capital/references') return json({ references: [] })
+      // A new region's draft with its card already made, ready to save.
+      if (method === 'POST' && path === '/works/w_1/drafts') return json(DRAFT, 201)
+      if (method === 'GET' && path === '/drafts/dr_1') return json(DRAFT)
+      if (method === 'DELETE' && path === '/drafts/dr_1')
+        return Promise.resolve(new Response(null, { status: 204 }))
+      if (method === 'POST' && path === '/drafts/dr_1/save') return json(CAPITAL)
+      if (method === 'DELETE' && path === '/cards/c_capital') {
+        regions = regions.filter((card) => card.id !== 'c_capital')
+        return json({
+          deleted: ['c_capital'],
+          restore_until: new Date(Date.now() + 10_000).toISOString(),
+        })
+      }
+      if (method === 'POST' && path === '/cards/c_capital/restore') {
+        regions = [PORT, CAPITAL, NORTH]
+        return json(CAPITAL)
+      }
       if (path === '/works/w_1/cards?type=world') return json({ cards: [TIDE] })
       if (path === '/works/w_1/cards') return json({ cards: [...regions, EPISODE, TIDE] })
       if (path === '/works/w_1/region-links')
@@ -108,7 +161,7 @@ function serve(options: { locked?: boolean } = {}) {
       return json({ code: 'NOT_FOUND', message: path, hint: null }, 404)
     }),
   )
-  return { calls }
+  return { calls, hold }
 }
 
 async function nodes(kind: 'region' | 'area') {
@@ -242,4 +295,130 @@ test('a parent loop in bad data draws plain tokens instead of hanging', async ()
   // port in north is kept; north in port would close the loop and is dropped.
   expect((await nodes('region')).map((node) => node.dataset.id)).toEqual(['c_port', 'c_capital'])
   expect((await nodes('area')).map((node) => node.dataset.id)).toEqual(['c_north'])
+})
+
+/** Drags a node by (dx, dy) screen pixels, as d3-drag sees a mouse (it reads event.view). */
+function drag(node: HTMLElement, dx: number, dy: number) {
+  const at = (type: string, x: number, y: number) => {
+    const event = new MouseEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      clientX: x,
+      clientY: y,
+      button: 0,
+      buttons: 1,
+    })
+    Object.defineProperty(event, 'view', { value: window })
+    node.dispatchEvent(event)
+  }
+  at('mousedown', 10, 10)
+  at('mousemove', 10 + dx / 2, 10 + dy / 2)
+  at('mousemove', 10 + dx, 10 + dy)
+  at('mouseup', 10 + dx, 10 + dy)
+}
+
+test('dragging a region saves only its place: map_x and map_y', async () => {
+  const { calls } = serve()
+  renderBook({ name: 'regions', workId: 'w_1' })
+  const [port] = await nodes('region')
+  if (!port) throw new Error('no node')
+  drag(port, 50, 30)
+  await waitFor(() => {
+    expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(1)
+  })
+  const move = calls.find((c) => c.method === 'PATCH')
+  expect(move?.path).toBe('/cards/c_port')
+  expect(Object.keys(move?.body as object).sort()).toEqual(['map_x', 'map_y'])
+  const { map_x, map_y } = move?.body as { map_x: unknown; map_y: unknown }
+  expect(typeof map_x).toBe('number')
+  expect(typeof map_y).toBe('number')
+  expect(screen.queryByText(strings.map.moveFailed)).toBeNull()
+})
+
+test('a locked planning stage cannot move a region', async () => {
+  const { calls } = serve({ locked: true })
+  renderBook({ name: 'regions', workId: 'w_1' })
+  const [port] = await nodes('region')
+  if (!port) throw new Error('no node')
+  expect(port.classList.contains('draggable')).toBe(false)
+  drag(port, 50, 30)
+  await new Promise((resolve) => setTimeout(resolve, 30))
+  expect(calls.filter((c) => c.method === 'PATCH')).toEqual([])
+})
+
+test('a move that could not be saved says so and draws the map from what is saved', async () => {
+  const { calls } = serve({ moveFails: true })
+  renderBook({ name: 'regions', workId: 'w_1' })
+  const [port] = await nodes('region')
+  if (!port) throw new Error('no node')
+  const before = port.style.transform
+  drag(port, 50, 30)
+  expect(await screen.findByText(strings.map.moveFailed)).toBeTruthy()
+  expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(1)
+  // Drawn again: the token is back where it was laid out.
+  await waitFor(() => {
+    const again = document.querySelector<HTMLElement>('.react-flow__node[data-id="c_port"]')
+    expect(again).not.toBe(port)
+    expect(again?.style.transform).toBe(before)
+  })
+})
+
+test('a deleted region can be brought back; the toast comes before the map is read again', async () => {
+  const { calls, hold } = serve()
+  renderBook({ name: 'regions', workId: 'w_1' })
+  const [, capital] = await nodes('region')
+  if (!capital) throw new Error('no node')
+  fireEvent.keyDown(capital, { key: 'Enter' })
+  await screen.findByRole('dialog', { name: '왕도' })
+  fireEvent.click(screen.getByRole('button', { name: strings.map.delete }))
+  // The map's next read of the regions is slow: the toast never waits for it.
+  hold.cards = true
+  fireEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: strings.cardDelete.delete,
+    }),
+  )
+  const undo = await screen.findByRole('button', { name: strings.cardDelete.undo })
+  expect(hold.cards).toBe(true)
+  hold.release()
+  await waitFor(() => {
+    expect(document.querySelector('.react-flow__node[data-id="c_capital"]')).toBeNull()
+  })
+  fireEvent.click(undo)
+  // Back on the map, highlighted for 0.3s.
+  await waitFor(() => {
+    expect(
+      document.querySelector('.react-flow__node[data-id="c_capital"] .map-node[data-highlight]'),
+    ).not.toBeNull()
+  })
+  await waitFor(() => {
+    expect(document.querySelector('.map-node[data-highlight]')).toBeNull()
+  })
+  expect(calls.filter((c) => c.method !== 'GET').map((c) => `${c.method} ${c.path}`)).toEqual([
+    'DELETE /cards/c_capital',
+    'POST /cards/c_capital/restore',
+  ])
+})
+
+test('a saved region is highlighted on the map for 0.3s', async () => {
+  const { calls } = serve()
+  renderBook({ name: 'regions', workId: 'w_1' })
+  await nodes('region')
+  fireEvent.click(screen.getByRole('button', { name: strings.map.newRegion }))
+  const save = await screen.findByRole('button', { name: strings.preview.save })
+  await waitFor(() => {
+    expect(save).toHaveProperty('disabled', false)
+  })
+  fireEvent.click(save)
+  await waitFor(() => {
+    expect(calls.some((c) => c.method === 'POST' && c.path === '/drafts/dr_1/save')).toBe(true)
+  })
+  await waitFor(() => {
+    expect(
+      document.querySelector('.react-flow__node[data-id="c_capital"] .map-node[data-highlight]'),
+    ).not.toBeNull()
+  })
+  await waitFor(() => {
+    expect(document.querySelector('.map-node[data-highlight]')).toBeNull()
+  })
 })

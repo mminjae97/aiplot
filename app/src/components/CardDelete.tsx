@@ -53,10 +53,11 @@ export function DeleteCardDialog({
           : {}),
         ...(asksReconnect && reconnect ? { reconnect: true } : {}),
       })
-      await queryClient.invalidateQueries({ queryKey: ['cards', card.work_id] })
+      // The undo toast comes at once: the restore window (~10s) is already running.
+      onDeleted(deleted.restore_until)
+      void queryClient.invalidateQueries({ queryKey: ['cards', card.work_id] })
       void queryClient.invalidateQueries({ queryKey: ['relations', card.work_id] })
       void queryClient.invalidateQueries({ queryKey: ['completeness', card.work_id] })
-      onDeleted(deleted.restore_until)
     } catch (err) {
       const code = err instanceof ApiRequestError ? err.code : ''
       // The part has episodes the screen did not know of yet: read them again, so the dialog

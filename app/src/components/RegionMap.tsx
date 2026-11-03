@@ -12,7 +12,14 @@ import {
   ReactFlow,
   type ReactFlowInstance,
 } from '@xyflow/react'
-import { type KeyboardEvent, type MouseEvent, useRef, useState } from 'react'
+import {
+  createContext,
+  type KeyboardEvent,
+  type MouseEvent,
+  useContext,
+  useRef,
+  useState,
+} from 'react'
 import { strings } from '../strings'
 import type { CardRelation, RegionCard, RegionLinkRow } from '../types'
 import {
@@ -39,6 +46,9 @@ const reducedMotion = () =>
   typeof window.matchMedia === 'function' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+// The region just saved or brought back (§8 highlight 0.3s); the node views read it.
+const Arrived = createContext<string | null>(null)
+
 function Centre() {
   // Lines meet at the centre of a token or an area.
   return (
@@ -51,8 +61,13 @@ function Centre() {
 
 function RegionNodeView({ data }: NodeProps<RegionNode>) {
   const count = data.episodes.length
+  const arrived = useContext(Arrived) === data.card.id
   return (
-    <div className="map-node" data-incomplete={data.card.status === 'incomplete' || undefined}>
+    <div
+      className="map-node"
+      data-incomplete={data.card.status === 'incomplete' || undefined}
+      data-highlight={arrived || undefined}
+    >
       <Centre />
       <span className="map-node-name">{data.card.name ?? strings.drawer.untitled}</span>
       {count > 0 && (
@@ -70,8 +85,9 @@ function RegionNodeView({ data }: NodeProps<RegionNode>) {
 }
 
 function AreaNodeView({ data }: NodeProps<AreaNode>) {
+  const arrived = useContext(Arrived) === data.card.id
   return (
-    <div className="map-area">
+    <div className="map-area" data-highlight={arrived || undefined}>
       <Centre />
       <button
         type="button"
@@ -126,6 +142,8 @@ type Props = {
   onPick: (cardId: string, origin: DOMRect | null) => void
   /** A region was dragged here (flow coordinates of its centre). */
   onMove: (cardId: string, at: Point) => void
+  /** The region just saved or brought back: highlighted (§8). */
+  highlight?: string | null
 }
 
 /** Region id -> its children among the drawn regions. A parent link that would close a loop
@@ -168,7 +186,16 @@ function withAreas(nodes: MapNode[], children: ReadonlyMap<string, string[]>): M
 
 /** The region map (§8 S1-2): a token per region, a line per linked pair labelled with the
  * journey, parents as dashed areas. Laid out once per mount around the saved positions. */
-export function RegionMap({ cards, links, parents, episodes, locked, onPick, onMove }: Props) {
+export function RegionMap({
+  cards,
+  links,
+  parents,
+  episodes,
+  locked,
+  onPick,
+  onMove,
+  highlight = null,
+}: Props) {
   const flow = useRef<ReactFlowInstance<MapNode, JourneyEdge> | null>(null)
   const [children] = useState(() => childrenOf(cards, parents))
   const [edges] = useState<JourneyEdge[]>(() =>
@@ -277,38 +304,40 @@ export function RegionMap({ cards, links, parents, episodes, locked, onPick, onM
 
   return (
     <div className="map-sheet" onKeyDown={onKeyDown} onDoubleClick={onDoubleClick}>
-      <ReactFlow<MapNode, JourneyEdge>
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={NODE_TYPES}
-        edgeTypes={EDGE_TYPES}
-        onNodesChange={onNodesChange}
-        onInit={(instance) => {
-          flow.current = instance
-        }}
-        onNodeClick={(event, node) => {
-          if (node.type === 'region') {
-            onPick(node.id, nodeElement(event.target)?.getBoundingClientRect() ?? null)
-          }
-        }}
-        onNodeDragStop={(_, node) => {
-          if (node.type === 'region') onMove(node.id, node.position)
-        }}
-        nodesConnectable={false}
-        elementsSelectable={false}
-        nodesDraggable={!locked}
-        zoomOnDoubleClick={false}
-        fitView
-        fitViewOptions={{ padding: 0.2, maxZoom: 1.2 }}
-        minZoom={0.2}
-        maxZoom={2}
-        proOptions={{ hideAttribution: true }}
-        ariaLabelConfig={{
-          'node.a11yDescription.default': strings.map.nodeHint,
-          'node.a11yDescription.keyboardDisabled': strings.map.nodeHint,
-          'edge.a11yDescription.default': strings.map.edgeHint,
-        }}
-      />
+      <Arrived.Provider value={highlight}>
+        <ReactFlow<MapNode, JourneyEdge>
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={NODE_TYPES}
+          edgeTypes={EDGE_TYPES}
+          onNodesChange={onNodesChange}
+          onInit={(instance) => {
+            flow.current = instance
+          }}
+          onNodeClick={(event, node) => {
+            if (node.type === 'region') {
+              onPick(node.id, nodeElement(event.target)?.getBoundingClientRect() ?? null)
+            }
+          }}
+          onNodeDragStop={(_, node) => {
+            if (node.type === 'region') onMove(node.id, node.position)
+          }}
+          nodesConnectable={false}
+          elementsSelectable={false}
+          nodesDraggable={!locked}
+          zoomOnDoubleClick={false}
+          fitView
+          fitViewOptions={{ padding: 0.2, maxZoom: 1.2 }}
+          minZoom={0.2}
+          maxZoom={2}
+          proOptions={{ hideAttribution: true }}
+          ariaLabelConfig={{
+            'node.a11yDescription.default': strings.map.nodeHint,
+            'node.a11yDescription.keyboardDisabled': strings.map.nodeHint,
+            'edge.a11yDescription.default': strings.map.edgeHint,
+          }}
+        />
+      </Arrived.Provider>
     </div>
   )
 }

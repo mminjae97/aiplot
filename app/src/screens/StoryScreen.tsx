@@ -9,6 +9,7 @@ import { EpisodeTimeline } from '../components/EpisodeTimeline'
 import { FlipCard } from '../components/FlipCard'
 import { timelineOf } from '../components/storyLayout'
 import { Overlay } from '../components/Overlay'
+import { useArrival } from '../components/useArrival'
 import type { PlanningScreen, StoryStep } from '../stores/navigation'
 import { strings } from '../strings'
 import type { Card, EpisodeCard, MainStoryCard, PartCard } from '../types'
@@ -170,6 +171,22 @@ export function StoryScreen({
     choose(next)
   }
 
+  // The card just saved or brought back: highlighted 0.3s once its step shows it (§8).
+  const drawn = placement.isSuccess && settings.isSuccess && links.isSuccess && regions.isSuccess
+  const [arrived, arrive] = useArrival(
+    (id) =>
+      loaded &&
+      (step === 'main'
+        ? main?.id === id
+        : step === 'parts'
+          ? parts.some((part) => part.id === id)
+          : episodesOpen && drawn && timeline.nodes.some((node) => node.episodeId === id)),
+    (id) =>
+      [...document.querySelectorAll<HTMLElement>('.timeline-node')].find(
+        (node) => node.dataset.id === id,
+      ),
+  )
+
   const label = {
     main: strings.story.stepMain,
     parts: strings.story.stepParts,
@@ -284,7 +301,7 @@ export function StoryScreen({
                   )}
                 </div>
               ) : (
-                <article className="story-main">
+                <article className="story-main" data-highlight={arrived === main.id || undefined}>
                   <p className="drawer-kind">
                     {strings.drawer.kind.main_story}
                     {main.status === 'incomplete' && (
@@ -346,7 +363,11 @@ export function StoryScreen({
                   {parts.length === 0 && <p className="story-later">{strings.story.noParts}</p>}
                   <ol className="story-parts">
                     {parts.map((part, index) => (
-                      <li key={part.id} className="story-part">
+                      <li
+                        key={part.id}
+                        className="story-part"
+                        data-highlight={arrived === part.id || undefined}
+                      >
                         <p className="drawer-kind">
                           {strings.story.partLabel(index + 1)}
                           {part.status === 'incomplete' && (
@@ -419,16 +440,14 @@ export function StoryScreen({
                       </span>
                     </div>
                     {/* Drawn once its places, links and regions are in: no lane jumps. */}
-                    {placement.isSuccess &&
-                    settings.isSuccess &&
-                    links.isSuccess &&
-                    regions.isSuccess ? (
+                    {drawn ? (
                       <EpisodeTimeline
                         timeline={timeline}
                         episodes={episodeById}
                         milestones={milestones}
                         selectedPart={selectedPart}
                         onSelectPart={setPart}
+                        highlight={arrived}
                         onPick={(id, origin) => {
                           setPicked({ id, origin })
                         }}
@@ -479,8 +498,10 @@ export function StoryScreen({
             onClose={() => {
               setDrawer(null)
             }}
-            onSaved={() => {
+            onSaved={(card) => {
+              // After save: close and highlight the card (§8).
               void queryClient.invalidateQueries({ queryKey: ['relations', workId] })
+              arrive(card.id)
             }}
           />
         )}
@@ -527,8 +548,9 @@ export function StoryScreen({
               setUndo(null)
             }}
             returnFocus={() => tabRefs.current.get(step)}
-            onRestored={() => {
+            onRestored={(card) => {
               setUndo(null)
+              arrive(card.id)
             }}
           />
         )}

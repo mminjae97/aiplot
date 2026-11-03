@@ -94,6 +94,26 @@
   background: rgb(176 138 62 / 5%);
 }
 
+/* Just saved or brought back (§8): a brass glow fading over 0.3s. */
+.map-node[data-highlight],
+.map-area[data-highlight] {
+  animation: map-arrive 0.3s ease-out;
+}
+
+@keyframes map-arrive {
+  from {
+    box-shadow: 0 0 0 4px var(--brass-bright);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-node[data-highlight],
+  .map-area[data-highlight] {
+    animation: none;
+    outline: 2px solid var(--brass-bright);
+  }
+}
+
 .map-area-name {
   margin: 6px 10px;
   padding: 0 4px;
