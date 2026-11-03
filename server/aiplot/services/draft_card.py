@@ -81,10 +81,8 @@ def related_worlds(conn: sqlite3.Connection, card_id: str | None) -> set[str]:
     row = cards_db.get(conn, card_id)
     if row is None:
         return set()
-    if row.type == "world":
-        return set(row.data.get("related") or [])
-    if row.type == "episode":
-        return set(row.data.get("world") or [])
+    if row.type in ("world", "episode"):
+        return cards_db.tied_worlds(conn, card_id, row.type)
     return {ref for ref, field in cards_db.references(conn, card_id) if field == "related"}
 
 
@@ -96,8 +94,9 @@ def card_refs(conn: sqlite3.Connection, draft: DraftState) -> str:
         rows += context.mentioned(conn, draft.work_id, [main] if main else [])
     if draft.type == "episode":
         part = draft.part_id
-        if draft.saved is not None:
-            part = getattr(draft.saved.data, "part_id", None)
+        if draft.card_id is not None:
+            placement = cards_db.episode_placement(conn, draft.card_id)
+            part = placement["part_id"] if placement is not None else None
         rows += context.mentioned(conn, draft.work_id, [part] if part else [])
         rows += cards_db.list_for_work(conn, draft.work_id, "region")
     seen: set[str] = set()

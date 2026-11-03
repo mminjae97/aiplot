@@ -483,3 +483,37 @@ def test_milestones_stay_with_their_one_part(
     draft_id = open_draft(client, {"type": "episode", "part_id": "c_part1"})
     assert generate(client, draft_id, {"structure": 4})["status"] == "done"
     assert generated(client, draft_id)["data"]["fulfills"] == ["ms_1"]
+
+
+def test_an_edited_episode_keeps_where_it_stands_now_not_its_old_data(
+    client: TestClient, conn: sqlite3.Connection, llm: Scripted
+) -> None:
+    """§6: placement comes from the episode and episode_link tables. A part delete that moves
+    the episodes, or a reconnect around a deleted episode, does not rewrite the card's data."""
+    from tests.test_card_delete import delete, world
+
+    world(conn)  # c_e1 → c_e2 → c_e3 in part 1; part 2 empty
+    assert delete(client, "c_e2", "?reconnect=true").status_code == 200
+    assert delete(client, "c_part1", "?episodes=move:c_part2").status_code == 200
+    moved = conn.execute('SELECT part_id, "order" FROM episode WHERE card_id = ?', ("c_e1",))
+    part_id, order = moved.fetchone()
+    assert part_id == "c_part2"
+
+    # The model echoes the stale data (part 1, next = the deleted c_e2).
+    value = episode("c_e1", links={"prev": None, "next": "c_e2", "causes": []})
+    value["data"] = {**value["data"], "part_id": "c_part1", "order": 9}
+    llm.say("card", output("episode", value))
+    draft_id = open_draft(client, {"type": "episode", "card_id": "c_e1"})
+    assert generate(client, draft_id, {"structure": 4})["status"] == "done"
+    data = generated(client, draft_id)["data"]
+    assert (data["part_id"], data["order"]) == ("c_part2", order)
+    assert data["links"]["next"] == "c_e3"
+
+    assert save_draft(client, draft_id).status_code == 200
+    row = conn.execute('SELECT part_id, "order" FROM episode WHERE card_id = ?', ("c_e1",))
+    assert tuple(row.fetchone()) == ("c_part2", order)
+    links = conn.execute("SELECT from_id, to_id FROM episode_link WHERE kind = 'order'")
+    assert ("c_e1", "c_e3") in {tuple(r) for r in links}
+    # Its part's card is gone: the generation context names the part it is in now.
+    prompt = llm.requests[-1].messages[-1]["content"]
+    assert "c_part2" in prompt and "c_part1" not in prompt

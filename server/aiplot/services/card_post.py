@@ -209,12 +209,18 @@ def process(
                 for fid in dict.fromkeys(data["foreshadowing"]["payoffs"])
                 if fid in planted and planted[fid] != card_id
             ]
-            if saved is not None:
+            placement = (
+                cards_db.episode_placement(conn, card_id)
+                if saved is not None and card_id is not None
+                else None
+            )
+            if placement is not None:
                 # Placement belongs to the story screen; regenerating never moves the episode.
+                # It is read where it lives now (a part delete or a reconnect moves it there).
                 for key in ("part_id", "order", "worldline_id"):
-                    data[key] = saved_data.get(key)
-                data["links"]["prev"] = (saved_data.get("links") or {}).get("prev")
-                data["links"]["next"] = (saved_data.get("links") or {}).get("next")
+                    data[key] = placement[key]
+                data["links"]["prev"] = placement["prev"]
+                data["links"]["next"] = placement["next"]
             else:
                 place_episode(conn, data, part_id, work_id)
             if data["part_id"] is not None:

@@ -367,6 +367,42 @@ def count_episode_characters(conn: sqlite3.Connection, episode_id: str) -> int:
     return int(row[0])
 
 
+def episode_placement(conn: sqlite3.Connection, episode_id: str) -> dict[str, Any] | None:
+    """Where the episode stands now (§6: from the episode and episode_link tables, never the
+    card's data, which a part delete or a reconnect does not rewrite): part_id, order,
+    worldline_id and its order links prev, next."""
+    row = conn.execute(
+        'SELECT part_id, "order", worldline_id FROM episode WHERE card_id = ?', (episode_id,)
+    ).fetchone()
+    if row is None:
+        return None
+    prev = conn.execute(
+        "SELECT from_id FROM episode_link WHERE kind = 'order' AND to_id = ?", (episode_id,)
+    ).fetchone()
+    next_row = conn.execute(
+        "SELECT to_id FROM episode_link WHERE kind = 'order' AND from_id = ?", (episode_id,)
+    ).fetchone()
+    return {
+        "part_id": row["part_id"],
+        "order": row["order"],
+        "worldline_id": row["worldline_id"],
+        "prev": prev[0] if prev else None,
+        "next": next_row[0] if next_row else None,
+    }
+
+
+def tied_worlds(conn: sqlite3.Connection, card_id: str, card_type: str) -> set[str]:
+    """A world card's own 함께 보기 cards (world_relation) or an episode's world cards
+    (episode_world)."""
+    if card_type == "world":
+        sql = "SELECT card_id FROM world_relation WHERE world_id = ?"
+    elif card_type == "episode":
+        sql = "SELECT card_id FROM episode_world WHERE episode_id = ?"
+    else:
+        return set()
+    return {row[0] for row in conn.execute(sql, (card_id,))}
+
+
 def relink_order(
     conn: sqlite3.Connection,
     card_id: str,
