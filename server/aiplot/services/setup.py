@@ -288,10 +288,13 @@ class Setup:
         self, http: httpx.AsyncClient, remote: Remote, progress: Progress, ctx: JobContext
     ) -> None:
         remote.part.parent.mkdir(parents=True, exist_ok=True)
-        # Consecutive attempts that left the .part no longer than they found it. One that got
-        # further resets the count: over hours of a 6 GB file, drops far apart (or a pause,
-        # after which the idle stream errors) never add up to a failure.
+        # Consecutive attempts without progress. Progress = the .part passed the largest size it
+        # has reached in this download by at least a CHUNK: over hours of a 6 GB file, drops far
+        # apart (or a pause, after which the idle stream errors) never add up to a failure, but a
+        # connection that drops every few KB, or a server that ignores Range and starts the file
+        # over (200) without getting past that mark, does.
         failures = 0
+        reached = part_size(remote.part)
         while True:
             have = part_size(remote.part)
             if have == remote.size:
@@ -301,7 +304,9 @@ class Setup:
                 break
             except (httpx.TransportError, RetryableError) as exc:
                 # Bytes already written stay in the .part file and in progress.done.
-                failures = 0 if part_size(remote.part) > have else failures + 1
+                now = part_size(remote.part)
+                failures = 0 if now >= reached + CHUNK else failures + 1
+                reached = max(reached, now)
                 logger.warning(
                     "download %s failed (%d in a row without progress): %s",
                     remote.url,

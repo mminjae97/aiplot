@@ -57,6 +57,8 @@ class Files:
     fail_always: dict[str, int] = field(default_factory=dict)
     # Path -> how many more responses send half the body, then drop the connection.
     drops: dict[str, int] = field(default_factory=dict)
+    # Path -> bytes the next responses send (one entry each), then drop the connection.
+    cuts: dict[str, list[int]] = field(default_factory=dict)
     ranges: list[tuple[str, str | None]] = field(default_factory=list)
 
 
@@ -90,6 +92,11 @@ def files() -> Iterator[tuple[Files, str]]:
             body = data[start:]
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
+            if state.cuts.get(self.path):
+                self.wfile.write(body[: state.cuts[self.path].pop(0)])
+                self.wfile.flush()
+                self.connection.close()
+                return
             if state.drops.get(self.path, 0) > 0:
                 state.drops[self.path] -= 1
                 state.drop_once.add(self.path)
@@ -246,6 +253,43 @@ async def test_drops_that_make_progress_never_use_up_the_retries(
     assert job.status == "done", job.error
     model_requests = [r for r in files[0].ranges if r[0] == "/model.gguf"]
     assert len(model_requests) == 6
+    assert installer.default_model.read_bytes() == MODEL
+
+
+MB = 1 << 20
+
+
+async def test_restart_from_zero_is_no_progress_until_past_the_mark(
+    installer: Setup, jobs: JobQueue, files: tuple[Files, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Range ignored (200): sizes that fall and rise again below the largest reached so far
+    never reset the count. (Only whole CHUNKs reach the .part before a drop.)"""
+    monkeypatch.setattr(asyncio, "sleep", fast_sleep)
+    files[0].ignore_range = True
+    part = installer.default_model.with_name("base.gguf.part")
+    part.parent.mkdir(parents=True)
+    part.write_bytes(MODEL[: 2 * MB])
+    # Leaves 1 MB, then 2 MB (more than the attempt found, not past the 2 MB mark), then 2 MB.
+    files[0].cuts["/model.gguf"] = [MB + 10, 2 * MB + 10, 2 * MB + 10, 3 * MB + 10]
+    job = await finish(download(jobs, installer))
+    assert error_code(job) == "DOWNLOAD_FAILED"
+    assert len([r for r in files[0].ranges if r[0] == "/model.gguf"]) == 3
+    assert part.read_bytes() == MODEL[: 2 * MB]
+
+
+async def test_restart_from_zero_that_passes_the_mark_resets_the_count(
+    installer: Setup, jobs: JobQueue, files: tuple[Files, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(asyncio, "sleep", fast_sleep)
+    files[0].ignore_range = True
+    part = installer.default_model.with_name("base.gguf.part")
+    part.parent.mkdir(parents=True)
+    part.write_bytes(MODEL[:MB])
+    # No progress, a CHUNK past the mark (reset), then two more without: the fifth completes.
+    files[0].cuts["/model.gguf"] = [MB // 2, 2 * MB + 10, MB // 2, MB // 4]
+    job = await finish(download(jobs, installer))
+    assert job.status == "done", job.error
+    assert len([r for r in files[0].ranges if r[0] == "/model.gguf"]) == 5
     assert installer.default_model.read_bytes() == MODEL
 
 
