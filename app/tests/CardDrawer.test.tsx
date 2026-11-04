@@ -517,6 +517,29 @@ test('a same-name answer whose turn fails keeps the question', async () => {
   expect(await screen.findByText(strings.drawer.sameName('래오', '레오'))).toBeTruthy()
 })
 
+test('a failed turn keeps the earlier questions, highlights and names', async () => {
+  let fail = false
+  serve((text) => (text && fail ? FAILED_TURN : turnOf(text)))
+  renderDrawer()
+  await screen.findByText(REPLY)
+  fireEvent.change(chatInput(), { target: { value: '테오는 북부 항구 출신이야.' } })
+  fireEvent.keyDown(chatInput(), { key: 'Enter' })
+  expect(await screen.findByText('몇 살인가요?')).toBeTruthy()
+  await screen.findByText('알겠어요.')
+  fail = true
+  fireEvent.change(chatInput(), { target: { value: '나이는 몰라.' } })
+  fireEvent.keyDown(chatInput(), { key: 'Enter' })
+  expect(await screen.findByText(strings.drawer.errors.LLM_UNAVAILABLE ?? '')).toBeTruthy()
+  // Once the failed turn is over, what the AI last asked and changed still stands.
+  await waitFor(() => {
+    expect(chatInput().value).toBe('나이는 몰라.')
+  })
+  expect(screen.getByText('몇 살인가요?')).toBeTruthy()
+  const sentence = screen.getByText('테오는 북부 항구 출신이다.', { exact: false })
+  expect(sentence.closest('li')?.hasAttribute('data-changed')).toBe(true)
+  expect(screen.getByText(strings.drawer.sameName('래오', '레오'))).toBeTruthy()
+})
+
 test('a failed turn never overwrites words typed while it ran', async () => {
   serve((text) => (text ? FAILED_TURN : turnOf(text)))
   let release = (): void => undefined

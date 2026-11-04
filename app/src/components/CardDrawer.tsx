@@ -260,11 +260,14 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     setStage('replying')
     setPending({ user: text, reply: '' })
     setError(null)
+    // Cleared for the turn; a failed one gives them back (the AI's last questions still stand).
+    const before = { changed, questions, names }
     setChanged([])
     setQuestions([])
     setNames([])
     const alive = () => !controller.signal.aborted
-    let kept = false
+    // Set from the event callback: never narrowed to false here.
+    let kept = false as boolean
     try {
       await sendTurn(
         id,
@@ -294,6 +297,11 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
       if (alive()) setError(errorText(err instanceof ApiRequestError ? err.code : ''))
     }
     if (!alive()) return kept
+    if (!kept) {
+      setChanged(before.changed)
+      setQuestions(before.questions)
+      setNames(before.names)
+    }
     // The turns as the server keeps them, swapped in with the pending ones in one render.
     const fresh = await api.getDraft(id).catch(() => null)
     if (!alive()) return kept
@@ -679,15 +687,13 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                   void saveNotes(notes)
                 }}
                 onSameName={(pair) => {
-                  const before = names
                   void send(
                     strings.drawer.sameMessage(pair.mentioned, pair.similar_to),
                     pair.card_id ? [pair.card_id] : [],
                   ).then((kept) => {
-                    // Answered only once the AI took the turn; a turn that failed (or never
-                    // went) leaves the question to ask again.
+                    // Answered only once the AI took the turn; a turn that failed (its names
+                    // given back) or never went leaves the question to ask again.
                     if (kept) setNames((old) => old.filter((p) => p !== pair))
-                    else setNames(before)
                   })
                 }}
                 onDismissName={(pair) => {
