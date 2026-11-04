@@ -19,6 +19,13 @@ from aiplot.services.draft_context import CATEGORY, block
 
 type Stage = FiveStage | FourStage
 
+# The last line of every pick turn, the same on each call, itself in 해요체: the reasons are
+# shown to the user, and the model wrote them in 해라체 with the rule in the system prompt only.
+REASON_STYLE = (
+    "reason은 작가에게 말하듯 해요체로 써요. 문장마다 ~해요/~어요/~이에요로 끝내고, "
+    "~다/~니다로 끝내지 않아요. 효과나 상황 낱말을 따옴표로 감싸지 않아요."
+)
+
 
 def stages_of(episode: EpisodeCard) -> list[Stage]:
     structure = episode.data.structure
@@ -150,6 +157,7 @@ def pick_turns(
         f"장면: {scene.summary}",
         f"원하는 효과: {', '.join(scene.effects)}",
         f"상황: {', '.join(scene.situations)}",
+        REASON_STYLE,
     ]
     return [
         {

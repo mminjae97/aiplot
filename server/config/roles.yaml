@@ -33,6 +33,7 @@ roles:
     prompt: 1
     thinking: true
     sampling: { temperature: 0.3 }
+    # System prompt 2077 tokens (llama-tokenize, prompt v1 as merged).
     max_tokens: 4096
   pick:
     profile: qwen3-8b-uncensor-q5km
@@ -40,8 +41,8 @@ roles:
     prompt: 1
     thinking: true
     sampling: { temperature: 0.3 }
-    # Review of #131 (Q5, prompt v1, ctx 8192): system prompt 753 tokens; a 20-candidate user
-    # turn 4890-4958 (llama-tokenize); prompt_tokens 5456-5959; completions 1055-2540; one
-    # call truncated at ctx 8192. The 20 longest catalog candidates make ~7.57k prompt tokens:
-    # 4096 still fits ctx 12288 (7.57k + 4096 = ~11.67k).
+    # System prompt 981 tokens (llama-tokenize, prompt v1 as merged). Q5, ctx 12288, q8_0 KV,
+    # 10 scored stages: prompt_tokens 5882-6500, completions 970-2319, no truncation (an
+    # earlier draft truncated once at ctx 8192). The 20 longest catalog candidates make an
+    # estimated ~7.84k prompt tokens: 4096 still fits ctx 12288 (~11.94k).
     max_tokens: 4096

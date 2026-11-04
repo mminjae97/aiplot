@@ -17,7 +17,7 @@ from aiplot.llm.client import ChatRequest, Delta, LlmError, Message, Usage
 from aiplot.llm.config import PROMPTS_DIR, load_llm_config
 from aiplot.llm.fake import FakeClient
 from aiplot.llm.router import Router
-from aiplot.services import cards, direction, techniques
+from aiplot.services import cards, direction, direction_context, techniques
 from aiplot.services.direction import EpisodeNotReadyError, UnknownStageError
 from tests.test_card_delete import episode
 from tests.test_cards import character, fixture, region, save, story
@@ -322,6 +322,7 @@ async def test_pick_sees_the_scene_and_its_narrowed_candidates(
         f"장면: {SUSPENSE.summary}",
         "원하는 효과: 서스펜스, 긴장",
         "상황: 비밀, 위기",
+        direction_context.REASON_STYLE,
     ]
     entries = block(text, "참고 카드").split("\n\n")
     assert [e.splitlines()[0] for e in entries] == [f"{c.id} {c.name}" for c in narrowed]
@@ -550,8 +551,14 @@ def test_pick_prompt_asks_for_haeyo_reasons() -> None:
     body = text.split("-->", 1)[1]
     for ending in ('"~해요"', '"~어요"', '"~이에요"'):
         assert ending in body
-    # Said once with the field and once more at the very end.
-    assert body.strip().splitlines()[-1].endswith('"요"로 끝낸다.')
+    # Said once with the field and once more at the very end, in 해요체 itself.
+    assert body.strip().splitlines()[-1].endswith('"요"로 끝내요.')
+    reason = body.split("- reason:", 1)[1].split("\n\n", 1)[0]
+    for line in reason.splitlines():
+        assert line.rstrip().endswith(("요.", '요."')), line
+    # The pick turn ends with the same 해요체 line on every call.
+    assert direction_context.REASON_STYLE.endswith("않아요.")
+    assert "따옴표" in direction_context.REASON_STYLE
 
 
 def assert_plain(schema: dict[str, Any]) -> None:
