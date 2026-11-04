@@ -122,6 +122,31 @@ async def test_crash_restarts_three_times_then_error(
     await process.stop()
 
 
+async def test_stop_during_the_last_failure_never_hangs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A stop() arriving while the last failure reads VRAM must not be swallowed by the
+    give-up wait (it would wait forever and the server process would stay)."""
+    monkeypatch.setenv("FAKE_LLAMA_MODE", "crash")
+    install(tmp_path)
+    process = make(tmp_path)
+    reading_last = asyncio.Event()
+
+    async def slow_reading() -> VramUsage:
+        if process.restarts >= MAX_RESTARTS:
+            reading_last.set()
+            await asyncio.sleep(0.5)
+        return VramUsage(used_mb=1, total_mb=8192)
+
+    monkeypatch.setattr("aiplot.llm.process.read_vram", slow_reading)
+    process.start()
+    async with asyncio.timeout(15):
+        await reading_last.wait()
+    async with asyncio.timeout(5):
+        await process.stop()
+    assert process.state == "stopped"
+
+
 async def test_unresponsive_server_is_restarted(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

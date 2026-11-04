@@ -186,22 +186,24 @@ class LlamaProcess:
                 continue
             self.state, self.message = "starting", None
             failure = await self._run_once()
+            # Wakes from here on (stop, retry, new files or paths) arrive during the awaits
+            # below and must reach the give-up wait, never be cleared by it.
+            self._wake.clear()
+            gpu = None
+            if not self._stopping and not self._paths_changed:
+                # Read while the failed child may still hold its memory (§17: failures + VRAM).
+                gpu = vram_text(await read_vram())
+            await self._kill()
             if self._stopping:
-                await self._kill()
                 return
             if self._paths_changed:
-                await self._kill()
                 self._paths_changed = False
                 continue
-            # Read while the failed child may still hold its memory (§17: failures + VRAM).
-            gpu = vram_text(await read_vram())
-            await self._kill()
             if self.restarts >= MAX_RESTARTS:
                 self.state, self.message = "error", failure
                 self._log.error(
                     "llama-server gave up after %d restarts: %s (%s)", MAX_RESTARTS, failure, gpu
                 )
-                self._wake.clear()
                 await self._wake.wait()
                 continue
             self.restarts += 1
