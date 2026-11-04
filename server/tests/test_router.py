@@ -94,6 +94,7 @@ async def test_complete_json(prompts: Path) -> None:
     assert result.meta.profile == "qwen3-8b-uncensor-q5km"
     assert client.requests[0].json_schema == SourceOutput.model_json_schema()
     assert result.usage is None
+    assert result.attempts == 1
 
 
 async def test_complete_json_never_accepts_truncated_reply(prompts: Path) -> None:
@@ -123,6 +124,7 @@ async def test_complete_json_retries_once(prompts: Path) -> None:
     client = Flaky({})
     result = await router(prompts, client).complete_json("source", TURNS, SourceOutput)
     assert result.value.questions == []
+    assert result.attempts == 2
     assert len(client.requests) == 2
 
 

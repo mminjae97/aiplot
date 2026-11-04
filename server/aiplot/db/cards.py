@@ -6,6 +6,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
+from aiplot.db import works
+
 CARD_COLUMNS = (
     "id, work_id, type, name, source_notes, data, evidence, ai_guess, pinned_fields, status, "
     "schema_version"
@@ -424,7 +426,8 @@ class EpisodeTies:
     main_region: str | None
     other_regions: list[str]
     worlds: list[str]
-    # (foreshadowing id, text): planted here; planted elsewhere and paid off here.
+    # (foreshadowing id, text): planted here; planted in another active episode (§11) and paid
+    # off here.
     plants: list[tuple[str, str]]
     payoffs: list[tuple[str, str]]
 
@@ -448,7 +451,8 @@ def episode_ties(conn: sqlite3.Connection, episode_id: str) -> EpisodeTies:
             "SELECT id, text FROM foreshadowing WHERE plant_episode_id = ? ORDER BY rowid"
         ),
         payoffs=items(
-            "SELECT id, text FROM foreshadowing WHERE payoff_episode_id = ? ORDER BY rowid"
+            "SELECT id, text FROM foreshadowing WHERE payoff_episode_id = ? "
+            f"AND plant_episode_id IN (SELECT e.id {works.ACTIVE_EPISODES}) ORDER BY rowid"
         ),
     )
 

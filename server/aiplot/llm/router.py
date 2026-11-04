@@ -37,6 +37,8 @@ class JsonResult[T: BaseModel]:
     reasoning: str
     meta: OutputMeta
     usage: Usage | None
+    # Model calls made, the retry after an invalid or cut-off reply included.
+    attempts: int = 1
 
 
 class Router:
@@ -120,7 +122,7 @@ class Router:
         schema = output.model_json_schema() if json_schema is None else json_schema
         request = self.request(role, turns, schema)
         error = LlmError("LLM_INVALID_OUTPUT", f"{role}: no attempt")
-        for _ in range(JSON_ATTEMPTS):
+        for attempt in range(1, JSON_ATTEMPTS + 1):
             content: list[str] = []
             reasoning: list[str] = []
             finish: Delta | None = None
@@ -140,5 +142,5 @@ class Router:
                 error = LlmError("LLM_INVALID_OUTPUT", f"{role}: {exc}")
                 continue
             usage = finish.usage if finish is not None else None
-            return JsonResult(value, "".join(reasoning), self.meta(role), usage)
+            return JsonResult(value, "".join(reasoning), self.meta(role), usage, attempt)
         raise error

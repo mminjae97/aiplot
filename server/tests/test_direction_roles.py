@@ -3,7 +3,7 @@
 import json
 import re
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import AsyncGenerator, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +13,7 @@ from aiplot.db.connection import connect
 from aiplot.db.migrate import init_db
 from aiplot.generated.roles.pick_output import PickOutput
 from aiplot.generated.roles.scene_output import OutputScene, SceneOutput
-from aiplot.llm.client import LlmError, Message
+from aiplot.llm.client import ChatRequest, Delta, LlmError, Message, Usage
 from aiplot.llm.config import PROMPTS_DIR, load_llm_config
 from aiplot.llm.fake import FakeClient
 from aiplot.llm.router import Router
@@ -186,6 +186,8 @@ async def test_scene_sees_the_episode_and_its_active_cards(
 
     assert [s.source for s in result.scenes] == FIVE
     assert (result.meta.role, result.meta.prompt_version) == ("scene", 1)
+    # The fixture client reports no usage.
+    assert (result.usage, result.generations) == (None, 1)
 
 
 async def test_scene_schema_limits_source_to_the_stage_names(
@@ -262,6 +264,39 @@ async def test_episode_not_ready_is_refused_before_any_call(
     with pytest.raises(cards.CardNotFoundError):
         await direction.split_scenes(router, conn, "c_nothing")
     assert client.requests == []
+
+
+async def test_an_incomplete_main_story_makes_every_episode_inactive(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    client = FakeClient()
+    router = make_router(client, tmp_path)
+    main = fixture("main-story")
+    save(conn, {**main, "data": {**main["data"], "theme": None}})
+    assert cards.get(conn, "c_main").status == "incomplete"  # type: ignore[union-attr]
+    assert cards.get(conn, "c_ep1").status == "complete"  # type: ignore[union-attr]
+    with pytest.raises(EpisodeNotReadyError):
+        await direction.split_scenes(router, conn, "c_ep1")
+    with pytest.raises(EpisodeNotReadyError):
+        await direction.recommend(router, conn, "c_ep1", SUSPENSE)
+    assert client.requests == []
+
+
+async def test_payoffs_planted_in_an_inactive_episode_stay_out(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    plants = [{"id": "fs_old", "text": "부서진 등대"}]
+    save(conn, ep("c_ep0", "0화", foreshadowing={"plants": plants, "payoffs": []}, synopsis=None))
+    assert cards.get(conn, "c_ep0").status == "incomplete"  # type: ignore[union-attr]
+    # The row is still there (§11 keeps it); only the context leaves it out.
+    row = conn.execute("SELECT payoff_episode_id FROM foreshadowing WHERE id = 'fs_old'")
+    assert row.fetchone()[0] == "c_ep1"
+    client = FakeClient()
+    await direction.split_scenes(make_router(client, tmp_path), conn, "c_ep1")
+    text = user_turn(client)
+    assert "부서진 등대" not in text
+    assert "회수하는 복선" not in text
+    assert "- 테오의 왼손 흉터" in text
 
 
 # pick -------------------------------------------------------------------------------------
@@ -400,6 +435,64 @@ async def test_pick_refuses_a_scene_from_another_stage(
     assert client.requests == []
 
 
+async def test_pick_without_candidates_is_refused_before_any_call(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    # A catalog where no direction candidate shares the scene's tags.
+    others = [
+        card.model_copy(update={"pairs_with": [], "conflicts_with": []})
+        for card in CATALOG
+        if not direction.is_candidate(card)
+    ]
+    techniques.sync(conn, others)
+    client = FakeClient()
+    with pytest.raises(direction.NoCandidatesError):
+        await direction.recommend(make_router(client, tmp_path), conn, "c_ep1", SUSPENSE)
+    assert client.requests == []
+
+
+# usage --------------------------------------------------------------------------------------
+
+
+class Metered(Scripted):
+    """Scripted, with usage on every finish: completion tokens = 10 x the call's number."""
+
+    async def stream(self, request: ChatRequest) -> AsyncGenerator[Delta, None]:
+        async for delta in super().stream(request):
+            if delta.kind == "finish":
+                usage = Usage(
+                    prompt_tokens=100, cached_tokens=0, completion_tokens=10 * len(self.requests)
+                )
+                delta = Delta("finish", delta.text, usage)
+            yield delta
+
+
+async def test_results_carry_the_kept_usage_and_every_generation(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    client = Metered()
+    client.say("scene", scenes_json(scene(1, "기")), scenes_json(scene(1, "위기")))
+    result = await direction.split_scenes(make_router(client, tmp_path), conn, "c_ep1")
+    assert result.generations == 2
+    assert result.usage == Usage(prompt_tokens=100, cached_tokens=0, completion_tokens=20)
+
+    reveal = SUSPENSE.model_copy(
+        update={"effects": ["서스펜스", "놀람"], "situations": ["비밀", "진실폭로"]}
+    )
+    client = Metered()
+    # Invalid JSON (the router retries), a conflicting pair (nothing kept), then a good one.
+    client.say(
+        "pick",
+        "{not json",
+        picks_json(["tech_inf_001", "tech_inf_003"]),
+        picks_json(["tech_inf_013"]),
+    )
+    picked = await direction.recommend(make_router(client, tmp_path), conn, "c_ep1", reveal)
+    assert [p.techniques for p in picked.picks] == [["tech_inf_013"]]
+    assert picked.generations == len(client.requests) == 3
+    assert picked.usage == Usage(prompt_tokens=100, cached_tokens=0, completion_tokens=30)
+
+
 # prompts ----------------------------------------------------------------------------------
 
 
@@ -434,6 +527,31 @@ def test_scene_prompt_lists_every_tag() -> None:
         line = text.split(f"\n{heading}\n", 1)[1].split("\n", 1)[0]
         listed = [re.sub(r"\(.*?\)", "", tag) for tag in line.split(", ")]
         assert listed == json.loads((SCHEMAS / file).read_text(encoding="utf-8"))["enum"]
+
+
+def test_scene_checklist_leads_to_real_tags() -> None:
+    text = (PROMPTS_DIR / "scene" / "v1.md").read_text(encoding="utf-8")
+    tags = {
+        tag
+        for file in ("technique-effect.json", "technique-situation.json")
+        for tag in json.loads((SCHEMAS / file).read_text(encoding="utf-8"))["enum"]
+    }
+    arrows = [line.split(" → ", 1)[1] for line in text.splitlines() if " → " in line]
+    assert len(arrows) >= 10
+    for line in arrows:
+        named = re.sub(r"\(.*?\)", "", line).split(", ")
+        assert all(tag.strip() in tags for tag in named), line
+    # Within brackets too, every tag word is real.
+    assert "시간경과" in text.split("과거사 (", 1)[1].split(")", 1)[0]
+
+
+def test_pick_prompt_asks_for_haeyo_reasons() -> None:
+    text = (PROMPTS_DIR / "pick" / "v1.md").read_text(encoding="utf-8")
+    body = text.split("-->", 1)[1]
+    for ending in ('"~해요"', '"~어요"', '"~이에요"'):
+        assert ending in body
+    # Said once with the field and once more at the very end.
+    assert body.strip().splitlines()[-1].endswith('"요"로 끝낸다.')
 
 
 def assert_plain(schema: dict[str, Any]) -> None:

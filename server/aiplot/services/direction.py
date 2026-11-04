@@ -20,7 +20,7 @@ from aiplot.generated.card.card import EpisodeCard
 from aiplot.generated.roles.pick_output import OutputPick, PickOutput
 from aiplot.generated.roles.scene_output import OutputScene, SceneOutput
 from aiplot.generated.technique.technique import Technique
-from aiplot.llm.client import LlmError, Message
+from aiplot.llm.client import LlmError, Message, Usage
 from aiplot.llm.config import Role
 from aiplot.llm.router import OutputMeta, Router
 from aiplot.services import cards
@@ -140,9 +140,23 @@ class NoCandidatesError(ValueError):
 
 
 @dataclass(frozen=True)
+class Kept[K]:
+    """A role's cleaned output. usage is the kept generation's (llama.cpp counts the whole
+    prompt in prompt_tokens, cached part included); generations counts every model call made,
+    the router's retries after an invalid or cut-off reply included."""
+
+    items: list[K]
+    meta: OutputMeta
+    usage: Usage | None
+    generations: int
+
+
+@dataclass(frozen=True)
 class SceneResult:
     scenes: list[OutputScene]
     meta: OutputMeta
+    usage: Usage | None
+    generations: int
 
 
 @dataclass(frozen=True)
@@ -150,6 +164,8 @@ class PickResult:
     candidates: list[Technique]
     picks: list[OutputPick]
     meta: OutputMeta
+    usage: Usage | None
+    generations: int
 
 
 def ready_episode(conn: sqlite3.Connection, episode_id: str) -> EpisodeCard:
@@ -160,6 +176,7 @@ def ready_episode(conn: sqlite3.Connection, episode_id: str) -> EpisodeCard:
         raise EpisodeNotReadyError(f"{episode_id} is not an episode")
     if not works_db.is_active_episode(conn, episode_id):
         raise EpisodeNotReadyError(f"{episode_id} is inactive (it, its part or the story)")
+    # A guard only: a complete episode always has stages with summaries (§15).
     if not context.stages_of(card):
         raise EpisodeNotReadyError(f"{episode_id} has no structure stages")
     return card
@@ -189,13 +206,15 @@ async def generate_kept[T: BaseModel, K](
     output: type[T],
     schema: dict[str, Any],
     clean: Callable[[T], list[K]],
-) -> tuple[list[K], OutputMeta]:
+) -> Kept[K]:
     """The cleaned output; when cleaning leaves nothing, one more generation, then an error."""
+    generations = 0
     for _ in range(KEPT_ATTEMPTS):
         result = await router.complete_json(role, turns, output, schema)
+        generations += result.attempts
         kept = clean(result.value)
         if kept:
-            return kept, result.meta
+            return Kept(kept, result.meta, result.usage, generations)
     raise LlmError("LLM_INVALID_OUTPUT", f"{role}: nothing left after cleaning")
 
 
@@ -203,7 +222,7 @@ async def split_scenes(router: Router, conn: sqlite3.Connection, episode_id: str
     """The episode's scenes in story order, each with its source stage and tags (§9)."""
     episode = ready_episode(conn, episode_id)
     names = [stage.name for stage in context.stages_of(episode)]
-    scenes, meta = await generate_kept(
+    kept = await generate_kept(
         router,
         "scene",
         context.scene_turns(conn, episode),
@@ -211,7 +230,7 @@ async def split_scenes(router: Router, conn: sqlite3.Connection, episode_id: str
         scene_schema(names),
         lambda output: clean_scenes(output, names),
     )
-    return SceneResult(scenes, meta)
+    return SceneResult(kept.items, kept.meta, kept.usage, kept.generations)
 
 
 async def recommend(
@@ -225,7 +244,7 @@ async def recommend(
     found = candidates(conn, scene.effects, scene.situations)
     if not found:
         raise NoCandidatesError(f"no candidate shares a tag with scene {scene.scene}")
-    picks, meta = await generate_kept(
+    kept = await generate_kept(
         router,
         "pick",
         context.pick_turns(episode, stage, scene, found),
@@ -233,4 +252,4 @@ async def recommend(
         pick_schema([card.id for card in found]),
         lambda output: clean_picks(output, found),
     )
-    return PickResult(found, picks, meta)
+    return PickResult(found, kept.items, kept.meta, kept.usage, kept.generations)

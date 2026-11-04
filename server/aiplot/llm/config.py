@@ -134,6 +134,19 @@ class Profile(StrictModel):
             raise ValueError(f"server_args must not set {managed}")
         return self
 
+    @model_validator(mode="after")
+    def quantized_kv_has_flash_attention(self) -> Self:
+        """llama.cpp needs flash attention for a quantized V cache."""
+        args = list(self.server_args)
+        on = any(
+            (a in ("-fa", "--flash-attn") and args[i + 1 : i + 2] == ["on"])
+            or a in ("-fa=on", "--flash-attn=on")
+            for i, a in enumerate(args)
+        )
+        if self.kv_type != "f16" and not on:
+            raise ValueError(f"kv_type {self.kv_type} needs -fa on in server_args")
+        return self
+
 
 class LlamaArchive(StrictModel):
     file: str = Field(pattern=r"^[^/\\:]+\.zip$")
