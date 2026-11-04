@@ -24,6 +24,7 @@ from aiplot.llm.router import Router
 from aiplot.services.notes import numbered
 from measure import (
     HERE,
+    STYLE_FILE,
     TYPE_NAMES,
     WRITE_SAMPLING,
     beat_instruction,
@@ -72,8 +73,13 @@ async def run(args: argparse.Namespace) -> None:
     base = json.loads(args.base.read_text(encoding="utf-8"))
     client = LlamaClient(args.url)
     router = Router(measure_config(args.profile), client, lora_dir=HERE / "no-lora")
-    system = style_system_prompt()
-    results: dict[str, Any] = {"profile": args.profile, "writing": [], "source": []}
+    system = style_system_prompt(args.style)
+    results: dict[str, Any] = {
+        "profile": args.profile,
+        "style": args.style.name,
+        "writing": [],
+        "source": [],
+    }
     for name, sampling in WRITE_VARIANTS.items():
         for sample in range(SAMPLES):
             for beat in cases["writing"]:
@@ -143,6 +149,9 @@ def main() -> None:
     r.add_argument("--profile", required=True)
     r.add_argument("--base", type=Path, required=True)
     r.add_argument("--out", type=Path, required=True)
+    r.add_argument(
+        "--style", type=Path, default=STYLE_FILE, help="style framework file for the write role"
+    )
     p = sub.add_parser("report")
     p.add_argument("paths", type=Path, nargs="+")
     args = parser.parse_args()

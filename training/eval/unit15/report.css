@@ -18,6 +18,7 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; }
 td, th { padding: 4px 6px; border-top: 1px solid #e6dcc6; text-align: left; vertical-align: top; }
 tr.ok td:last-child { color: #2f6a3a; }
 tr.bad td:last-child { color: #a3322a; font-weight: 700; }
+p.warn { color: #a3322a; font-weight: 700; }
 tr.wait td:last-child { color: #9a6a12; }
 tr.skip td:last-child { color: #8c7c66; }
 pre { margin: 0; font-size: 12px; white-space: pre-wrap; }

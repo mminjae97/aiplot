@@ -20,7 +20,7 @@ from aiplot.llm.client import LlamaClient, Message
 from aiplot.llm.router import Router
 from measure import (
     HERE,
-    STYLE_FILE,
+    STYLE_DIR,
     WRITE_SAMPLING,
     beat_instruction,
     block,
@@ -32,7 +32,7 @@ from measure import (
 from report import SEED, shown
 from sampling import repetition
 
-STYLES = {"v1": STYLE_FILE, "v2": STYLE_FILE.with_name("webnovel-style-v2.md")}
+STYLES = {"v1": STYLE_DIR / "webnovel-style-v1.md", "v2": STYLE_DIR / "webnovel-style-v2.md"}
 SAMPLING = WRITE_SAMPLING.model_copy(update={"presence_penalty": 1.5})
 CHAT_RETRIES = 3
 
