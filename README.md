@@ -1235,6 +1235,11 @@ cd app && npm install && npm run dev
 
 # GPU 없이 가짜 모델 응답으로 실행·테스트
 AIPLOT_FAKE_LLM=1 npm run dev
+
+# 예시 작품 '이름 없는 기사의 노래'가 든 별도 데이터 폴더(%LOCALAPPDATA%\Aiplot-dev\academy)로 실행
+# (실행할 때마다 server/scripts/seed_academy.py가 예시 작품이 있는지 보고, 없을 때만 채운다.
+#  처음 실행할 때나 앱에서 예시 작품을 지운 뒤에 다시 생긴다. 제목을 바꾼 작품은 그대로 둔다)
+npm run dev:academy
 ```
 
 모델 파일은 저장소에 넣지 않는다. 첫 실행 안내에서 내려받거나 기존 파일 경로를 지정한다. 앱 데이터는 `%LOCALAPPDATA%\Aiplot\` 아래에 저장된다.

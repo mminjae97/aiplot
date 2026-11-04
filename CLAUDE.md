@@ -18,7 +18,7 @@ app/electron/{main.ts (server lifecycle, OS dialogs, snapshots), preload.ts (por
 app/src/{screens,components,api (REST+SSE),stores,strings (Korean UI text),styles (design tokens + screen CSS),assets/fonts (bundled + OFL),types (GENERATED)}
 app/tests/ (+ e2e/)
 server/aiplot/{main.py,api/ (thin routers),services/,llm/ (router, profiles, LoRA registry, llama/comfy/fake clients),jobs/,db/ (+migrations/),generated/ (GENERATED)}
-server/{prompts/{role}/v{n}.md, config/{roles.yaml,profiles/*.yaml}, data/techniques/, data/style/{id}-v{n}.md (style framework), workflows/, tests/ (+fixtures/)}
+server/{prompts/{role}/v{n}.md, config/{roles.yaml,profiles/*.yaml}, data/techniques/, data/style/{id}-v{n}.md (style framework), workflows/, tests/ (+fixtures/), scripts/ (dev only, not shipped)}
 schemas/ (JSON Schema source of truth) + codegen/
 training/{seeds,generate,filter,notebooks,eval} — not shipped
 ```
@@ -31,6 +31,7 @@ cd schemas && npm i && npm run codegen        # → app/src/types, server/aiplot
 npm test                                      # (schemas) validate JSON Schemas; CI fails on stale generated files
 cd server && uv sync
 uv run python -m aiplot.main --dev            # port 8765, token AIPLOT_TOKEN
+uv run python scripts/seed_academy.py {dir}   # sample work 이름 없는 기사의 노래 into data dir {dir}; skipped if already there, even renamed
 uv run pytest | uv run ruff check . && uv run ruff format --check . | uv run mypy aiplot tests
 uv run pyinstaller aiplot-server.spec --noconfirm   # → server/dist/aiplot-server (onedir), needed by `npm run dist`
 cd training && uv sync                        # path dep on ../server; eval/results/ is gitignored
@@ -39,6 +40,7 @@ uv run python eval/unit5/measure.py --url http://127.0.0.1:8796 --profile {id} -
 uv run python eval/unit5/report.py pairs|metrics|votes ...
 cd app && npm i                               # dev/e2e start the server from server/.venv: run `uv sync` there first
 npm run dev | test | lint | typecheck | e2e | build | wood   # wood: re-render the grain images after editing scripts/wood/*.svg
+npm run dev:academy                           # dev on %LOCALAPPDATA%\Aiplot-dev\academy (AIPLOT_DEV_ACADEMY_DIR overrides), sample work 이름 없는 기사의 노래 seeded whenever missing (first run, work deleted in the app)
 npm run dist                                  # → app/dist/Aiplot-Setup-{version}.exe (+ dist/win-unpacked)
 AIPLOT_E2E_PACKAGED=1 npx playwright test tests/e2e/packaged.spec.ts   # the unpacked build, after dist
 ```
