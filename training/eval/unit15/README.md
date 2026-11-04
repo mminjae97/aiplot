@@ -14,7 +14,10 @@ one case per card type and four name checks.
   the case's `refs` (@ cards), all world cards, and for a part the main story, for an episode
   the main story, its part and all regions. A case that needs another card (a relation, an
   origin region, a linked region, an episode's characters) @-mentions it in `refs`, as a writer
-  would.
+  would. A case's `seeds` (ids into the genre's seed list) are that case's own setting, not
+  gold: the seeded 2부 (milestones 3-4, so episode drafts open, §7) need not match the part
+  case's answer. Name turns build their work from all the genre's seeds, so the seeded 2부 adds
+  one line to the source role's card-name list; the in-code similar-name results are the same.
 - `notes`: the source notes, one sentence per line.
 - `gold`: one entry per scored field. Kinds: `exact` (same value, or one of `any_of`), `ids`
   (same set of card ids; relations by target), `facts` / `items` (free text: the listed facts
@@ -48,13 +51,32 @@ user to check. Rules:
 - Optional fields: not scored for match. A filled one with no evidence sentence and not marked
   AI 추정 is judged for `unsupported` like free text (no evidence alone is not invention: the
   model often leaves evidence out); one the input fixes (`given`, e.g. structure.type) never is.
+- Ids fields: compared, not judged, for match. One whose ids miss the gold is judged for
+  `unsupported` (ids of cards the notes never point to); until then it stays pending.
+- Empty facts / items fields need no entry: they are misses.
 
 ## Rates
 
-- Field match = matched / scored fields (exact, ids, facts, items). A card the run failed to
-  make counts every one of its scored fields as a miss.
+- Field match = matched / scored fields (exact, ids, facts, items). A facts / items field with
+  no judged entry is pending and left out, except an empty one: that is a miss without a
+  judgement. A card the run failed to make counts every one of its scored fields as a miss.
+- JSON failures = cards whose output stayed invalid or truncated after the one retry
+  (`LLM_INVALID_OUTPUT`, `LLM_OUTPUT_TRUNCATED`). Cards that failed otherwise (server down, a
+  crash in the app's code) are counted apart (`card_errors`). Card time and tokens are over the
+  cards made; a failed card stays out of them.
 - Unsupported fill = unsupported / filled fields that can be unsupported (all but exact ones,
-  which are compared, not judged, and given ones, which the input fixes).
+  which are compared, not judged, and given ones, which the input fixes). A filled field with
+  no judged entry that needs one (facts / items, an optional one with no evidence and no AI
+  추정 mark, an ids field whose ids miss the gold) is unsupported pending: left out of this rate
+  and counted as pending until judged. Ids that match the gold count as supported.
+- Pending = fields still waiting for a judgement, for match or for unsupported.
+- A run missing any case or name turn (run.py `--cases`, `--skip-names`) is a partial run:
+  score.py prints the scored cards and name turns against the case files' totals, warns
+  PARTIAL RUN on stderr and sets `partial_run` (with the missing ids) in its JSON.
+- A name turn that ended in an error (no names checked, e.g. source ran to max_tokens) is
+  counted apart (`names_errored`, `errored_name_turns`), shown as an error in the report and
+  makes the run partial (PARTIAL RUN on stderr). Its expected names count as missed (the writer
+  is never asked); one that must flag none is unknown, so the false rate leaves it out.
 - Name false rate = wrong pairs in the turns that must flag none / those turns. A pair naming
   part of the card's name (무현 for 연무현), or the name with more, is fair to ask about.
 
@@ -66,5 +88,13 @@ uv run python eval/unit15/run.py --url http://127.0.0.1:8796 --out eval/results/
 uv run python eval/unit15/score.py eval/results/unit15/run.json \
     --judged eval/results/unit15/judged.json --html eval/results/unit15/report.html
 ```
+
+run.py writes its result after every case, so a crash keeps what was done (`finished_at` only
+once it ends). A case that fails in any way (model error, invalid output, a crash in the app's
+code) records the error under its id and the run goes on; the scorer counts it as a failed
+card (`total_s` null; `failed_after_s` = time from the model call to the failure, null if it
+failed before the call). If the result file is held open by another process (e.g. score.py
+reading it mid-run), the swap is retried a few times, then only warned about on stderr: the
+latest results stay in `run.json.tmp` and the next case's write tries again.
 
 Results (raw model output, judgements, reports) stay out of git (eval/.gitignore).

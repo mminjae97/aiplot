@@ -265,5 +265,7 @@ def test_get_db_gives_request_connection_to_app_db(tmp_path: Path) -> None:
         return str(row["v"])
 
     app.include_router(probe)
-    response = TestClient(app).get("/api/v1/probe/value")
+    # Every route under /api/v1 needs the token (middleware), probes too.
+    headers = {"Authorization": f"Bearer {TOKEN}"}
+    response = TestClient(app).get("/api/v1/probe/value", headers=headers)
     assert response.json() == "저장됨"

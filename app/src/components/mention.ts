@@ -1,13 +1,16 @@
-// Whether a chat message still names an @ card (§8). The particle rule mirrors the server's
-// similar-name check (server/aiplot/services/names.py, PARTICLES and stems): a name may carry
-// particles, stacked ones too (@레오에게는), and nothing else.
+// Whether a chat message still names an @ card (§8). A name may carry particles and endings,
+// stacked ones too (@레오에게는, @레오님께), and nothing else. The list is the server's
+// similar-name list (server/aiplot/services/names.py, PARTICLES) plus endings a mention takes
+// that the server leaves out there (라는, 라고, 이라는, 이라고, 이란, 란, 께, 들); vocative 아/야
+// left out as there.
 
-// Particles and endings that follow a name in a sentence; vocative 아/야 left out as there.
 // prettier-ignore
 const PARTICLES = [
   '에게서', '한테서', '으로부터', '이랑', '에서', '에게', '한테', '께서', '으로', '이나',
   '이며', '이고', '이었다', '였다', '이다', '이자', '처럼', '까지', '부터', '보다', '하고',
   '님', '씨', '은', '는',
+  // Endings beyond the server's list.
+  '이라는', '이라고', '이란', '라는', '라고', '란', '께', '들',
   '이', '가', '을', '를', '의', '에', '와', '과', '도', '만', '로', '랑',
 ].sort((a, b) => b.length - a.length)
 

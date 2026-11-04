@@ -26,9 +26,15 @@ export function saveView(view: DexView) {
   }
 }
 
+/** Episodes open once the main story has at least one milestone and every milestone is in
+ * exactly one part (§8). */
+export function milestonesPlaced(milestones: readonly { parts: readonly string[] }[]): boolean {
+  return milestones.length > 0 && milestones.every((milestone) => milestone.parts.length === 1)
+}
+
 export type StorySteps = {
   loaded: boolean
-  /** Parts open once a main story is saved; episodes once every milestone is in one part. */
+  /** Parts open once a main story is saved; episodes once milestonesPlaced. */
   open: Record<StoryStep, boolean>
   /** The furthest open step: where the story opens when no step is asked for. */
   furthest: StoryStep
@@ -54,7 +60,7 @@ export function useStorySteps(workId: string): StorySteps {
     loaded &&
     partsOpen &&
     parts.data.cards.length > 0 &&
-    completeness.data.milestones.every((milestone) => milestone.parts.length === 1)
+    milestonesPlaced(completeness.data.milestones)
   return {
     loaded,
     open: { main: true, parts: partsOpen, episodes: episodesOpen },

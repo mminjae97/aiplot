@@ -385,6 +385,28 @@
   border-left-style: solid;
 }
 
+/* Just saved or brought back (§8): a brass glow fading over 0.3s. */
+.timeline-node[data-highlight],
+.story-part[data-highlight],
+.story-main[data-highlight] {
+  animation: story-arrive 0.3s ease-out;
+}
+
+@keyframes story-arrive {
+  from {
+    box-shadow: 0 0 0 4px var(--brass-bright);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-node[data-highlight],
+  .story-part[data-highlight],
+  .story-main[data-highlight] {
+    animation: none;
+    outline: 2px solid var(--brass-bright);
+  }
+}
+
 .timeline-node-name {
   max-width: 100%;
   overflow: hidden;

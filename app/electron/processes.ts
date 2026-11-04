@@ -26,8 +26,43 @@ export interface SupervisorOptions {
   readyTimeoutMs?: number
   pollMs?: number
   healthTimeoutMs?: number
+  // The first /health after the ready line: tries, and the pause between them.
+  readyChecks?: number
+  readyCheckMs?: number
+  // How long an exited child's output may take to arrive before its failure is handled.
+  drainMs?: number
   maxRestarts?: number
 }
+
+// Lines of the child's output kept to explain a failure on the error screen.
+const TAIL_LINES = 6
+const TAIL_LINE_CHARS = 300
+
+/** The last few non-empty lines of a child's stdout and stderr, in arrival order. */
+class OutputTail {
+  private lines: string[] = []
+
+  add(line: string): void {
+    const text = line.trim()
+    if (text === '') return
+    this.lines.push(text.length > TAIL_LINE_CHARS ? `${text.slice(0, TAIL_LINE_CHARS)}…` : text)
+    if (this.lines.length > TAIL_LINES) this.lines.shift()
+  }
+
+  text(): string {
+    return this.lines.join('\n')
+  }
+}
+
+const ended = (stream: NodeJS.ReadableStream | null): Promise<void> =>
+  new Promise((resolve) => {
+    if (!stream || (stream as { readableEnded?: boolean }).readableEnded) {
+      resolve()
+      return
+    }
+    stream.once('end', resolve)
+    stream.once('close', resolve)
+  })
 
 // A port the OS reports free right now; a squatter that takes it first never gets trusted,
 // because readiness needs our child's own ready line.
@@ -71,6 +106,9 @@ export class ServerSupervisor {
       readyTimeoutMs: 60_000,
       pollMs: 5_000,
       healthTimeoutMs: 3_000,
+      readyChecks: 5,
+      readyCheckMs: 500,
+      drainMs: 250,
       maxRestarts: 3,
       ...options,
     }
@@ -135,12 +173,19 @@ export class ServerSupervisor {
     })
     this.child = child
     const baseUrl = `http://127.0.0.1:${String(port)}`
-    // Unread pipes would fill up and block the server; its own logs go to files.
-    child.stderr?.resume()
+    // Both pipes are read (unread ones would fill up and block the server; its own logs go to
+    // files), keeping the last lines to explain an exit on the error screen.
+    const tail = new OutputTail()
+    if (child.stderr) {
+      createInterface({ input: child.stderr }).on('line', (line) => {
+        tail.add(line)
+      })
+    }
     let announced = false
     if (child.stdout) {
       createInterface({ input: child.stdout }).on('line', (line) => {
         if (announced || this.child !== child || line.trim() !== `${READY_LINE} ${String(port)}`) {
+          tail.add(line)
           return
         }
         announced = true
@@ -149,12 +194,21 @@ export class ServerSupervisor {
     }
     child.once('error', (err) => {
       console.error('server failed to start', err)
-      if (this.child === child) this.fail()
+      if (this.child === child) this.fail(err.message)
     })
     child.once('exit', (code) => {
       if (this.child !== child || this.stopped) return
       console.error(`server exited with code ${String(code)}`)
-      this.fail()
+      // Its last words (e.g. the database being newer than the app, §14) may still be in the
+      // pipes: wait for them, briefly.
+      void Promise.race([
+        Promise.all([ended(child.stdout), ended(child.stderr)]),
+        new Promise((resolve) => setTimeout(resolve, this.options.drainMs)),
+      ]).then(() => {
+        if (this.child !== child || this.stopped) return
+        const output = tail.text()
+        this.fail(output === '' ? `exit code ${String(code)}` : output)
+      })
     })
     this.later(this.options.readyTimeoutMs, () => {
       if (this.child === child && this.state.status === 'starting') {
@@ -165,11 +219,18 @@ export class ServerSupervisor {
   }
 
   private async confirmReady(child: ChildProcess, baseUrl: string, token: string): Promise<void> {
-    const healthy = await this.healthy(baseUrl, token)
-    if (this.child !== child) return
-    if (!healthy) {
-      this.fail()
-      return
+    // The server can be slow to answer right after binding: a few tries before it counts as a
+    // failure (the ready timeout still bounds them).
+    for (let attempt = 1; ; attempt++) {
+      const healthy = await this.healthy(baseUrl, token)
+      if (this.child !== child) return
+      if (healthy) break
+      if (attempt >= this.options.readyChecks) {
+        this.fail()
+        return
+      }
+      await new Promise((resolve) => setTimeout(resolve, this.options.readyCheckMs))
+      if (this.child !== child) return
     }
     this.clearTimers()
     this.setState({ status: 'ready', baseUrl, token, restarts: this.restarts })
@@ -204,11 +265,17 @@ export class ServerSupervisor {
     }
   }
 
-  private fail(): void {
+  /** detail: what the child said or why it ended, shown if this was the last try. */
+  private fail(detail?: string): void {
     this.halt()
     if (this.stopped) return
     if (this.restarts >= this.options.maxRestarts) {
-      this.setState({ status: 'error', reason: 'failed', restarts: this.restarts })
+      this.setState({
+        status: 'error',
+        reason: 'failed',
+        restarts: this.restarts,
+        ...(detail === undefined ? {} : { detail }),
+      })
       return
     }
     this.restarts += 1

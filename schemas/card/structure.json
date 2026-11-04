@@ -21,7 +21,7 @@
           "const": 4
         },
         "stages": {
-          "description": "One entry per stage, in story order; names unique (checked by the server).",
+          "description": "One entry per stage, in story order; the server sets each name by its position (§15: exactly the type's sequence).",
           "type": "array",
           "items": {
             "$ref": "#/$defs/fourStage"
@@ -41,7 +41,7 @@
           "const": 5
         },
         "stages": {
-          "description": "One entry per stage, in story order; names unique (checked by the server).",
+          "description": "One entry per stage, in story order; the server sets each name by its position (§15: exactly the type's sequence).",
           "type": "array",
           "items": {
             "$ref": "#/$defs/fiveStage"

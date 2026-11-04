@@ -10,6 +10,7 @@ its job ends, so a cancelled job never races the next one or emits events after 
 
 import asyncio
 import contextlib
+import errno
 import hashlib
 import json
 import logging
@@ -39,10 +40,15 @@ PROGRESS_SEC = 0.5
 DISK_MARGIN = 1 << 30
 # CDN hiccups worth another try, like dropped connections.
 RETRY_STATUS = frozenset({408, 429, 500, 502, 503, 504})
+WINERROR_DISK_FULL = frozenset({112, 39})
 
 
 class RetryableError(Exception):
     """A download attempt failed in a way the next attempt may fix."""
+
+
+class PartDroppedError(RetryableError):
+    """The .part no longer fits the file (416) and was removed: the next attempt starts over."""
 
 
 class StoppedError(Exception):
@@ -71,6 +77,11 @@ class Progress:
         if now - self._last >= PROGRESS_SEC or self.done >= self.total:
             self._last = now
             self.ctx.progress(self.done, self.total, self.step)
+
+
+def disk_full(exc: OSError) -> bool:
+    """ENOSPC, or Windows ERROR_DISK_FULL (112) / ERROR_HANDLE_DISK_FULL (39)."""
+    return exc.errno == errno.ENOSPC or getattr(exc, "winerror", None) in WINERROR_DISK_FULL
 
 
 def part_size(path: Path) -> int:
@@ -281,7 +292,14 @@ class Setup:
         self, http: httpx.AsyncClient, remote: Remote, progress: Progress, ctx: JobContext
     ) -> None:
         remote.part.parent.mkdir(parents=True, exist_ok=True)
-        for attempt in range(1, ATTEMPTS + 1):
+        # Consecutive attempts without progress. Progress = the .part passed the largest size it
+        # has reached in this download by at least a CHUNK: over hours of a 6 GB file, drops far
+        # apart (or a pause, after which the idle stream errors) never add up to a failure, but a
+        # connection that drops every few KB, or a server that ignores Range and starts the file
+        # over (200) without getting past that mark, does.
+        failures = 0
+        reached = part_size(remote.part)
+        while True:
             have = part_size(remote.part)
             if have == remote.size:
                 break
@@ -290,10 +308,19 @@ class Setup:
                 break
             except (httpx.TransportError, RetryableError) as exc:
                 # Bytes already written stay in the .part file and in progress.done.
-                logger.warning("download %s attempt %d failed: %s", remote.url, attempt, exc)
-                if attempt == ATTEMPTS:
+                now = part_size(remote.part)
+                failures = 0 if now >= reached + CHUNK else failures + 1
+                # A dropped part starts the mark over: growth from zero is real progress again.
+                reached = 0 if isinstance(exc, PartDroppedError) else max(reached, now)
+                logger.warning(
+                    "download %s failed (%d in a row without progress): %s",
+                    remote.url,
+                    failures,
+                    exc,
+                )
+                if failures >= ATTEMPTS:
                     raise JobError("DOWNLOAD_FAILED", f"{progress.step}: {exc}") from exc
-                await asyncio.sleep(2.0 * attempt)
+                await asyncio.sleep(2.0 * max(failures, 1))
         # step names what runs; the app turns it into Korean text (§5).
         progress.step = f"verify {progress.step}"
         progress.ctx.progress(progress.done, progress.total, progress.step)
@@ -323,16 +350,23 @@ class Setup:
                 # Our part no longer fits the file: drop it and start over next attempt.
                 remote.part.unlink(missing_ok=True)
                 progress.done -= have
-                raise RetryableError(f"HTTP 416 at byte {have}")
+                raise PartDroppedError(f"HTTP 416 at byte {have}")
             elif status in RETRY_STATUS:
                 raise RetryableError(f"HTTP {status}")
             elif status not in (200, 206):
                 raise JobError("DOWNLOAD_FAILED", f"{remote.url}: HTTP {status}")
-            with remote.part.open("ab" if have else "wb") as f:
-                async for chunk in response.aiter_bytes(CHUNK):
-                    f.write(chunk)
-                    progress.add(len(chunk))
-                    await ctx.checkpoint()
+            try:
+                with remote.part.open("ab" if have else "wb") as f:
+                    async for chunk in response.aiter_bytes(CHUNK):
+                        f.write(chunk)
+                        progress.add(len(chunk))
+                        await ctx.checkpoint()
+            except OSError as exc:
+                # Closing the file may fail the same way: caught around the whole block. The
+                # .part keeps what was written for a resume once there is room.
+                if disk_full(exc):
+                    raise JobError("DISK_FULL", f"{remote.part.name}: {exc}") from exc
+                raise
         if part_size(remote.part) != remote.size:
             raise httpx.ReadError(f"stream ended at {part_size(remote.part)} of {remote.size}")
 

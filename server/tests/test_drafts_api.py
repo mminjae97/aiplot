@@ -12,7 +12,7 @@ from aiplot.db.connection import connect
 from aiplot.db.migrate import init_db
 from aiplot.main import create_app
 from tests.test_card_delete import dump
-from tests.test_cards import fixture, save, story
+from tests.test_cards import episodes_open, fixture, save, story
 
 TOKEN = "test-token"
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
@@ -78,8 +78,49 @@ def test_edit_mode_loads_notes_and_pins(client: TestClient, conn: sqlite3.Connec
 
 
 def test_new_episode_goes_into_a_part(client: TestClient, conn: sqlite3.Connection) -> None:
-    story(conn)
+    episodes_open(conn)
     assert opened(client, {"type": "episode", "part_id": "c_part1"})["part_id"] == "c_part1"
+
+
+def test_new_cards_follow_the_creation_order(client: TestClient, conn: sqlite3.Connection) -> None:
+    """§7 main → parts → episodes: a new part needs a saved main story; a new episode needs
+    one with at least one milestone, every milestone in exactly one part."""
+    invalid = (422, "DRAFT_INVALID")
+    assert error(create(client, {"type": "part"})) == invalid
+    assert error(create(client, {"type": "episode"})) == invalid
+
+    main = fixture("main-story", id="c_main")
+    save(conn, {**main, "data": {**main["data"], "milestones": []}})
+    assert opened(client, {"type": "part"})["type"] == "part"
+    # No milestones yet.
+    assert error(create(client, {"type": "episode"})) == invalid
+
+    save(conn, main)  # ms_1, ms_2
+    save(conn, fixture("part", id="c_part1"))  # holds ms_1
+    # ms_2 is in no part.
+    assert error(create(client, {"type": "episode", "part_id": "c_part1"})) == invalid
+
+    part2 = fixture("part", id="c_part2", name="2부")
+    part2["data"] = {**part2["data"], "order": 2, "fulfills": ["ms_1", "ms_2"]}
+    save(conn, part2)
+    # ms_1 is in two parts.
+    assert error(create(client, {"type": "episode", "part_id": "c_part1"})) == invalid
+
+    save(conn, {**part2, "data": {**part2["data"], "fulfills": ["ms_2"]}})
+    assert opened(client, {"type": "episode", "part_id": "c_part1"})["type"] == "episode"
+    assert opened(client, {"type": "episode"})["type"] == "episode"
+
+
+def test_editing_never_waits_for_the_creation_order(
+    client: TestClient, conn: sqlite3.Connection
+) -> None:
+    """An existing part or episode opens in edit mode whatever the milestones are now."""
+    from tests.test_card_delete import episode
+
+    story(conn)  # ms_2 is in no part
+    save(conn, episode("c_e1", part_id="c_part1", order=1))
+    assert opened(client, {"type": "episode", "card_id": "c_e1"})["card_id"] == "c_e1"
+    assert opened(client, {"type": "part", "card_id": "c_part1"})["card_id"] == "c_part1"
 
 
 @pytest.mark.parametrize(

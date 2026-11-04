@@ -7,6 +7,7 @@ not written; card data keeps what was generated, the relation tables hold what i
 
 import secrets
 import sqlite3
+from collections.abc import Callable
 from typing import Any
 
 from pydantic import TypeAdapter
@@ -34,6 +35,7 @@ from aiplot.generated.card.completeness import (
 from aiplot.generated.card.region import RegionTravel
 from aiplot.generated.card.region_links import RegionLinkRow
 from aiplot.generated.card.relations import CardRelation
+from aiplot.services.structure import STAGE_NAMES
 from aiplot.services.trash import Deleted, Trash
 from aiplot.services.works import WorkNotFoundError, require_open
 
@@ -106,6 +108,9 @@ def complete(conn: sqlite3.Connection, card: Card) -> bool:
                 and db.count_episode_characters(conn, card.id) >= 1
                 and db.has_main_region(conn, card.id)
                 and structure is not None
+                # §15: exactly 기승전결 or 발단…결말, in order (card_post names generated
+                # stages by position; data that arrives any other way is checked here).
+                and tuple(stage.name for stage in structure.stages) == STAGE_NAMES[structure.type]
                 and all(filled(stage.summary) for stage in structure.stages)
             )
     return False
@@ -278,12 +283,20 @@ def to_row(card: Card, status: str) -> db.CardRow:
     )
 
 
-def save(conn: sqlite3.Connection, card: Card) -> Card:
+def save(
+    conn: sqlite3.Connection,
+    card: Card,
+    place: Callable[[sqlite3.Connection, Card], Card] | None = None,
+) -> Card:
     """Card row + type table + its relation rows + status, in one transaction. card.status
-    and a region's position are ignored (computed; the map owns the position)."""
+    and a region's position are ignored (computed; the map owns the position). place: run
+    first inside the transaction, it returns the card to write (a new episode or part takes
+    its placement from the tables as they are at that moment)."""
     with transaction(conn):
         # Stage 1 data stays as it was once direction started (§6: 423 STAGE_LOCKED).
         require_open(conn, card.work_id, 1)
+        if place is not None:
+            card = place(conn, card)
         existing = db.get(conn, card.id)
         if existing is not None and (
             existing.work_id != card.work_id or existing.type != card.type

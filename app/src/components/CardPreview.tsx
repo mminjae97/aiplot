@@ -17,7 +17,10 @@ type Props = {
 /** The generated card, field by field (§8): click a field to see its evidence sentences;
  * no evidence reads as AI 추정, an empty required field as 아직 정해지지 않음. */
 export function CardPreview({ card, saved, names, pinned, selected, onPin, onSelect }: Props) {
-  const list = rows(card).filter((row) => {
+  const all = rows(card)
+  // Edit mode, and the generation changed no field: say so rather than show nothing.
+  const unchanged = saved !== null && all.every((row) => same(row.value, valueOf(saved, row.path)))
+  const list = all.filter((row) => {
     // In edit mode only what changed is shown (§8), plus what is still missing and what is
     // pinned (so it can be unpinned).
     if (saved === null) return true
@@ -30,6 +33,11 @@ export function CardPreview({ card, saved, names, pinned, selected, onPin, onSel
   return (
     <>
       <p className="preview-hint">{strings.preview.evidenceHint}</p>
+      {unchanged && (
+        <p className="preview-unchanged" role="status">
+          {strings.preview.unchanged}
+        </p>
+      )}
       <dl className="preview-fields">
         {list.map((row) => {
           const isPinned = pinned.includes(row.path)

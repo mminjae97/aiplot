@@ -113,6 +113,8 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy eval
+      # Step 2 eval cases save into a temp DB through the app's card save (no model, no GPU).
+      - run: uv run python eval/step2/check.py
 
   # Windows installer (§19, from unit 14): main pushes and manual runs only (a few minutes).
   installer:

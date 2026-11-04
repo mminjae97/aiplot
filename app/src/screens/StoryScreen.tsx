@@ -9,10 +9,11 @@ import { EpisodeTimeline } from '../components/EpisodeTimeline'
 import { FlipCard } from '../components/FlipCard'
 import { timelineOf } from '../components/storyLayout'
 import { Overlay } from '../components/Overlay'
+import { useArrival } from '../components/useArrival'
 import type { PlanningScreen, StoryStep } from '../stores/navigation'
 import { strings } from '../strings'
 import type { Card, EpisodeCard, MainStoryCard, PartCard } from '../types'
-import { STORY_STEPS } from './planningPages'
+import { milestonesPlaced, STORY_STEPS } from './planningPages'
 import type { PageProps } from './PlanningBook'
 
 type Step = StoryStep
@@ -29,8 +30,8 @@ function isEpisode(card: Card): card is EpisodeCard {
 }
 
 /** S1-3 story (§8): ① the main story, ② its parts, ③ the episodes, each step opening once
- * the one before is done (parts need a saved main story; episodes need every milestone in
- * exactly one part). */
+ * the one before is done (parts need a saved main story; episodes need at least one milestone
+ * and every milestone in exactly one part). */
 export function StoryScreen({
   screen,
   turn,
@@ -128,11 +129,7 @@ export function StoryScreen({
   const loaded = mains.isSuccess && partCards.isSuccess && completeness.isSuccess
   // Steps open in order (§8).
   const partsOpen = main !== null
-  const episodesOpen =
-    loaded &&
-    partsOpen &&
-    parts.length > 0 &&
-    milestones.every((milestone) => milestone.parts.length === 1)
+  const episodesOpen = loaded && partsOpen && parts.length > 0 && milestonesPlaced(milestones)
   const isOpen = (step: Step) => step === 'main' || (step === 'parts' ? partsOpen : episodesOpen)
   // Each open step is a page of the book; without one asked for (or once the asked one has
   // closed), the furthest open step.
@@ -169,6 +166,22 @@ export function StoryScreen({
     event.preventDefault()
     choose(next)
   }
+
+  // The card just saved or brought back: highlighted 0.3s once its step shows it (§8).
+  const drawn = placement.isSuccess && settings.isSuccess && links.isSuccess && regions.isSuccess
+  const [arrived, arrive] = useArrival(
+    (id) =>
+      loaded &&
+      (step === 'main'
+        ? main?.id === id
+        : step === 'parts'
+          ? parts.some((part) => part.id === id)
+          : episodesOpen && drawn && timeline.nodes.some((node) => node.episodeId === id)),
+    (id) =>
+      [...document.querySelectorAll<HTMLElement>('.timeline-node')].find(
+        (node) => node.dataset.id === id,
+      ),
+  )
 
   const label = {
     main: strings.story.stepMain,
@@ -284,7 +297,7 @@ export function StoryScreen({
                   )}
                 </div>
               ) : (
-                <article className="story-main">
+                <article className="story-main" data-highlight={arrived === main.id || undefined}>
                   <p className="drawer-kind">
                     {strings.drawer.kind.main_story}
                     {main.status === 'incomplete' && (
@@ -346,7 +359,11 @@ export function StoryScreen({
                   {parts.length === 0 && <p className="story-later">{strings.story.noParts}</p>}
                   <ol className="story-parts">
                     {parts.map((part, index) => (
-                      <li key={part.id} className="story-part">
+                      <li
+                        key={part.id}
+                        className="story-part"
+                        data-highlight={arrived === part.id || undefined}
+                      >
                         <p className="drawer-kind">
                           {strings.story.partLabel(index + 1)}
                           {part.status === 'incomplete' && (
@@ -389,7 +406,11 @@ export function StoryScreen({
               step === 'episodes' &&
               (!episodesOpen ? (
                 <p className="story-later">
-                  {partsOpen ? strings.story.needParts : strings.story.needMain}
+                  {!partsOpen
+                    ? strings.story.needMain
+                    : milestones.length === 0
+                      ? strings.story.needMilestones
+                      : strings.story.needParts}
                 </p>
               ) : (
                 <div className="story-board">
@@ -419,16 +440,14 @@ export function StoryScreen({
                       </span>
                     </div>
                     {/* Drawn once its places, links and regions are in: no lane jumps. */}
-                    {placement.isSuccess &&
-                    settings.isSuccess &&
-                    links.isSuccess &&
-                    regions.isSuccess ? (
+                    {drawn ? (
                       <EpisodeTimeline
                         timeline={timeline}
                         episodes={episodeById}
                         milestones={milestones}
                         selectedPart={selectedPart}
                         onSelectPart={setPart}
+                        highlight={arrived}
                         onPick={(id, origin) => {
                           setPicked({ id, origin })
                         }}
@@ -479,8 +498,10 @@ export function StoryScreen({
             onClose={() => {
               setDrawer(null)
             }}
-            onSaved={() => {
+            onSaved={(card) => {
+              // After save: close and highlight the card (§8).
               void queryClient.invalidateQueries({ queryKey: ['relations', workId] })
+              arrive(card.id)
             }}
           />
         )}
@@ -527,8 +548,9 @@ export function StoryScreen({
               setUndo(null)
             }}
             returnFocus={() => tabRefs.current.get(step)}
-            onRestored={() => {
+            onRestored={(card) => {
               setUndo(null)
+              arrive(card.id)
             }}
           />
         )}

@@ -33,6 +33,9 @@ class FakeChild extends EventEmitter {
     if (this.exitCode !== null) return
     this.exitCode = code
     this.emit('exit', code)
+    // As a real child: the pipes close after the process ends.
+    this.stdout.end()
+    this.stderr.end()
   }
 }
 
@@ -60,6 +63,8 @@ function setup(overrides: Partial<SupervisorOptions> = {}) {
     readyTimeoutMs: 200,
     pollMs: 5,
     healthTimeoutMs: 50,
+    readyCheckMs: 5,
+    drainMs: 5,
     ...overrides,
   })
   return {
@@ -132,7 +137,12 @@ describe('ServerSupervisor', () => {
       s.children[n - 1]?.exit(1)
     }
     await vi.waitFor(() => {
-      expect(s.last()).toEqual({ status: 'error', reason: 'failed', restarts: 3 })
+      expect(s.last()).toEqual({
+        status: 'error',
+        reason: 'failed',
+        restarts: 3,
+        detail: 'exit code 1',
+      })
     })
     const ports = s.children.map((c) => c.env.AIPLOT_PORT)
     const tokens = new Set(s.children.map((c) => c.env.AIPLOT_TOKEN))
@@ -214,22 +224,27 @@ describe('ServerSupervisor', () => {
         releasePort = resolve
       }),
       Promise.resolve(9300),
+      Promise.resolve(9400),
     ]
     const s = started(
       setup({
-        maxRestarts: 1,
+        maxRestarts: 0,
         pickPort: () => ports.shift() ?? Promise.reject(new Error('no port')),
       }),
     )
     await vi.waitFor(() => {
       expect(s.children).toHaveLength(1)
     })
-    // The crash restart now waits on the second port...
+    // The only try fails: the error screen with "다시 시도".
     s.children[0]?.exit(1)
     await vi.waitFor(() => {
-      expect(s.last()).toEqual({ status: 'starting', restarts: 1 })
+      expect(s.last()?.status).toBe('error')
     })
-    // ...and retry is ignored outside the error state.
+    // "다시 시도" from the error state; its launch now waits on the second port...
+    s.supervisor.retry()
+    expect(s.last()).toEqual({ status: 'starting', restarts: 0 })
+    // ...and more clicks while it waits start nothing else.
+    s.supervisor.retry()
     s.supervisor.retry()
     releasePort(9200)
     await vi.waitFor(() => {
@@ -237,6 +252,68 @@ describe('ServerSupervisor', () => {
     })
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(s.children.map((c) => c.env.AIPLOT_PORT)).toEqual(['9100', '9200'])
+    s.children[1]?.ready()
+    await vi.waitFor(() => {
+      expect(s.last()?.status).toBe('ready')
+    })
+  })
+
+  test('one failed health check right after the ready line is tried again', async () => {
+    let calls = 0
+    const fetch = vi.fn(() => {
+      calls += 1
+      return calls === 1
+        ? Promise.reject(new Error('not yet'))
+        : Promise.resolve(new Response('{}'))
+    })
+    const s = started(setup({ fetch }))
+    await vi.waitFor(() => {
+      expect(s.children).toHaveLength(1)
+    })
+    s.children[0]?.ready()
+    await vi.waitFor(() => {
+      expect(s.last()?.status).toBe('ready')
+    })
+    expect(s.children).toHaveLength(1)
+    expect(s.states.some((state) => state.restarts > 0)).toBe(false)
+  })
+
+  test('a server that never answers after its ready line is restarted', async () => {
+    const s = started(setup({ maxRestarts: 0, readyChecks: 3 }))
+    s.setHealthy(false)
+    await vi.waitFor(() => {
+      expect(s.children).toHaveLength(1)
+    })
+    s.children[0]?.ready()
+    await vi.waitFor(() => {
+      expect(s.last()).toEqual({ status: 'error', reason: 'failed', restarts: 0 })
+    })
+    expect(s.fetch).toHaveBeenCalledTimes(3)
+    expect(s.children[0]?.kill).toHaveBeenCalled()
+  })
+
+  test('a server that exits before ready leaves its last lines for the error screen', async () => {
+    const s = started(setup({ maxRestarts: 1 }))
+    for (let n = 1; n <= 2; n++) {
+      await vi.waitFor(() => {
+        expect(s.children).toHaveLength(n)
+      })
+      const child = s.children[n - 1]
+      child?.stdout.write('starting\n')
+      child?.stderr.write(`try ${String(n)}\n`)
+      child?.stderr.write('MigrationError: database version 9 is newer than this app (7)\n')
+      child?.exit(1)
+    }
+    await vi.waitFor(() => {
+      expect(s.last()).toEqual({
+        status: 'error',
+        reason: 'failed',
+        restarts: 1,
+        detail: 'starting\ntry 2\nMigrationError: database version 9 is newer than this app (7)',
+      })
+    })
+    // Restarts still follow the budget.
+    expect(s.children).toHaveLength(2)
   })
 
   test('a stale launch never spawns after the supervisor restarts', async () => {
@@ -259,7 +336,7 @@ describe('ServerSupervisor', () => {
     })
     s.children[0]?.exit(1)
     await vi.waitFor(() => {
-      expect(s.last()?.status).toBe('starting')
+      expect(s.last()).toEqual({ status: 'starting', restarts: 1 })
     })
     // Restart the supervisor while the crash restart still waits for its port.
     s.supervisor.stop()

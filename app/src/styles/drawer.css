@@ -384,6 +384,13 @@ p.drawer-body {
   font-size: var(--size-small);
 }
 
+.preview-unchanged {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--control);
+  color: var(--ink-soft);
+}
+
 .preview-progress {
   display: flex;
   gap: 12px;

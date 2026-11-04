@@ -19,7 +19,7 @@ from aiplot.llm.runtime import LlmRuntime, fake_runtime
 from aiplot.main import create_app
 from aiplot.services import draft_card
 from tests.test_card_delete import episode
-from tests.test_cards import character, fixture, region, save, story
+from tests.test_cards import character, episodes_open, fixture, region, save, story
 from tests.test_draft_messages import Scripted
 
 TOKEN = "test-token"
@@ -212,7 +212,7 @@ def test_milestone_ids_are_the_servers_and_stay(
 def test_a_new_episode_goes_last_in_its_part(
     client: TestClient, conn: sqlite3.Connection, llm: Scripted
 ) -> None:
-    story(conn)
+    episodes_open(conn)
     save(
         conn,
         episode(
@@ -464,6 +464,44 @@ def test_a_linked_region_is_not_also_the_parent_and_sentence_numbers_go(
     assert generated(client, draft_id)["data"]["parent_id"] == "c_isle"
 
 
+def test_new_cards_are_placed_again_at_save(
+    client: TestClient, conn: sqlite3.Connection, llm: Scripted
+) -> None:
+    """Two drafts generated side by side were both placed after the same last card; the one
+    saved second must still go after the first, with no link dropped."""
+    episodes_open(conn)
+    save(conn, episode("c_e1", part_id="c_part1", order=1))
+    llm.say("card", output("episode", episode("c_new")))
+    first = open_draft(client, {"type": "episode", "part_id": "c_part1"})
+    second = open_draft(client, {"type": "episode", "part_id": "c_part1"})
+    for draft_id in (first, second):
+        assert generate(client, draft_id)["status"] == "done"
+        data = generated(client, draft_id)["data"]
+        assert (data["order"], data["links"]["prev"]) == (2, "c_e1")
+    a = save_draft(client, first).json()
+    b = save_draft(client, second).json()
+    assert (a["data"]["order"], a["data"]["links"]["prev"]) == (2, "c_e1")
+    assert (b["data"]["order"], b["data"]["links"]["prev"]) == (3, a["id"])
+    orders = conn.execute(
+        'SELECT card_id, "order" FROM episode WHERE part_id = \'c_part1\' ORDER BY "order"'
+    ).fetchall()
+    assert [tuple(r) for r in orders] == [("c_e1", 1), (a["id"], 2), (b["id"], 3)]
+    links = conn.execute("SELECT from_id, to_id FROM episode_link WHERE kind = 'order'")
+    assert {tuple(r) for r in links} == {("c_e1", a["id"]), (a["id"], b["id"])}
+
+    # Parts the same way: c_part1 and c_part2 hold orders 1 and 2.
+    part = fixture("part")
+    part["data"] = {**part["data"], "fulfills": []}
+    llm.say("card", output("part", part))
+    first = open_draft(client, {"type": "part"})
+    second = open_draft(client, {"type": "part"})
+    for draft_id in (first, second):
+        assert generate(client, draft_id)["status"] == "done"
+        assert generated(client, draft_id)["data"]["order"] == 3
+    assert save_draft(client, first).json()["data"]["order"] == 3
+    assert save_draft(client, second).json()["data"]["order"] == 4
+
+
 def test_milestones_stay_with_their_one_part(
     client: TestClient, conn: sqlite3.Connection, llm: Scripted
 ) -> None:
@@ -475,6 +513,8 @@ def test_milestones_stay_with_their_one_part(
     draft_id = open_draft(client, {"type": "part"}, "2부에서 비밀이 드러난다.")
     assert generate(client, draft_id)["status"] == "done"
     assert generated(client, draft_id)["data"]["fulfills"] == ["ms_2"]
+    # Saved, every milestone is in one part: the episode step opens.
+    assert save_draft(client, draft_id).status_code == 200
 
     # An episode of part 1 fulfils only part 1's milestones.
     value = episode("c_new")
@@ -552,7 +592,7 @@ def test_five_stages_map_onto_four_in_code() -> None:
 def test_a_generated_card_goes_from_five_stages_to_four_without_the_model(
     client: TestClient, conn: sqlite3.Connection, llm: Scripted
 ) -> None:
-    story(conn)
+    episodes_open(conn)
     value = episode("c_new")
     llm.say("card", output("episode", value, evidence={"structure": [0], "theme": [1]}))
     draft_id = open_draft(client, {"type": "episode", "part_id": "c_part1"})
@@ -584,6 +624,56 @@ def test_a_generated_card_goes_from_five_stages_to_four_without_the_model(
     assert saved["data"]["structure"] == after["data"]["structure"]
 
 
+def test_structure_stages_are_named_by_position(
+    client: TestClient, conn: sqlite3.Connection, llm: Scripted
+) -> None:
+    """§15: exactly 기승전결 or 발단…결말. The model may repeat a stage name; stages are in story
+    order, so each one takes its position's name and keeps its summary and tension."""
+    episodes_open(conn)
+    value = episode("c_new")
+    stages = value["data"]["structure"]["stages"]
+    value["data"]["structure"]["stages"] = [
+        {**stage, "name": name}
+        for stage, name in zip(stages, ["발단", "발단", "위기", "절정", "결말"], strict=True)
+    ]
+    llm.say("card", output("episode", value))
+    draft_id = open_draft(client, {"type": "episode", "part_id": "c_part1"})
+    assert generate(client, draft_id)["status"] == "done"
+    named = generated(client, draft_id)["data"]["structure"]
+    assert named["stages"] == [
+        {**stage, "name": name}
+        for stage, name in zip(stages, ["발단", "전개", "위기", "절정", "결말"], strict=True)
+    ]
+    # 5→4 then keeps every stage (it maps by name).
+    response = client.put(f"/api/v1/drafts/{draft_id}/structure", headers=AUTH, json={"type": 4})
+    four = response.json()["generated"]["data"]["structure"]["stages"]
+    assert [stage["summary"] for stage in four] == [
+        "발단 요약",
+        "전개 요약 위기 요약",
+        "절정 요약",
+        "결말 요약",
+    ]
+
+    four_value = episode("c_new")
+    four_value["data"]["structure"] = {
+        "type": 4,
+        "stages": [
+            {"name": name, "summary": f"{i} 요약", "tension": 2}
+            for i, name in enumerate(["기", "기", "결", "결"])
+        ],
+    }
+    llm.say("card", output("episode", four_value))
+    draft_id = open_draft(client, {"type": "episode", "part_id": "c_part1"})
+    assert generate(client, draft_id)["status"] == "done"
+    named = generated(client, draft_id)["data"]["structure"]
+    assert [(s["name"], s["summary"]) for s in named["stages"]] == [
+        ("기", "0 요약"),
+        ("승", "1 요약"),
+        ("전", "2 요약"),
+        ("결", "3 요약"),
+    ]
+
+
 def test_structure_change_refusals(
     client: TestClient, conn: sqlite3.Connection, llm: Scripted
 ) -> None:
@@ -591,7 +681,7 @@ def test_structure_change_refusals(
         return client.put(f"/api/v1/drafts/{draft_id}/structure", headers=AUTH, json=body)
 
     assert error(put("dr_ghost", {"type": 4})) == (404, "DRAFT_NOT_FOUND")
-    story(conn)
+    episodes_open(conn)
     draft_id = open_draft(client, {"type": "episode", "part_id": "c_part1"})
     assert error(put(draft_id, {"type": 4})) == (409, "NOTHING_TO_CONVERT")
     # 4→5 is the AI's split of 승, not built yet.

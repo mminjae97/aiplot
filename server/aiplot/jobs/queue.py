@@ -10,6 +10,7 @@ import asyncio
 import logging
 import re
 import secrets
+from collections import deque
 from collections.abc import AsyncIterator, Callable, Coroutine
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -140,6 +141,8 @@ class JobQueue:
         self._lane_slots = lane_slots
         self._keep_finished = keep_finished
         self._jobs: dict[str, JobRecord] = {}
+        # Finished job ids in the order they finished.
+        self._finished: deque[str] = deque()
         self._queues: dict[Lane, asyncio.Queue[JobRecord]] = {
             lane: asyncio.Queue() for lane in lane_slots
         }
@@ -257,6 +260,13 @@ class JobQueue:
         job.status = status
         job.finished_at = now()
         job.add_event(event, data)
-        finished = [j for j in self._jobs.values() if j.status in TERMINAL]
-        for old in finished[: max(len(finished) - self._keep_finished, 0)]:
-            del self._jobs[old.id]
+        # Oldest finished first (finished_at has whole seconds, so the order they finished in
+        # is kept here), never the job just finished: a long job submitted early and ending
+        # after many short ones stays readable.
+        self._finished.append(job.id)
+        while len(self._finished) > self._keep_finished:
+            oldest = self._finished[0]
+            if oldest == job.id:
+                break
+            self._finished.popleft()
+            self._jobs.pop(oldest, None)

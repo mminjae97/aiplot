@@ -145,6 +145,15 @@ def story(conn: sqlite3.Connection) -> None:
     save(conn, fixture("world", id="c_tide"))
 
 
+def episodes_open(conn: sqlite3.Connection) -> None:
+    """story() plus part 2 holding ms_2: every milestone is in one part, so the episode step
+    is open (§8) and new episode drafts may be created."""
+    story(conn)
+    part = fixture("part", id="c_part2", name="2부")
+    part["data"] = {**part["data"], "order": 2, "title": "2부", "fulfills": ["ms_2"]}
+    save(conn, part)
+
+
 def test_episode_rows_and_status(conn: sqlite3.Connection) -> None:
     story(conn)
     milestone = rows(conn, 'SELECT id FROM milestone ORDER BY "order"')[0][0]
@@ -193,7 +202,10 @@ def test_episode_rows_and_status(conn: sqlite3.Connection) -> None:
         ("c_ep2",)
     ]
 
-    # Without characters, a main location or a stage summary it is incomplete.
+    # Without characters, a main location or a stage summary it is incomplete; so it is with
+    # stage names other than exactly 발단…결말 in order (§15).
+    stages = episode["data"]["structure"]["stages"]
+    names = [stage["name"] for stage in stages]
     for data in (
         {"characters": ["c_ghost"]},
         {"locations": {"main": None, "others": ["c_port"]}},
@@ -202,10 +214,24 @@ def test_episode_rows_and_status(conn: sqlite3.Connection) -> None:
                 **episode["data"]["structure"],
                 "stages": [
                     {**stage, "summary": None if i == 0 else stage["summary"]}
-                    for i, stage in enumerate(episode["data"]["structure"]["stages"])
+                    for i, stage in enumerate(stages)
                 ],
             }
         },
+        *(
+            {
+                "structure": {
+                    **episode["data"]["structure"],
+                    "stages": [
+                        {**stage, "name": name} for stage, name in zip(stages, wrong, strict=True)
+                    ],
+                }
+            }
+            for wrong in (
+                [names[0], *names[:-1]],  # 발단, 발단, 전개, 위기, 절정: 결말 dropped
+                [names[1], names[0], *names[2:]],  # out of order
+            )
+        ),
     ):
         changed = copy.deepcopy(episode)
         changed["data"].update(data)

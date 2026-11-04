@@ -57,6 +57,8 @@ type Props = {
   selectedPart: string | null
   onSelectPart: (partId: string) => void
   onPick: (episodeId: string, origin: DOMRect | null) => void
+  /** The episode just saved or brought back: highlighted (§8). */
+  highlight?: string | null
 }
 
 /** S1-3 timeline (§8): story order across, split by part with titles; the main line on top
@@ -70,6 +72,7 @@ export function EpisodeTimeline({
   selectedPart,
   onSelectPart,
   onPick,
+  highlight = null,
 }: Props) {
   const width = GUTTER + Math.max(timeline.columns, 1) * COLUMN + 12
   // Lane tops: each lane as tall as its stack.
@@ -271,7 +274,9 @@ export function EpisodeTimeline({
               key={node.episodeId}
               type="button"
               className="timeline-node"
+              data-id={node.episodeId}
               data-incomplete={episode.status === 'incomplete' || undefined}
+              data-highlight={highlight === node.episodeId || undefined}
               aria-label={strings.story.openEpisode(name)}
               style={{
                 left: cx(node.column) - NODE_WIDTH / 2,

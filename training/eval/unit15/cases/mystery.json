@@ -50,6 +50,22 @@
       }
     },
     {
+      "id": "c_mypart2",
+      "type": "part",
+      "name": "유해",
+      "data": {
+        "order": 2,
+        "title": "유해",
+        "theme": "기억보다 단단한 증거",
+        "fulfills": [
+          "ms_my3",
+          "ms_my4"
+        ],
+        "start": "산에서 실종자의 유해가 발견된다.",
+        "end": "재희가 오진혁을 범인으로 지목한다."
+      }
+    },
+    {
       "id": "c_myreg1",
       "type": "region",
       "name": "해안시 경찰서",
@@ -498,6 +514,7 @@
       "seeds": [
         "c_mymain",
         "c_mypart1",
+        "c_mypart2",
         "c_myreg1",
         "c_myreg2",
         "c_myreg3",
