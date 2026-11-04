@@ -23,12 +23,12 @@ function cursorRules(): [string, string, string][] {
   return out
 }
 
-// The cursors the app draws (§5): the quill everywhere, the paperweight on the graph's and the
-// map's ground and, pressed, while anything there is dragged; the I-beam in text fields; none
-// where src/cursor.ts draws the image itself; inherit for boxes inside a label.
+// The cursors the app draws (§5): the quill everywhere but the relation graph and the map,
+// which show only the paperweight, pressed while anything there is dragged; the I-beam in text
+// fields; none where src/cursor.ts draws the image itself; inherit for boxes inside a label.
 const ALLOWED = [
   'var(--cursor)',
-  'var(--cursor-drag)',
+  'var(--cursor-drag) !important',
   'var(--cursor-dragging) !important',
   'text',
   'none !important',

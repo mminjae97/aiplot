@@ -1,13 +1,15 @@
 /* React Flow's structural rules only; the look below is ours. */
 @import '@xyflow/react/dist/base.css';
 
-/* No hand in the graph or the map (§5): the ground and the nodes show the paperweight (a node
-   too: dragging one moves it, or the ground when it can't move). One class more than React
-   Flow's default / grab rules. While anything is dragged, base.css html[data-dragging] shows
-   the pressed paperweight everywhere (components/dragCursor.ts). */
-.react-flow .react-flow__pane,
-.react-flow .react-flow__node {
-  cursor: var(--cursor-drag);
+/* The relation graph and the region map show only the paperweight (§5): ground, nodes, lines,
+   names, areas, buttons and the key alike, over React Flow's own default / grab / pointer.
+   While anything is dragged, base.css html[data-dragging] (more specific) shows the pressed
+   one everywhere (components/dragCursor.ts). */
+.dex-graph,
+.dex-graph *,
+.map-sheet,
+.map-sheet * {
+  cursor: var(--cursor-drag) !important;
 }
 
 /* S1-1 dex: character cards laid out on the walnut desk; a picked card grows to the middle
