@@ -226,7 +226,7 @@ Step 1 units: 0 env/git · 1 skeleton+CI · 2 schemas · 3 server core+DB · 4 L
 
 ## 21 Working rules
 - Build only the current step unless asked. Small units; run checks before finishing.
-- Every change via branch → PR to main (never push main); one topic per PR, Conventional Commit title. Review the PR; issues → fix and re-review until clean. Squash-merge only when review is clean and CI green (once CI exists).
+- Every change via branch → PR to main (never push main); one topic per PR, Conventional Commit title. Review the PR before merge and post every review round as a PR comment (what was checked, verdict, issues); issues → fix, re-review, comment again, until a round finds nothing to fix. Squash-merge only after that clean round (posted after the last commit), CI green and the user's approval.
 - Language: code, comments, commits, CLAUDE.md in English; PR title/body and review comments in Korean (Conventional Commit type prefix kept); squash commit message set in English at merge.
 - Unspecified decision → propose one option + short reason, ask first.
 - Draft numbers must be measured; report and update this file.
