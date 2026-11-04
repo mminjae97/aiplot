@@ -12,10 +12,11 @@ import {
   ReactFlow,
   ViewportPortal,
 } from '@xyflow/react'
-import { type KeyboardEvent, useState } from 'react'
+import { type KeyboardEvent, useEffect, useState } from 'react'
 import { strings } from '../strings'
 import type { CardRelation, CharacterCard } from '../types'
 import { Portrait } from './CharacterCard'
+import { startDragCursor, startGroundDrag, stopDragCursor, stopGroundDrag } from './dragCursor'
 import {
   GROUP_PAD,
   type Group,
@@ -341,6 +342,8 @@ type Props = {
  * moves a node for this view only, its areas following. */
 export function RelationGraph({ cards, relations, groups, onPick }: Props) {
   const [graph] = useState(() => graphOf(cards, relations, groups))
+  // A drag cut short by leaving the page never leaves the pressed paperweight behind.
+  useEffect(() => stopDragCursor, [])
   const [nodes, setNodes] = useState<GraphNode[]>(graph.nodes)
   const { edges } = graph
   const onNodesChange = (changes: NodeChange<GraphNode>[]) => {
@@ -379,6 +382,10 @@ export function RelationGraph({ cards, relations, groups, onPick }: Props) {
           if (node.type !== 'character') return
           onPick(node.id, nodeElement(event.target)?.getBoundingClientRect() ?? null)
         }}
+        onNodeDragStart={startDragCursor}
+        onNodeDragStop={stopDragCursor}
+        onMoveStart={startGroundDrag}
+        onMoveEnd={stopGroundDrag}
         nodesConnectable={false}
         elementsSelectable={false}
         fitView

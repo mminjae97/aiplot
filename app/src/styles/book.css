@@ -264,7 +264,6 @@
   text-align: left;
   box-shadow: 1px 2px 4px rgb(0 0 0 / 28%);
   pointer-events: auto;
-  cursor: var(--cursor-pointer);
   transition: filter var(--motion);
   /* Shown once as the book opens, from under the page. One animation for both sides, so a
      note changing sides without a turn (a contents item, a 함께 보기 link) never restarts it:
@@ -517,7 +516,6 @@
   background: transparent;
   color: transparent;
   font-size: 44px;
-  cursor: var(--cursor-pointer);
   transition:
     color var(--motion),
     background var(--motion);
@@ -538,7 +536,6 @@
 }
 
 .book-turn[aria-disabled='true'] {
-  cursor: var(--cursor);
   background: transparent;
   color: transparent;
 }

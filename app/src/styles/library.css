@@ -33,15 +33,10 @@
   background: none;
   padding: 4px 0;
   color: var(--ink-soft);
-  cursor: var(--cursor-pointer);
 }
 
 .top-bar-back:hover {
   color: var(--ink);
-}
-
-.top-bar-back:disabled {
-  cursor: var(--cursor);
 }
 
 .top-bar-title {
@@ -63,11 +58,6 @@
   letter-spacing: inherit;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: var(--cursor-pointer);
-}
-
-.top-bar-title-link:disabled {
-  cursor: var(--cursor);
 }
 
 .top-bar-title-link:hover:not(:disabled) {
@@ -293,7 +283,6 @@
   padding: 0;
   border: 0;
   background: none;
-  cursor: var(--cursor-pointer);
   /* the book inside leans in this perspective */
   perspective: 1000px;
   perspective-origin: 50% 20%;
@@ -665,7 +654,6 @@
   border-radius: 50%;
   background: var(--control);
   color: var(--ink-soft);
-  cursor: var(--cursor-pointer);
   transition:
     background var(--motion),
     color var(--motion);
@@ -709,7 +697,6 @@
   border: 0;
   background: none;
   text-align: left;
-  cursor: var(--cursor-pointer);
 }
 
 .book-menu button:hover,
@@ -814,7 +801,6 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  cursor: var(--cursor-pointer);
 }
 
 .decorate-swatches {
@@ -827,7 +813,6 @@
 /* A cloth sample per preset; the checked one gets a brass ring and a tick (not colour alone). */
 .decorate-swatch {
   position: relative;
-  cursor: var(--cursor-pointer);
 }
 
 .decorate-swatch input,
@@ -872,7 +857,6 @@
   gap: 6px;
   color: var(--ink-soft);
   font-size: var(--size-small);
-  cursor: var(--cursor-pointer);
 }
 
 .decorate-custom input {
@@ -882,7 +866,6 @@
   border: 1px solid var(--ink-soft);
   border-radius: 3px;
   background: none;
-  cursor: var(--cursor-pointer);
 }
 
 .decorate-note {
@@ -909,7 +892,6 @@
 
 .decorate-illustration label {
   position: relative;
-  cursor: var(--cursor-pointer);
 }
 
 .decorate-thumb {
@@ -956,7 +938,6 @@
   color: var(--ink-soft);
   font-size: var(--size-small);
   text-decoration: underline;
-  cursor: var(--cursor-pointer);
 }
 
 .decorate-remove:hover {

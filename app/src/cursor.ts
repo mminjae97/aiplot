@@ -1,27 +1,32 @@
-// The quill cursor (§5). The browser draws it (CSS `cursor` in base.css) except where the image
+// The app's cursor (§5). The browser draws it (CSS `cursor` in base.css) except where the image
 // would cross an edge of the window: Chromium then swaps any custom cursor for its own default,
-// so there the app hides the cursor and draws the same quill itself. The nib sits 2px inside the
-// image, so even the outermost pixels at the left and bottom count.
+// so there the app hides the cursor and draws the same image itself: the quill, or the pressed
+// paperweight while something is dragged (html[data-dragging], components/dragCursor.ts). The
+// quill's nib sits 2px inside the image, so even the outermost pixels at the left and bottom count.
+import dragging from './assets/cursor/dragging.svg'
 import quill from './assets/cursor/quill.svg'
-import quillHover from './assets/cursor/quill-hover.svg'
 
 const SIZE = 32
-// The nib, bottom left (base.css uses the same hotspot).
-const HOT_X = 2
-const HOT_Y = 30
 
-/** Whether the quill drawn with its nib at (x, y) would reach past an edge of the window. */
-export function nearEdge(x: number, y: number, width: number, height: number): boolean {
-  const left = x - HOT_X
-  const top = y - HOT_Y
+type Hotspot = { x: number; y: number }
+// The quill's nib, bottom left, and the paperweight's middle (base.css uses the same hotspots).
+const QUILL: Hotspot = { x: 2, y: 30 }
+const DRAGGING: Hotspot = { x: 16, y: 16 }
+
+/** Whether the image drawn with its hotspot at (x, y) would reach past an edge of the window. */
+export function nearEdge(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  hot: Hotspot = QUILL,
+): boolean {
+  const left = x - hot.x
+  const top = y - hot.y
   return left < 1 || top < 1 || left + SIZE > width - 1 || top + SIZE > height - 1
 }
 
-// base.css gives these the gilt quill too (tests/css/cursor.test.ts).
-const CLICKABLE =
-  'button:not(:disabled), a[href], [role="tab"], [role="button"], [role="option"], label, summary'
-
-/** Starts drawing the quill near the edges; returns a function that stops it. */
+/** Starts drawing the cursor near the edges; returns a function that stops it. */
 export function installCursor(): () => void {
   const root = document.documentElement
   const image = document.createElement('img')
@@ -39,20 +44,17 @@ export function installCursor(): () => void {
   const move = (event: PointerEvent) => {
     if (event.pointerType !== 'mouse') return
     const { clientX: x, clientY: y } = event
-    if (!nearEdge(x, y, window.innerWidth, window.innerHeight)) {
+    const drag = root.hasAttribute('data-dragging')
+    const hot = drag ? DRAGGING : QUILL
+    if (!nearEdge(x, y, window.innerWidth, window.innerHeight, hot)) {
       hide()
       return
     }
     // Set once on entering the edge: each change restyles the whole page.
     if (!root.hasAttribute('data-edge-cursor')) root.setAttribute('data-edge-cursor', '')
-    const target = event.target instanceof Element ? event.target : null
-    // The nearest clickable thing decides: one marked aria-disabled (a desk side with nothing
-    // to turn to, a menu item not built yet) keeps the plain quill, as in CSS.
-    const clickable = target?.closest(CLICKABLE)
-    const source =
-      clickable && clickable.getAttribute('aria-disabled') !== 'true' ? quillHover : quill
+    const source = drag ? dragging : quill
     if (image.getAttribute('src') !== source) image.src = source
-    image.style.transform = `translate(${String(x - HOT_X)}px, ${String(y - HOT_Y)}px)`
+    image.style.transform = `translate(${String(x - hot.x)}px, ${String(y - hot.y)}px)`
     image.hidden = false
   }
   window.addEventListener('pointermove', move, { capture: true, passive: true })
