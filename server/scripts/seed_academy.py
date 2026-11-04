@@ -9,7 +9,8 @@ Dev only, never shipped: aiplot-server.spec bundles the aiplot package, not scri
 
 Usage (from server/): uv run python scripts/seed_academy.py <data dir>
 A data dir that already holds the sample work is left as it is (exit 0): it is found by its
-fixed main story card id, so a renamed work still counts; once deleted, a rerun seeds it again.
+fixed card ids, so a renamed work or one with some cards deleted still counts; once the work is
+deleted, a rerun seeds it again.
 """
 
 # The work's content lines are kept whole, whatever their width.
@@ -1813,18 +1814,27 @@ def seed(conn: sqlite3.Connection, work_id: str) -> None:
             prev = e["key"]
 
 
+def fixed_ids() -> list[str]:
+    """Every card id the seed writes, main story first."""
+    keys = ["main", *(r["key"] for r in REGIONS), *(c["key"] for c in CHARACTERS)]
+    keys += [w["key"] for w in WORLD] + [p[0] for p in PARTS] + [e["key"] for e in EPISODES]
+    return [cid(key) for key in keys]
+
+
 def main(data_dir: Path) -> str:
     """Seeds data_dir and returns the work id (the one already there, if any)."""
     db_path = data_dir / "data" / "aiplot.db"
     init_db(db_path)
     conn = connect(db_path)
     try:
-        # The card ids are fixed, so the work is there when its main story is, whatever its
-        # title now (the library can rename it).
-        existing = cards.get(conn, cid("main"))
-        if existing is not None:
-            print(f"{db_path} already has the sample work ({existing.work_id}); nothing seeded")
-            return existing.work_id
+        # The card ids are fixed: the work is there while any of its cards is, whatever its
+        # title now (the library can rename it) and whichever cards were deleted in the app;
+        # seeding again then would clash with the ids left.
+        for card_id in fixed_ids():
+            existing = cards.get(conn, card_id)
+            if existing is not None:
+                print(f"{db_path} already has the sample work ({existing.work_id}); nothing seeded")
+                return existing.work_id
         work = works.create(conn, TITLE)
         try:
             seed(conn, work.id)

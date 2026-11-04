@@ -40,7 +40,7 @@ uv run python eval/unit5/measure.py --url http://127.0.0.1:8796 --profile {id} -
 uv run python eval/unit5/report.py pairs|metrics|votes ...
 cd app && npm i                               # dev/e2e start the server from server/.venv: run `uv sync` there first
 npm run dev | test | lint | typecheck | e2e | build | wood   # wood: re-render the grain images after editing scripts/wood/*.svg
-npm run dev:academy                           # dev on %LOCALAPPDATA%\Aiplot-dev\academy (AIPLOT_DEV_ACADEMY_DIR overrides), sample work 이름 없는 기사의 노래 seeded whenever missing (first run, deleted in the app)
+npm run dev:academy                           # dev on %LOCALAPPDATA%\Aiplot-dev\academy (AIPLOT_DEV_ACADEMY_DIR overrides), sample work 이름 없는 기사의 노래 seeded whenever missing (first run, work deleted in the app)
 npm run dist                                  # → app/dist/Aiplot-Setup-{version}.exe (+ dist/win-unpacked)
 AIPLOT_E2E_PACKAGED=1 npx playwright test tests/e2e/packaged.spec.ts   # the unpacked build, after dist
 ```

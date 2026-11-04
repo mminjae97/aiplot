@@ -20,6 +20,7 @@ from aiplot.generated.card.card import (
 )
 from aiplot.generated.works.work_update import WorkUpdate
 from aiplot.services import cards, works
+from aiplot.services.trash import Trash
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "seed_academy.py"
 
@@ -197,4 +198,16 @@ def test_deleted_work_is_seeded_again(
     assert counts(conn)["card"] == 0
     again = load_main()(tmp_path)
     assert again != work_id
+    assert counts(conn) == before
+
+
+def test_a_work_with_its_main_story_deleted_is_still_the_sample_work(
+    seeded: tuple[sqlite3.Connection, str], tmp_path: Path
+) -> None:
+    # Seeding again would clash with the fixed ids of the cards left.
+    conn, work_id = seeded
+    cards.delete(conn, Trash(), "c_main")
+    before = counts(conn)
+    assert before["card"] == 92
+    assert load_main()(tmp_path) == work_id
     assert counts(conn) == before
