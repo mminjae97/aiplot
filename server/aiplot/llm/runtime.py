@@ -16,18 +16,30 @@ LLAMA_LOGGER = "llama"
 
 
 class LlmRuntime:
-    def __init__(self, router: Router, setup: Setup, process: LlamaProcess | None = None) -> None:
+    def __init__(
+        self,
+        router: Router,
+        setup: Setup,
+        process: LlamaProcess | None = None,
+        client: LlamaClient | None = None,
+    ) -> None:
+        """client: the router's llama-server client, closed on stop (its connection pool)."""
         self.router = router
         self.setup = setup
         self.process = process
+        self.client = client
 
     def start(self) -> None:
         if self.process is not None:
             self.process.start()
 
     async def stop(self) -> None:
-        if self.process is not None:
-            await self.process.stop()
+        try:
+            if self.process is not None:
+                await self.process.stop()
+        finally:
+            if self.client is not None:
+                await self.client.aclose()
 
     def health(self) -> LlamaHealth:
         if self.process is None:
@@ -55,5 +67,6 @@ def llama_runtime(data_dir: Path, config_dir: Path = CONFIG_DIR) -> LlmRuntime:
         job=KillOnCloseJob(),
     )
     setup = Setup(data_dir, build, config.base, process)
-    router = Router(config, LlamaClient(process.endpoint), lora_dir=data_dir / "lora")
-    return LlmRuntime(router, setup, process)
+    client = LlamaClient(process.endpoint)
+    router = Router(config, client, lora_dir=data_dir / "lora")
+    return LlmRuntime(router, setup, process, client)

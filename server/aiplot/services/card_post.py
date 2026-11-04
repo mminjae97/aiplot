@@ -8,7 +8,9 @@
 - keeps a part's milestones to those no other part has, and an episode's to its part's (§7:
   each milestone is in exactly one part);
 - strips sentence numbers ("[2] ") the model copied from the numbered notes into text;
-- restores pinned fields from the card shown before.
+- restores pinned fields from the card shown before;
+- names structure stages by position (§15: exactly 기승전결 or 발단…결말; the model may
+  repeat one).
 """
 
 import secrets
@@ -28,6 +30,7 @@ from aiplot.generated.card.world import WorldData
 from aiplot.generated.roles.card_output import CardOutput
 from aiplot.services.cards import Scope
 from aiplot.services.notes import NUMBERED
+from aiplot.services.structure import name_by_position
 
 DATA_MODELS: dict[str, type[BaseModel]] = {
     "world": WorldData,
@@ -137,6 +140,27 @@ def place_episode(
     data["links"]["prev"] = rows[0][0] if rows else None
 
 
+def place_part(conn: sqlite3.Connection, data: dict[str, Any], work_id: str) -> None:
+    """A new part goes after the part with the highest order (§8)."""
+    data["order"] = cards_db.last_part_order(conn, work_id) + 1
+
+
+def place_new(
+    conn: sqlite3.Connection,
+    card_type: str,
+    data: dict[str, Any],
+    part_id: str | None,
+    work_id: str,
+) -> None:
+    """Placement of a new episode or part, from the tables as they are now. Run at generation
+    and again at 저장, inside its transaction: another card saved in between (an episode in the
+    same part, a part) moved the end its placement was taken from."""
+    if card_type == "episode":
+        place_episode(conn, data, part_id, work_id)
+    elif card_type == "part":
+        place_part(conn, data, work_id)
+
+
 def process(
     conn: sqlite3.Connection,
     output: CardOutput,
@@ -187,7 +211,7 @@ def process(
             if saved is not None:
                 data["order"] = saved_data.get("order")
             else:
-                data["order"] = cards_db.last_part_order(conn, work_id) + 1
+                place_part(conn, data, work_id)
         case "episode":
             data["characters"] = scope.keep(data["characters"], "character")
             data["locations"]["main"] = scope.one(data["locations"]["main"], "region")
@@ -231,6 +255,10 @@ def process(
             elif path in field_paths(card_type):
                 shown_data = shown.get("data") or {}
                 set_path(data, path, get_path(shown_data, path), shown_data)
+
+    # Last, so a pinned structure is named the same way.
+    if isinstance(data.get("structure"), dict):
+        name_by_position(data["structure"])
 
     paths = field_paths(card_type)
     value["evidence"] = {

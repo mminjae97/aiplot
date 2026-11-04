@@ -50,6 +50,22 @@
       }
     },
     {
+      "id": "c_sfpart2",
+      "type": "part",
+      "name": "열쇠",
+      "data": {
+        "order": 2,
+        "title": "열쇠",
+        "theme": "믿음을 건네는 일",
+        "fulfills": [
+          "ms_sf3",
+          "ms_sf4"
+        ],
+        "start": "노아가 지구 본사의 폐기 명령을 찾아낸다.",
+        "end": "노아가 미르에게 정거장의 키를 넘긴다."
+      }
+    },
+    {
       "id": "c_sfreg1",
       "type": "region",
       "name": "아스트라 정거장",
@@ -504,6 +520,7 @@
       "seeds": [
         "c_sfmain",
         "c_sfpart1",
+        "c_sfpart2",
         "c_sfreg1",
         "c_sfreg2",
         "c_sfreg3",

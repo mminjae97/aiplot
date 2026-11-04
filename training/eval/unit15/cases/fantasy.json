@@ -50,6 +50,22 @@
       }
     },
     {
+      "id": "c_fapart2",
+      "type": "part",
+      "name": "장부의 주인",
+      "data": {
+        "order": 2,
+        "title": "장부의 주인",
+        "theme": "믿음이 무너지는 자리",
+        "fulfills": [
+          "ms_fa3",
+          "ms_fa4"
+        ],
+        "start": "엘린이 마탑으로 돌아와 장부를 찾는다.",
+        "end": "엘린이 이름 장부를 불태운다."
+      }
+    },
+    {
       "id": "c_fareg1",
       "type": "region",
       "name": "마탑 도시 아르칸",
@@ -517,6 +533,7 @@
       "seeds": [
         "c_famain",
         "c_fapart1",
+        "c_fapart2",
         "c_fareg1",
         "c_fareg2",
         "c_fareg3",

@@ -1,6 +1,7 @@
 """First-run setup against a local file server: download, resume, verify, user paths."""
 
 import asyncio
+import errno
 import hashlib
 import io
 import os
@@ -53,6 +54,11 @@ class Files:
     drop_once: set[str] = field(default_factory=set)
     corrupt: set[str] = field(default_factory=set)
     fail_once: dict[str, int] = field(default_factory=dict)
+    fail_always: dict[str, int] = field(default_factory=dict)
+    # Path -> how many more responses send half the body, then drop the connection.
+    drops: dict[str, int] = field(default_factory=dict)
+    # Path -> bytes the next responses send (one entry each), then drop the connection.
+    cuts: dict[str, list[int]] = field(default_factory=dict)
     ranges: list[tuple[str, str | None]] = field(default_factory=list)
 
 
@@ -73,6 +79,9 @@ def files() -> Iterator[tuple[Files, str]]:
             if self.path in state.fail_once:
                 self.send_error(state.fail_once.pop(self.path))
                 return
+            if self.path in state.fail_always:
+                self.send_error(state.fail_always[self.path])
+                return
             start = 0
             if header and not state.ignore_range:
                 start = int(header.removeprefix("bytes=").split("-")[0])
@@ -83,6 +92,14 @@ def files() -> Iterator[tuple[Files, str]]:
             body = data[start:]
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
+            if state.cuts.get(self.path):
+                self.wfile.write(body[: state.cuts[self.path].pop(0)])
+                self.wfile.flush()
+                self.connection.close()
+                return
+            if state.drops.get(self.path, 0) > 0:
+                state.drops[self.path] -= 1
+                state.drop_once.add(self.path)
             if self.path in state.drop_once:
                 state.drop_once.discard(self.path)
                 self.wfile.write(body[: len(body) // 2])
@@ -223,6 +240,118 @@ async def test_dropped_connection_is_resumed(
     assert installer.default_model.read_bytes() == MODEL
 
 
+async def test_drops_that_make_progress_never_use_up_the_retries(
+    installer: Setup, jobs: JobQueue, files: tuple[Files, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Over a 6 GB download, drops hours apart (or the idle stream after a pause) must not add
+    up: only attempts in a row that get no further count."""
+    monkeypatch.setattr(asyncio, "sleep", fast_sleep)
+    # Small chunks, so each half-sent body leaves bytes in the .part.
+    monkeypatch.setattr("aiplot.services.setup.CHUNK", 1 << 16)
+    files[0].drops["/model.gguf"] = 5
+    job = await finish(download(jobs, installer))
+    assert job.status == "done", job.error
+    model_requests = [r for r in files[0].ranges if r[0] == "/model.gguf"]
+    assert len(model_requests) == 6
+    assert installer.default_model.read_bytes() == MODEL
+
+
+MB = 1 << 20
+
+
+async def test_restart_from_zero_is_no_progress_until_past_the_mark(
+    installer: Setup, jobs: JobQueue, files: tuple[Files, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Range ignored (200): sizes that fall and rise again below the largest reached so far
+    never reset the count. (Only whole CHUNKs reach the .part before a drop.)"""
+    monkeypatch.setattr(asyncio, "sleep", fast_sleep)
+    files[0].ignore_range = True
+    part = installer.default_model.with_name("base.gguf.part")
+    part.parent.mkdir(parents=True)
+    part.write_bytes(MODEL[: 2 * MB])
+    # Leaves 1 MB, then 2 MB (more than the attempt found, not past the 2 MB mark), then 2 MB.
+    files[0].cuts["/model.gguf"] = [MB + 10, 2 * MB + 10, 2 * MB + 10, 3 * MB + 10]
+    job = await finish(download(jobs, installer))
+    assert error_code(job) == "DOWNLOAD_FAILED"
+    assert len([r for r in files[0].ranges if r[0] == "/model.gguf"]) == 3
+    assert part.read_bytes() == MODEL[: 2 * MB]
+
+
+async def test_restart_from_zero_that_passes_the_mark_resets_the_count(
+    installer: Setup, jobs: JobQueue, files: tuple[Files, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(asyncio, "sleep", fast_sleep)
+    files[0].ignore_range = True
+    part = installer.default_model.with_name("base.gguf.part")
+    part.parent.mkdir(parents=True)
+    part.write_bytes(MODEL[:MB])
+    # No progress, a CHUNK past the mark (reset), then two more without: the fifth completes.
+    files[0].cuts["/model.gguf"] = [MB // 2, 2 * MB + 10, MB // 2, MB // 4]
+    job = await finish(download(jobs, installer))
+    assert job.status == "done", job.error
+    assert len([r for r in files[0].ranges if r[0] == "/model.gguf"]) == 5
+    assert installer.default_model.read_bytes() == MODEL
+
+
+async def test_attempts_in_a_row_without_progress_fail(
+    installer: Setup, jobs: JobQueue, files: tuple[Files, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(asyncio, "sleep", fast_sleep)
+    files[0].fail_always["/model.gguf"] = 503
+    job = await finish(download(jobs, installer))
+    assert error_code(job) == "DOWNLOAD_FAILED"
+    assert len([r for r in files[0].ranges if r[0] == "/model.gguf"]) == 3
+
+
+@pytest.mark.parametrize(
+    "full",
+    [
+        OSError(errno.ENOSPC, "No space left on device"),
+        OSError(0, "There is not enough space on the disk", None, 112),
+        OSError(0, "Reached the end of the file", None, 39),
+    ],
+)
+async def test_disk_full_while_writing_keeps_the_part(
+    installer: Setup,
+    jobs: JobQueue,
+    files: tuple[Files, str],
+    monkeypatch: pytest.MonkeyPatch,
+    full: OSError,
+) -> None:
+    real_open = Path.open
+
+    class Filling:
+        """The first chunk fits; the disk is full from the second on."""
+
+        def __init__(self, f: Any) -> None:
+            self.f = f
+            self.writes = 0
+
+        def __enter__(self) -> "Filling":
+            return self
+
+        def __exit__(self, *exc: object) -> None:
+            self.f.close()
+
+        def write(self, data: bytes) -> int:
+            if self.writes:
+                raise full
+            self.writes += 1
+            return int(self.f.write(data))
+
+    def open_part(self: Path, mode: str = "r", *args: Any, **kwargs: Any) -> Any:
+        f = real_open(self, mode, *args, **kwargs)
+        return Filling(f) if self.name == "base.gguf.part" and mode in ("ab", "wb") else f
+
+    monkeypatch.setattr(Path, "open", open_part)
+    job = await finish(download(jobs, installer))
+    assert error_code(job) == "DISK_FULL"
+    part = installer.default_model.with_name("base.gguf.part")
+    # Kept for a resume once there is room.
+    assert 0 < part.stat().st_size < len(MODEL)
+    assert part.read_bytes() == MODEL[: part.stat().st_size]
+
+
 async def test_corrupt_download_is_removed(
     installer: Setup, jobs: JobQueue, files: tuple[Files, str]
 ) -> None:
@@ -343,6 +472,22 @@ async def test_range_not_satisfiable_starts_the_file_over(
     assert model_requests[-1][1] is None
     done = [e.data["done"] for e in job.events if e.type == "progress"]
     assert max(done) <= job.events[0].data["total"]
+
+
+async def test_drops_after_a_range_not_satisfiable_count_from_zero(
+    installer: Setup, jobs: JobQueue, files: tuple[Files, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A 416 drops the part on purpose: growing again from zero is progress, though it stays
+    under the size the dropped part had reached."""
+    monkeypatch.setattr(asyncio, "sleep", fast_sleep)
+    part = installer.default_model.with_name("base.gguf.part")
+    part.parent.mkdir(parents=True)
+    part.write_bytes(MODEL[: 3 * MB])
+    files[0].fail_once["/model.gguf"] = 416
+    files[0].cuts["/model.gguf"] = [MB + 10, MB + 10]
+    job = await finish(download(jobs, installer))
+    assert job.status == "done", job.error
+    assert installer.default_model.read_bytes() == MODEL
 
 
 async def test_download_replaces_a_user_model_that_no_longer_fits(

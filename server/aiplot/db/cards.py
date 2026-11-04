@@ -289,6 +289,19 @@ def part_milestones(conn: sqlite3.Connection, work_id: str) -> dict[str, str]:
     return {row["milestone_id"]: row["card_id"] for row in rows}
 
 
+def milestone_part_counts(conn: sqlite3.Connection, work_id: str) -> dict[str, int]:
+    """Each milestone of the work -> how many parts fulfil it (§7: exactly one)."""
+    rows = conn.execute(
+        "SELECT milestone.id, count(part.card_id) FROM milestone "
+        "JOIN card ON card.id = milestone.main_id "
+        "LEFT JOIN milestone_fill ON milestone_fill.milestone_id = milestone.id "
+        "LEFT JOIN part ON part.card_id = milestone_fill.card_id "
+        "WHERE card.work_id = ? GROUP BY milestone.id",
+        (work_id,),
+    ).fetchall()
+    return {row[0]: int(row[1]) for row in rows}
+
+
 def count_milestones(conn: sqlite3.Connection, main_id: str) -> int:
     row = conn.execute("SELECT count(*) FROM milestone WHERE main_id = ?", (main_id,)).fetchone()
     return int(row[0])

@@ -50,6 +50,22 @@
       }
     },
     {
+      "id": "c_mupart2",
+      "type": "part",
+      "name": "검을 꺾다",
+      "data": {
+        "order": 2,
+        "title": "검을 꺾다",
+        "theme": "복수 끝의 선택",
+        "fulfills": [
+          "ms_mu3",
+          "ms_mu4"
+        ],
+        "start": "무현이 강호로 나서 원수를 쫓는다.",
+        "end": "무현이 진목 앞에서 검을 꺾는다."
+      }
+    },
+    {
       "id": "c_mureg1",
       "type": "region",
       "name": "청운산",
@@ -507,6 +523,7 @@
       "seeds": [
         "c_mumain",
         "c_mupart1",
+        "c_mupart2",
         "c_mureg1",
         "c_mureg2",
         "c_mureg3",

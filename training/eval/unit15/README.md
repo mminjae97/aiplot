@@ -14,7 +14,10 @@ one case per card type and four name checks.
   the case's `refs` (@ cards), all world cards, and for a part the main story, for an episode
   the main story, its part and all regions. A case that needs another card (a relation, an
   origin region, a linked region, an episode's characters) @-mentions it in `refs`, as a writer
-  would.
+  would. A case's `seeds` (ids into the genre's seed list) are that case's own setting, not
+  gold: the seeded 2부 (milestones 3-4, so episode drafts open, §7) need not match the part
+  case's answer. Name turns build their work from all the genre's seeds, so the seeded 2부 adds
+  one line to the source role's card-name list; the in-code similar-name results are the same.
 - `notes`: the source notes, one sentence per line.
 - `gold`: one entry per scored field. Kinds: `exact` (same value, or one of `any_of`), `ids`
   (same set of card ids; relations by target), `facts` / `items` (free text: the listed facts

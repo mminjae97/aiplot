@@ -50,6 +50,22 @@
       }
     },
     {
+      "id": "c_hupart2",
+      "type": "part",
+      "name": "대균열",
+      "data": {
+        "order": 2,
+        "title": "대균열",
+        "theme": "노력이 닿는 곳",
+        "fulfills": [
+          "ms_hu3",
+          "ms_hu4"
+        ],
+        "start": "청운 길드가 대균열 조사에 나선다.",
+        "end": "도윤이 서울 대균열을 닫는다."
+      }
+    },
+    {
       "id": "c_hureg1",
       "type": "region",
       "name": "서울 강남 게이트 구역",
@@ -511,6 +527,7 @@
       "seeds": [
         "c_humain",
         "c_hupart1",
+        "c_hupart2",
         "c_hureg1",
         "c_hureg2",
         "c_hureg3",

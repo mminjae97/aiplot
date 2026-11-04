@@ -5,6 +5,7 @@ The database is read before the stream starts (Turn); the stream itself only cal
 and updates the draft in memory.
 """
 
+import asyncio
 import sqlite3
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
@@ -119,12 +120,14 @@ async def revise(
     return kept
 
 
-def name_checks(turn: Turn) -> list[SimilarName]:
+async def name_checks(turn: Turn) -> list[SimilarName]:
     """Names the user wrote that are a letter or two off another card's name (§13): found in
-    code (services/names), never by the model."""
+    code (services/names), never by the model. Pure-Python edit distance over every card name
+    takes a while for a long message, so it runs off the event loop."""
+    pairs = await asyncio.to_thread(similar_names, turn.text, turn.cards, turn.own_name)
     return [
         SimilarName(mentioned=p.mentioned, similar_to=p.similar_to, card_id=p.card_id)
-        for p in similar_names(turn.text, turn.cards, turn.own_name)
+        for p in pairs
     ]
 
 
@@ -195,6 +198,6 @@ async def events(router: Router, turn: Turn) -> AsyncIterator[tuple[str, BaseMod
             sentences=revised.sentences,
             changed=revised.changed,
             questions=output.questions[:3],
-            similar_names=name_checks(turn),
+            similar_names=await name_checks(turn),
         ),
     )

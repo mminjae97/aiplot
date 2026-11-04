@@ -33,7 +33,7 @@ class FourStageStructure(BaseModel):
     stages: Annotated[
         list[FourStage],
         Field(
-            description="One entry per stage, in story order; names unique (checked by the server).",
+            description="One entry per stage, in story order; the server sets each name by its position (§15: exactly the type's sequence).",
             max_length=4,
             min_length=4,
         ),
@@ -48,7 +48,7 @@ class FiveStageStructure(BaseModel):
     stages: Annotated[
         list[FiveStage],
         Field(
-            description="One entry per stage, in story order; names unique (checked by the server).",
+            description="One entry per stage, in story order; the server sets each name by its position (§15: exactly the type's sequence).",
             max_length=5,
             min_length=5,
         ),

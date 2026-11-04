@@ -11,11 +11,11 @@ from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
 import uvicorn
-from fastapi import APIRouter, Depends, FastAPI
+from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from aiplot.api import cards, drafts, health, jobs, setup, techniques, works
-from aiplot.api.auth import require_token
+from aiplot.api.auth import TokenMiddleware
 from aiplot.api.errors import install_error_handlers
 from aiplot.db.connection import connect
 from aiplot.db.migrate import MigrationError, init_db
@@ -79,7 +79,6 @@ def create_app(
         redoc_url="/redoc" if dev else None,
         openapi_url="/openapi.json" if dev else None,
     )
-    app.state.token = token
     app.state.db_path = db_path
     # {data}/images beside {data}/data/aiplot.db (§3 runtime data).
     app.state.images_dir = db_path.parent.parent / "images"
@@ -90,15 +89,18 @@ def create_app(
     app.state.drafts = DraftStore()
     app.state.llm = runtime
     install_error_handlers(app)
+    # Before routing and body parsing: no token is 401 even for a malformed body (§16).
+    app.add_middleware(TokenMiddleware, token=token, prefix=API_PREFIX)
     if dev and dev_origin:
-        # Outside the router, so preflight OPTIONS never needs the token.
+        # Added last, so it runs first: preflight OPTIONS never needs the token, and 401s
+        # still carry the CORS headers the renderer needs to read them.
         app.add_middleware(
             CORSMiddleware,
             allow_origins=[dev_origin],
             allow_methods=["*"],
             allow_headers=["Authorization", "Content-Type", "Last-Event-ID"],
         )
-    api = APIRouter(prefix=API_PREFIX, dependencies=[Depends(require_token)])
+    api = APIRouter(prefix=API_PREFIX)
     api.include_router(health.router)
     api.include_router(jobs.router)
     api.include_router(setup.router)

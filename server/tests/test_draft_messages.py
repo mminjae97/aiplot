@@ -1,5 +1,6 @@
 """Drawer turns over SSE (§8, §13): chat streams, source folds the turn into the notes."""
 
+import asyncio
 import json
 import sqlite3
 from collections.abc import AsyncGenerator, Callable, Iterator
@@ -19,6 +20,7 @@ from aiplot.llm.runtime import LlmRuntime, fake_runtime
 from aiplot.main import create_app
 from aiplot.services import draft_context
 from aiplot.services.drafts import DraftStore
+from aiplot.services.names import similar_names
 from tests.test_cards import character, fixture, save
 
 TOKEN = "test-token"
@@ -241,6 +243,31 @@ def test_similar_names_come_from_the_users_words_not_the_model(
     assert update["similar_names"] == [
         {"mentioned": "래오", "similar_to": "레오", "card_id": "c_leo"}
     ]
+
+
+def test_the_name_check_runs_off_the_event_loop(
+    client: TestClient, conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Edit distance over every card name for a long message must not block the loop."""
+    save(conn, character("c_leo", "레오", relations=[]))
+    on_loop: list[bool] = []
+
+    def check(text: str, cards: list[tuple[str, str]], own: str | None = None) -> list[Any]:
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            on_loop.append(False)
+        else:
+            on_loop.append(True)
+        return similar_names(text, cards, own)
+
+    monkeypatch.setattr("aiplot.services.draft_chat.similar_names", check)
+    draft_id = open_draft(client, {"type": "character"})
+    update = events(turn(client, draft_id, "래오는 친구야."))[-2][1]
+    assert update["similar_names"] == [
+        {"mentioned": "래오", "similar_to": "레오", "card_id": "c_leo"}
+    ]
+    assert on_loop == [False]
 
 
 def test_mentioned_cards_join_the_context(

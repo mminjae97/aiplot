@@ -237,6 +237,22 @@ async def test_finished_jobs_are_pruned() -> None:
     made = [q.submit("plan", work) for _ in range(4)]
     await settle(made[-1], "done")
     assert [q.get(j.id) is not None for j in made] == [False, False, True, True]
+
+    # A long job submitted first and finishing after the short ones stays (oldest finished
+    # go first, never the one just finished).
+    release = asyncio.Event()
+
+    async def long(ctx: JobContext) -> None:
+        await release.wait()
+
+    early = q.submit("download", long, lane="download")
+    await settle(early, "running")
+    short = [q.submit("plan", work) for _ in range(3)]
+    await settle(short[-1], "done")
+    release.set()
+    await settle(early, "done")
+    assert q.get(early.id) is early
+    assert [q.get(j.id) is not None for j in short] == [False, False, True]
     await q.stop()
 
 
