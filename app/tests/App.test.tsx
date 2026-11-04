@@ -307,8 +307,11 @@ test('new book counts the title as the server does', async () => {
   fireEvent.click(await screen.findByRole('button', { name: strings.library.newBook }))
   const input = screen.getByLabelText(strings.newBook.label)
   const create = screen.getByRole('button', { name: strings.newBook.create })
+  // No input limit in UTF-16 units: it would cut, before the spaces are folded, titles the
+  // server takes (one space and 100 emoji is 201 units).
+  expect(input.hasAttribute('maxlength')).toBe(false)
   // 100 emoji: 200 UTF-16 units, 100 characters to the server.
-  fireEvent.change(input, { target: { value: '📚'.repeat(100) } })
+  fireEvent.change(input, { target: { value: ` ${'📚'.repeat(100)}` } })
   expect(screen.queryByText(strings.newBook.titleTooLong)).toBeNull()
   expect(create).toHaveProperty('disabled', false)
   // Inner spaces count once: 104 typed, 100 once cleaned.

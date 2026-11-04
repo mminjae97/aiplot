@@ -4,7 +4,7 @@ import { ApiRequestError, api } from '../api/client'
 import { strings } from '../strings'
 import type { Work } from '../types'
 import { useModalKeys } from './useModalKeys'
-import { TITLE_MAX, cleanTitle, titleTooLong } from './workTitle'
+import { cleanTitle, titleTooLong } from './workTitle'
 
 type Props = {
   work: Work
@@ -73,7 +73,6 @@ export function RenameDialog({ work, onClose }: Props) {
           id="rename-input"
           ref={input}
           value={title}
-          maxLength={TITLE_MAX * 2}
           aria-invalid={message !== null}
           aria-describedby={message ? 'rename-error' : undefined}
           onChange={(event) => {

@@ -4,7 +4,7 @@ import { ApiRequestError, api } from '../api/client'
 import { strings } from '../strings'
 import type { Work } from '../types'
 import { useModalKeys } from './useModalKeys'
-import { TITLE_MAX, cleanTitle, titleTooLong } from './workTitle'
+import { cleanTitle, titleTooLong } from './workTitle'
 
 type Props = {
   onClose: () => void
@@ -67,7 +67,6 @@ export function NewBookDialog({ onClose, onCreated }: Props) {
           ref={input}
           value={title}
           placeholder={strings.newBook.placeholder}
-          maxLength={TITLE_MAX * 2}
           aria-invalid={message !== null}
           aria-describedby={message ? 'new-book-error' : undefined}
           onChange={(event) => {
