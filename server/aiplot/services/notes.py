@@ -101,13 +101,24 @@ def is_declarative(sentence: str) -> bool:
     return body.endswith("다")
 
 
-# A sentence number copied from the [n]-numbered notes ("[3] 리아는 …"), like the card role's
-# (card_post.NUMBERED).
+# A sentence number copied from the [n]-numbered notes ("[3] 리아는 …") in the card role's
+# output strings (card_post).
 NUMBERED = re.compile(r"(?:^|(?<=\s))\[\d+\]\s*")
+# The same at the start of a sentence the source role wrote; a bracketed number inside a
+# sentence ("등급은 [3]단계까지 있다.") is the user's own.
+LEADING_NUMBER = re.compile(r"\[\d+\](?:\s+|$)")
 
 
 def unnumbered(text: str) -> str:
-    return NUMBERED.sub("", text).strip()
+    """The text without a copied sentence number at the start of any of its sentences."""
+    out = ""
+    cursor = 0
+    for start, end in split_spans(text):
+        number = LEADING_NUMBER.match(text, start, end)
+        if number:
+            out += text[cursor:start]
+            cursor = number.end()
+    return (out + text[cursor:]).strip()
 
 
 def with_period(text: str) -> str:
@@ -118,6 +129,11 @@ def with_period(text: str) -> str:
         if not bare or bare[-1] not in TERMINATORS:
             return text + "."
     return text
+
+
+def sentence_key(sentence: str) -> str:
+    """What makes two sentences the same: a missing final period and spacing don't count."""
+    return " ".join(with_period(sentence).split())
 
 
 def wider_gap(kept: str, other: str) -> str:
@@ -137,32 +153,40 @@ class RevisedNotes:
 
 def apply_edits(notes: str, output: SourceOutput) -> RevisedNotes:
     spans = split_spans(notes)
+    newline = "\r\n" if "\r\n" in notes else "\n"
     replaced: dict[int, str | None] = {}
     seen: set[int] = set()
     for edit in output.edits:
-        # Out-of-range and repeated indexes are model mistakes; the first edit wins.
-        if edit.index < len(spans) and edit.index not in seen:
+        # Out-of-range and repeated indexes are model mistakes; the first edit wins. Only null
+        # deletes: a text left empty (a copied number alone) is no edit at all.
+        text = with_period(unnumbered(edit.text)) if edit.text is not None else None
+        if edit.index < len(spans) and edit.index not in seen and text != "":
             seen.add(edit.index)
-            text = with_period(unnumbered(edit.text)) if edit.text is not None else ""
             start, end = spans[edit.index]
             if text != notes[start:end]:  # an unchanged rewrite is not an edit
-                replaced[edit.index] = text or None
+                replaced[edit.index] = text
     # A sentence already in the notes (or added twice) is not added again: §13 changed are the
-    # sentences not in the old notes.
-    present = {notes[a:b] for n, (a, b) in enumerate(spans) if n not in replaced} | {
-        text for text in replaced.values() if text
+    # sentences not in the old notes. Entries are compared sentence by sentence.
+    present = {sentence_key(notes[a:b]) for n, (a, b) in enumerate(spans) if n not in replaced}
+    present |= {
+        sentence_key(s) for text in replaced.values() if text for s in split_sentences(text)
     }
     added: list[str] = []
     for line in output.added:
-        text = unnumbered(line)
-        if text and with_period(text) not in present:
-            present.add(with_period(text))
-            added.append(with_period(text))
+        fresh: list[str] = []
+        for piece in split_sentences(unnumbered(line)):
+            sentence = with_period(piece)
+            if sentence_key(sentence) not in present:
+                present.add(sentence_key(sentence))
+                fresh.append(sentence)
+        if fresh:
+            # An entry's sentences share a line unless together they would read differently.
+            joined = " ".join(fresh)
+            added.append(joined if split_sentences(joined) == fresh else newline.join(fresh))
     if not replaced and not added:
         sentences = split_sentences(notes)
         return RevisedNotes(notes=notes, sentences=sentences, changed=[], casual=[])
 
-    newline = "\r\n" if "\r\n" in notes else "\n"
     kept = Counter(notes[a:b] for n, (a, b) in enumerate(spans) if n not in replaced)
 
     def build(isolate: bool) -> tuple[str, list[tuple[int, int]]]:

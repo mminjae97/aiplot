@@ -150,7 +150,8 @@ def test_model_mistakes_are_dropped() -> None:
         ('테오는 "가자."라고 한다', '테오는 "가자."라고 한다. B다. C다.'),
         # A mark with no closer on its line is not a quote.
         ("리아의 별명은 '꼬마다.", "리아의 별명은 '꼬마다. B다. C다."),
-        ("   ", "B다. C다."),
+        # Only null deletes: a blank text is no edit (§13).
+        ("   ", "A다. B다. C다."),
     ],
 )
 def test_replacement_never_swallows_the_next_sentence(text: str, notes: str) -> None:
@@ -263,3 +264,47 @@ def test_sentence_numbers_copied_from_the_notes_go() -> None:
         notes, output(edits=[(1, "[1] 리아는 북부 출신이다.")], added=["[2] 리아는 검도 쓴다."])
     )
     assert revised.notes == "리아는 활을 쓴다.\n리아는 북부 출신이다.\n리아는 검도 쓴다."
+
+
+def test_added_entries_are_compared_sentence_by_sentence() -> None:
+    # The notes copied with their numbers: only the new sentence is added (and highlighted).
+    revised = apply_edits("A다.", output(added=["[0] A다. [1] B다."]))
+    assert (revised.notes, revised.changed) == ("A다.\nB다.", [1])
+    # A sentence already there and a new one in one entry: only the new one.
+    revised = apply_edits("A다.\nB다.", output(added=["B다. C다.", "C다. D다."]))
+    assert (revised.notes, revised.changed) == ("A다.\nB다.\nC다.\nD다.", [2, 3])
+    # The user's last line without its period is the same sentence with one.
+    same = apply_edits("A다.\nB다", output(added=["B다."]))
+    assert (same.notes, same.changed) == ("A다.\nB다", [])
+
+
+def test_added_entry_sentences_that_would_merge_go_on_their_own_lines() -> None:
+    # Joined by a space, the stray quote marks would pair up and swallow the space between.
+    revised = apply_edits("A다.", output(added=["리아의 별명은 '꼬마다.\n끝'이다."]))
+    assert revised.notes == "A다.\n리아의 별명은 '꼬마다.\n끝'이다."
+    assert revised.changed == [1, 2]
+
+
+def test_spacing_alone_does_not_make_a_new_sentence() -> None:
+    notes = "리아는 활을 쓴다."
+    same = apply_edits(notes, output(added=["리아는  활을 쓴다.", " 리아는 활을\t쓴다"]))
+    assert (same.notes, same.changed) == (notes, [])
+    revised = apply_edits(notes, output(added=["리아는 검을 쓴다.", "리아는  검을 쓴다."]))
+    assert revised.notes == "리아는 활을 쓴다.\n리아는 검을 쓴다."
+
+
+def test_bracketed_numbers_inside_a_sentence_stay() -> None:
+    revised = apply_edits(
+        "A다. B다.",
+        output(edits=[(1, "[1] 등급은 [3]단계까지 있다.")], added=["마력은 [2] 단계로 나뉜다."]),
+    )
+    assert revised.notes == "A다. 등급은 [3]단계까지 있다.\n마력은 [2] 단계로 나뉜다."
+
+
+@pytest.mark.parametrize("text", ["[1] ", "[1]", " [1]  "])
+def test_an_edit_left_empty_is_ignored(text: str) -> None:
+    # Only null deletes (§13): a copied number alone changes nothing, and the index is free.
+    same = apply_edits("A다. B다.", output([(1, text)]))
+    assert (same.notes, same.changed) == ("A다. B다.", [])
+    revised = apply_edits("A다. B다.", output([(1, text), (1, "C다.")]))
+    assert (revised.notes, revised.changed) == ("A다. C다.", [1])
