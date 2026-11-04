@@ -20,7 +20,8 @@
   border-radius: 4px;
   background: var(--paper);
   box-shadow: 0 3px 8px rgb(38 22 12 / 25%);
-  cursor: var(--cursor-pointer);
+  /* Graph and map nodes keep the plain quill (§5), as src/cursor.ts draws them. */
+  cursor: var(--cursor);
 }
 
 .react-flow__node-region:focus-visible {

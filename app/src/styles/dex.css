@@ -337,8 +337,9 @@
   box-shadow: 0 14px 30px var(--wood-shadow);
 }
 
+/* Graph and map nodes keep the plain quill (§5), as src/cursor.ts draws them. */
 .dex-graph .react-flow__node {
-  cursor: var(--cursor-pointer);
+  cursor: var(--cursor);
 }
 
 .dex-graph .react-flow__node:focus-visible {
