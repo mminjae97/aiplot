@@ -85,7 +85,8 @@ async def test_ready_with_profile_flags_inside_kill_on_close_job(running: LlamaP
     await until(running, lambda p: p.state == "ready")
     argv = running.argv()
     assert argv[argv.index("-m") + 1] == str(running.model)
-    assert argv[argv.index("-c") + 1] == "8192"
+    assert argv[argv.index("-c") + 1] == "12288"
+    assert argv[argv.index("-ctk") + 1] == argv[argv.index("-ctv") + 1] == "q8_0"
     assert argv[argv.index("--port") + 1] == str(running.port)
     assert argv[-len(running.profile.server_args) :] == list(running.profile.server_args)
     assert running.process is not None

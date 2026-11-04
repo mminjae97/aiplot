@@ -30,10 +30,33 @@ def edit_role(config_dir: Path, role: str, change: dict[str, object]) -> None:
 
 def test_shipped_config_loads() -> None:
     config = load_llm_config()
-    assert set(config.roles) == {"chat", "source", "card"}
+    assert set(config.roles) == {"chat", "source", "card", "scene", "pick"}
     assert set(config.profiles) == {Q4, Q5}
     assert all(role.profile == Q5 for role in config.roles.values())
     assert config.profile_for("chat").gguf.file == "Qwen3-8B-Uncensor-v2.i1-Q5_K_M.gguf"
+    for profile in config.profiles.values():
+        assert (profile.ctx, profile.kv_type) == (12288, "q8_0")
+
+
+@pytest.mark.parametrize(
+    ("kv_type", "args", "ok"),
+    [
+        ("q8_0", ["-ngl", "99", "-np", "1"], False),
+        ("q8_0", ["-fa", "off"], False),
+        ("q8_0", ["-fa", "on"], True),
+        ("q8_0", ["--flash-attn=on"], True),
+        ("f16", ["-ngl", "99"], True),
+    ],
+)
+def test_quantized_kv_needs_flash_attention(
+    config_dir: Path, kv_type: str, args: list[str], ok: bool
+) -> None:
+    edit(config_dir / "profiles" / f"{Q4}.yaml", {"kv_type": kv_type, "server_args": args})
+    if ok:
+        assert load_llm_config(config_dir).profiles[Q4].kv_type == kv_type
+    else:
+        with pytest.raises(ConfigError, match="needs -fa on"):
+            load_llm_config(config_dir)
 
 
 def test_profiles_differ_only_in_model_file() -> None:

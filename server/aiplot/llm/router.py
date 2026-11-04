@@ -37,6 +37,8 @@ class JsonResult[T: BaseModel]:
     reasoning: str
     meta: OutputMeta
     usage: Usage | None
+    # Model calls made, the retry after an invalid or cut-off reply included.
+    attempts: int = 1
 
 
 class Router:
@@ -108,12 +110,19 @@ class Router:
                     yield delta.text
 
     async def complete_json[T: BaseModel](
-        self, role: Role, turns: list[Message], output: type[T]
+        self,
+        role: Role,
+        turns: list[Message],
+        output: type[T],
+        json_schema: dict[str, object] | None = None,
     ) -> JsonResult[T]:
-        """Schema-constrained JSON, validated; one retry on invalid or cut-off output (§20)."""
-        request = self.request(role, turns, output.model_json_schema())
+        """Schema-constrained JSON, validated; one retry on invalid or cut-off output (§20).
+        json_schema replaces the output model's schema as the constraint (e.g. narrowed to this
+        call's values); the reply is still validated against the model."""
+        schema = output.model_json_schema() if json_schema is None else json_schema
+        request = self.request(role, turns, schema)
         error = LlmError("LLM_INVALID_OUTPUT", f"{role}: no attempt")
-        for _ in range(JSON_ATTEMPTS):
+        for attempt in range(1, JSON_ATTEMPTS + 1):
             content: list[str] = []
             reasoning: list[str] = []
             finish: Delta | None = None
@@ -133,5 +142,5 @@ class Router:
                 error = LlmError("LLM_INVALID_OUTPUT", f"{role}: {exc}")
                 continue
             usage = finish.usage if finish is not None else None
-            return JsonResult(value, "".join(reasoning), self.meta(role), usage)
+            return JsonResult(value, "".join(reasoning), self.meta(role), usage, attempt)
         raise error

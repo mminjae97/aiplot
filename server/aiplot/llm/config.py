@@ -12,7 +12,16 @@ CONFIG_DIR = SERVER_DIR / "config"
 PROMPTS_DIR = SERVER_DIR / "prompts"
 
 Role = Literal[
-    "chat", "source", "card", "pick", "direct", "write", "check", "summary", "image_prompt"
+    "chat",
+    "source",
+    "card",
+    "scene",
+    "pick",
+    "direct",
+    "write",
+    "check",
+    "summary",
+    "image_prompt",
 ]
 Sha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 
@@ -123,6 +132,19 @@ class Profile(StrictModel):
         managed = sorted(MANAGED_FLAGS & names)
         if managed:
             raise ValueError(f"server_args must not set {managed}")
+        return self
+
+    @model_validator(mode="after")
+    def quantized_kv_has_flash_attention(self) -> Self:
+        """llama.cpp needs flash attention for a quantized V cache."""
+        args = list(self.server_args)
+        on = any(
+            (a in ("-fa", "--flash-attn") and args[i + 1 : i + 2] == ["on"])
+            or a in ("-fa=on", "--flash-attn=on")
+            for i, a in enumerate(args)
+        )
+        if self.kv_type != "f16" and not on:
+            raise ValueError(f"kv_type {self.kv_type} needs -fa on in server_args")
         return self
 
 

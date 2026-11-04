@@ -10,8 +10,11 @@ gguf:
 chat_template: embedded
 # chat_template_kwargs key that switches Qwen3 thinking on/off per request.
 thinking_kwarg: enable_thinking
-ctx: 8192
-kv_type: f16
+# Step 2: a 20-candidate pick call ran past ctx 8192. q8_0 K and V (half of f16; a quantized
+# V cache needs -fa on) keep ctx 12288's KV cache under f16 at 8192. VRAM and quality to be
+# re-measured in the step 2 measurement.
+ctx: 12288
+kv_type: q8_0
 lora_mode: hotswap
 # Other llama-server flags; model, ctx, KV type, host, port and LoRAs are set from the fields above.
 server_args: [-ngl, "99", -fa, "on", -np, "1", --cache-ram, "1024"]
