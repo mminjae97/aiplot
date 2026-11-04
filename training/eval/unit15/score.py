@@ -14,7 +14,8 @@ field: a miss without a judgement. An ids field holding ids that miss the gold n
 judgement for unsupported (pending until then). A card the run failed to make counts every
 scored field as a miss, and stays out of the time stats; only invalid or truncated model output
 counts as a JSON failure, other errors are counted apart. A name turn that ended in an error is
-counted apart and left out of both name rates. A run missing any case or name turn, or with an
+counted apart: its expected names are misses, and one that must flag none stays out of the
+false rate. A run missing any case or name turn, or with an
 errored name turn, is flagged PARTIAL RUN.
 
 Unsupported fill = unsupported / filled fields, over fields that can be unsupported (not exact
@@ -218,8 +219,10 @@ def main() -> None:
     for result in run["names"]:
         case = names[result["id"]]
         if result.get("error"):
-            # The turn never got its names checked: neither found nor clean.
+            # No names checked: a turn that must flag some missed them (the writer is never
+            # asked); one that must flag none is unknown, so it stays out of the false rate.
             errored_names.append(case["id"])
+            expected += len(case["expect"])
             name_rows.append({"case": case, "result": result, "hits": [], "wrong": []})
             continue
         pairs = result.get("similar_names") or []
@@ -253,7 +256,7 @@ def main() -> None:
     if errored_names:
         print(
             f"PARTIAL RUN: name turns that ended in an error {errored_names}; "
-            "left out of the name rates",
+            "their expected names count as missed, the false rate leaves them out",
             file=sys.stderr,
         )
 
@@ -373,7 +376,7 @@ def summary_table(s: dict[str, Any]) -> str:
         [
             "오류로 끝난 이름 대화",
             f"{s['names_errored']} / {s['name_turns']}",
-            "두 이름 비율에서 뺌",
+            "감지할 이름은 놓침으로 셈 · 오감지율에서는 뺌",
         ],
         ["대화 첫 글자", f"중앙 {first['median']}초 · 최대 {first['max']}초", "목표 2초 이내"],
         [

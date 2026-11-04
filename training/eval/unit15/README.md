@@ -70,9 +70,10 @@ user to check. Rules:
 - A run missing any case or name turn (run.py `--cases`, `--skip-names`) is a partial run:
   score.py prints the scored cards and name turns against the case files' totals, warns
   PARTIAL RUN on stderr and sets `partial_run` (with the missing ids) in its JSON.
-- A name turn that ended in an error (no names checked) is neither found nor clean: it is
-  counted apart (`names_errored`, `errored_name_turns`), left out of both name rates, shown as
-  an error in the report, and makes the run partial (PARTIAL RUN on stderr).
+- A name turn that ended in an error (no names checked, e.g. source ran to max_tokens) is
+  counted apart (`names_errored`, `errored_name_turns`), shown as an error in the report and
+  makes the run partial (PARTIAL RUN on stderr). Its expected names count as missed (the writer
+  is never asked); one that must flag none is unknown, so the false rate leaves it out.
 - Name false rate = wrong pairs in the turns that must flag none / those turns. A pair naming
   part of the card's name (무현 for 연무현), or the name with more, is fair to ask about.
 
