@@ -75,10 +75,9 @@
   /* the open book's spread, width / height */
   --spread-ratio: 1.5;
 
-  /* a quill, nib at the bottom left; gilt over things that can be clicked (src/cursor.ts draws it
+  /* a quill, nib at the bottom left, the same over everything (src/cursor.ts draws it
      itself where the image would cross a window edge) */
   --cursor: url('../assets/cursor/quill.svg') 2 30, default;
-  --cursor-pointer: url('../assets/cursor/quill-hover.svg') 2 30, pointer;
   /* the relation graph's and the map's ground: a brass paperweight with four arrows, pressed
      down while dragging (both stay inside the book, never at a window edge) */
   --cursor-drag: url('../assets/cursor/drag.svg') 16 16, move;
@@ -159,7 +158,15 @@ html {
   cursor: var(--cursor);
 }
 
-/* Where the image would cross a window edge the app draws the quill itself (src/cursor.ts). */
+/* While a node or the ground of the graph or the map is dragged: the pressed paperweight over
+   everything, so it never flickers as the dragged node lags a frame behind the pointer
+   (components/dragCursor.ts sets the attribute). */
+html[data-dragging],
+html[data-dragging] * {
+  cursor: var(--cursor-dragging) !important;
+}
+
+/* Where the image would cross a window edge the app draws the cursor itself (src/cursor.ts). */
 html[data-edge-cursor],
 html[data-edge-cursor] * {
   cursor: none !important;
@@ -175,15 +182,9 @@ html[data-edge-cursor] * {
   pointer-events: none;
 }
 
-/* Clickable things get the gilt quill, disabled ones the plain one: the rule src/cursor.ts
-   draws by at the window edges (CLICKABLE there), where Chromium would give buttons and labels
-   its arrow. No specificity, so a screen's own rule still decides; one giving the gilt quill
-   gives its disabled state the plain one too. */
+/* One quill over everything (§5, no gilt one): Chromium would give buttons, links and labels
+   its arrow or hand. No specificity, so a screen's own rule still decides. */
 :where(button, a[href], [role='tab'], [role='button'], [role='option'], label, summary) {
-  cursor: var(--cursor-pointer);
-}
-
-:where(button:disabled, [aria-disabled='true']) {
   cursor: var(--cursor);
 }
 
@@ -231,7 +232,6 @@ input {
   border-radius: 3px;
   background: var(--paper);
   padding: 6px 16px;
-  cursor: var(--cursor-pointer);
   transition: background var(--motion);
 }
 

@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from 'vitest'
+import dragging from '../src/assets/cursor/dragging.svg'
 import quill from '../src/assets/cursor/quill.svg'
-import quillHover from '../src/assets/cursor/quill-hover.svg'
+import { startDragCursor, startGroundDrag, stopDragCursor } from '../src/components/dragCursor'
 import { installCursor, nearEdge } from '../src/cursor'
 
 let stop: (() => void) | undefined
@@ -41,14 +42,11 @@ test('near an edge the app hides the cursor and draws the quill itself', () => {
   expect(image?.hidden).toBe(true)
 })
 
-test('the drawn quill turns gilt over clickables, not over aria-disabled ones', () => {
+test('the drawn quill is the same over clickables and over anything else (§5: no gilt one)', () => {
   stop = installCursor()
   const image = document.querySelector<HTMLImageElement>('.app-cursor')
-  const live = document.createElement('button')
-  const off = document.createElement('button')
-  off.setAttribute('aria-disabled', 'true')
-  off.append(document.createElement('span'))
-  document.body.append(live, off)
+  const button = document.createElement('button')
+  document.body.append(button)
   const over = (target: Element) => {
     target.dispatchEvent(
       Object.assign(new MouseEvent('pointermove', { clientX: 400, clientY: 10, bubbles: true }), {
@@ -57,11 +55,46 @@ test('the drawn quill turns gilt over clickables, not over aria-disabled ones', 
     )
     return image?.getAttribute('src')
   }
-  expect(over(live)).toBe(quillHover)
-  // A desk side with nothing to turn to (.book-turn): plain, as CSS draws it.
-  expect(over(off)).toBe(quill)
-  expect(over(off.firstElementChild ?? off)).toBe(quill)
+  expect(over(button)).toBe(quill)
   expect(over(document.body)).toBe(quill)
-  live.remove()
-  off.remove()
+  button.remove()
+})
+
+test('while something is dragged the edge draws the pressed paperweight, centred on the pointer', () => {
+  stop = installCursor()
+  const image = document.querySelector<HTMLImageElement>('.app-cursor')
+  const move = (x: number, y: number) => {
+    window.dispatchEvent(
+      Object.assign(new MouseEvent('pointermove', { clientX: x, clientY: y }), {
+        pointerType: 'mouse',
+      }),
+    )
+  }
+  startDragCursor()
+  // The paperweight reaches 16px each way: 20px from the top is clear of the edge, 10px is not.
+  move(400, 20)
+  expect(image?.hidden).toBe(true)
+  move(400, 10)
+  expect(image?.hidden).toBe(false)
+  expect(image?.getAttribute('src')).toBe(dragging)
+  expect(image?.style.transform).toBe('translate(384px, -6px)')
+  stopDragCursor()
+  move(400, 10)
+  expect(image?.getAttribute('src')).toBe(quill)
+})
+
+test('a drag shows the pressed paperweight until the pointer is let go', () => {
+  const root = document.documentElement
+  startDragCursor()
+  expect(root.hasAttribute('data-dragging')).toBe(true)
+  window.dispatchEvent(new MouseEvent('pointerup'))
+  expect(root.hasAttribute('data-dragging')).toBe(false)
+  // A wheel zoom or a move made in code is no drag.
+  startGroundDrag(new WheelEvent('wheel'))
+  startGroundDrag(null)
+  expect(root.hasAttribute('data-dragging')).toBe(false)
+  startGroundDrag(new MouseEvent('mousedown'))
+  expect(root.hasAttribute('data-dragging')).toBe(true)
+  stopDragCursor()
+  expect(root.hasAttribute('data-dragging')).toBe(false)
 })

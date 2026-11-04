@@ -40,7 +40,6 @@
   font: inherit;
   font-size: clamp(11px, 3.1cqi, var(--size-small));
   font-weight: 500;
-  cursor: var(--cursor-pointer);
   transition:
     background var(--motion),
     color var(--motion);
@@ -105,7 +104,6 @@
   font: inherit;
   font-size: var(--size-lead);
   text-align: left;
-  cursor: var(--cursor-pointer);
 }
 
 .world-entry:hover,
@@ -146,7 +144,6 @@
   color: var(--brass);
   font: inherit;
   text-decoration: underline;
-  cursor: var(--cursor-pointer);
 }
 
 .world-actions {

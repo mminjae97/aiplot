@@ -17,11 +17,13 @@ import {
   type KeyboardEvent,
   type MouseEvent,
   useContext,
+  useEffect,
   useRef,
   useState,
 } from 'react'
 import { strings } from '../strings'
 import type { CardRelation, RegionCard, RegionLinkRow } from '../types'
+import { startDragCursor, startGroundDrag, stopDragCursor } from './dragCursor'
 import {
   areasOf,
   layout,
@@ -210,6 +212,8 @@ export function RegionMap({
         data: { label: travelText(line.travel) },
       })),
   )
+  // A drag cut short by leaving the page never leaves the pressed paperweight behind.
+  useEffect(() => stopDragCursor, [])
   const [nodes, setNodes] = useState<MapNode[]>(() => {
     const leaves = cards.filter((card) => !children.has(card.id))
     const descendants = (id: string): string[] =>
@@ -319,9 +323,13 @@ export function RegionMap({
               onPick(node.id, nodeElement(event.target)?.getBoundingClientRect() ?? null)
             }
           }}
+          onNodeDragStart={startDragCursor}
           onNodeDragStop={(_, node) => {
+            stopDragCursor()
             if (node.type === 'region') onMove(node.id, node.position)
           }}
+          onMoveStart={startGroundDrag}
+          onMoveEnd={stopDragCursor}
           nodesConnectable={false}
           elementsSelectable={false}
           nodesDraggable={!locked}
