@@ -11,6 +11,7 @@ import type {
   Card,
   CardOutput,
   CharacterData,
+  RegionLink,
   Draft,
   FiveStageStructure,
   FourStageStructure,
@@ -1018,6 +1019,7 @@ const OTHERS = [
   character('c_c', '체리'),
   character('c_d', '다온'),
   { id: 'c_port', type: 'region', name: '북부 항구' },
+  { id: 'c_hill', type: 'region', name: '언덕 마을' },
 ]
 
 /** Edit mode for `saved`, its draft holding `generated`; the work holds OTHERS and `saved`.
@@ -1061,7 +1063,7 @@ async function notice(heading: string): Promise<string[]> {
     .map((item) => item.textContent)
 }
 
-const item = (name: string, kind: string, change?: 'added' | 'removed') =>
+const item = (name: string, kind: string, change?: keyof typeof strings.preview.tie) =>
   `${name} ${kind}${change ? ` · ${strings.preview.tie[change]}` : ''}`
 
 test('a character gaining a relation lists that character, not the cards pointing at it', async () => {
@@ -1095,16 +1097,104 @@ test('a character losing a relation lists that character as removed', async () =
   ])
 })
 
-test('a relation whose words change only gains or loses no tie', async () => {
-  const ara = character('c_a', '아라', { relations: [{ target_id: 'c_b', relation: '친구' }] })
-  const next = character('c_a', '아라', { relations: [{ target_id: 'c_b', relation: '원수' }] })
-  serveEdit(ara, output(next))
-  // Loaded: the old relation shows struck, read by name.
-  await waitFor(() => {
-    expect(screen.getByLabelText(strings.preview.before).textContent).toContain('보라')
+test('a relation whose words change lists its character as changed; an unchanged one, nothing', async () => {
+  const ara = character('c_a', '아라', {
+    relations: [
+      { target_id: 'c_b', relation: '친구' },
+      { target_id: 'c_c', relation: '스승' },
+    ],
   })
-  expect(screen.queryByText(strings.preview.ties)).toBeNull()
+  const next = character('c_a', '아라', {
+    relations: [
+      { target_id: 'c_b', relation: '원수' },
+      { target_id: 'c_c', relation: '스승' },
+    ],
+  })
+  serveEdit(ara, output(next))
+  // 원수 recolours the 관계도 line between them (§8).
+  expect(await notice(strings.preview.ties)).toEqual([
+    item('보라', strings.drawer.kind.character, 'relation'),
+  ])
+  expect(screen.getByText(strings.preview.tiesNote.character)).toBeTruthy()
   expect(screen.queryByText(strings.preview.references)).toBeNull()
+})
+
+function region(id: string, name: string, links: RegionLink[]): Card {
+  return {
+    id,
+    work_id: 'w_1',
+    type: 'region',
+    name,
+    status: 'complete',
+    source_notes: '강변은 남쪽에 있다.',
+    data: {
+      parent_id: null,
+      links,
+      appearance: '갈대밭',
+      environment: { natural: null, social: null },
+      sensory: { smell: null, sound: null, mood: null },
+    },
+    evidence: {},
+    ai_guess: [],
+    pinned: [],
+    schema_version: 1,
+    position: null,
+  }
+}
+
+test('a link whose travel or direction changes lists its region; an unchanged one, nothing', async () => {
+  const port: RegionLink = {
+    target_id: 'c_port',
+    travel: { value: 3, unit: 'day', mode: '말' },
+    direction: '북',
+  }
+  const hill: RegionLink = {
+    target_id: 'c_hill',
+    travel: { value: 2, unit: 'hour', mode: '도보' },
+    direction: null,
+  }
+  const saved = region('c_r', '강변', [port, hill])
+  const next = region('c_r', '강변', [
+    { ...port, travel: { value: 5, unit: 'day', mode: '말' } },
+    hill,
+  ])
+  serveEdit(saved, output(next))
+  expect(await notice(strings.preview.ties)).toEqual([
+    item('북부 항구', strings.drawer.kind.region, 'travel'),
+  ])
+  expect(screen.getByText(strings.preview.tiesNote.region)).toBeTruthy()
+})
+
+test('a link whose direction alone changes lists its region too', async () => {
+  const port: RegionLink = { target_id: 'c_port', travel: null, direction: '북' }
+  serveEdit(
+    region('c_r', '강변', [port]),
+    output(region('c_r', '강변', [{ ...port, direction: '동' }])),
+  )
+  expect(await notice(strings.preview.ties)).toEqual([
+    item('북부 항구', strings.drawer.kind.region, 'travel'),
+  ])
+})
+
+test('ties gained, changed and lost come in that order', async () => {
+  const ara = character('c_a', '아라', {
+    relations: [
+      { target_id: 'c_b', relation: '친구' },
+      { target_id: 'c_c', relation: '스승' },
+    ],
+  })
+  const next = character('c_a', '아라', {
+    relations: [
+      { target_id: 'c_d', relation: '동생' },
+      { target_id: 'c_c', relation: '원수' },
+    ],
+  })
+  serveEdit(ara, output(next))
+  expect(await notice(strings.preview.ties)).toEqual([
+    item('다온', strings.drawer.kind.character, 'added'),
+    item('체리', strings.drawer.kind.character, 'relation'),
+    item('보라', strings.drawer.kind.character, 'removed'),
+  ])
 })
 
 test('an episode adding and removing characters lists both, marked', async () => {
