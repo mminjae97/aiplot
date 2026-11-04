@@ -1,9 +1,11 @@
 """Step 1 unit 5: blind pairs and summaries from two measure.py result files.
 
 uv run python eval/unit5/report.py pairs A.json B.json --out eval/results/blind
-    writes blind.html (the page to publish) and blind-key.json (which side is which; local only)
+    writes blind.html (the page to publish) and blind-key.json (which side is which; local only);
+    refuses two results written with different style frameworks (the writing's source: the
+    --sampling files when given), so a style difference never reads as a profile difference
 uv run python eval/unit5/report.py metrics A.json [B.json ...]
-    prints time, token usage, truncation, schema validity and refusal counts per profile
+    prints style, time, token usage, truncation, schema validity and refusal counts per profile
 uv run python eval/unit5/report.py votes eval/results/blind/blind-key.json VOTES.json
     prints blind-comparison wins per profile from the page's saved votes
 """
@@ -12,6 +14,7 @@ import argparse
 import json
 import random
 import statistics
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +22,8 @@ HERE = Path(__file__).parent
 SEED = 20261030
 # Degenerate replies (a token loop up to max_tokens) stay in the comparison, shortened for reading.
 SHOWN_CHARS = 1500
+# Results written before measure.py / sampling.py had --style (and a "style" key) used v1.
+OLD_STYLE = "webnovel-style-v1.md"
 
 
 def load(path: Path) -> dict[str, Any]:
@@ -26,10 +31,14 @@ def load(path: Path) -> dict[str, Any]:
     return data
 
 
-def writing_from(path: Path, variant: str) -> list[dict[str, Any]]:
+def style_of(result: dict[str, Any]) -> str:
+    style: str = result.get("style", OLD_STYLE)
+    return style
+
+
+def writing_from(result: dict[str, Any], variant: str) -> list[dict[str, Any]]:
     """First sample of one sampling.py variant, shaped like measure.py writing rows."""
-    rows = load(path)["writing"]
-    return [w for w in rows if w["variant"] == variant and w["sample"] == 0]
+    return [w for w in result["writing"] if w["variant"] == variant and w["sample"] == 0]
 
 
 def shown(text: str) -> str:
@@ -46,9 +55,16 @@ def pairs(
     variant: str | None = None,
 ) -> None:
     a, b = load(a_path), load(b_path)
+    # The writing's source decides its style: the sampling.py files when they give it.
+    a_source, b_source = (load(sampling[0]), load(sampling[1])) if sampling and variant else (a, b)
+    if style_of(a_source) != style_of(b_source):
+        sys.exit(
+            f"different styles: {style_of(a_source)} vs {style_of(b_source)}; "
+            "compare results written with the same style framework"
+        )
     if sampling and variant:
-        a["writing"] = writing_from(sampling[0], variant)
-        b["writing"] = writing_from(sampling[1], variant)
+        a["writing"] = writing_from(a_source, variant)
+        b["writing"] = writing_from(b_source, variant)
     cases = load(HERE / "cases.json")
     beats = {beat["id"]: beat for beat in cases["writing"]}
     cards = {case["id"]: case for case in cases["cards"]}
@@ -113,6 +129,7 @@ def metrics(paths: list[Path]) -> None:
     for path in paths:
         r = load(path)
         print(f"== {r['profile']}")
+        print("style:", style_of(r))
         t = r["template"]
         print(
             "template: enable_thinking in template =",
