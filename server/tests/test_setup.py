@@ -474,6 +474,22 @@ async def test_range_not_satisfiable_starts_the_file_over(
     assert max(done) <= job.events[0].data["total"]
 
 
+async def test_drops_after_a_range_not_satisfiable_count_from_zero(
+    installer: Setup, jobs: JobQueue, files: tuple[Files, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A 416 drops the part on purpose: growing again from zero is progress, though it stays
+    under the size the dropped part had reached."""
+    monkeypatch.setattr(asyncio, "sleep", fast_sleep)
+    part = installer.default_model.with_name("base.gguf.part")
+    part.parent.mkdir(parents=True)
+    part.write_bytes(MODEL[: 3 * MB])
+    files[0].fail_once["/model.gguf"] = 416
+    files[0].cuts["/model.gguf"] = [MB + 10, MB + 10]
+    job = await finish(download(jobs, installer))
+    assert job.status == "done", job.error
+    assert installer.default_model.read_bytes() == MODEL
+
+
 async def test_download_replaces_a_user_model_that_no_longer_fits(
     installer: Setup, jobs: JobQueue, tmp_path: Path
 ) -> None:

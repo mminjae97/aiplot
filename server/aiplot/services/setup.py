@@ -47,6 +47,10 @@ class RetryableError(Exception):
     """A download attempt failed in a way the next attempt may fix."""
 
 
+class PartDroppedError(RetryableError):
+    """The .part no longer fits the file (416) and was removed: the next attempt starts over."""
+
+
 class StoppedError(Exception):
     """A thread noticed its job was cancelled."""
 
@@ -306,7 +310,8 @@ class Setup:
                 # Bytes already written stay in the .part file and in progress.done.
                 now = part_size(remote.part)
                 failures = 0 if now >= reached + CHUNK else failures + 1
-                reached = max(reached, now)
+                # A dropped part starts the mark over: growth from zero is real progress again.
+                reached = 0 if isinstance(exc, PartDroppedError) else max(reached, now)
                 logger.warning(
                     "download %s failed (%d in a row without progress): %s",
                     remote.url,
@@ -345,7 +350,7 @@ class Setup:
                 # Our part no longer fits the file: drop it and start over next attempt.
                 remote.part.unlink(missing_ok=True)
                 progress.done -= have
-                raise RetryableError(f"HTTP 416 at byte {have}")
+                raise PartDroppedError(f"HTTP 416 at byte {have}")
             elif status in RETRY_STATUS:
                 raise RetryableError(f"HTTP {status}")
             elif status not in (200, 206):
