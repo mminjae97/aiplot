@@ -27,11 +27,15 @@ class OutputScene(BaseModel):
     ]
     effects: Annotated[
         list[technique_effect.TechniqueEffect],
-        Field(description="Effects the scene wants the reader to feel.", max_length=3),
+        Field(
+            description="Effects the scene wants the reader to feel.",
+            max_length=3,
+            min_length=1,
+        ),
     ]
     situations: Annotated[
         list[technique_situation.TechniqueSituation],
-        Field(description="Situations the scene is in.", max_length=3),
+        Field(description="Situations the scene is in.", max_length=3, min_length=1),
     ]
 
 

@@ -12,7 +12,7 @@
       "source": "위기",
       "summary": "편지를 보낸 자가 미라였음이 드러난다.",
       "effects": ["놀람", "반전"],
-      "situations": []
+      "situations": ["진실폭로"]
     }
   ]
 }

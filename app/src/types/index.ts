@@ -912,15 +912,17 @@ export interface OutputScene {
   /**
    * Effects the scene wants the reader to feel.
    *
+   * @minItems 1
    * @maxItems 3
    */
-  effects: TechniqueEffect[]
+  effects: [TechniqueEffect, ...TechniqueEffect[]]
   /**
    * Situations the scene is in.
    *
+   * @minItems 1
    * @maxItems 3
    */
-  situations: TechniqueSituation[]
+  situations: [TechniqueSituation, ...TechniqueSituation[]]
 }
 /**
  * `source` role output (§13). The model sees the notes as [n]-numbered sentences (server split, §15) and returns only edits; the server applies them, so sentences it does not name stay byte-identical. Changed sentences are the edited and added ones.

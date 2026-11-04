@@ -145,9 +145,27 @@ def test_clean_scenes_keeps_stage_scenes_renumbered_with_tags_once() -> None:
                     "effects": ["긴장", "긴장", "호기심"],
                     "situations": ["비밀", "비밀"],
                 },
-                {"scene": 2, "source": "기", "summary": "나", "effects": [], "situations": []},
-                {"scene": 3, "source": "위기", "summary": "다", "effects": [], "situations": []},
-                {"scene": 3, "source": "위기", "summary": "라", "effects": [], "situations": []},
+                {
+                    "scene": 2,
+                    "source": "기",
+                    "summary": "나",
+                    "effects": ["긴장"],
+                    "situations": ["위기"],
+                },
+                {
+                    "scene": 3,
+                    "source": "위기",
+                    "summary": "다",
+                    "effects": ["긴장"],
+                    "situations": ["위기"],
+                },
+                {
+                    "scene": 3,
+                    "source": "위기",
+                    "summary": "라",
+                    "effects": ["긴장"],
+                    "situations": ["위기"],
+                },
             ]
         }
     )

@@ -35,6 +35,7 @@
             "items": {
               "$ref": "../technique/technique-effect.json"
             },
+            "minItems": 1,
             "maxItems": 3
           },
           "situations": {
@@ -43,6 +44,7 @@
             "items": {
               "$ref": "../technique/technique-situation.json"
             },
+            "minItems": 1,
             "maxItems": 3
           }
         }
