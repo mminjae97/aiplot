@@ -15,7 +15,7 @@ import type {
   SimilarName,
 } from '../types'
 import { CardPreview } from './CardPreview'
-import { ChatPanel } from './ChatPanel'
+import { ChatPanel, type PendingTurn } from './ChatPanel'
 import { SourcePanel } from './SourcePanel'
 import { TypeSection } from './TypeSection'
 
@@ -226,7 +226,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
   const [draftId, setDraftId] = useState<string | null>(null)
   const [openError, setOpenError] = useState<string | null>(null)
   const [stage, setStage] = useState<Stage>('idle')
-  const [pending, setPending] = useState<{ user: string; reply: string } | null>(null)
+  const [pending, setPending] = useState<PendingTurn | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [changed, setChanged] = useState<number[]>([])
   const [questions, setQuestions] = useState<string[]>([])
@@ -337,7 +337,8 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     const controller = new AbortController()
     stream.current = controller
     setStage('replying')
-    setPending({ user: text, reply: '' })
+    // The turns kept before this one: once the draft holds more, the server has kept it.
+    setPending({ user: text, reply: '', from: current?.turns.length ?? 0 })
     setError(null)
     // Cleared for the turn; a failed one gives them back (the AI's last questions still stand).
     const before = { changed, questions, names }
