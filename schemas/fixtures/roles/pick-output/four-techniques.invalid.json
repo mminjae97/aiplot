@@ -1,0 +1,9 @@
+{
+  "picks": [
+    {
+      "rank": 1,
+      "techniques": ["tech_inf_001", "tech_inf_002", "tech_inf_003", "tech_inf_004"],
+      "reason": "넷은 너무 많다."
+    }
+  ]
+}

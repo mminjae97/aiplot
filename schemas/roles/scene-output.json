@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SceneOutput",
+  "description": "`scene` role output (§9, §13): the episode split into scenes in story order. The server drops scenes whose source is not one of the episode's structure stage names, renumbers the rest 1..n and drops repeated tags.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["scenes"],
+  "properties": {
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "title": "OutputScene",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["scene", "source", "summary", "effects", "situations"],
+        "properties": {
+          "scene": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "source": {
+            "description": "The episode structure stage the scene comes from (§9 `source` = episode.stage).",
+            "type": "string",
+            "minLength": 1
+          },
+          "summary": {
+            "description": "What happens, in one or two sentences.",
+            "type": "string",
+            "minLength": 1
+          },
+          "effects": {
+            "description": "Effects the scene wants the reader to feel.",
+            "type": "array",
+            "items": {
+              "$ref": "../technique/technique-effect.json"
+            },
+            "maxItems": 3
+          },
+          "situations": {
+            "description": "Situations the scene is in.",
+            "type": "array",
+            "items": {
+              "$ref": "../technique/technique-situation.json"
+            },
+            "maxItems": 3
+          }
+        }
+      }
+    }
+  }
+}
