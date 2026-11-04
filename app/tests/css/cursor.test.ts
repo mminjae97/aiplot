@@ -14,7 +14,10 @@ const CLICKABLE =
 function cursorRules(): [string, string, string][] {
   const out: [string, string, string][] = []
   for (const name of readdirSync(STYLES).filter((file) => file.endsWith('.css'))) {
-    const css = readFileSync(join(STYLES, name), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    // Comments and @import statements are not part of any selector.
+    const css = readFileSync(join(STYLES, name), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/@import[^;]*;/g, '')
     const rule = /([^{}]+)\{([^{}]*)\}/g
     for (let match = rule.exec(css); match; match = rule.exec(css)) {
       const value = /(?:^|[;\s])cursor:\s*([^;]+)/.exec(match[2] ?? '')?.[1]
@@ -46,8 +49,14 @@ test('CSS gives the gilt quill to what src/cursor.ts calls clickable (§5)', () 
 })
 
 // Relation graph and region map nodes keep the plain quill (§5); src/cursor.ts never counts
-// them clickable either.
-const NODES = ['.dex-graph .react-flow__node', '.map-node']
+// them clickable either. Panning and dragging there show no hand.
+const NODES = [
+  '.dex-graph .react-flow__node',
+  '.map-node',
+  '.react-flow .react-flow__pane',
+  '.react-flow .react-flow__node.draggable',
+  '.react-flow .react-flow__node.draggable.dragging',
+]
 
 test('the plain quill goes only to the page, graph and map nodes and disabled things (§5)', () => {
   // A clickable thing given the plain quill disagrees with the gilt one src/cursor.ts draws
