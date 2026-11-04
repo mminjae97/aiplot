@@ -17,7 +17,9 @@ export function nearEdge(x: number, y: number, width: number, height: number): b
   return left < 1 || top < 1 || left + SIZE > width - 1 || top + SIZE > height - 1
 }
 
-const CLICKABLE = 'button:not(:disabled), a[href], [role="tab"], [role="button"], label, summary'
+// base.css gives these the gilt quill too (tests/css/cursor.test.ts).
+const CLICKABLE =
+  'button:not(:disabled), a[href], [role="tab"], [role="button"], [role="option"], label, summary'
 
 /** Starts drawing the quill near the edges; returns a function that stops it. */
 export function installCursor(): () => void {

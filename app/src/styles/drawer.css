@@ -654,6 +654,10 @@ p.drawer-body {
   cursor: var(--cursor-pointer);
 }
 
+.type-structure-option:disabled {
+  cursor: var(--cursor);
+}
+
 .type-structure-option[aria-pressed='true'] {
   border-color: var(--brass);
   box-shadow: 0 0 0 1px var(--brass);

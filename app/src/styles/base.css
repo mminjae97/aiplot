@@ -171,6 +171,23 @@ html[data-edge-cursor] * {
   pointer-events: none;
 }
 
+/* Clickable things get the gilt quill, disabled ones the plain one: the rule src/cursor.ts
+   draws by at the window edges (CLICKABLE there), where Chromium would give buttons and labels
+   its arrow. No specificity, so a screen's own rule still decides; one giving the gilt quill
+   gives its disabled state the plain one too. */
+:where(button, a[href], [role='tab'], [role='button'], [role='option'], label, summary) {
+  cursor: var(--cursor-pointer);
+}
+
+:where(button:disabled, [aria-disabled='true']) {
+  cursor: var(--cursor);
+}
+
+/* A list or box inside a label shows what the label shows. */
+:where(select, input[type='checkbox'], input[type='radio'], input[type='color']) {
+  cursor: inherit;
+}
+
 /* Typing keeps the text cursor. */
 input:not([type='checkbox'], [type='radio'], [type='range'], [type='color']),
 textarea,

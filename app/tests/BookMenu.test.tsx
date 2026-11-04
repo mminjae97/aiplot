@@ -416,7 +416,9 @@ test('rename counts the title as the server does', async () => {
   const dialog = screen.getByRole('dialog', { name: strings.rename.title })
   const input = within(dialog).getByLabelText(strings.rename.label)
   const save = within(dialog).getByRole('button', { name: strings.rename.save })
-  fireEvent.change(input, { target: { value: '📚'.repeat(100) } })
+  // No input limit in UTF-16 units (see the new book test).
+  expect(input.hasAttribute('maxlength')).toBe(false)
+  fireEvent.change(input, { target: { value: ` ${'📚'.repeat(100)}` } })
   expect(within(dialog).queryByText(strings.newBook.titleTooLong)).toBeNull()
   expect(save).toHaveProperty('disabled', false)
   fireEvent.change(input, { target: { value: `${'📚'.repeat(50)}   ${'📚'.repeat(50)}` } })

@@ -222,6 +222,11 @@
   cursor: var(--cursor-pointer);
 }
 
+/* Waiting for a card drawer to close: the plain quill, as src/cursor.ts draws it at the edge. */
+.top-bar .setup-chip[aria-disabled='true'] {
+  cursor: var(--cursor);
+}
+
 .top-bar .setup-chip[data-failed] {
   border-color: var(--danger);
   color: var(--danger);

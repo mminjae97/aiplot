@@ -40,6 +40,10 @@
   color: var(--ink);
 }
 
+.top-bar-back:disabled {
+  cursor: var(--cursor);
+}
+
 .top-bar-title {
   flex: 1;
   overflow: hidden;
@@ -60,6 +64,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: var(--cursor-pointer);
+}
+
+.top-bar-title-link:disabled {
+  cursor: var(--cursor);
 }
 
 .top-bar-title-link:hover:not(:disabled) {
@@ -657,7 +665,7 @@
   border-radius: 50%;
   background: var(--control);
   color: var(--ink-soft);
-  cursor: var(--cursor);
+  cursor: var(--cursor-pointer);
   transition:
     background var(--motion),
     color var(--motion);
