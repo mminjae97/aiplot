@@ -49,13 +49,11 @@ test('CSS gives the gilt quill to what src/cursor.ts calls clickable (§5)', () 
 })
 
 // Relation graph and region map nodes keep the plain quill (§5); src/cursor.ts never counts
-// them clickable either. Panning and dragging there show no hand.
+// them clickable either. Their ground and dragging show the paperweight (--cursor-drag[ging]).
 const NODES = [
   '.dex-graph .react-flow__node',
   '.map-node',
-  '.react-flow .react-flow__pane',
   '.react-flow .react-flow__node.draggable',
-  '.react-flow .react-flow__node.draggable.dragging',
 ]
 
 test('the plain quill goes only to the page, graph and map nodes and disabled things (§5)', () => {

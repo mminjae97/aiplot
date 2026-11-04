@@ -79,6 +79,10 @@
      itself where the image would cross a window edge) */
   --cursor: url('../assets/cursor/quill.svg') 2 30, default;
   --cursor-pointer: url('../assets/cursor/quill-hover.svg') 2 30, pointer;
+  /* the relation graph's and the map's ground: a brass paperweight with four arrows, pressed
+     down while dragging (both stay inside the book, never at a window edge) */
+  --cursor-drag: url('../assets/cursor/drag.svg') 16 16, move;
+  --cursor-dragging: url('../assets/cursor/dragging.svg') 16 16, move;
 }
 
 /* Dark: the same study after dusk; paper turns to lamplit vellum. */
