@@ -304,19 +304,17 @@ test('editing shows only what changed, with the old value struck', async () => {
   expect(screen.getByText('1화')).toBeTruthy()
 })
 
-test('changed relations list the cards that point at this one too (§8)', async () => {
+test('changed relations list the characters gaining or losing one, not the cards pointing here (§8)', async () => {
   const base = output({ name: '테오도르' })
-  serve({
-    generated: {
-      ...base,
-      data: { ...base.data, relations: [{ target_id: 'c_mira', relation: '원수' }] },
-    },
-  })
+  const { calls } = serve({ generated: { ...base, data: { ...base.data, relations: [] } } })
   renderDrawer({ workId: 'w_1', type: 'character', card_id: 'c_teo' })
   await generated()
-  expect(await screen.findByText(strings.preview.references)).toBeTruthy()
-  expect(screen.getByText(strings.preview.referencesLinksNote)).toBeTruthy()
-  expect(screen.getByText('1화')).toBeTruthy()
+  expect(await screen.findByText(strings.preview.ties)).toBeTruthy()
+  expect(screen.getByText(strings.preview.tiesNote.character)).toBeTruthy()
+  expect(screen.getByText(strings.preview.tie.removed, { exact: false })).toBeTruthy()
+  expect(screen.queryByText(strings.preview.references)).toBeNull()
+  expect(screen.queryByText('1화')).toBeNull()
+  expect(calls.some((c) => c.path === '/cards/c_teo/references')).toBe(false)
 })
 
 test('a structure reads as its stage count, then a stage per line', () => {
@@ -337,6 +335,7 @@ test('the same name, relations and characters list nothing', async () => {
   renderDrawer({ workId: 'w_1', type: 'character', card_id: 'c_teo' })
   await generated()
   expect(screen.queryByText(strings.preview.references)).toBeNull()
+  expect(screen.queryByText(strings.preview.ties)).toBeNull()
   expect(calls.some((c) => c.path === '/cards/c_teo/references')).toBe(false)
 })
 

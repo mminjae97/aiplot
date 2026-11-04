@@ -43,27 +43,61 @@ function saveErrorText(code: string): string {
   return strings.drawer.errors[code] ?? strings.preview.saveFailed
 }
 
-/** Same items in any order? (a list of relations or characters, for the edit-mode check) */
-function sameItems(a: readonly unknown[], b: readonly unknown[]): boolean {
-  const key = (items: readonly unknown[]) =>
-    items
-      .map((item) => JSON.stringify(item))
-      .sort()
-      .join('\n')
-  return a.length === b.length && key(a) === key(b)
+type CardType = Card['type']
+type TieType = keyof typeof strings.preview.tiesNote
+
+const hasTies = (type: CardType): type is TieType => type in strings.preview.tiesNote
+
+/** What save writes into a relation table from this card's data (§14), with the kinds of card
+ * that table takes: a character's relations, a world card's 함께 보기, a region's direct links,
+ * an episode's characters. Other references (a region's parent, an episode's places, world
+ * cards, prev/next/causes, origin) are not ties here. */
+function tieIds(card: Card | CardOutput): { ids: readonly string[]; kinds: readonly CardType[] } {
+  switch (card.type) {
+    case 'character':
+      return { ids: card.data.relations.map((r) => r.target_id), kinds: ['character'] }
+    case 'world':
+      return { ids: card.data.related, kinds: ['character', 'region', 'world'] }
+    case 'region':
+      return { ids: card.data.links.map((l) => l.target_id), kinds: ['region'] }
+    case 'episode':
+      return { ids: card.data.characters, kinds: ['character'] }
+    default:
+      return { ids: [], kinds: [] }
+  }
 }
 
-/** Did the generated card change what other cards show of the saved one (§8: its name,
- * a character's relations, an episode's characters)? */
-function changesReferences(generated: CardOutput, saved: Card): boolean {
-  if (generated.name !== saved.name) return true
-  if (generated.type === 'character' && saved.type === 'character') {
-    return !sameItems(generated.data.relations, saved.data.relations)
+type TieChange = { card: Card; change: 'added' | 'removed' }
+
+/** The cards that newly gain or lose a tie with the saved card if the generated one is saved
+ * (§8): added first, then removed, each in data order. Only cards of the work of the right kind,
+ * never the card itself, as save keeps them (§14). */
+function changedTies(generated: CardOutput, saved: Card, cards: readonly Card[]): TieChange[] {
+  if (generated.type !== saved.type) return []
+  const byId = new Map(cards.map((card) => [card.id, card]))
+  const kept = (card: Card | CardOutput): Card[] => {
+    const { ids, kinds } = tieIds(card)
+    const found: Card[] = []
+    for (const id of new Set(ids)) {
+      const target = byId.get(id)
+      if (id !== saved.id && target !== undefined && kinds.includes(target.type)) {
+        found.push(target)
+      }
+    }
+    return found
   }
-  if (generated.type === 'episode' && saved.type === 'episode') {
-    return !sameItems(generated.data.characters, saved.data.characters)
-  }
-  return false
+  const after = kept(generated)
+  const before = kept(saved)
+  const was = new Set(before.map((card) => card.id))
+  const now = new Set(after.map((card) => card.id))
+  return [
+    ...after
+      .filter((card) => !was.has(card.id))
+      .map((card) => ({ card, change: 'added' as const })),
+    ...before
+      .filter((card) => !now.has(card.id))
+      .map((card) => ({ card, change: 'removed' as const })),
+  ]
 }
 
 /** What the header says beside the kind (§8): a world card's category, an episode's part and
@@ -210,16 +244,19 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
   })
   const current = draft.data
   const generated = current?.generated ?? null
+  // Before saving (§8): a new name shows on every card that references this one; changed ties
+  // list the cards gaining or losing one.
   const nameChanged =
     saved.data !== undefined && generated !== null && generated.name !== saved.data.name
-  // Other cards show this one's name, relations or characters: list them before saving (§8).
-  const referencesChanged =
-    saved.data !== undefined && generated !== null && changesReferences(generated, saved.data)
   const references = useQuery({
     queryKey: ['card', request.card_id ?? '', 'references'],
     queryFn: () => api.cardReferences(request.card_id ?? ''),
-    enabled: referencesChanged,
+    enabled: nameChanged,
   })
+  const ties =
+    saved.data !== undefined && generated !== null
+      ? changedTies(generated, saved.data, cards.data?.cards ?? [])
+      : []
   const headline = useHeadline(request, generated, saved.data, cards.data?.cards ?? [])
   const pins = pinned ?? current?.pinned ?? []
   const stale = generated !== null && generatedFrom !== null && current?.notes !== generatedFrom
@@ -780,14 +817,10 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                     }}
                     onSelect={setSelected}
                   />
-                  {referencesChanged && (references.data?.references.length ?? 0) > 0 && (
+                  {nameChanged && (references.data?.references.length ?? 0) > 0 && (
                     <div className="preview-references" role="note">
                       <h4>{strings.preview.references}</h4>
-                      <p>
-                        {nameChanged
-                          ? strings.preview.referencesNote
-                          : strings.preview.referencesLinksNote}
-                      </p>
+                      <p>{strings.preview.referencesNote}</p>
                       <ul>
                         {references.data?.references.map((ref) => (
                           <li key={`${ref.card_id}:${ref.field}`}>
@@ -796,6 +829,25 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                               {' '}
                               {strings.drawer.kind[ref.type]}
                             </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {ties.length > 0 && hasTies(request.type) && (
+                    <div className="preview-references" role="note">
+                      <h4>{strings.preview.ties}</h4>
+                      <p>{strings.preview.tiesNote[request.type]}</p>
+                      <ul>
+                        {ties.map(({ card, change }) => (
+                          <li key={card.id}>
+                            {card.name ?? strings.drawer.untitled}
+                            <span className="chat-mention-kind">
+                              {' '}
+                              {strings.drawer.kind[card.type]}
+                            </span>
+                            {' · '}
+                            {strings.preview.tie[change]}
                           </li>
                         ))}
                       </ul>
