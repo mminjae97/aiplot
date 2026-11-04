@@ -1237,7 +1237,8 @@ cd app && npm install && npm run dev
 AIPLOT_FAKE_LLM=1 npm run dev
 
 # 예시 작품 '이름 없는 기사의 노래'가 든 별도 데이터 폴더(%LOCALAPPDATA%\Aiplot-dev\academy)로 실행
-# (처음 한 번만 server/scripts/seed_academy.py로 채운다. 폴더를 지우면 다시 채운다)
+# (실행할 때마다 server/scripts/seed_academy.py가 예시 작품이 있는지 보고, 없을 때만 채운다.
+#  처음 실행할 때나 앱에서 예시 작품을 지운 뒤에 다시 생긴다. 제목을 바꾼 작품은 그대로 둔다)
 npm run dev:academy
 ```
 

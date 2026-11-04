@@ -1,5 +1,5 @@
 """The development seed (scripts/seed_academy.py): the sample work's cards, their relation rows,
-and a second run that adds nothing."""
+and reruns: one that adds nothing (also after a rename) and one that brings a deleted work back."""
 
 import importlib.util
 import sqlite3
@@ -18,7 +18,8 @@ from aiplot.generated.card.card import (
     RegionCard,
     WorldCard,
 )
-from aiplot.services import cards
+from aiplot.generated.works.work_update import WorkUpdate
+from aiplot.services import cards, works
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "seed_academy.py"
 
@@ -156,19 +157,44 @@ def test_every_reference_has_its_relation_row(seeded: tuple[sqlite3.Connection, 
     }
 
 
+def counts(conn: sqlite3.Connection) -> dict[str, int]:
+    tables = ("work", "card", *RELATION_TABLES)
+    return {t: conn.execute(f"SELECT count(*) FROM {t}").fetchone()[0] for t in tables}
+
+
 def test_second_run_adds_nothing(
     seeded: tuple[sqlite3.Connection, str], tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     conn, work_id = seeded
-
-    def snapshot() -> dict[str, int]:
-        tables = ("work", "card", *RELATION_TABLES)
-        return {t: conn.execute(f"SELECT count(*) FROM {t}").fetchone()[0] for t in tables}
-
-    before = snapshot()
+    before = counts(conn)
     capsys.readouterr()
     assert load_main()(tmp_path) == work_id
     assert "nothing seeded" in capsys.readouterr().out
-    assert snapshot() == before
+    assert counts(conn) == before
     assert before["work"] == 1
     assert before["card"] == 93
+
+
+def test_renamed_work_is_still_the_sample_work(
+    seeded: tuple[sqlite3.Connection, str], tmp_path: Path
+) -> None:
+    # The library renames a book with PATCH /works/{workId} (works.update).
+    conn, work_id = seeded
+    works.update(conn, work_id, WorkUpdate(title="다른 제목"))
+    before = counts(conn)
+    assert load_main()(tmp_path) == work_id
+    assert counts(conn) == before
+    work = works.get(conn, work_id)
+    assert work is not None and work.title == "다른 제목"
+
+
+def test_deleted_work_is_seeded_again(
+    seeded: tuple[sqlite3.Connection, str], tmp_path: Path
+) -> None:
+    conn, work_id = seeded
+    before = counts(conn)
+    works.delete(conn, tmp_path / "images", work_id)
+    assert counts(conn)["card"] == 0
+    again = load_main()(tmp_path)
+    assert again != work_id
+    assert counts(conn) == before

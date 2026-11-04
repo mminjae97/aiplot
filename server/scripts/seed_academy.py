@@ -8,7 +8,8 @@ structure yet, one without a main place) stay incomplete, as in the setting.
 Dev only, never shipped: aiplot-server.spec bundles the aiplot package, not scripts/.
 
 Usage (from server/): uv run python scripts/seed_academy.py <data dir>
-A data dir whose DB already holds a work with this title is left as it is (exit 0).
+A data dir that already holds the sample work is left as it is (exit 0): it is found by its
+fixed main story card id, so a renamed work still counts; once deleted, a rerun seeds it again.
 """
 
 # The work's content lines are kept whole, whatever their width.
@@ -1818,10 +1819,12 @@ def main(data_dir: Path) -> str:
     init_db(db_path)
     conn = connect(db_path)
     try:
-        for existing in works.list_recent(conn):
-            if existing.title == TITLE:
-                print(f"{db_path} already has the sample work ({existing.id}); nothing seeded")
-                return existing.id
+        # The card ids are fixed, so the work is there when its main story is, whatever its
+        # title now (the library can rename it).
+        existing = cards.get(conn, cid("main"))
+        if existing is not None:
+            print(f"{db_path} already has the sample work ({existing.work_id}); nothing seeded")
+            return existing.work_id
         work = works.create(conn, TITLE)
         try:
             seed(conn, work.id)
