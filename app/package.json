@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "electron-vite dev",
+    "dev:academy": "node scripts/dev-academy.mjs",
     "build": "electron-vite build",
     "dist": "electron-vite build && electron-builder --win --publish never",
     "test": "vitest run",
