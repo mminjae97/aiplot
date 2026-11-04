@@ -1,6 +1,27 @@
 /* React Flow's structural rules only; the look below is ours. */
 @import '@xyflow/react/dist/base.css';
 
+/* No hand in the graph or the map (§5): the ground shows the paperweight, pressed while it is
+   dragged; nodes keep the plain quill until dragged. One class more than React Flow's grab /
+   grabbing rules. */
+.react-flow .react-flow__pane {
+  cursor: var(--cursor-drag);
+}
+
+.react-flow .react-flow__pane.dragging {
+  cursor: var(--cursor-dragging);
+}
+
+.react-flow .react-flow__node.draggable {
+  cursor: var(--cursor);
+}
+
+/* A node's own parts (.map-node) set the quill: all of it while dragged. */
+.react-flow .react-flow__node.draggable.dragging,
+.react-flow .react-flow__node.draggable.dragging * {
+  cursor: var(--cursor-dragging);
+}
+
 /* S1-1 dex: character cards laid out on the walnut desk; a picked card grows to the middle
    of the window and turns over. */
 

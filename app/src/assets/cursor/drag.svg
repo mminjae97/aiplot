@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- A brass paperweight with four arrows: the graph or the map can be dragged (hotspot 16 16). -->
+  <g fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <g stroke="#fff8ea" stroke-width="3.4"><g transform="rotate(0 16 16)"><path d="M16 2.5 V7 M13.6 5.1 L16 2.5 L18.4 5.1"/></g><g transform="rotate(90 16 16)"><path d="M16 2.5 V7 M13.6 5.1 L16 2.5 L18.4 5.1"/></g><g transform="rotate(180 16 16)"><path d="M16 2.5 V7 M13.6 5.1 L16 2.5 L18.4 5.1"/></g><g transform="rotate(270 16 16)"><path d="M16 2.5 V7 M13.6 5.1 L16 2.5 L18.4 5.1"/></g></g>
+    <g stroke="#5b4330" stroke-width="1.3"><g transform="rotate(0 16 16)"><path d="M16 2.5 V7 M13.6 5.1 L16 2.5 L18.4 5.1"/></g><g transform="rotate(90 16 16)"><path d="M16 2.5 V7 M13.6 5.1 L16 2.5 L18.4 5.1"/></g><g transform="rotate(180 16 16)"><path d="M16 2.5 V7 M13.6 5.1 L16 2.5 L18.4 5.1"/></g><g transform="rotate(270 16 16)"><path d="M16 2.5 V7 M13.6 5.1 L16 2.5 L18.4 5.1"/></g></g>
+  </g>
+  <circle cx="16" cy="16" r="7.2" fill="#fff8ea"/>
+  <circle cx="16" cy="16" r="5.8" fill="#d4ae5c" stroke="#6b4a1e" stroke-width="1"/>
+  <path d="M13.2 13.8 a3.4 3.4 0 0 1 3.6 -2" fill="none" stroke="#fff3cf" stroke-width="1.1" stroke-linecap="round"/>
+</svg>
