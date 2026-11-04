@@ -1,13 +1,30 @@
-"""Stage 2 direction (§9): the `scene` role's scenes cleaned, technique candidates narrowed in
-code per scene, and the `pick` role's recommended combinations cleaned."""
+"""Stage 2 direction (§9): the `scene` role splits an episode into scenes, technique candidates
+are narrowed in code per scene, and the `pick` role recommends combinations of them.
 
+Each call constrains the model by a schema narrowed to this call's values (the episode's stage
+names, the scene's candidate ids); the server cleans the output as well. Nothing is stored yet:
+plans and picks get their tables in step 3.
+"""
+
+import copy
 import sqlite3
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Callable, Collection, Iterable, Sequence
+from dataclasses import dataclass
+from typing import Any
+
+from pydantic import BaseModel
 
 from aiplot.db import techniques as techniques_db
+from aiplot.db import works as works_db
+from aiplot.generated.card.card import EpisodeCard
 from aiplot.generated.roles.pick_output import OutputPick, PickOutput
 from aiplot.generated.roles.scene_output import OutputScene, SceneOutput
 from aiplot.generated.technique.technique import Technique
+from aiplot.llm.client import LlmError, Message
+from aiplot.llm.config import Role
+from aiplot.llm.router import OutputMeta, Router
+from aiplot.services import cards
+from aiplot.services import direction_context as context
 
 # The serial cards `direct` always gets for chapter cuts (§9): 회차 끝 절단, 회차 3단 설계,
 # 사이다/고구마 완급, 전회 연결 도입. Never direction candidates.
@@ -101,3 +118,119 @@ def clean_picks(output: PickOutput, scene_candidates: Iterable[Technique]) -> li
         if len(kept) == MAX_PICKS:
             break
     return kept
+
+
+# The roles ----------------------------------------------------------------------------------
+
+# Generations when nothing survives cleaning: one more, then LLM_INVALID_OUTPUT (as source, §13).
+KEPT_ATTEMPTS = 2
+
+
+class EpisodeNotReadyError(ValueError):
+    """Not an episode, not active (§11: it, its part or the main story incomplete) or without
+    structure stages: nothing to direct. Raised before any model call."""
+
+
+class UnknownStageError(ValueError):
+    """A scene whose source is not one of its episode's stage names."""
+
+
+class NoCandidatesError(ValueError):
+    """No direction candidate shares a tag with the scene."""
+
+
+@dataclass(frozen=True)
+class SceneResult:
+    scenes: list[OutputScene]
+    meta: OutputMeta
+
+
+@dataclass(frozen=True)
+class PickResult:
+    candidates: list[Technique]
+    picks: list[OutputPick]
+    meta: OutputMeta
+
+
+def ready_episode(conn: sqlite3.Connection, episode_id: str) -> EpisodeCard:
+    card = cards.get(conn, episode_id)
+    if card is None:
+        raise cards.CardNotFoundError(episode_id)
+    if not isinstance(card, EpisodeCard):
+        raise EpisodeNotReadyError(f"{episode_id} is not an episode")
+    if not works_db.is_active_episode(conn, episode_id):
+        raise EpisodeNotReadyError(f"{episode_id} is inactive (it, its part or the story)")
+    if not context.stages_of(card):
+        raise EpisodeNotReadyError(f"{episode_id} has no structure stages")
+    return card
+
+
+def scene_schema(stage_names: Sequence[str]) -> dict[str, Any]:
+    """SceneOutput's schema with source limited to the episode's stage names."""
+    schema = copy.deepcopy(SceneOutput.model_json_schema())
+    schema["$defs"]["OutputScene"]["properties"]["source"] = {
+        "type": "string",
+        "enum": list(stage_names),
+    }
+    return schema
+
+
+def pick_schema(candidate_ids: Sequence[str]) -> dict[str, Any]:
+    """PickOutput's schema with every technique id limited to the scene's candidates."""
+    schema = copy.deepcopy(PickOutput.model_json_schema())
+    schema["$defs"]["TechniqueId"] = {"type": "string", "enum": list(candidate_ids)}
+    return schema
+
+
+async def generate_kept[T: BaseModel, K](
+    router: Router,
+    role: Role,
+    turns: list[Message],
+    output: type[T],
+    schema: dict[str, Any],
+    clean: Callable[[T], list[K]],
+) -> tuple[list[K], OutputMeta]:
+    """The cleaned output; when cleaning leaves nothing, one more generation, then an error."""
+    for _ in range(KEPT_ATTEMPTS):
+        result = await router.complete_json(role, turns, output, schema)
+        kept = clean(result.value)
+        if kept:
+            return kept, result.meta
+    raise LlmError("LLM_INVALID_OUTPUT", f"{role}: nothing left after cleaning")
+
+
+async def split_scenes(router: Router, conn: sqlite3.Connection, episode_id: str) -> SceneResult:
+    """The episode's scenes in story order, each with its source stage and tags (§9)."""
+    episode = ready_episode(conn, episode_id)
+    names = [stage.name for stage in context.stages_of(episode)]
+    scenes, meta = await generate_kept(
+        router,
+        "scene",
+        context.scene_turns(conn, episode),
+        SceneOutput,
+        scene_schema(names),
+        lambda output: clean_scenes(output, names),
+    )
+    return SceneResult(scenes, meta)
+
+
+async def recommend(
+    router: Router, conn: sqlite3.Connection, episode_id: str, scene: OutputScene
+) -> PickResult:
+    """1-3 recommended combinations for one scene, among its narrowed candidates (§9)."""
+    episode = ready_episode(conn, episode_id)
+    stage = next((s for s in context.stages_of(episode) if s.name == scene.source), None)
+    if stage is None:
+        raise UnknownStageError(f"{episode_id} has no stage {scene.source}")
+    found = candidates(conn, scene.effects, scene.situations)
+    if not found:
+        raise NoCandidatesError(f"no candidate shares a tag with scene {scene.scene}")
+    picks, meta = await generate_kept(
+        router,
+        "pick",
+        context.pick_turns(episode, stage, scene, found),
+        PickOutput,
+        pick_schema([card.id for card in found]),
+        lambda output: clean_picks(output, found),
+    )
+    return PickResult(found, picks, meta)

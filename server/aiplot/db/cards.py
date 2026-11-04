@@ -416,6 +416,43 @@ def tied_worlds(conn: sqlite3.Connection, card_id: str, card_type: str) -> set[s
     return {row[0] for row in conn.execute(sql, (card_id,))}
 
 
+@dataclass(frozen=True)
+class EpisodeTies:
+    """What an episode's relation rows tie it to (§6), each list in the order it was saved."""
+
+    characters: list[str]
+    main_region: str | None
+    other_regions: list[str]
+    worlds: list[str]
+    # (foreshadowing id, text): planted here; planted elsewhere and paid off here.
+    plants: list[tuple[str, str]]
+    payoffs: list[tuple[str, str]]
+
+
+def episode_ties(conn: sqlite3.Connection, episode_id: str) -> EpisodeTies:
+    def ids(sql: str) -> list[str]:
+        return [row[0] for row in conn.execute(sql, (episode_id,)).fetchall()]
+
+    def items(sql: str) -> list[tuple[str, str]]:
+        return [(row[0], row[1]) for row in conn.execute(sql, (episode_id,)).fetchall()]
+
+    main = ids("SELECT card_id FROM episode_region WHERE episode_id = ? AND main = 1")
+    return EpisodeTies(
+        characters=ids("SELECT card_id FROM episode_character WHERE episode_id = ? ORDER BY rowid"),
+        main_region=main[0] if main else None,
+        other_regions=ids(
+            "SELECT card_id FROM episode_region WHERE episode_id = ? AND main = 0 ORDER BY rowid"
+        ),
+        worlds=ids("SELECT card_id FROM episode_world WHERE episode_id = ? ORDER BY rowid"),
+        plants=items(
+            "SELECT id, text FROM foreshadowing WHERE plant_episode_id = ? ORDER BY rowid"
+        ),
+        payoffs=items(
+            "SELECT id, text FROM foreshadowing WHERE payoff_episode_id = ? ORDER BY rowid"
+        ),
+    )
+
+
 def relink_order(
     conn: sqlite3.Connection,
     card_id: str,

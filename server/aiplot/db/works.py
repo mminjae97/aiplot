@@ -55,14 +55,23 @@ def advance_stage(conn: sqlite3.Connection, work_id: str, stage: int, now: str) 
     )
 
 
+# Active episodes (e): complete, and so are their part and the work's main story (§11).
+ACTIVE_EPISODES = (
+    "FROM card AS e JOIN episode ON episode.card_id = e.id "
+    "JOIN card AS p ON p.id = episode.part_id "
+    "WHERE e.status = 'complete' AND p.status = 'complete' "
+    "AND EXISTS (SELECT 1 FROM card AS m WHERE m.work_id = e.work_id "
+    "AND m.type = 'main_story' AND m.status = 'complete')"
+)
+
+
 def active_episode_count(conn: sqlite3.Connection, work_id: str) -> int:
-    """Complete episodes whose part and the work's main story are complete too (§11)."""
     row = conn.execute(
-        "SELECT count(*) FROM card AS e JOIN episode ON episode.card_id = e.id "
-        "JOIN card AS p ON p.id = episode.part_id "
-        "WHERE e.work_id = ? AND e.status = 'complete' AND p.status = 'complete' "
-        "AND EXISTS (SELECT 1 FROM card AS m WHERE m.work_id = e.work_id "
-        "AND m.type = 'main_story' AND m.status = 'complete')",
-        (work_id,),
+        f"SELECT count(*) {ACTIVE_EPISODES} AND e.work_id = ?", (work_id,)
     ).fetchone()
     return int(row[0])
+
+
+def is_active_episode(conn: sqlite3.Connection, episode_id: str) -> bool:
+    row = conn.execute(f"SELECT 1 {ACTIVE_EPISODES} AND e.id = ?", (episode_id,)).fetchone()
+    return row is not None

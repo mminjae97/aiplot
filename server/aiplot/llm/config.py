@@ -12,7 +12,16 @@ CONFIG_DIR = SERVER_DIR / "config"
 PROMPTS_DIR = SERVER_DIR / "prompts"
 
 Role = Literal[
-    "chat", "source", "card", "pick", "direct", "write", "check", "summary", "image_prompt"
+    "chat",
+    "source",
+    "card",
+    "scene",
+    "pick",
+    "direct",
+    "write",
+    "check",
+    "summary",
+    "image_prompt",
 ]
 Sha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 

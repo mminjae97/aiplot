@@ -5,6 +5,8 @@ from pathlib import Path
 import pytest
 
 from aiplot.generated.roles.card_output import CharacterCardOutput
+from aiplot.generated.roles.pick_output import PickOutput
+from aiplot.generated.roles.scene_output import SceneOutput
 from aiplot.generated.roles.source_output import SourceOutput
 from aiplot.llm.client import ChatRequest, Delta, LlmError, Message
 from aiplot.llm.config import LlmConfig, RoleConfig, load_llm_config
@@ -176,3 +178,17 @@ async def test_shipped_fake_fixtures_match_role_outputs(prompts: Path) -> None:
     await r.complete_json("source", TURNS, SourceOutput)
     # The card role constrains output to the requested type's variant.
     await r.complete_json("card", TURNS, CharacterCardOutput)
+    await r.complete_json("scene", TURNS, SceneOutput)
+    await r.complete_json("pick", TURNS, PickOutput)
+
+
+async def test_complete_json_schema_override_constrains_but_model_validates(
+    prompts: Path,
+) -> None:
+    narrowed: dict[str, object] = {"type": "object", "properties": {"edits": {"enum": []}}}
+    client = FakeClient({"source": FakeResponse(content=SOURCE)})
+    result = await router(prompts, client).complete_json(
+        "source", TURNS, SourceOutput, json_schema=narrowed
+    )
+    assert client.requests[0].json_schema == narrowed
+    assert isinstance(result.value, SourceOutput)

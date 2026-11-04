@@ -108,10 +108,17 @@ class Router:
                     yield delta.text
 
     async def complete_json[T: BaseModel](
-        self, role: Role, turns: list[Message], output: type[T]
+        self,
+        role: Role,
+        turns: list[Message],
+        output: type[T],
+        json_schema: dict[str, object] | None = None,
     ) -> JsonResult[T]:
-        """Schema-constrained JSON, validated; one retry on invalid or cut-off output (§20)."""
-        request = self.request(role, turns, output.model_json_schema())
+        """Schema-constrained JSON, validated; one retry on invalid or cut-off output (§20).
+        json_schema replaces the output model's schema as the constraint (e.g. narrowed to this
+        call's values); the reply is still validated against the model."""
+        schema = output.model_json_schema() if json_schema is None else json_schema
+        request = self.request(role, turns, schema)
         error = LlmError("LLM_INVALID_OUTPUT", f"{role}: no attempt")
         for _ in range(JSON_ATTEMPTS):
             content: list[str] = []
