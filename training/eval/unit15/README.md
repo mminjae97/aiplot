@@ -48,6 +48,9 @@ user to check. Rules:
 - Optional fields: not scored for match. A filled one with no evidence sentence and not marked
   AI 추정 is judged for `unsupported` like free text (no evidence alone is not invention: the
   model often leaves evidence out); one the input fixes (`given`, e.g. structure.type) never is.
+- Ids fields: compared, not judged, for match. One whose ids miss the gold is judged for
+  `unsupported` (ids of cards the notes never point to); until then it stays pending.
+- Empty facts / items fields need no entry: they are misses.
 
 ## Rates
 
