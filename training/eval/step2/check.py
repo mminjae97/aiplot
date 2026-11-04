@@ -7,8 +7,9 @@ database through the app's own card save, and must come out complete (§14 statu
 reference they make (part, characters, world, places, links, milestones, foreshadowing payoffs)
 written as a relation row, i.e. resolved to a seed card, another case episode, a milestone or a
 foreshadowing planted in another case episode. Episodes are saved twice, so a reference to one
-later in the file resolves too. Gold techniques must exist and be direction candidates: scope
-장면 or 회차, not one of the serial cards direct always gets (§9). Exits 1 on any problem.
+later in the file resolves too. Gold techniques must exist and be direction candidates
+(`direction.is_candidate`: scope 장면 or 회차, not one of the serial cards direct always gets,
+§9). Exits 1 on any problem.
 """
 
 import json
@@ -20,11 +21,10 @@ from typing import Any
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE.parent / "unit15"))
 
-from aiplot.services import cards, techniques  # noqa: E402
+from aiplot.services import cards, direction, techniques  # noqa: E402
 from run import BLANK, merged, open_work  # noqa: E402
 
 GENRES = ["fantasy", "hunter", "romance", "wuxia", "mystery", "scifi"]
-SERIAL = {"회차 끝 절단", "회차 3단 설계", "전회 연결 도입", "사이다/고구마 완급"}
 SCORED = 20
 
 
@@ -140,10 +140,8 @@ def check_genre(genre: str, catalog: dict[str, Any]) -> tuple[list[str], int]:
                         card = catalog.get(technique_id)
                         if card is None:
                             problems.append(f"{episode['id']}: unknown {technique_id}")
-                        elif not {"장면", "회차"} & set(card.scope):
+                        elif not direction.is_candidate(card):
                             problems.append(f"{episode['id']}: {technique_id} not a candidate")
-                        elif card.name in SERIAL:
-                            problems.append(f"{episode['id']}: {technique_id} is a serial card")
         finally:
             conn.close()
     return problems, scored
