@@ -12,11 +12,14 @@ import { strings } from '../strings'
 import type { Card, DraftTurn } from '../types'
 import { mentions } from './mention'
 
+/** The answer still arriving, the user's words it answers, and how many turns the draft held
+ * when they were sent. */
+export type PendingTurn = { user: string; reply: string; from: number }
+
 type Props = {
   workId: string
   turns: DraftTurn[]
-  /** The answer still arriving, and the user's words it answers. */
-  pending: { user: string; reply: string } | null
+  pending: PendingTurn | null
   stage: 'idle' | 'replying' | 'organizing'
   /** No sending (e.g. while the notes are edited by hand). */
   locked: boolean
@@ -61,7 +64,10 @@ function Mentions({
 }
 
 /** The drawer's chat (§8): turns, the reply as it streams, @ mentions of other cards. */
-export function ChatPanel({ workId, turns, pending, stage, locked, error, onSend }: Props) {
+export function ChatPanel({ workId, turns, pending: sent, stage, locked, error, onSend }: Props) {
+  // A turn shows from what was sent only until the draft holds it: a refetch landing before the
+  // client hears `replied` would otherwise show the answer twice.
+  const pending = sent !== null && turns.length <= sent.from ? sent : null
   const [text, setText] = useState('')
   const [refs, setRefs] = useState<{ id: string; name: string }[]>([])
   const [mention, setMention] = useState<string | null>(null)
