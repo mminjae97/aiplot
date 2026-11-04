@@ -17,7 +17,8 @@ single recommendation, that one must hold it.
   - `why`: what in the story calls for them, for the reviewer.
 
 Accepted techniques are direction candidates only: scope 장면 or 회차, and never one of the
-serial cards `direct` always gets (회차 끝 절단, 회차 3단 설계, 전회 연결 도입, 사이다/고구마 완급).
+serial cards `direct` always gets (`SERIAL_TECHNIQUES` in `server/aiplot/services/direction.py`:
+회차 끝 절단, 회차 3단 설계, 사이다/고구마 완급, 전회 연결 도입).
 Each scored stage is written so the story itself calls for one family of techniques (a reader
 who knows what a character does not, a stated deadline, a twist at the end, three years to pass,
 a place revisited), across information, time, voice, dialogue, comedy and description.
@@ -35,7 +36,8 @@ The `scene` role splits an episode into scenes, each with its `source` stage. Fo
 stage, its scenes are those whose source is that stage (none = a miss on both counts).
 
 - Candidates: right if any accepted technique is among the narrowed candidates of any of those
-  scenes.
+  scenes (`direction.candidates`: the top 20 direction candidates by tags shared with the scene,
+  §9).
 - Recommendations: right if any accepted technique is in any recommended combination for those
   scenes. When `pick` gives one of those scenes a single combination, that combination must hold
   an accepted technique.

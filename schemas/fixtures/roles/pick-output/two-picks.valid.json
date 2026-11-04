@@ -1,0 +1,14 @@
+{
+  "picks": [
+    {
+      "rank": 1,
+      "techniques": ["tech_inf_001", "tech_str_002"],
+      "reason": "독자만 아는 사실이 긴장을 만든다."
+    },
+    {
+      "rank": 2,
+      "techniques": ["tech_tim_003"],
+      "reason": "시간을 늦춰 위기를 키운다."
+    }
+  ]
+}

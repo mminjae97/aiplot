@@ -58,10 +58,6 @@ export type JobLifecycleEvent =
   | JobErrorEvent
   | JobCancelledEvent
 /**
- * Catalog field (§9): rhe 수사법·문체, str 구성·플롯 구조, tim 시간·속도, voi 시점·서술자·화법, inf 정보 조절·긴장·장르 효과, cha 인물·대화, des 묘사·공간·상징·상호텍스트, ser 도입·결말·연재·매체 차용.
- */
-export type TechniqueCategory = 'rhe' | 'str' | 'tim' | 'voi' | 'inf' | 'cha' | 'des' | 'ser'
-/**
  * Fixed effect tags (§9): what a scene wants and what a technique gives.
  */
 export type TechniqueEffect =
@@ -112,10 +108,6 @@ export type TechniqueEffect =
   | '리듬'
   | '성찰'
 /**
- * The level a technique works at (§9); sentence-only cards are never direction candidates.
- */
-export type TechniqueScope = '문장' | '장면' | '회차' | '아크' | '작품'
-/**
  * Fixed situation tags (§9): what happens in a scene.
  */
 export type TechniqueSituation =
@@ -159,6 +151,14 @@ export type TechniqueSituation =
   | '비밀'
   | '징조'
   | '깨달음'
+/**
+ * Catalog field (§9): rhe 수사법·문체, str 구성·플롯 구조, tim 시간·속도, voi 시점·서술자·화법, inf 정보 조절·긴장·장르 효과, cha 인물·대화, des 묘사·공간·상징·상호텍스트, ser 도입·결말·연재·매체 차용.
+ */
+export type TechniqueCategory = 'rhe' | 'str' | 'tim' | 'voi' | 'inf' | 'cha' | 'des' | 'ser'
+/**
+ * The level a technique works at (§9); sentence-only cards are never direction candidates.
+ */
+export type TechniqueScope = '문장' | '장면' | '회차' | '아크' | '작품'
 /**
  * Shown on the spine and cover; the server trims it.
  */
@@ -862,6 +862,67 @@ export interface LoraManifest {
    * sha256 of the base GGUF the adapter was trained for.
    */
   base_sha256: string
+}
+/**
+ * `pick` role output (§9, §13): 1-3 recommended technique combinations for one scene. The server drops ids not among the scene's candidates, repeated ids, combinations left empty, holding a conflicting pair or repeating an earlier one; keeps at most 3 in rank order and renumbers ranks 1..n.
+ */
+export interface PickOutput {
+  /**
+   * @minItems 1
+   * @maxItems 3
+   */
+  picks: [OutputPick, ...OutputPick[]]
+}
+export interface OutputPick {
+  /**
+   * 1 = the best fit.
+   */
+  rank: number
+  /**
+   * The combination: 1-3 candidate technique ids used together.
+   *
+   * @minItems 1
+   * @maxItems 3
+   */
+  techniques: [TechniqueId, ...TechniqueId[]]
+  /**
+   * Why this combination fits the scene, for the user.
+   */
+  reason: string
+}
+/**
+ * `scene` role output (§9, §13): the episode split into scenes in story order. The server drops scenes whose source is not one of the episode's structure stage names, renumbers the rest 1..n and drops repeated tags.
+ */
+export interface SceneOutput {
+  /**
+   * @minItems 1
+   */
+  scenes: [OutputScene, ...OutputScene[]]
+}
+export interface OutputScene {
+  scene: number
+  /**
+   * The episode structure stage the scene comes from (§9 `source` = episode.stage).
+   */
+  source: string
+  /**
+   * What happens, in one or two sentences.
+   */
+  summary: string
+  /**
+   * Effects the scene wants the reader to feel.
+   *
+   * @minItems 1
+   * @maxItems 3
+   */
+  effects: [TechniqueEffect, ...TechniqueEffect[]]
+  /**
+   * Situations the scene is in.
+   *
+   * @minItems 1
+   * @maxItems 3
+   */
+  situations: [TechniqueSituation, ...TechniqueSituation[]]
 }
 /**
  * `source` role output (§13). The model sees the notes as [n]-numbered sentences (server split, §15) and returns only edits; the server applies them, so sentences it does not name stay byte-identical. Changed sentences are the edited and added ones.
