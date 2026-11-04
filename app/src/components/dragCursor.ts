@@ -5,7 +5,12 @@
 
 const ATTRIBUTE = 'data-dragging'
 
+// Whether the ground is what is dragged: React Flow also reports moves made in code (fitView,
+// the auto-pan while a node is dragged near the edge), and their end must not let go.
+let ground = false
+
 function stop(): void {
+  ground = false
   document.documentElement.removeAttribute(ATTRIBUTE)
   window.removeEventListener('pointerup', stop, true)
   window.removeEventListener('blur', stop)
@@ -23,5 +28,12 @@ export const stopDragCursor = stop
 
 /** React Flow's onMoveStart: a drag of the ground, not a wheel zoom or a move made in code. */
 export function startGroundDrag(event: MouseEvent | TouchEvent | null): void {
-  if (event !== null && event.type !== 'wheel') startDragCursor()
+  if (event === null || event.type === 'wheel') return
+  startDragCursor()
+  ground = true
+}
+
+/** React Flow's onMoveEnd: ends only a drag of the ground (a node's drag ends on its own). */
+export function stopGroundDrag(): void {
+  if (ground) stop()
 }

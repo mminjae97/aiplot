@@ -16,7 +16,7 @@ import { type KeyboardEvent, useEffect, useState } from 'react'
 import { strings } from '../strings'
 import type { CardRelation, CharacterCard } from '../types'
 import { Portrait } from './CharacterCard'
-import { startDragCursor, startGroundDrag, stopDragCursor } from './dragCursor'
+import { startDragCursor, startGroundDrag, stopDragCursor, stopGroundDrag } from './dragCursor'
 import {
   GROUP_PAD,
   type Group,
@@ -385,7 +385,7 @@ export function RelationGraph({ cards, relations, groups, onPick }: Props) {
         onNodeDragStart={startDragCursor}
         onNodeDragStop={stopDragCursor}
         onMoveStart={startGroundDrag}
-        onMoveEnd={stopDragCursor}
+        onMoveEnd={stopGroundDrag}
         nodesConnectable={false}
         elementsSelectable={false}
         fitView

@@ -1,7 +1,12 @@
 import { afterEach, expect, test } from 'vitest'
 import dragging from '../src/assets/cursor/dragging.svg'
 import quill from '../src/assets/cursor/quill.svg'
-import { startDragCursor, startGroundDrag, stopDragCursor } from '../src/components/dragCursor'
+import {
+  startDragCursor,
+  startGroundDrag,
+  stopDragCursor,
+  stopGroundDrag,
+} from '../src/components/dragCursor'
 import { installCursor, nearEdge } from '../src/cursor'
 
 let stop: (() => void) | undefined
@@ -94,6 +99,17 @@ test('a drag shows the pressed paperweight until the pointer is let go', () => {
   startGroundDrag(null)
   expect(root.hasAttribute('data-dragging')).toBe(false)
   startGroundDrag(new MouseEvent('mousedown'))
+  expect(root.hasAttribute('data-dragging')).toBe(true)
+  stopGroundDrag()
+  expect(root.hasAttribute('data-dragging')).toBe(false)
+})
+
+test('a move made in code while a node is dragged (the auto-pan) never lets go', () => {
+  const root = document.documentElement
+  startDragCursor()
+  // React Flow's auto-pan near the edge: onMoveStart(null) … onMoveEnd(null).
+  startGroundDrag(null)
+  stopGroundDrag()
   expect(root.hasAttribute('data-dragging')).toBe(true)
   stopDragCursor()
   expect(root.hasAttribute('data-dragging')).toBe(false)

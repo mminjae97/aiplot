@@ -23,7 +23,7 @@ import {
 } from 'react'
 import { strings } from '../strings'
 import type { CardRelation, RegionCard, RegionLinkRow } from '../types'
-import { startDragCursor, startGroundDrag, stopDragCursor } from './dragCursor'
+import { startDragCursor, startGroundDrag, stopDragCursor, stopGroundDrag } from './dragCursor'
 import {
   areasOf,
   layout,
@@ -329,7 +329,7 @@ export function RegionMap({
             if (node.type === 'region') onMove(node.id, node.position)
           }}
           onMoveStart={startGroundDrag}
-          onMoveEnd={stopDragCursor}
+          onMoveEnd={stopGroundDrag}
           nodesConnectable={false}
           elementsSelectable={false}
           nodesDraggable={!locked}
