@@ -45,7 +45,11 @@ test('CSS gives the gilt quill to what src/cursor.ts calls clickable (§5)', () 
   expect(list(gilt?.[1].slice(':where('.length, -1) ?? '')).toEqual(list(CLICKABLE))
 })
 
-test('the plain quill goes only to the page and to disabled things (§5)', () => {
+// Relation graph and region map nodes keep the plain quill (§5); src/cursor.ts never counts
+// them clickable either.
+const NODES = ['.dex-graph .react-flow__node', '.map-node']
+
+test('the plain quill goes only to the page, graph and map nodes and disabled things (§5)', () => {
   // A clickable thing given the plain quill disagrees with the gilt one src/cursor.ts draws
   // for it at the window edges.
   const plain = cursorRules().filter(([, , value]) => value === 'var(--cursor)')
@@ -54,6 +58,9 @@ test('the plain quill goes only to the page and to disabled things (§5)', () =>
     const disabled = selector
       .split(',')
       .every((part) => /:disabled|\[aria-disabled='true'\]/.test(part))
-    expect(selector === 'html' || disabled, `${name}: ${selector}`).toBe(true)
+    expect(
+      selector === 'html' || NODES.includes(selector) || disabled,
+      `${name}: ${selector}`,
+    ).toBe(true)
   }
 })
