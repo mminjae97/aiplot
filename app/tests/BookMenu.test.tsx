@@ -293,6 +293,63 @@ test('removing the cover in use asks first and turns the book back to cloth', as
   })
 })
 
+test('Esc in the remove confirmation closes only the confirmation', async () => {
+  const { calls, covers } = serve([book('w_a', '안개의 항구')])
+  covers.push({ id: 'cv_1', work_id: 'w_a', created_at: '2026-10-31T10:00:00.000Z' })
+  renderApp()
+  const dialog = await openDecorate('안개의 항구')
+  fireEvent.click(within(dialog).getByLabelText(strings.decorate.coverIllustration))
+  const remove = await within(dialog).findByRole('button', {
+    name: `${strings.decorate.illustration(1)} ${strings.decorate.remove}`,
+  })
+  fireEvent.click(remove)
+  expect(within(dialog).getByText(strings.decorate.removeConfirm)).toBeTruthy()
+  fireEvent.keyDown(window, { key: 'Escape' })
+  expect(within(dialog).queryByText(strings.decorate.removeConfirm)).toBeNull()
+  expect(screen.getByRole('dialog', { name: strings.decorate.title })).toBe(dialog)
+  // Focus back on 지우기, nothing removed; the next Esc closes the dialog.
+  expect(document.activeElement).toBe(
+    within(dialog).getByRole('button', {
+      name: `${strings.decorate.illustration(1)} ${strings.decorate.remove}`,
+    }),
+  )
+  expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
+  fireEvent.keyDown(window, { key: 'Escape' })
+  expect(screen.queryByRole('dialog', { name: strings.decorate.title })).toBeNull()
+  await waitFor(() => {
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '안개의 항구' }))
+  })
+})
+
+test('Tab stays inside the book dialogs', async () => {
+  serve([book('w_a', '안개의 항구')])
+  renderApp()
+  for (const [item, role, name] of [
+    [strings.bookMenu.decorate, 'dialog', strings.decorate.title],
+    [strings.bookMenu.rename, 'dialog', strings.rename.title],
+    [strings.bookMenu.delete, 'alertdialog', strings.deleteBook.title],
+  ] as const) {
+    await choose('안개의 항구', item)
+    const dialog = screen.getByRole(role, { name })
+    const inside = [
+      ...dialog.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)'),
+    ].filter((element) => !element.hidden)
+    const last = inside.at(-1)
+    const first = inside[0]
+    if (!last || !first) throw new Error('nothing to focus')
+    last.focus()
+    fireEvent.keyDown(window, { key: 'Tab' })
+    expect(document.activeElement).toBe(first)
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole(role, { name })).toBeNull()
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: '안개의 항구' }))
+    })
+  }
+})
+
 test('moving the confirmation to another illustration moves focus with it', async () => {
   const { covers } = serve([book('w_a', '안개의 항구')])
   for (const id of ['cv_1', 'cv_2']) {

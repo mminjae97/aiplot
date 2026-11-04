@@ -7,6 +7,7 @@ import { FlipCard } from '../components/FlipCard'
 import { RegionBack, RegionFront } from '../components/RegionCard'
 import { RegionMap } from '../components/RegionMap'
 import { Overlay } from '../components/Overlay'
+import { useArrival } from '../components/useArrival'
 import type { PlanningScreen } from '../stores/navigation'
 import { strings } from '../strings'
 import type { Card, RegionCard } from '../types'
@@ -90,6 +91,12 @@ export function RegionMapScreen({
     [...episodes],
   ])
 
+  // The region just saved or brought back: highlighted 0.3s once it is on the map (§8).
+  const [arrived, arrive] = useArrival(
+    (id) => ready && cards.some((card) => card.id === id),
+    regionTarget,
+  )
+
   const busy = drawer !== null || deleting !== null || current !== null
   useEffect(() => {
     onBusy(busy)
@@ -145,6 +152,7 @@ export function RegionMapScreen({
                     parents={parents.data.relations}
                     episodes={episodes}
                     locked={locked}
+                    highlight={arrived}
                     onPick={(id, origin) => {
                       setPicked({ id, origin })
                     }}
@@ -202,8 +210,10 @@ export function RegionMapScreen({
             onClose={() => {
               setDrawer(null)
             }}
-            onSaved={() => {
+            onSaved={(card) => {
+              // After save: close and highlight the region (§8).
               void queryClient.invalidateQueries({ queryKey: ['relations', workId] })
+              arrive(card.id)
             }}
           />
         )}
@@ -228,8 +238,9 @@ export function RegionMapScreen({
               setUndo(null)
             }}
             returnFocus={() => addRef.current}
-            onRestored={() => {
+            onRestored={(card) => {
               setUndo(null)
+              arrive(card.id)
             }}
           />
         )}

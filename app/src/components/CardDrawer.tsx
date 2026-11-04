@@ -186,6 +186,8 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     started: false,
     mounted: false,
     id: null as string | null,
+    // The draft this drawer opened, kept after a save closed it (its cache entry still goes).
+    opened: null as string | null,
     // Set at once (not on the next render), so a double Ctrl+S saves once.
     saving: false,
   })
@@ -258,11 +260,14 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     setStage('replying')
     setPending({ user: text, reply: '' })
     setError(null)
+    // Cleared for the turn; a failed one gives them back (the AI's last questions still stand).
+    const before = { changed, questions, names }
     setChanged([])
     setQuestions([])
     setNames([])
     const alive = () => !controller.signal.aborted
-    let kept = false
+    // Set from the event callback: never narrowed to false here.
+    let kept = false as boolean
     try {
       await sendTurn(
         id,
@@ -292,6 +297,11 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
       if (alive()) setError(errorText(err instanceof ApiRequestError ? err.code : ''))
     }
     if (!alive()) return kept
+    if (!kept) {
+      setChanged(before.changed)
+      setQuestions(before.questions)
+      setNames(before.names)
+    }
     // The turns as the server keeps them, swapped in with the pending ones in one render.
     const fresh = await api.getDraft(id).catch(() => null)
     if (!alive()) return kept
@@ -464,6 +474,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
             return
           }
           state.id = created.id
+          state.opened = created.id
           setOpenedNotes(created.notes)
           queryClient.setQueryData(draftKey(created.id), created)
           setDraftId(created.id)
@@ -482,12 +493,14 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
       state.mounted = false
       stream.current?.abort()
       genStream.current?.abort()
+      // Never kept past the drawer (§6), saved or not.
+      if (state.opened !== null) queryClient.removeQueries({ queryKey: draftKey(state.opened) })
       const id = state.id
       if (id !== null) {
         // StrictMode remounts at once, before any draft exists, so this is a real goodbye.
-        // Deleting the draft also stops its generation on the server.
+        // Deleting the draft also stops its generation on the server. A saved draft is
+        // closed on the server already (id null).
         state.id = null
-        queryClient.removeQueries({ queryKey: draftKey(id) })
         void api.deleteDraft(id).catch(() => undefined)
       }
     }
@@ -674,11 +687,14 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                   void saveNotes(notes)
                 }}
                 onSameName={(pair) => {
-                  setNames((old) => old.filter((p) => p !== pair))
                   void send(
                     strings.drawer.sameMessage(pair.mentioned, pair.similar_to),
                     pair.card_id ? [pair.card_id] : [],
-                  )
+                  ).then((kept) => {
+                    // Answered only once the AI took the turn; a turn that failed (its names
+                    // given back) or never went leaves the question to ask again.
+                    if (kept) setNames((old) => old.filter((p) => p !== pair))
+                  })
                 }}
                 onDismissName={(pair) => {
                   setNames((old) => old.filter((p) => p !== pair))

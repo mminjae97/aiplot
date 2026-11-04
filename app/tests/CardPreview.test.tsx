@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { ServerState } from '../src/api/bridge'
@@ -48,8 +48,23 @@ function serve(
     saveError?: string
     jobError?: string
     dropStream?: boolean
+    // From this generation on (1 = the first), the job's stream stays open until cancelled.
+    holdJobFrom?: number
+    // A chat turn's stream stays open.
+    holdTurn?: boolean
   } = {},
 ) {
+  let generations = 0
+  const open: ReadableStreamDefaultController<Uint8Array>[] = []
+  const held = () =>
+    new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          open.push(controller)
+        },
+      }),
+      { headers: { 'Content-Type': 'text/event-stream' } },
+    )
   let draft: Draft = {
     id: 'dr_1',
     work_id: 'w_1',
@@ -84,12 +99,27 @@ function serve(
         return json(draft)
       }
       if (method === 'DELETE') return Promise.resolve(new Response(null, { status: 204 }))
-      if (path === '/drafts/dr_1/messages') return Promise.resolve(sse([['done', {}]]))
+      if (path === '/drafts/dr_1/messages') {
+        return Promise.resolve(options.holdTurn ? held() : sse([['done', {}]]))
+      }
+      if (method === 'POST' && path === '/jobs/job_1/cancel') {
+        for (const controller of open.splice(0)) {
+          controller.enqueue(new TextEncoder().encode('id: 2\nevent: cancelled\ndata: {}\n\n'))
+          controller.close()
+        }
+        return json({ id: 'job_1' })
+      }
       if (path === '/drafts/dr_1/generate') {
-        draft = { ...draft, generated: options.generated ?? output() }
+        generations += 1
+        // A held job (cancelled later) brings no card back.
+        const holds = options.holdJobFrom !== undefined && generations >= options.holdJobFrom
+        if (!holds) draft = { ...draft, generated: options.generated ?? output() }
         return json({ jobId: 'job_1' }, 202)
       }
       if (path.startsWith('/jobs/job_1/events')) {
+        if (options.holdJobFrom !== undefined && generations >= options.holdJobFrom) {
+          return Promise.resolve(held())
+        }
         if (options.dropStream) return Promise.resolve(sse([['progress', { done: 0, total: 1 }]]))
         return Promise.resolve(
           sse(
@@ -142,14 +172,14 @@ function renderDrawer(request: DrawerRequest = { workId: 'w_1', type: 'character
   const onClose = vi.fn()
   const onSaved = vi.fn()
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(
+  const view = render(
     <StrictMode>
       <QueryClientProvider client={client}>
         <CardDrawer request={request} onClose={onClose} onSaved={onSaved} />
       </QueryClientProvider>
     </StrictMode>,
   )
-  return { onClose, onSaved }
+  return { onClose, onSaved, client, unmount: view.unmount }
 }
 
 async function generated(): Promise<void> {
@@ -353,4 +383,116 @@ test('a double Ctrl+S saves once', async () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
   expect(calls.filter((c) => c.path === '/drafts/dr_1/save')).toHaveLength(1)
+})
+
+test('a saved draft leaves nothing in the cache once the drawer goes', async () => {
+  const { calls } = serve()
+  const { onClose, client, unmount } = renderDrawer()
+  await generated()
+  expect(client.getQueryData(['draft', 'dr_1'])).toBeDefined()
+  fireEvent.click(screen.getByRole('button', { name: strings.preview.save }))
+  await waitFor(() => {
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+  // The parent takes the drawer away.
+  unmount()
+  expect(client.getQueryData(['draft', 'dr_1'])).toBeUndefined()
+  // Saving closed the draft on the server: nothing to delete.
+  expect(calls.some((c) => c.method === 'DELETE' && c.path === '/drafts/dr_1')).toBe(false)
+})
+
+test('a regeneration that changed nothing says so', async () => {
+  const base = output({ name: '테오도르' })
+  serve({ generated: { ...base, data: { ...base.data, theme: '옛 주제' } } })
+  renderDrawer({ workId: 'w_1', type: 'character', card_id: 'c_teo' })
+  await generated()
+  expect(screen.getByText(strings.preview.unchanged)).toBeTruthy()
+  // The missing required field still shows, so it can be filled in.
+  expect(
+    screen
+      .getAllByRole('button', { name: /./ })
+      .filter((b) => b.className === 'preview-name')
+      .map((b) => b.textContent),
+  ).toEqual(['외모'])
+})
+
+test('a changed card does not say nothing changed', async () => {
+  serve()
+  renderDrawer({ workId: 'w_1', type: 'character', card_id: 'c_teo' })
+  await generated()
+  expect(screen.queryByText(strings.preview.unchanged)).toBeNull()
+})
+
+test('a long generation can be cancelled; nothing reads as a failure', async () => {
+  const { calls } = serve({ holdJobFrom: 1 })
+  renderDrawer()
+  const button = await screen.findByRole('button', { name: strings.preview.generate })
+  await waitFor(() => {
+    expect(button).toHaveProperty('disabled', false)
+  })
+  // Only the elapsed-seconds clock is faked (waitFor polls with intervals: none in between).
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  try {
+    fireEvent.click(button)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    })
+    expect(calls.some((c) => c.path.startsWith('/jobs/job_1/events'))).toBe(true)
+    act(() => {
+      vi.advanceTimersByTime(10_000)
+    })
+  } finally {
+    vi.useRealTimers()
+  }
+  expect(screen.getByText(strings.preview.elapsed(10))).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: strings.preview.cancel }))
+  await waitFor(() => {
+    expect(calls.some((c) => c.method === 'POST' && c.path === '/jobs/job_1/cancel')).toBe(true)
+  })
+  await waitFor(() => {
+    expect(screen.queryByText(strings.preview.generating)).toBeNull()
+  })
+  expect(screen.queryByRole('alert')).toBeNull()
+  expect(screen.getByRole('button', { name: strings.preview.generate })).toHaveProperty(
+    'disabled',
+    false,
+  )
+})
+
+test('save is refused while a generation runs', async () => {
+  const { calls } = serve({ holdJobFrom: 2 })
+  const { onClose } = renderDrawer()
+  await generated()
+  fireEvent.click(screen.getByRole('button', { name: strings.preview.regenerate }))
+  await waitFor(() => {
+    expect(calls.filter((c) => c.path.startsWith('/jobs/job_1/events'))).toHaveLength(2)
+  })
+  expect(screen.getByRole('button', { name: strings.preview.save })).toHaveProperty(
+    'disabled',
+    true,
+  )
+  fireEvent.keyDown(window, { key: 's', ctrlKey: true })
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  expect(calls.some((c) => c.path === '/drafts/dr_1/save')).toBe(false)
+  expect(onClose).not.toHaveBeenCalled()
+})
+
+test('save is refused while a chat turn runs', async () => {
+  const { calls } = serve({ holdTurn: true })
+  const { onClose } = renderDrawer()
+  await generated()
+  const input = screen.getByLabelText(strings.drawer.inputLabel)
+  fireEvent.change(input, { target: { value: '테오는 활을 쓴다.' } })
+  fireEvent.keyDown(input, { key: 'Enter' })
+  await waitFor(() => {
+    expect(calls.some((c) => c.path === '/drafts/dr_1/messages')).toBe(true)
+  })
+  expect(screen.getByRole('button', { name: strings.preview.save })).toHaveProperty(
+    'disabled',
+    true,
+  )
+  fireEvent.keyDown(window, { key: 's', ctrlKey: true })
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  expect(calls.some((c) => c.path === '/drafts/dr_1/save')).toBe(false)
+  expect(onClose).not.toHaveBeenCalled()
 })

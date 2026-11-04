@@ -17,7 +17,7 @@ export default defineConfig(
   },
   {
     files: ['src/**/*.{ts,tsx}', 'tests/**/*.{ts,tsx}'],
-    ignores: ['tests/e2e/**', 'tests/electron/**'],
+    ignores: ['tests/e2e/**', 'tests/electron/**', 'tests/css/**'],
     plugins: { 'react-hooks': reactHooks },
     languageOptions: { globals: globals.browser },
     rules: reactHooks.configs.recommended.rules,
@@ -27,6 +27,7 @@ export default defineConfig(
       'electron/**/*.ts',
       'tests/e2e/**/*.ts',
       'tests/electron/**/*.ts',
+      'tests/css/**/*.ts',
       '*.config.ts',
       '*.mjs',
       'scripts/**/*.mjs',

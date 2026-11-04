@@ -88,6 +88,13 @@ function Progress({ jobId, live, onBackground }: ProgressProps) {
           </span>
         )}
       </p>
+      {control.isError && (
+        <p className="setup-error" role="alert">
+          {control.error instanceof ApiRequestError
+            ? errorText(control.error.code)
+            : strings.setup.failed}
+        </p>
+      )}
       <div className="setup-actions">
         <button
           type="button"

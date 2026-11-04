@@ -153,6 +153,14 @@ export function PlanningBook({ screen }: Props) {
         }}
         backDisabled={busy}
         title={work.data?.title}
+        // As the 목차 note: a turn back to the contents (§12 "top-bar title → contents").
+        onTitle={
+          screen.name === 'contents'
+            ? undefined
+            : () => {
+                turnPage({ name: 'contents', workId })
+              }
+        }
       />
       <main className="desk book-desk" inert={busy}>
         <button

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { ServerState } from '../src/api/bridge'
 import { useServer } from '../src/stores/server'
 import { strings } from '../src/strings'
-import type { Card, Completeness, Work } from '../src/types'
+import type { Card, Completeness, Draft, Work } from '../src/types'
 import { renderBook } from './bookHarness'
 import { NO_DIALOGS } from './serverFixtures'
 
@@ -80,13 +80,55 @@ const PORT = { ...base, id: 'c_port', type: 'region', name: '북부 항구' } as
 const TEO = { ...base, id: 'c_teo', type: 'character', name: '테오' } as unknown as Card
 
 type Call = { method: string; path: string }
-type State = { main?: boolean; parts?: Card[]; assigned?: Record<string, string[]> }
+type State = {
+  main?: boolean
+  // The main story is saved but has no milestones yet.
+  noMilestones?: boolean
+  parts?: Card[]
+  assigned?: Record<string, string[]>
+}
+
+/** A new episode's draft with its card already made, ready to save (as 1화 귀환). */
+const DRAFT: Draft = {
+  id: 'dr_1',
+  work_id: 'w_1',
+  type: 'episode',
+  card_id: null,
+  category: null,
+  part_id: 'c_p1',
+  notes: '테오가 돌아온다.',
+  sentences: ['테오가 돌아온다.'],
+  turns: [{ role: 'ai', text: '어떤 화인가요?' }],
+  pinned: [],
+  generated: {
+    type: 'episode',
+    name: '1화 귀환',
+    data: {
+      part_id: 'c_p1',
+      order: 1,
+      theme: '귀환',
+      relation_to_main: null,
+      fulfills: [],
+      characters: [],
+      locations: { main: null, others: [] },
+      world: [],
+      links: { prev: null, next: null, causes: [] },
+      foreshadowing: { plants: [], payoffs: [] },
+      worldline_id: null,
+      structure: null,
+      synopsis: null,
+    },
+    evidence: {},
+    ai_guess: [],
+  },
+}
 
 function serve(state: State = {}) {
   const calls: Call[] = []
   const parts = state.parts ?? []
+  let episodes = [EP]
   const completeness: Completeness =
-    state.main === false
+    state.main === false || state.noMilestones
       ? { milestones: [], foreshadowing: [], incomplete: [] }
       : {
           milestones: [
@@ -120,7 +162,7 @@ function serve(state: State = {}) {
       if (path === '/works/w_1/cards?type=main_story')
         return json({ cards: state.main === false ? [] : [MAIN] })
       if (path === '/works/w_1/cards?type=part') return json({ cards: parts })
-      if (path === '/works/w_1/cards?type=episode') return json({ cards: [EP] })
+      if (path === '/works/w_1/cards?type=episode') return json({ cards: episodes })
       if (path === '/works/w_1/cards') return json({ cards: [MAIN, ...parts, EP, PORT, TEO] })
       if (path === '/works/w_1/relations?kind=episode_part')
         return json({ relations: [{ from_id: 'c_ep1', to_id: 'c_p1', relation: '1' }] })
@@ -136,9 +178,26 @@ function serve(state: State = {}) {
       if (path === '/works/w_1/relations?kind=episode_character')
         return json({ relations: [{ from_id: 'c_ep1', to_id: 'c_teo', relation: null }] })
       if (path === '/works/w_1/cards?type=region') return json({ cards: [PORT] })
-      if (method === 'POST' && path === '/works/w_1/drafts') return json({}, 500)
+      if (method === 'POST' && path === '/works/w_1/drafts') {
+        return state.parts ? json(DRAFT, 201) : json({}, 500)
+      }
+      if (method === 'GET' && path === '/drafts/dr_1') return json(DRAFT)
+      if (method === 'DELETE' && path === '/drafts/dr_1')
+        return Promise.resolve(new Response(null, { status: 204 }))
+      if (method === 'POST' && path === '/drafts/dr_1/save') return json(EP)
+      if (method === 'POST' && path === '/cards/c_ep1/restore') {
+        episodes = [EP]
+        return json(EP)
+      }
       if (path === '/works/w_1/completeness') return json(completeness)
       if (path.endsWith('/references')) return json({ references: [] })
+      if (method === 'DELETE' && path.startsWith('/cards/c_ep1')) {
+        episodes = []
+        return json({
+          deleted: ['c_ep1'],
+          restore_until: new Date(Date.now() + 10_000).toISOString(),
+        })
+      }
       if (method === 'DELETE')
         return json({
           deleted: ['c_p1'],
@@ -200,6 +259,18 @@ test('milestones show their part; an unassigned one keeps the episodes closed', 
   expect(within(panel).getByText(strings.story.unassigned)).toBeTruthy()
   fireEvent.click(tab(strings.story.stepEpisodes))
   expect(screen.getByText(strings.story.needParts)).toBeTruthy()
+})
+
+test('a main story without milestones keeps the episodes closed and says why', async () => {
+  serve({ noMilestones: true, parts: [part('c_p1', 1, '항구')] })
+  renderStory()
+  // Parts are open (a main story is saved); episodes are not, though no milestone is left over.
+  await screen.findByText(strings.story.newPart)
+  expect(tab(strings.story.stepParts).getAttribute('aria-selected')).toBe('true')
+  expect(tab(strings.story.stepEpisodes).hasAttribute('data-later')).toBe(true)
+  fireEvent.click(tab(strings.story.stepEpisodes))
+  expect(screen.getByText(strings.story.needMilestones)).toBeTruthy()
+  expect(screen.queryByText(strings.story.needParts)).toBeNull()
 })
 
 test('every milestone in one part opens the timeline: parts, lanes, nodes, completeness', async () => {
@@ -306,4 +377,63 @@ test('a part whose episodes the screen missed: the server says so and the dialog
   fireEvent.click(within(dialog).getByRole('button', { name: strings.cardDelete.delete }))
   expect(await within(dialog).findByText(strings.cardDelete.chooseEpisodes)).toBeTruthy()
   expect(await within(dialog).findByText(strings.cardDelete.partEpisodes(1))).toBeTruthy()
+})
+
+const episodeNode = () => document.querySelector<HTMLElement>('.timeline-node[data-id="c_ep1"]')
+
+test('a deleted episode comes back with 되돌리기 and is highlighted for 0.3s', async () => {
+  const { calls } = serve({
+    parts: [part('c_p1', 1, '항구')],
+    assigned: { ms_1: ['c_p1'], ms_2: ['c_p1'] },
+  })
+  renderStory()
+  fireEvent.click(
+    await screen.findByRole('button', { name: strings.story.openEpisode('1화 귀환') }),
+  )
+  const card = await screen.findByRole('dialog', { name: '1화 귀환' })
+  fireEvent.click(within(card).getByRole('button', { name: strings.story.delete }))
+  fireEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: strings.cardDelete.delete,
+    }),
+  )
+  const undo = await screen.findByRole('button', { name: strings.cardDelete.undo })
+  await waitFor(() => {
+    expect(episodeNode()).toBeNull()
+  })
+  fireEvent.click(undo)
+  await waitFor(() => {
+    expect(episodeNode()?.hasAttribute('data-highlight')).toBe(true)
+  })
+  await waitFor(() => {
+    expect(episodeNode()?.hasAttribute('data-highlight')).toBe(false)
+  })
+  expect(calls.filter((c) => c.method !== 'GET').map((c) => `${c.method} ${c.path}`)).toEqual([
+    'DELETE /cards/c_ep1?reconnect=true',
+    'POST /cards/c_ep1/restore',
+  ])
+})
+
+test('a saved episode is highlighted on the timeline for 0.3s', async () => {
+  const { calls } = serve({
+    parts: [part('c_p1', 1, '항구')],
+    assigned: { ms_1: ['c_p1'], ms_2: ['c_p1'] },
+  })
+  renderStory()
+  await screen.findByRole('button', { name: strings.story.openEpisode('1화 귀환') })
+  fireEvent.click(screen.getByRole('button', { name: strings.story.newEpisodeIn('제1부 · 항구') }))
+  const save = await screen.findByRole('button', { name: strings.preview.save })
+  await waitFor(() => {
+    expect(save).toHaveProperty('disabled', false)
+  })
+  fireEvent.click(save)
+  await waitFor(() => {
+    expect(calls.some((c) => c.method === 'POST' && c.path === '/drafts/dr_1/save')).toBe(true)
+  })
+  await waitFor(() => {
+    expect(episodeNode()?.hasAttribute('data-highlight')).toBe(true)
+  })
+  await waitFor(() => {
+    expect(episodeNode()?.hasAttribute('data-highlight')).toBe(false)
+  })
 })

@@ -7,6 +7,7 @@ import type { Cover, Work } from '../types'
 import { BookFront, bookStyle } from './BookFront'
 import { PRESETS, colorOf } from './bookColor'
 import { CoverImageError, cropCover } from './cropCover'
+import { useModalKeys } from './useModalKeys'
 
 type Props = {
   work: Work
@@ -94,6 +95,7 @@ function IllustrationChoice(props: ChoiceProps) {
  * Uploads and removals happen at once; colour and cover choice apply on 저장. */
 export function DecorateDialog({ work, onClose }: Props) {
   const queryClient = useQueryClient()
+  const box = useRef<HTMLFormElement>(null)
   const first = useRef<HTMLInputElement>(null)
   const file = useRef<HTMLInputElement>(null)
   const uploadButton = useRef<HTMLButtonElement>(null)
@@ -139,17 +141,16 @@ export function DecorateDialog({ work, onClose }: Props) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['works'] }),
   })
 
-  useEffect(() => {
-    // The library gives focus back to the book once the dialog is gone.
-    first.current?.focus()
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [onClose])
+  // Esc closes an open remove confirmation first, then the dialog; Tab stays inside. The
+  // library gives focus back to the book once the dialog is gone.
+  useModalKeys(
+    box,
+    () => {
+      if (confirming !== null) setConfirming(null)
+      else onClose()
+    },
+    first,
+  )
 
   const choose = (event: ChangeEvent<HTMLInputElement>) => {
     const picture = event.target.files?.[0]
@@ -186,6 +187,7 @@ export function DecorateDialog({ work, onClose }: Props) {
       }}
     >
       <form
+        ref={box}
         className="decorate"
         role="dialog"
         aria-modal="true"

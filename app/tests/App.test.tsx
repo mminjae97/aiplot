@@ -121,6 +121,28 @@ test('failed server shows the cause and retries', async () => {
   expect(screen.getByText(strings.server.failed)).toBeTruthy()
 })
 
+test('a server that exited on its own shows what it last printed', async () => {
+  window.aiplot = bridge({
+    status: 'error',
+    reason: 'failed',
+    restarts: 3,
+    detail: 'aiplot.db.migrate.MigrationError: database version 9 is newer than this app (7)',
+  })
+  connectServer()
+  renderApp()
+  expect(await screen.findByText(strings.server.dbNewer)).toBeTruthy()
+  expect(screen.getByText(/database version 9 is newer/)).toBeTruthy()
+  expect(screen.getByRole('button', { name: strings.server.retry })).toBeTruthy()
+})
+
+test('an unknown exit says the server stopped and shows its last lines', async () => {
+  window.aiplot = bridge({ status: 'error', reason: 'failed', restarts: 3, detail: 'exit code 3' })
+  connectServer()
+  renderApp()
+  expect(await screen.findByText(strings.server.exited)).toBeTruthy()
+  expect(screen.getByText('exit code 3')).toBeTruthy()
+})
+
 test('missing server offers no retry', async () => {
   window.aiplot = bridge({ status: 'error', reason: 'missing', restarts: 0 })
   connectServer()
@@ -203,8 +225,16 @@ test('new book keeps focus inside and gives it back to the + book', async () => 
   plus.focus()
   fireEvent.click(plus)
   expect(document.activeElement).toBe(screen.getByLabelText(strings.newBook.label))
-  // The shelf behind the dialog is inert, so Tab cannot reach it.
+  // The shelf behind the dialog is inert, so Tab cannot reach it; Tab cycles in the dialog.
   expect(plus.closest('[inert]')).not.toBeNull()
+  const input = screen.getByLabelText(strings.newBook.label)
+  const cancel = screen.getByRole('button', { name: strings.newBook.cancel })
+  // The create button is off until a title is typed: the cancel button is the last stop.
+  cancel.focus()
+  fireEvent.keyDown(window, { key: 'Tab' })
+  expect(document.activeElement).toBe(input)
+  fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
+  expect(document.activeElement).toBe(cancel)
   fireEvent.click(screen.getByRole('button', { name: strings.newBook.cancel }))
   await waitFor(() => {
     expect(document.activeElement).toBe(plus)

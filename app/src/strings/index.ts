@@ -11,6 +11,10 @@ export const strings = {
     errorTitle: 'Aiplot을 시작하지 못했어요',
     missing: '앱의 서버 파일을 찾을 수 없어요. 앱을 다시 설치해 주세요.',
     failed: '서버가 여러 번 연달아 멈췄어요. 잠시 뒤 다시 시도해 주세요.',
+    exited: '서버가 스스로 멈췄어요. 아래 기록이 원인을 알려 줄 수 있어요.',
+    dbNewer:
+      '작품 데이터가 더 새 버전의 Aiplot에서 저장됐어요. Aiplot을 최신 버전으로 업데이트해 주세요.',
+    detail: '서버가 마지막으로 남긴 기록',
     retry: '다시 시도',
   },
   stage: {
@@ -171,6 +175,11 @@ export const strings = {
       LLAMA_NOT_FOUND: '그 폴더에 llama-server.exe가 없어요.',
       LLAMA_MISMATCH: '이 llama.cpp는 쓸 수 없어요. b11982 CUDA 13 빌드가 필요해요.',
       SETUP_BUSY: '다른 준비 작업이 진행 중이에요. 끝난 뒤 다시 시도해 주세요.',
+      SETUP_COMPLETE: '필요한 파일이 이미 모두 준비돼 있어요.',
+      JOB_NOT_RUNNING: '작업이 진행 중이 아니라서 멈출 수 없어요.',
+      JOB_NOT_PAUSED: '작업이 멈춰 있지 않아서 이어 갈 수 없어요.',
+      JOB_FINISHED: '작업이 이미 끝났어요.',
+      JOB_NOT_FOUND: '작업을 찾을 수 없어요. 서버가 다시 시작됐을 수 있어요.',
     } as Record<string, string>,
     failed: '준비하지 못했어요. 다시 시도해 주세요.',
     chip: (percent: number) => `모델 준비 중 ${String(percent)}%`,
@@ -303,6 +312,7 @@ export const strings = {
     pinShort: '고정',
     evidenceHint: '항목을 누르면 근거 문장이 원문에 표시돼요.',
     before: '이전',
+    unchanged: '바뀐 칸이 없어요. 저장해도 카드는 그대로예요.',
     references: '이 카드를 가리키는 카드',
     referencesNote: '이름이 바뀌면 아래 카드에서도 새 이름으로 보여요.',
     referencesLinksNote: '관계나 등장인물이 바뀌면 아래 카드에서 보이는 내용도 함께 바뀌어요.',
@@ -372,6 +382,7 @@ export const strings = {
     prev: '이전 페이지',
     next: '다음 페이지',
     sections: '책갈피',
+    toContents: '목차로 가기',
     notes: {
       contents: '목차',
       world: '세계관',
@@ -391,6 +402,8 @@ export const strings = {
     stepEpisodes: '③ 에피소드',
     needMain: '메인 스토리를 먼저 저장하면 부를 만들 수 있어요.',
     needParts: '주요 사건이 모두 부 하나씩에 배정되면 에피소드를 만들 수 있어요.',
+    needMilestones:
+      '메인 스토리에 주요 사건이 아직 없어요. 주요 사건을 하나 이상 정해 부에 배정하면 에피소드를 만들 수 있어요.',
     noMain: '아직 메인 스토리가 없어요.',
     createMain: '메인 스토리 만들기',
     milestones: '주요 사건',
