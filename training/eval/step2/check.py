@@ -4,10 +4,11 @@
 
 Each genre's episodes are saved, with the unit 15 seed cards they build on, into a throwaway
 database through the app's own card save, and must come out complete (§14 status) with every
-reference they make (characters, world, places, links, milestones) written as a relation row,
-i.e. resolved to a seed card, another case episode or a milestone. Gold techniques must exist
-and be direction candidates: scope 장면 or 회차, not one of the serial cards direct always gets
-(§9). Exits 1 on any problem.
+reference they make (part, characters, world, places, links, milestones, foreshadowing payoffs)
+written as a relation row, i.e. resolved to a seed card, another case episode, a milestone or a
+foreshadowing planted in another case episode. Episodes are saved twice, so a reference to one
+later in the file resolves too. Gold techniques must exist and be direction candidates: scope
+장면 or 회차, not one of the serial cards direct always gets (§9). Exits 1 on any problem.
 """
 
 import json
@@ -53,8 +54,10 @@ def episode_card(episode: dict[str, Any], work_id: str) -> Any:
 
 # The relation row each episode reference must leave on save (:ep = the episode, :ref = the
 # referenced id). Save keeps `data` verbatim but writes a row only for an id that resolves to a
-# card of the work of the right type (or a milestone), so a missing row = a dangling id.
+# card of the work of the right type (or a milestone, or a foreshadowing planted in another
+# episode), so a missing row = a dangling id.
 REFERENCES = [
+    ("part_id", "SELECT 1 FROM episode WHERE card_id = :ep AND part_id = :ref"),
     ("characters", "SELECT 1 FROM episode_character WHERE episode_id = :ep AND card_id = :ref"),
     ("world", "SELECT 1 FROM episode_world WHERE episode_id = :ep AND card_id = :ref"),
     (
@@ -78,6 +81,10 @@ REFERENCES = [
         "SELECT 1 FROM episode_link WHERE from_id = :ep AND to_id = :ref AND kind = 'cause'",
     ),
     ("fulfills", "SELECT 1 FROM milestone_fill WHERE milestone_id = :ref AND card_id = :ep"),
+    (
+        "foreshadowing.payoffs",
+        "SELECT 1 FROM foreshadowing WHERE id = :ref AND payoff_episode_id = :ep",
+    ),
 ]
 
 
@@ -107,8 +114,11 @@ def check_genre(genre: str, catalog: dict[str, Any]) -> tuple[list[str], int]:
     with tempfile.TemporaryDirectory() as tmp:
         conn, work_id = open_work(Path(tmp), seeds)
         try:
-            for episode in doc["episodes"]:
-                cards.save(conn, episode_card(episode, work_id))
+            # Twice: the first pass leaves no row for a reference to an episode (or a
+            # foreshadowing it plants) later in the file; the second resolves it.
+            for _ in range(2):
+                for episode in doc["episodes"]:
+                    cards.save(conn, episode_card(episode, work_id))
             for episode in doc["episodes"]:
                 row = conn.execute(
                     "SELECT status FROM card WHERE id = ?", (episode["id"],)
