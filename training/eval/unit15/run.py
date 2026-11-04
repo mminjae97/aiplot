@@ -15,6 +15,7 @@ import argparse
 import asyncio
 import copy
 import json
+import sys
 import tempfile
 import time
 from collections.abc import AsyncGenerator
@@ -195,13 +196,18 @@ async def run_card(
             finally:
                 conn.close()
     except Exception as exc:
-        # Any failure is this case's error (scored like a failed card); the run goes on.
+        # Any failure is this case's error (scored like a failed card); the run goes on. No
+        # total_s: a failed card stays out of the time stats (failed_after_s = time from the
+        # model call to the failure, null if it failed before the call).
         return {
             "id": case["id"],
             "error": exc.code if isinstance(exc, LlmError) else type(exc).__name__,
             "message": str(exc)[:500],
             "attempts": len(counter.attempts) - before,
-            "total_s": round(time.perf_counter() - started, 1) if started is not None else 0.0,
+            "total_s": None,
+            "failed_after_s": round(time.perf_counter() - started, 1)
+            if started is not None
+            else None,
         }
 
 
@@ -285,15 +291,35 @@ async def main() -> None:
             write(args.out, results)
     await counter.client.aclose()
     results["finished_at"] = datetime.now(UTC).isoformat()
-    write(args.out, results)
-    print(f"wrote {args.out}")
+    if write(args.out, results):
+        print(f"wrote {args.out}")
 
 
-def write(path: Path, results: dict[str, Any]) -> None:
-    """Whole file to a temp name, then swapped in: an interrupted write never leaves half."""
+# Tries to swap the result file in (a reader holding it open blocks the swap on Windows).
+WRITE_TRIES = 5
+WRITE_RETRY_S = 0.2
+
+
+def write(path: Path, results: dict[str, Any]) -> bool:
+    """Whole file to a temp name, then swapped in: an interrupted write never leaves half.
+    The swap fails on Windows while another process holds the file open (e.g. score.py
+    reading it): retried a few times, then only warned about, so the run goes on and the next
+    case's write tries again (the .tmp file holds the latest results meanwhile)."""
     temp = path.with_name(path.name + ".tmp")
     temp.write_text(json.dumps(results, ensure_ascii=False, indent=1), encoding="utf-8")
-    temp.replace(path)
+    for attempt in range(WRITE_TRIES):
+        try:
+            temp.replace(path)
+            return True
+        except PermissionError as exc:
+            if attempt == WRITE_TRIES - 1:
+                print(
+                    f"WARNING: could not replace {path} ({exc}); latest results in {temp}",
+                    file=sys.stderr,
+                )
+            else:
+                time.sleep(WRITE_RETRY_S)
+    return False
 
 
 if __name__ == "__main__":

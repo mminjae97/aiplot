@@ -12,7 +12,10 @@ bool, "unsupported": bool, "note": str}}}, then checked by the user in the repor
 still unjudged show as pending and are left out of the rates, except an empty facts / items
 field: a miss without a judgement. An ids field holding ids that miss the gold needs a
 judgement for unsupported (pending until then). A card the run failed to make counts every
-scored field as a miss. A run missing any case or name turn is flagged PARTIAL RUN.
+scored field as a miss, and stays out of the time stats; only invalid or truncated model output
+counts as a JSON failure, other errors are counted apart. A name turn that ended in an error is
+counted apart and left out of both name rates. A run missing any case or name turn, or with an
+errored name turn, is flagged PARTIAL RUN.
 
 Unsupported fill = unsupported / filled fields, over fields that can be unsupported (not exact
 or given ones). Name false rate = wrong pairs in the turns that must flag none / those turns.
@@ -28,6 +31,8 @@ from pathlib import Path
 from typing import Any
 
 HERE = Path(__file__).parent
+# Errors that mean the model's output was not a valid card (after the one retry).
+JSON_ERRORS = {"LLM_INVALID_OUTPUT", "LLM_OUTPUT_TRUNCATED"}
 GENRES = ["fantasy", "hunter", "romance", "wuxia", "mystery", "scifi"]
 TYPE_KO = {
     "world": "세계관",
@@ -165,14 +170,17 @@ def main() -> None:
     names = {n["id"]: n for g in genres.values() for n in g["names"]}
 
     rows: list[dict[str, Any]] = []
-    fields = matched = pending = unsupported = filled = invalid = retried = 0
+    fields = matched = pending = unsupported = filled = invalid = card_errors = retried = 0
     by_type: dict[str, list[int]] = {}
     for result in run["cards"]:
         case = cases[result["id"]]
         if result.get("attempts", 1) > 1:
             retried += 1
         if "card" not in result:
-            invalid += 1
+            if result.get("error") in JSON_ERRORS:
+                invalid += 1
+            else:
+                card_errors += 1
             # Every field the card should have had is a miss.
             for gold in case["gold"]:
                 if gold["kind"] in SCORED:
@@ -206,8 +214,14 @@ def main() -> None:
 
     found = expected = false_pairs = negatives = 0
     name_rows = []
+    errored_names: list[str] = []
     for result in run["names"]:
         case = names[result["id"]]
+        if result.get("error"):
+            # The turn never got its names checked: neither found nor clean.
+            errored_names.append(case["id"])
+            name_rows.append({"case": case, "result": result, "hits": [], "wrong": []})
+            continue
         pairs = result.get("similar_names") or []
         hits = [e for e in case["expect"] if any(same(p, e) for p in pairs)]
         # `allow`: pairs that are fair to ask about (a given name and the full name).
@@ -224,25 +238,34 @@ def main() -> None:
     # A run made with run.py --cases or --skip-names scores like a full one: say so.
     missing_cases = sorted(set(cases) - {r["id"] for r in run["cards"]})
     missing_names = sorted(set(names) - {r["id"] for r in run["names"]})
-    partial = bool(missing_cases or missing_names)
+    partial = bool(missing_cases or missing_names or errored_names)
     print(
         f"scored {len(run['cards'])} / {len(cases)} cards, "
         f"{len(run['names'])} / {len(names)} name turns",
         file=sys.stderr,
     )
-    if partial:
+    if missing_cases or missing_names:
         print(
             f"PARTIAL RUN: missing cards {missing_cases or 'none'}, "
             f"name turns {missing_names or 'none'}; rates are not comparable to a full run",
             file=sys.stderr,
         )
+    if errored_names:
+        print(
+            f"PARTIAL RUN: name turns that ended in an error {errored_names}; "
+            "left out of the name rates",
+            file=sys.stderr,
+        )
 
     firsts = [r["first_char_s"] for r in run["names"] if r.get("first_char_s") is not None]
     card_usage = [r["usage"] for r in run["cards"] if r.get("usage")]
+    # Made cards only: a failed one's time says nothing about generation.
+    seconds = [r["total_s"] for r in run["cards"] if "card" in r and r.get("total_s") is not None]
     summary = {
         "partial_run": partial,
         "missing_cases": missing_cases,
         "missing_name_turns": missing_names,
+        "errored_name_turns": errored_names,
         "field_match": rate(matched, fields),
         "fields_scored": fields,
         "fields_pending": pending,
@@ -251,11 +274,13 @@ def main() -> None:
         "unsupported_fields": unsupported,
         "filled_fields": filled,
         "json_invalid": invalid,
+        "card_errors": card_errors,
         "json_retried": retried,
         "cards": len(run["cards"]),
         "cards_expected": len(cases),
         "name_turns": len(run["names"]),
         "name_turns_expected": len(names),
+        "names_errored": len(errored_names),
         "names_found": rate(found, expected),
         "names_expected": expected,
         # Wrong pairs per turn that must flag none.
@@ -276,10 +301,8 @@ def main() -> None:
             "completion_max": max((u["completion_tokens"] for u in card_usage), default=None),
         },
         "card_seconds": {
-            "median": statistics.median(r["total_s"] for r in run["cards"])
-            if run["cards"]
-            else None,
-            "max": max((r["total_s"] for r in run["cards"]), default=None),
+            "median": statistics.median(seconds) if seconds else None,
+            "max": max(seconds, default=None),
         },
     }
     print(json.dumps(summary, ensure_ascii=False, indent=1))
@@ -333,6 +356,11 @@ def summary_table(s: dict[str, Any]) -> str:
             f"목표 0 · 재시도가 쓰인 카드 {s['json_retried']}장",
         ],
         [
+            "다른 오류로 실패한 카드",
+            f"{s['card_errors']} / {s['cards']}",
+            "연결 실패, 앱 코드 예외 등 · JSON 실패에 넣지 않음, 필드는 모두 틀림",
+        ],
+        [
             "비슷한 이름 감지",
             pct(s["names_found"]),
             f"목표 90% 이상 · 기대 {s['names_expected']}쌍",
@@ -341,6 +369,11 @@ def summary_table(s: dict[str, Any]) -> str:
             "잘못 감지",
             pct(s["names_false"]),
             f"목표 10% 이하 · 잘못 낸 쌍 {s['names_false_pairs']}개",
+        ],
+        [
+            "오류로 끝난 이름 대화",
+            f"{s['names_errored']} / {s['name_turns']}",
+            "두 이름 비율에서 뺌",
         ],
         ["대화 첫 글자", f"중앙 {first['median']}초 · 최대 {first['max']}초", "목표 2초 이내"],
         [
@@ -354,10 +387,12 @@ def summary_table(s: dict[str, Any]) -> str:
     rows.append(["종류별 일치율", by_type, ""])
     warning = ""
     if s["partial_run"]:
+        errored = f", 오류로 끝난 이름 대화 {s['names_errored']}개" if s["names_errored"] else ""
         warning = (
             "<p class='warn'>일부만 실행한 결과예요 (카드 "
             f"{s['cards']} / {s['cards_expected']}장, 이름 대화 "
-            f"{s['name_turns']} / {s['name_turns_expected']}개). 전체 실행과 비교할 수 없어요.</p>"
+            f"{s['name_turns']} / {s['name_turns_expected']}개{errored}). "
+            "전체 실행과 비교할 수 없어요.</p>"
         )
     return warning + "<table class='sum'>" + "".join(tr(r) for r in rows) + "</table>"
 
@@ -391,10 +426,12 @@ def card_section(row: dict[str, Any]) -> str:
         failed = html.escape(f"{result.get('error', '')} {result.get('message', '')}")
         trs.append(f"<tr class='bad'><td colspan=4>생성 실패: {failed}</td></tr>")
     guess = ", ".join((result.get("card") or {}).get("ai_guess") or []) or "없음"
-    title = (
-        f"{case['id']} · {TYPE_KO[case['type']]} · "
-        f"{result.get('total_s')}초 · 시도 {result.get('attempts')}번"
-    )
+    if "card" in result:
+        took = f"{result.get('total_s')}초"
+    else:
+        after = result.get("failed_after_s")
+        took = "모델 호출 전 실패" if after is None else f"{after}초 뒤 실패"
+    title = f"{case['id']} · {TYPE_KO[case['type']]} · {took} · 시도 {result.get('attempts')}번"
     return (
         f"<section><h3>{title}</h3>"
         f"<details><summary>원문</summary><ol class='notes'>{notes}</ol></details>"
@@ -408,11 +445,18 @@ def card_section(row: dict[str, Any]) -> str:
 def name_row(n: dict[str, Any]) -> str:
     case, result = n["case"], n["result"]
     want = ", ".join(f"{e['mentioned']}→{e['card_id']}" for e in case["expect"]) or "없음"
-    pairs = result.get("similar_names") or []
-    got = ", ".join(f"{p.get('mentioned')}→{p.get('card_id')}" for p in pairs) or "없음"
-    ok = len(n["hits"]) == len(case["expect"]) and not n["wrong"]
-    cells = [case["id"], html.escape(case["text"]), html.escape(want), html.escape(got)]
-    return tr([*cells, f"{result.get('first_char_s')}초"], "ok" if ok else "bad")
+    error = result.get("error")
+    if error:
+        got = "오류: " + html.escape(f"{error.get('code', '')} {error.get('message', '')}")
+        cls = "bad"
+    else:
+        pairs = result.get("similar_names") or []
+        got = html.escape(
+            ", ".join(f"{p.get('mentioned')}→{p.get('card_id')}" for p in pairs) or "없음"
+        )
+        cls = "ok" if len(n["hits"]) == len(case["expect"]) and not n["wrong"] else "bad"
+    cells = [case["id"], html.escape(case["text"]), html.escape(want), got]
+    return tr([*cells, f"{result.get('first_char_s')}초"], cls)
 
 
 def report(

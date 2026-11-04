@@ -54,6 +54,10 @@ user to check. Rules:
 - Field match = matched / scored fields (exact, ids, facts, items). A facts / items field with
   no judged entry is pending and left out, except an empty one: that is a miss without a
   judgement. A card the run failed to make counts every one of its scored fields as a miss.
+- JSON failures = cards whose output stayed invalid or truncated after the one retry
+  (`LLM_INVALID_OUTPUT`, `LLM_OUTPUT_TRUNCATED`). Cards that failed otherwise (server down, a
+  crash in the app's code) are counted apart (`card_errors`). Card time and tokens are over the
+  cards made; a failed card stays out of them.
 - Unsupported fill = unsupported / filled fields that can be unsupported (all but exact ones,
   which are compared, not judged, and given ones, which the input fixes). A filled field with
   no judged entry that needs one (facts / items, an optional one with no evidence and no AI
@@ -63,6 +67,9 @@ user to check. Rules:
 - A run missing any case or name turn (run.py `--cases`, `--skip-names`) is a partial run:
   score.py prints the scored cards and name turns against the case files' totals, warns
   PARTIAL RUN on stderr and sets `partial_run` (with the missing ids) in its JSON.
+- A name turn that ended in an error (no names checked) is neither found nor clean: it is
+  counted apart (`names_errored`, `errored_name_turns`), left out of both name rates, shown as
+  an error in the report, and makes the run partial (PARTIAL RUN on stderr).
 - Name false rate = wrong pairs in the turns that must flag none / those turns. A pair naming
   part of the card's name (무현 for 연무현), or the name with more, is fair to ask about.
 
@@ -78,6 +85,9 @@ uv run python eval/unit15/score.py eval/results/unit15/run.json \
 run.py writes its result after every case, so a crash keeps what was done (`finished_at` only
 once it ends). A case that fails in any way (model error, invalid output, a crash in the app's
 code) records the error under its id and the run goes on; the scorer counts it as a failed
-card.
+card (`total_s` null; `failed_after_s` = time from the model call to the failure, null if it
+failed before the call). If the result file is held open by another process (e.g. score.py
+reading it mid-run), the swap is retried a few times, then only warned about on stderr: the
+latest results stay in `run.json.tmp` and the next case's write tries again.
 
 Results (raw model output, judgements, reports) stay out of git (eval/.gitignore).
