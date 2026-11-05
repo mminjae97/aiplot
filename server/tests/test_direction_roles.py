@@ -1,4 +1,4 @@
-"""The scene and pick roles (§9, §13): context, narrowed schemas, cleaning and retries."""
+"""The scene role (§9, §13): context, narrowed schema, cleaning and retries."""
 
 import json
 import re
@@ -11,15 +11,13 @@ import pytest
 
 from aiplot.db.connection import connect
 from aiplot.db.migrate import init_db
-from aiplot.generated.roles.pick_output import PickOutput
-from aiplot.generated.roles.scene_output import SceneChecks, SceneOutput
+from aiplot.generated.roles.scene_output import SceneDevices, SceneOutput
 from aiplot.llm.client import ChatRequest, Delta, LlmError, Message, Usage
 from aiplot.llm.config import PROMPTS_DIR, load_llm_config
 from aiplot.llm.fake import FakeClient
 from aiplot.llm.router import Router
-from aiplot.services import cards, direction, direction_context, techniques
-from aiplot.services.direction import EpisodeNotReadyError, UnknownStageError
-from aiplot.services.direction_context import Scene
+from aiplot.services import cards, direction, techniques
+from aiplot.services.direction import EpisodeNotReadyError
 from tests.test_card_delete import episode
 from tests.test_cards import character, fixture, region, save, story
 from tests.test_draft_messages import Scripted
@@ -37,15 +35,7 @@ SUMMARIES = {
     "절정": "등대에서 테오가 편지의 주인과 마주친다.",
     "결말": "테오는 편지를 바다에 던지고 항구를 떠난다.",
 }
-NO_CHECKS = {key: False for key in SceneChecks.model_fields}
-SUSPENSE = Scene(
-    scene=3,
-    source="위기",
-    summary="편지를 쓴 사람이 테오를 지켜보지만 테오는 모른다.",
-    checks=SceneChecks.model_validate(NO_CHECKS),
-    effects=["서스펜스", "긴장"],
-    situations=["비밀", "위기"],
-)
+NO_DEVICES = {key: False for key in SceneDevices.model_fields}
 
 
 TENSION = [1, 2, 4, 5, 3]
@@ -127,23 +117,11 @@ def scene(number: int, source: str, **changes: Any) -> dict[str, Any]:
         "scene": number,
         "source": source,
         "summary": SUMMARIES.get(source, "요약"),
-        "checks": NO_CHECKS,
+        "devices": NO_DEVICES,
         "effects": ["긴장"],
         "situations": ["위기"],
         **changes,
     }
-
-
-def picks_json(*combinations: list[str]) -> str:
-    return json.dumps(
-        {
-            "picks": [
-                {"rank": rank, "techniques": ids, "reason": "이 장면에 맞아요."}
-                for rank, ids in enumerate(combinations, start=1)
-            ]
-        },
-        ensure_ascii=False,
-    )
 
 
 # scene ------------------------------------------------------------------------------------
@@ -189,7 +167,7 @@ async def test_scene_sees_the_episode_and_its_active_cards(
     assert block(text, "지시") == "나눌 단계: 발단, 전개, 위기, 절정, 결말"
 
     assert [s.source for s in result.scenes] == FIVE
-    assert (result.meta.role, result.meta.prompt_version) == ("scene", 3)
+    assert (result.meta.role, result.meta.prompt_version) == ("scene", 4)
     # The fixture client reports no usage.
     assert (result.usage, result.generations) == (None, 1)
 
@@ -263,8 +241,6 @@ async def test_episode_not_ready_is_refused_before_any_call(
     for card_id in ("c_ep2", "c_ep3", "c_teo"):
         with pytest.raises(EpisodeNotReadyError):
             await direction.split_scenes(router, conn, card_id)
-        with pytest.raises(EpisodeNotReadyError):
-            await direction.recommend(router, conn, card_id, SUSPENSE)
     with pytest.raises(cards.CardNotFoundError):
         await direction.split_scenes(router, conn, "c_nothing")
     assert client.requests == []
@@ -281,8 +257,6 @@ async def test_an_incomplete_main_story_makes_every_episode_inactive(
     assert cards.get(conn, "c_ep1").status == "complete"  # type: ignore[union-attr]
     with pytest.raises(EpisodeNotReadyError):
         await direction.split_scenes(router, conn, "c_ep1")
-    with pytest.raises(EpisodeNotReadyError):
-        await direction.recommend(router, conn, "c_ep1", SUSPENSE)
     assert client.requests == []
 
 
@@ -301,159 +275,6 @@ async def test_payoffs_planted_in_an_inactive_episode_stay_out(
     assert "부서진 등대" not in text
     assert "회수하는 복선" not in text
     assert "- 테오의 왼손 흉터" in text
-
-
-# pick -------------------------------------------------------------------------------------
-
-
-async def test_pick_sees_the_scene_and_its_narrowed_candidates(
-    conn: sqlite3.Connection, tmp_path: Path
-) -> None:
-    client = FakeClient()
-    result = await direction.recommend(make_router(client, tmp_path), conn, "c_ep1", SUSPENSE)
-    narrowed = direction.candidates(conn, SUSPENSE.effects, SUSPENSE.situations)
-    assert [c.id for c in result.candidates] == [c.id for c in narrowed]
-    assert len(narrowed) == direction.CANDIDATE_LIMIT
-
-    text = user_turn(client)
-    assert block(text, "원문").splitlines() == [
-        "제목: 1화",
-        "주제: 귀환",
-        "줄거리: 테오가 항구에 돌아와 옛 편지의 주인을 찾는다.",
-        f"이 장면의 단계: 위기 (긴장도 4): {SUMMARIES['위기']}",
-    ]
-    assert block(text, "지시").splitlines() == [
-        f"장면: {SUSPENSE.summary}",
-        "원하는 효과: 서스펜스, 긴장",
-        "상황: 비밀, 위기",
-        direction_context.REASON_STYLE,
-    ]
-    entries = block(text, "참고 카드").split("\n\n")
-    assert [e.splitlines()[0] for e in entries] == [f"{c.id} {c.name}" for c in narrowed]
-    for entry, card in zip(entries, narrowed, strict=True):
-        assert entry.splitlines()[1:5] == [
-            f"정의: {card.description}",
-            f"쓸 때: {' / '.join(card.use_when)}",
-            f"피할 때: {' / '.join(card.avoid_when)}",
-            f"전제: {card.requires}",
-        ]
-    for card in CATALOG:
-        assert card.example not in text, card.id
-    # tech_inf_001 conflicts with cards outside this list only: no conflict is shown.
-    assert BY_ID["tech_inf_001"].conflicts_with
-    assert "충돌" not in text
-    for other in BY_ID["tech_inf_001"].conflicts_with:
-        assert other not in text
-
-    schema = client.requests[0].json_schema
-    assert schema == direction.pick_schema([c.id for c in narrowed])
-    assert [p.techniques for p in result.picks] == [
-        ["tech_inf_001", "tech_tim_024"],
-        ["tech_cha_022"],
-    ]
-    assert (result.meta.role, result.meta.prompt_version) == ("pick", 2)
-
-
-async def test_pick_marks_conflicts_among_the_candidates(
-    conn: sqlite3.Connection, tmp_path: Path
-) -> None:
-    reveal = SUSPENSE.model_copy(
-        update={"effects": ["서스펜스", "놀람"], "situations": ["비밀", "진실폭로"]}
-    )
-    client = Scripted()
-    client.say("pick", picks_json(["tech_inf_001"]))
-    await direction.recommend(make_router(client, tmp_path), conn, "c_ep1", reveal)
-    entries = {
-        e.splitlines()[0].split()[0]: e for e in block(user_turn(client), "참고 카드").split("\n\n")
-    }
-    assert {"tech_inf_001", "tech_inf_003", "tech_inf_013"} <= set(entries)
-    clash = [line for line in entries["tech_inf_001"].splitlines() if line.startswith("충돌: ")]
-    assert len(clash) == 1
-    assert "tech_inf_003 놀람형 은폐" in clash[0]
-    assert "tech_inf_013 레드 헤링" in clash[0]
-
-
-async def test_pick_schema_limits_ids_to_the_candidates() -> None:
-    schema = direction.pick_schema(["tech_inf_001", "tech_tim_024"])
-    assert schema["$defs"]["TechniqueId"] == {
-        "type": "string",
-        "enum": ["tech_inf_001", "tech_tim_024"],
-    }
-    items = schema["$defs"]["OutputPick"]["properties"]["techniques"]["items"]
-    assert items == {"$ref": "#/$defs/TechniqueId"}
-    assert_plain(schema)
-    assert "enum" not in PickOutput.model_json_schema()["$defs"]["TechniqueId"]
-
-
-async def test_pick_output_is_cleaned(conn: sqlite3.Connection, tmp_path: Path) -> None:
-    reveal = SUSPENSE.model_copy(
-        update={"effects": ["서스펜스", "놀람"], "situations": ["비밀", "진실폭로"]}
-    )
-    client = Scripted()
-    client.say(
-        "pick",
-        picks_json(
-            ["tech_inf_001", "tech_inf_003"],  # a conflicting pair
-            ["tech_inf_003", "tech_inf_003", "tech_ser_019"],  # a serial card: no candidate
-            ["tech_inf_013"],
-        ),
-    )
-    result = await direction.recommend(make_router(client, tmp_path), conn, "c_ep1", reveal)
-    assert [(p.rank, p.techniques) for p in result.picks] == [
-        (1, ["tech_inf_003"]),
-        (2, ["tech_inf_013"]),
-    ]
-
-
-async def test_pick_regenerates_once_when_nothing_survives(
-    conn: sqlite3.Connection, tmp_path: Path
-) -> None:
-    reveal = SUSPENSE.model_copy(
-        update={"effects": ["서스펜스", "놀람"], "situations": ["비밀", "진실폭로"]}
-    )
-    clash = picks_json(["tech_inf_001", "tech_inf_003"])
-    client = Scripted()
-    client.say("pick", clash, picks_json(["tech_inf_013"]))
-    result = await direction.recommend(make_router(client, tmp_path), conn, "c_ep1", reveal)
-    assert [p.techniques for p in result.picks] == [["tech_inf_013"]]
-    assert len(client.requests) == 2
-
-    client = Scripted()
-    client.say("pick", clash)
-    with pytest.raises(LlmError) as exc_info:
-        await direction.recommend(make_router(client, tmp_path), conn, "c_ep1", reveal)
-    assert exc_info.value.code == "LLM_INVALID_OUTPUT"
-    assert len(client.requests) == 2
-
-
-async def test_pick_refuses_a_scene_from_another_stage(
-    conn: sqlite3.Connection, tmp_path: Path
-) -> None:
-    client = FakeClient()
-    with pytest.raises(UnknownStageError):
-        await direction.recommend(
-            make_router(client, tmp_path),
-            conn,
-            "c_ep1",
-            SUSPENSE.model_copy(update={"source": "승"}),
-        )
-    assert client.requests == []
-
-
-async def test_pick_without_candidates_is_refused_before_any_call(
-    conn: sqlite3.Connection, tmp_path: Path
-) -> None:
-    # A catalog where no direction candidate shares the scene's tags.
-    others = [
-        card.model_copy(update={"pairs_with": [], "conflicts_with": []})
-        for card in CATALOG
-        if not direction.is_candidate(card)
-    ]
-    techniques.sync(conn, others)
-    client = FakeClient()
-    with pytest.raises(direction.NoCandidatesError):
-        await direction.recommend(make_router(client, tmp_path), conn, "c_ep1", SUSPENSE)
-    assert client.requests == []
 
 
 # usage --------------------------------------------------------------------------------------
@@ -481,22 +302,6 @@ async def test_results_carry_the_kept_usage_and_every_generation(
     assert result.generations == 2
     assert result.usage == Usage(prompt_tokens=100, cached_tokens=0, completion_tokens=20)
 
-    reveal = SUSPENSE.model_copy(
-        update={"effects": ["서스펜스", "놀람"], "situations": ["비밀", "진실폭로"]}
-    )
-    client = Metered()
-    # Invalid JSON (the router retries), a conflicting pair (nothing kept), then a good one.
-    client.say(
-        "pick",
-        "{not json",
-        picks_json(["tech_inf_001", "tech_inf_003"]),
-        picks_json(["tech_inf_013"]),
-    )
-    picked = await direction.recommend(make_router(client, tmp_path), conn, "c_ep1", reveal)
-    assert [p.techniques for p in picked.picks] == [["tech_inf_013"]]
-    assert picked.generations == len(client.requests) == 3
-    assert picked.usage == Usage(prompt_tokens=100, cached_tokens=0, completion_tokens=30)
-
 
 # prompts ----------------------------------------------------------------------------------
 
@@ -509,20 +314,14 @@ async def test_system_prompts_hold_no_per_call_values(
     save(conn, ep("c_ep4", "4화", theme="다른 주제", structure=stages()))
     await direction.split_scenes(router, conn, "c_ep1")
     await direction.split_scenes(router, conn, "c_ep4")
-    await direction.recommend(router, conn, "c_ep1", SUSPENSE)
-    # Other candidates; the fixture's tech_cha_022 is among them too.
-    other = SUSPENSE.model_copy(update={"effects": ["여운"], "situations": ["이별"]})
-    await direction.recommend(router, conn, "c_ep4", other)
-    scene_a, scene_b, pick_a, pick_b = (r.messages[0] for r in client.requests)
+    scene_a, scene_b = (r.messages[0] for r in client.requests)
     assert scene_a == scene_b == {"role": "system", "content": router.system_prompt("scene")}
-    assert pick_a == pick_b == {"role": "system", "content": router.system_prompt("pick")}
-    assert client.requests[2].messages[1] != client.requests[3].messages[1]
-    for prompt in (scene_a["content"], pick_a["content"]):
-        for value in ("tech_", "c_ep", "테오", "귀환", "<!--"):
-            assert value not in prompt, value
+    assert client.requests[0].messages[1] != client.requests[1].messages[1]
+    for value in ("tech_", "c_ep", "테오", "귀환", "<!--"):
+        assert value not in scene_a["content"], value
 
 
-@pytest.mark.parametrize("version", [1, 3])
+@pytest.mark.parametrize("version", [1, 3, 4])
 def test_scene_prompt_lists_every_tag(version: int) -> None:
     """The prompt's two lists are the fixed tag lists (§9), in order; glosses in brackets."""
     text = (PROMPTS_DIR / "scene" / f"v{version}.md").read_text(encoding="utf-8")
@@ -551,29 +350,18 @@ def test_scene_checklist_leads_to_real_tags() -> None:
     assert "시간경과" in text.split("과거사 (", 1)[1].split(")", 1)[0]
 
 
-def test_scene_prompt_asks_every_check_in_order() -> None:
-    """v3 explains each checks field (the model never sees the schema), in the schema's order."""
-    body = (PROMPTS_DIR / "scene" / "v3.md").read_text(encoding="utf-8").split("-->", 1)[1]
-    asked = re.findall(r"^  - ([a-z_]+): ", body, re.MULTILINE)
-    assert asked == list(SceneChecks.model_fields)
-    # Field order of the output too: the checks are answered after the summary, before the tags.
+def test_scene_prompt_asks_every_device_in_order() -> None:
+    """v4 asks each device (the model never sees the schema), in the device list's order, with
+    the questions first written for the cards (training/eval/step2/devices/vocab.json)."""
+    body = (PROMPTS_DIR / "scene" / "v4.md").read_text(encoding="utf-8").split("-->", 1)[1]
+    asked = re.findall(r"^  - ([a-z_]+): (.+)$", body, re.MULTILINE)
+    vocab_file = SCHEMAS.parents[1] / "training" / "eval" / "step2" / "devices" / "vocab.json"
+    vocab = json.loads(vocab_file.read_text(encoding="utf-8"))
+    assert asked == [(v["key"], v["question"]) for v in vocab]
+    assert [k for k, _ in asked] == list(SceneDevices.model_fields)
+    # Field order of the output too: the devices are answered after the summary, before the tags.
     items = re.findall(r"^- ([a-z_]+): ", body.split("\n항목\n", 1)[1], re.MULTILINE)
-    assert items[:6] == ["scene", "source", "summary", "checks", "effects", "situations"]
-
-
-def test_pick_prompt_asks_for_haeyo_reasons() -> None:
-    text = (PROMPTS_DIR / "pick" / "v1.md").read_text(encoding="utf-8")
-    body = text.split("-->", 1)[1]
-    for ending in ('"~해요"', '"~어요"', '"~이에요"'):
-        assert ending in body
-    # Said once with the field and once more at the very end, in 해요체 itself.
-    assert body.strip().splitlines()[-1].endswith('"요"로 끝내요.')
-    reason = body.split("- reason:", 1)[1].split("\n\n", 1)[0]
-    for line in reason.splitlines():
-        assert line.rstrip().endswith(("요.", '요."')), line
-    # The pick turn ends with the same 해요체 line on every call.
-    assert direction_context.REASON_STYLE.endswith("않아요.")
-    assert "따옴표" in direction_context.REASON_STYLE
+    assert items[:6] == ["scene", "source", "summary", "devices", "effects", "situations"]
 
 
 def assert_plain(schema: dict[str, Any]) -> None:

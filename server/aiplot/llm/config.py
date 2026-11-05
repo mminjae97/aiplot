@@ -16,7 +16,6 @@ Role = Literal[
     "source",
     "card",
     "scene",
-    "pick",
     "direct",
     "write",
     "check",

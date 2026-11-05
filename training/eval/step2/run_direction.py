@@ -1,17 +1,16 @@
-"""Step 2: scene split, candidate narrowing and pick on the real model (§20 step 2).
+"""Step 2: scene split and code recommendation on the real model (§20 step 2).
 
 Start llama-server by hand with the base profile's GGUF and flags (§17), then:
     uv run python eval/step2/run_direction.py --url http://127.0.0.1:8796 \
-        --out eval/results/step2/run1.json
+        --out eval/results/step2/run9.json
 
 Each genre's completed seeds and episodes go into a throwaway database through the app's card
 save (check.py). Per episode, the app's own code: `direction.split_scenes` (the scene role,
-one more generation when cleaning leaves nothing), then for every scene whose source is one of
-the episode's scored stages, `direction.candidates` (narrowing, §9) and `direction.recommend`
-(the pick role). Scenes of unscored stages get no pick call. Roles keep their configured
-settings (config/roles.yaml). `--fake` uses the fixture client instead of a server (a check
-of the runner and scorer, not a measurement). Results hold raw model output and prompts and
-stay out of git (eval/results/ is gitignored); score_direction.py scores them.
+one more generation when cleaning leaves nothing), then for every scene `direction.recommend`
+(the 5 cards, no model call) and, for analysis, the first 20 of the same ranking. Roles keep
+their configured settings (config/roles.yaml). `--fake` uses the fixture client instead of a
+server (a check of the runner and scorer, not a measurement). Results hold raw model output
+and prompts and stay out of git (eval/results/ is gitignored); score_direction.py scores them.
 """
 
 import argparse
@@ -27,6 +26,7 @@ from typing import Any
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE.parent / "unit15"))
 
+from aiplot.db import techniques as techniques_db  # noqa: E402
 from aiplot.llm.client import LlamaClient, LlmError, Usage  # noqa: E402
 from aiplot.llm.config import load_llm_config  # noqa: E402
 from aiplot.llm.fake import FakeClient  # noqa: E402
@@ -48,35 +48,26 @@ def failure(exc: Exception) -> dict[str, str]:
     return {"error": code, "message": str(exc)[:500]}
 
 
-async def run_scene_pick(
-    router: Router, conn: Any, episode_id: str, scene: Scene
-) -> dict[str, Any]:
-    """Candidates (kept even when the pick call fails) and the pick role's combinations."""
-    record: dict[str, Any] = {"scene": scene.scene, "source": scene.source}
-    found = direction.candidates(conn, scene.effects, scene.situations)
-    record["candidates"] = [card.id for card in found]
-    if not found:
-        return {**record, "error": "NO_CANDIDATES", "message": "no candidate shares a tag"}
-    episode = direction.ready_episode(conn, episode_id)
-    stage = next(s for s in context.stages_of(episode) if s.name == scene.source)
-    record["prompt"] = context.pick_turns(episode, stage, scene, found)[0]["content"]
-    started = time.perf_counter()
-    try:
-        result = await direction.recommend(router, conn, episode_id, scene)
-    except Exception as exc:
-        return {**record, **failure(exc), "failed_after_s": round(time.perf_counter() - started, 1)}
+# Ranks kept for analysis beyond the 5 recommended (where the right card sat).
+RANKED = 20
+
+
+def recommendations(conn: Any, scene: Scene) -> dict[str, Any]:
+    """The scene's recommended cards and the first RANKED ids of the same ranking."""
+    catalog = techniques_db.list_all(conn)
     return {
-        **record,
-        "picks": [pick.model_dump(mode="json") for pick in result.picks],
-        "generations": result.generations,
-        "usage": usage(result.usage),
-        "total_s": round(time.perf_counter() - started, 1),
+        "scene": scene.scene,
+        "source": scene.source,
+        "recommended": [asdict(r) for r in direction.recommend(conn, scene)],
+        "ranked": [
+            r.technique_id
+            for r in direction.rank(catalog, scene.devices, scene.effects, scene.situations, RANKED)
+        ],
     }
 
 
 async def run_episode(router: Router, conn: Any, episode: dict[str, Any]) -> dict[str, Any]:
     record: dict[str, Any] = {"id": episode["id"], "name": episode["name"]}
-    scored = {gold["stage"] for gold in episode["gold"]}
     started = time.perf_counter()
     try:
         card = direction.ready_episode(conn, episode["id"])
@@ -91,7 +82,7 @@ async def run_episode(router: Router, conn: Any, episode: dict[str, Any]) -> dic
                 "failed_after_s": round(time.perf_counter() - started, 1),
             },
             "scenes": [],
-            "picks": [],
+            "recommendations": [],
         }
     record["scene_call"] = {
         "generations": result.generations,
@@ -99,12 +90,7 @@ async def run_episode(router: Router, conn: Any, episode: dict[str, Any]) -> dic
         "total_s": round(time.perf_counter() - started, 1),
     }
     record["scenes"] = [scene.model_dump(mode="json") for scene in result.scenes]
-    record["picks"] = []
-    for scene in result.scenes:
-        if scene.source not in scored:
-            continue
-        print(f"  pick {episode['id']} scene {scene.scene} ({scene.source})", flush=True)
-        record["picks"].append(await run_scene_pick(router, conn, episode["id"], scene))
+    record["recommendations"] = [recommendations(conn, scene) for scene in result.scenes]
     return record
 
 
