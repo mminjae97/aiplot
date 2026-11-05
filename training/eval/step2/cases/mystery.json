@@ -1,5 +1,59 @@
 {
  "seeds": "../../unit15/cases/mystery.json",
+ "complete_seeds": {
+  "c_mychar1": {
+   "speech": {
+    "description": "건조하고 단정한 존댓말로, 같은 질문을 되풀이해 묻는다.",
+    "examples": [
+     "다시 한번 말해 주세요. 정확히.",
+     "제 기억은 못 믿어도 기록은 믿습니다.",
+     "그날 몇 시였죠?"
+    ]
+   },
+   "appearance": {
+    "summary": "늘 수첩을 손에 든 짧은 머리의 삼십 대 후반 여성 형사."
+   }
+  },
+  "c_mychar2": {
+   "speech": {
+    "description": "다정하고 편한 말투로, 상대를 안심시키며 방향을 슬쩍 정해 준다.",
+    "examples": [
+     "재희야, 무리하지 마.",
+     "내가 알아볼게. 넌 좀 쉬어.",
+     "그 등대지기, 예전부터 이상했어."
+    ]
+   },
+   "appearance": {
+    "summary": "부드러운 인상에 회색 정장을 입은 사십 대 남자."
+   }
+  },
+  "c_mychar3": {
+   "speech": {
+    "description": "또래답게 밝고 장난스러운 말투.",
+    "examples": [
+     "언니, 이거 봐요!",
+     "등대 불빛 예쁘지 않아요?",
+     "비밀이에요, 아무한테도 말하지 마요."
+    ]
+   },
+   "appearance": {
+    "summary": "노란 우비를 즐겨 입던 열여섯 살 소녀."
+   }
+  },
+  "c_mychar4": {
+   "speech": {
+    "description": "공손하지만 가벼운 말투로, 남이 놓친 것을 툭 짚는다.",
+    "examples": [
+     "선배, 이 필체 좀 이상하지 않아요?",
+     "그 사람 방금 눈 피했어요.",
+     "제가 적어 둘게요."
+    ]
+   },
+   "appearance": {
+    "summary": "후드티 위에 경찰 점퍼를 걸친 이십 대 신입 형사."
+   }
+  }
+ },
  "episodes": [
   {
    "id": "c_myep1",
@@ -8,7 +62,7 @@
     "part_id": "c_mypart1",
     "order": 1,
     "theme": "자기 기억을 의심하는 순간",
-    "relation_to_main": "재희가 실종 사건의 새 단서를 받는 사건(ms_my1)을 이룬다.",
+    "relation_to_main": "재희가 실종 사건의 새 단서를 받는 사건을 이룬다.",
     "fulfills": [
      "ms_my1"
     ],

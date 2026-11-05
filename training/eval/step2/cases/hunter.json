@@ -1,5 +1,59 @@
 {
  "seeds": "../../unit15/cases/hunter.json",
+ "complete_seeds": {
+  "c_huchar1": {
+   "speech": {
+    "description": "평소엔 공손하고 담담하지만, 버틸 때는 스스로에게 짧게 다짐한다.",
+    "examples": [
+     "한 번만 더.",
+     "괜찮습니다, 아직 움직일 수 있어요.",
+     "F급이라도 끝까지는 갑니다."
+    ]
+   },
+   "appearance": {
+    "summary": "낡은 트레이닝복에 짐꾼 배낭을 멘 마른 이십 대 청년."
+   }
+  },
+  "c_huchar2": {
+   "speech": {
+    "description": "낮고 차분한 존댓말로, 서두르지 않고 요점만 말한다.",
+    "examples": [
+     "등급은 시작일 뿐입니다.",
+     "제 길드원입니다. 말 조심하시죠.",
+     "천천히, 처음부터 말해 봐요."
+    ]
+   },
+   "appearance": {
+    "summary": "검은 정장에 단발을 한 삼십 대 여성 길드장."
+   }
+  },
+  "c_huchar3": {
+   "speech": {
+    "description": "부드럽고 여유로운 말투 속에 위압을 숨긴다.",
+    "examples": [
+     "협회는 모두를 위해 존재하지요.",
+     "젊은 친구가 패기가 있군.",
+     "작은 희생은 늘 있는 법입니다."
+    ]
+   },
+   "appearance": {
+    "summary": "회색 머리를 단정히 넘긴 풍채 좋은 오십 대 남자."
+   }
+  },
+  "c_huchar4": {
+   "speech": {
+    "description": "다정한 존댓말에 걱정을 숨기지 못한다.",
+    "examples": [
+     "다친 데 없어요? 이리 와 봐요.",
+     "무리하지 마요, 제발.",
+     "괜찮아요, 금방 나아요."
+    ]
+   },
+   "appearance": {
+    "summary": "흰 치유사 조끼를 입은 갈색 묶음머리의 이십 대 여성."
+   }
+  }
+ },
  "episodes": [
   {
    "id": "c_huep1",
@@ -8,7 +62,7 @@
     "part_id": "c_hupart1",
     "order": 1,
     "theme": "버려진 자리에서 다시 시작하는 사람",
-    "relation_to_main": "도윤이 던전에서 죽을 뻔하다 되감기 능력을 얻는 사건(ms_hu1)을 이룬다.",
+    "relation_to_main": "도윤이 던전에서 죽을 뻔하다 되감기 능력을 얻는 사건을 이룬다.",
     "fulfills": [
      "ms_hu1"
     ],
@@ -95,7 +149,7 @@
     "part_id": "c_hupart1",
     "order": 2,
     "theme": "처음으로 누군가 나를 믿어 주는 순간",
-    "relation_to_main": "도윤이 길드 청운에 들어가는 사건(ms_hu2)을 이룬다.",
+    "relation_to_main": "도윤이 길드 청운에 들어가는 사건을 이룬다.",
     "fulfills": [
      "ms_hu2"
     ],

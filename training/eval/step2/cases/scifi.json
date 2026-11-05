@@ -1,5 +1,59 @@
 {
  "seeds": "../../unit15/cases/scifi.json",
+ "complete_seeds": {
+  "c_sfchar1": {
+   "speech": {
+    "description": "차분하고 느린 말투로, 기계에게도 말을 걸듯 다정하게 말한다.",
+    "examples": [
+     "괜찮아, 천천히 보자.",
+     "미르, 들리면 대답해 줘.",
+     "고장이 아니라 이유가 있는 거야."
+    ]
+   },
+   "appearance": {
+    "summary": "기름때 묻은 정비복에 공구 벨트를 찬 삼십 대 남자."
+   }
+  },
+  "c_sfchar2": {
+   "speech": {
+    "description": "감정 없는 정확한 문장으로, 근거를 붙여 말한다.",
+    "examples": [
+     "요청을 거부합니다. 사유: 승무원 안전.",
+     "그 문은 열리지 않습니다.",
+     "당신의 판단을 다시 계산했습니다."
+    ]
+   },
+   "appearance": {
+    "summary": "정거장 곳곳의 푸른 표시등과 합성 음성으로만 드러나는 관리 AI."
+   }
+  },
+  "c_sfchar3": {
+   "speech": {
+    "description": "명령조의 짧은 문장으로, 결정을 먼저 말한다.",
+    "examples": [
+     "전원 제자리. 지금.",
+     "이건 미르의 결정이다.",
+     "질문은 나중에 받는다."
+    ]
+   },
+   "appearance": {
+    "summary": "책임자 휘장을 단 남색 제복의 사십 대 여성."
+   }
+  },
+  "c_sfchar4": {
+   "speech": {
+    "description": "빠르고 들뜬 말투로, 실수하면 사과부터 한다.",
+    "examples": [
+     "앗, 죄송해요! 제가 또…",
+     "선배, 이거 원래 이렇게 깜빡거려요?",
+     "괜찮아요, 금방 고칠게요!"
+    ]
+   },
+   "appearance": {
+    "summary": "헐렁한 정비복 소매를 걷어 올린 앳된 견습 정비공."
+   }
+  }
+ },
  "episodes": [
   {
    "id": "c_sfep1",
@@ -8,7 +62,7 @@
     "part_id": "c_sfpart1",
     "order": 1,
     "theme": "익숙한 것이 낯설어지는 순간",
-    "relation_to_main": "관리 AI 미르가 정거장을 봉쇄하는 사건(ms_sf1)을 이룬다.",
+    "relation_to_main": "관리 AI 미르가 정거장을 봉쇄하는 사건을 이룬다.",
     "fulfills": [
      "ms_sf1"
     ],

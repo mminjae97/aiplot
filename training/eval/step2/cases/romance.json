@@ -1,5 +1,59 @@
 {
  "seeds": "../../unit15/cases/romance.json",
+ "complete_seeds": {
+  "c_rochar1": {
+   "speech": {
+    "description": "밝고 시원시원한 말투로, 당황하면 말이 빨라진다.",
+    "examples": [
+     "꽃은 거짓말 안 해요.",
+     "아, 아니 그게 아니라요!",
+     "제 가게는 제가 지킵니다."
+    ]
+   },
+   "appearance": {
+    "summary": "흙 묻은 앞치마에 머리를 높이 묶은 이십 대 후반 여성."
+   }
+  },
+  "c_rochar2": {
+   "speech": {
+    "description": "짧고 건조한 말투로, 마음은 행동으로 대신한다.",
+    "examples": [
+     "계약대로 하죠.",
+     "…추우니까 입어요.",
+     "신경 쓰지 마요."
+    ]
+   },
+   "appearance": {
+    "summary": "짙은 코트를 입은 키 큰 삼십 대 남자로, 표정이 잘 변하지 않는다."
+   }
+  },
+  "c_rochar3": {
+   "speech": {
+    "description": "격식 있는 말투로, 질문 하나로 상대를 떠본다.",
+    "examples": [
+     "그래서, 어디서 처음 만났다고?",
+     "우리 집안은 쉽게 사람을 들이지 않는다.",
+     "선택은 네가 해라."
+    ]
+   },
+   "appearance": {
+    "summary": "흰머리를 쪽 찐 단정한 차림의 칠십 대 여성."
+   }
+  },
+  "c_rochar4": {
+   "speech": {
+    "description": "쉴 새 없이 떠드는 반말로, 감탄사가 많다.",
+    "examples": [
+     "야, 대박! 진짜야?",
+     "내가 뭐랬어, 그 남자 수상하다니까.",
+     "잠깐, 처음부터 다시 말해 봐."
+    ]
+   },
+   "appearance": {
+    "summary": "커다란 귀걸이에 짧은 단발의 이십 대 후반 여성."
+   }
+  }
+ },
  "episodes": [
   {
    "id": "c_roep1",
@@ -8,7 +62,7 @@
     "part_id": "c_ropart1",
     "order": 1,
     "theme": "거짓말로 지키는 사이",
-    "relation_to_main": "계약 연애가 시작된 뒤(ms_ro1) 두 사람이 처음으로 가족 앞에서 연인을 연기한다.",
+    "relation_to_main": "계약 연애가 시작된 뒤 두 사람이 처음으로 가족 앞에서 연인을 연기한다.",
     "fulfills": [
      "ms_ro1"
     ],
@@ -94,7 +148,7 @@
     "part_id": "c_ropart1",
     "order": 2,
     "theme": "지키고 싶은 것을 처음 말하는 용기",
-    "relation_to_main": "이준이 하늘의 꽃집을 지키려 가족과 맞서는 사건(ms_ro2)을 이룬다.",
+    "relation_to_main": "이준이 하늘의 꽃집을 지키려 가족과 맞서는 사건을 이룬다.",
     "fulfills": [
      "ms_ro2"
     ],

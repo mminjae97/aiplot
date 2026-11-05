@@ -2,8 +2,10 @@
 
     uv run python eval/step2/check.py
 
-Each genre's episodes are saved, with the unit 15 seed cards they build on, into a throwaway
-database through the app's own card save, and must come out complete (§14 status) with every
+Each genre's episodes are saved, with the unit 15 seed cards they build on (completed by the
+case file's `complete_seeds`), into a throwaway database through the app's own card save. Every
+seed card must come out complete (an incomplete one is inactive, §11, and never reaches the
+`scene` context), and every episode complete (§14 status) with every
 reference they make (part, characters, world, places, links, milestones, foreshadowing payoffs)
 written as a relation row, i.e. resolved to a seed card, another case episode, a milestone or a
 foreshadowing planted in another case episode. Episodes are saved twice, so a reference to one
@@ -29,9 +31,18 @@ SCORED = 20
 
 
 def load(genre: str) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """The genre's case file and its seed cards: the unit 15 seeds, each with the fields
+    `complete_seeds` gives it merged into its data (the unit 15 files stay as they are)."""
     doc = json.loads((HERE / "cases" / f"{genre}.json").read_text(encoding="utf-8"))
     seeds = json.loads((HERE / "cases" / doc["seeds"]).read_text(encoding="utf-8"))["seeds"]
-    return doc, seeds
+    fills: dict[str, Any] = doc["complete_seeds"]
+    unknown = set(fills) - {seed["id"] for seed in seeds}
+    if unknown:
+        raise ValueError(f"{genre}: complete_seeds names no seed {sorted(unknown)}")
+    return doc, [
+        {**seed, "data": merged(seed["data"], fills[seed["id"]])} if seed["id"] in fills else seed
+        for seed in seeds
+    ]
 
 
 def episode_card(episode: dict[str, Any], work_id: str) -> Any:
@@ -114,6 +125,8 @@ def check_genre(genre: str, catalog: dict[str, Any]) -> tuple[list[str], int]:
     with tempfile.TemporaryDirectory() as tmp:
         conn, work_id = open_work(Path(tmp), seeds)
         try:
+            for row in conn.execute("SELECT id, status FROM card WHERE status != 'complete'"):
+                problems.append(f"seed {row['id']}: saved as {row['status']}")
             # Twice: the first pass leaves no row for a reference to an episode (or a
             # foreshadowing it plants) later in the file; the second resolves it.
             for _ in range(2):
