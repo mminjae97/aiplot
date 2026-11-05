@@ -64,7 +64,7 @@ unscored stages get no pick call. `--episodes ID…` runs a subset (scored as a 
 written after every episode and stay out of git; a run that stopped early (no `finished_at`) is
 an UNFINISHED RUN. Only a full, real, finished run can pass.
 
-The scorer also reports the pick reasons' style (해요체 = every sentence ends in 요; technique
+The scorer also reports the pick reasons' style (해요체 = every sentence ends in 요 or 죠 (~지요); technique
 ids written out; a single-technique combination whose reason speaks of combining, e.g. 함께,
 합쳐), call failures, retries, times and token counts (prompt + completion against ctx 12288).
 The Markdown report lists every scored stage with its scenes, the accepted techniques' ranks

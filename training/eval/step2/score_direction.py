@@ -10,7 +10,7 @@ scene call failed or gave the stage no scene) = a miss on both counts.
   them, and every one of them that got a single combination has one in it. A scene whose pick
   call failed recommends nothing.
 
-Also reported: the pick reasons' style (해요체: every sentence ends in 요; ids written out;
+Also reported: the pick reasons' style (해요체: every sentence ends in 요 or 죠; ids written out;
 a single-technique combination whose reason speaks of combining, e.g. 함께, 합쳐), call failures,
 retries, times and token counts against the context size. A run missing a case episode is a
 PARTIAL RUN (scored over the episodes it has); a --fake run is flagged FAKE RUN; a run without
@@ -43,11 +43,15 @@ TECHNIQUE_ID = re.compile(r"tech_[a-z]{3}_\d{3}")
 COMBINING = re.compile(r"함께|합쳐|합치|결합|조합|어우러|곁들")
 
 
+# 해요체 endings: ~요, and ~죠 (= ~지요).
+HEYO_ENDINGS = ("요", "죠")
+
+
 def heyo(reason: str) -> bool:
-    """Every sentence ends in 요 (해요체), closing marks aside."""
+    """Every sentence ends in 요 or 죠 (해요체), closing marks aside."""
     sentences = [s.rstrip(CLOSERS) for s in SENTENCE_END.split(reason.strip())]
     sentences = [s for s in sentences if s]
-    return bool(sentences) and all(s.endswith("요") for s in sentences)
+    return bool(sentences) and all(s.endswith(HEYO_ENDINGS) for s in sentences)
 
 
 def score_stage(record: dict[str, Any], gold: dict[str, Any]) -> dict[str, Any]:
