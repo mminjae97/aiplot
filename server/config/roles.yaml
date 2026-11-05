@@ -26,14 +26,15 @@ roles:
     # Unit 15: long thinking on part cards ran past 4096 (twice on one card). With ctx 12288
     # this leaves room for prompts up to ~7.49k tokens (measured up to ~3.33k).
     max_tokens: 4800
-  # Step 2 (§9): max_tokens are drafts until the step 2 measurement.
+  # Step 2 (§9). Run 1 (training/eval/step2, Q5, ctx 12288, q8_0 KV): no truncation.
   scene:
     profile: qwen3-8b-uncensor-q5km
     lora: null
     prompt: 1
     thinking: true
     sampling: { temperature: 0.3 }
-    # System prompt 2077 tokens (llama-tokenize, prompt v1 as merged).
+    # System prompt 2077 tokens (llama-tokenize, prompt v1 as merged). Run 1, 10 episodes:
+    # prompt_tokens ≤2851, completions median 1317, max 3267.
     max_tokens: 4096
   pick:
     profile: qwen3-8b-uncensor-q5km
@@ -41,8 +42,8 @@ roles:
     prompt: 1
     thinking: true
     sampling: { temperature: 0.3 }
-    # System prompt 981 tokens (llama-tokenize, prompt v1 as merged). Q5, ctx 12288, q8_0 KV,
-    # 10 scored stages: prompt_tokens 5882-6500, completions 970-2319, no truncation (an
+    # System prompt 981 tokens (llama-tokenize, prompt v1 as merged). Run 1, 22 scenes:
+    # prompt_tokens median 6178, max 6657, completions median 1389, max 2748, total ≤9192 (an
     # earlier draft truncated once at ctx 8192). The 20 longest catalog candidates make an
     # estimated ~7.84k prompt tokens: 4096 still fits ctx 12288 (~11.94k).
     max_tokens: 4096
