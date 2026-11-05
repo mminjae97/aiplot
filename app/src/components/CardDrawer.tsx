@@ -1,23 +1,21 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ApiRequestError, api } from '../api/client'
-import { draftKey, sendTurn, withNotes } from '../api/drafts'
-import { streamJob } from '../api/sse'
+import { draftKey } from '../api/drafts'
 import { useNavigation } from '../stores/navigation'
 import { strings } from '../strings'
-import type {
-  Card,
-  CardOutput,
-  Draft,
-  DraftCreate,
-  DraftTurn,
-  PartCard,
-  SimilarName,
-} from '../types'
+import type { Card, DraftCreate, DraftTurn } from '../types'
 import { CardPreview } from './CardPreview'
-import { ChatPanel, type PendingTurn } from './ChatPanel'
+import { ChatPanel } from './ChatPanel'
+import { CloseConfirm, StructureConfirm } from './DrawerConfirm'
+import { errorText, saveErrorText } from './drawerErrors'
+import { changedTies, hasTies } from './drawerTies'
+import { ReferencesNotice, TiesNotice } from './SaveNotices'
 import { SourcePanel } from './SourcePanel'
 import { TypeSection } from './TypeSection'
+import { useCardGeneration } from './useCardGeneration'
+import { useDraftTurn } from './useDraftTurn'
+import { useDrawerHeadline } from './useDrawerHeadline'
 
 export type DrawerRequest = DraftCreate & { workId: string }
 
@@ -28,195 +26,8 @@ type Props = {
   onSaved?: (card: Card) => void
 }
 
-type Stage = 'idle' | 'replying' | 'organizing'
-
 // Waits longer than this show progress and a way out (§5).
 const LONG_WAIT_SEC = 10
-
-function errorText(code: string): string {
-  return strings.drawer.errors[code] ?? strings.drawer.failed
-}
-
-function saveErrorText(code: string): string {
-  if (code === 'CARD_STALE') return strings.preview.stale
-  if (code === 'CARD_CONFLICT') return strings.preview.conflict
-  return strings.drawer.errors[code] ?? strings.preview.saveFailed
-}
-
-type CardType = Card['type']
-type TieType = keyof typeof strings.preview.tiesNote
-
-const hasTies = (type: CardType): type is TieType => type in strings.preview.tiesNote
-
-/** What save writes into a relation table from this card's data (§14), with the kinds of card
- * that table takes: a character's relations, a world card's 함께 보기, a region's direct links,
- * an episode's characters. Other references (a region's parent, an episode's places, world
- * cards, prev/next/causes, origin) are not ties here. A tie's content (a relation's words, a
- * link's travel and direction) is a key compared between versions; `changed` names how a
- * change of it is marked (world and episode ties have none). */
-function tiesOf(card: Card | CardOutput): {
-  ties: readonly (readonly [id: string, content: string])[]
-  kinds: readonly CardType[]
-  changed: 'relation' | 'travel' | null
-} {
-  switch (card.type) {
-    case 'character':
-      return {
-        ties: card.data.relations.map((r) => [r.target_id, r.relation] as const),
-        kinds: ['character'],
-        changed: 'relation',
-      }
-    case 'world':
-      return {
-        ties: card.data.related.map((id) => [id, ''] as const),
-        kinds: ['character', 'region', 'world'],
-        changed: null,
-      }
-    case 'region':
-      return {
-        ties: card.data.links.map(
-          (l) =>
-            [
-              l.target_id,
-              JSON.stringify([
-                l.travel?.value ?? null,
-                l.travel?.unit ?? null,
-                l.travel?.mode ?? null,
-                l.direction,
-              ]),
-            ] as const,
-        ),
-        kinds: ['region'],
-        changed: 'travel',
-      }
-    case 'episode':
-      return {
-        ties: card.data.characters.map((id) => [id, ''] as const),
-        kinds: ['character'],
-        changed: null,
-      }
-    default:
-      return { ties: [], kinds: [], changed: null }
-  }
-}
-
-type TieChange = { card: Card; change: 'added' | 'relation' | 'travel' | 'removed' }
-
-/** The cards whose tie with the saved card is new, changed or gone if the generated one is saved
- * (§8): added, then changed, then removed, each in data order. Only cards of the work of the
- * right kind, never the card itself; a target listed twice keeps its last content, as save
- * keeps them (§14). */
-function changedTies(generated: CardOutput, saved: Card, cards: readonly Card[]): TieChange[] {
-  if (generated.type !== saved.type) return []
-  const byId = new Map(cards.map((card) => [card.id, card]))
-  const kept = (card: Card | CardOutput): Map<string, { card: Card; content: string }> => {
-    const { ties, kinds } = tiesOf(card)
-    const found = new Map<string, { card: Card; content: string }>()
-    for (const [id, content] of ties) {
-      const target = byId.get(id)
-      if (id !== saved.id && target !== undefined && kinds.includes(target.type)) {
-        found.set(id, { card: target, content })
-      }
-    }
-    return found
-  }
-  const after = [...kept(generated).values()]
-  const beforeMap = kept(saved)
-  const before = [...beforeMap.values()]
-  const now = new Set(after.map((tie) => tie.card.id))
-  const changed = tiesOf(saved).changed
-  const changes: TieChange[] = after
-    .filter((tie) => !beforeMap.has(tie.card.id))
-    .map((tie) => ({ card: tie.card, change: 'added' }))
-  if (changed !== null) {
-    for (const tie of after) {
-      const was = beforeMap.get(tie.card.id)
-      if (was !== undefined && was.content !== tie.content) {
-        changes.push({ card: tie.card, change: changed })
-      }
-    }
-  }
-  for (const tie of before) {
-    if (!now.has(tie.card.id)) changes.push({ card: tie.card, change: 'removed' })
-  }
-  return changes
-}
-
-/** What the header says beside the kind (§8): a world card's category, an episode's part and
- * main region, a part's milestones. From the generated card when there is one, else from the
- * saved card's relation rows, else from what the drawer was opened with. */
-function useHeadline(
-  request: DrawerRequest,
-  generated: CardOutput | null,
-  saved: Card | undefined,
-  cards: readonly Card[],
-): { details: string[]; milestones: string[] | null } {
-  const cardId = request.card_id ?? null
-  const savedEpisode = request.type === 'episode' && cardId !== null && generated === null
-  const placement = useQuery({
-    queryKey: ['relations', request.workId, 'episode_part'],
-    queryFn: () => api.relations(request.workId, 'episode_part'),
-    enabled: savedEpisode,
-  })
-  const settings = useQuery({
-    queryKey: ['relations', request.workId, 'episode_region'],
-    queryFn: () => api.relations(request.workId, 'episode_region'),
-    enabled: savedEpisode,
-  })
-  const completeness = useQuery({
-    queryKey: ['completeness', request.workId],
-    queryFn: () => api.completeness(request.workId),
-    enabled: request.type === 'part',
-  })
-
-  if (request.type === 'world') {
-    let category = request.category ?? null
-    if (generated?.type === 'world') category = generated.data.category ?? category
-    else if (saved?.type === 'world') category = saved.data.category ?? category
-    return { details: category ? [strings.drawer.category[category]] : [], milestones: null }
-  }
-  if (request.type === 'episode') {
-    let partId = request.part_id ?? null
-    let regionId: string | null = null
-    if (generated?.type === 'episode') {
-      partId = generated.data.part_id
-      regionId = generated.data.locations.main
-    } else if (cardId !== null) {
-      partId = placement.data?.relations.find((r) => r.from_id === cardId)?.to_id ?? null
-      regionId =
-        settings.data?.relations.find((r) => r.from_id === cardId && r.relation === 'main')
-          ?.to_id ?? null
-    }
-    const parts = cards
-      .filter((card): card is PartCard => card.type === 'part')
-      .sort((a, b) => (a.data.order ?? Infinity) - (b.data.order ?? Infinity))
-    const index = parts.findIndex((card) => card.id === partId)
-    const part = parts[index]
-    const region = cards.find((card) => card.id === regionId)
-    return {
-      details: [
-        ...(part
-          ? [
-              `${strings.story.partLabel(index + 1)}${part.data.title ? ` · ${part.data.title}` : ''}`,
-            ]
-          : []),
-        region?.name ?? strings.drawer.noPlace,
-      ],
-      milestones: null,
-    }
-  }
-  if (request.type === 'part') {
-    const all = completeness.data?.milestones ?? []
-    const mine =
-      generated?.type === 'part'
-        ? all.filter((milestone) => generated.data.fulfills.includes(milestone.id))
-        : cardId !== null
-          ? all.filter((milestone) => milestone.parts.includes(cardId))
-          : []
-    return { details: [], milestones: mine.map((milestone) => milestone.text) }
-  }
-  return { details: [], milestones: null }
-}
 
 /** The card drawer (§8): chat and source notes on the left, the card on the right. Its
  * draft lives in server memory only: whenever the drawer goes (closed, or its screen left),
@@ -225,19 +36,9 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
   const queryClient = useQueryClient()
   const [draftId, setDraftId] = useState<string | null>(null)
   const [openError, setOpenError] = useState<string | null>(null)
-  const [stage, setStage] = useState<Stage>('idle')
-  const [pending, setPending] = useState<PendingTurn | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [changed, setChanged] = useState<number[]>([])
-  const [questions, setQuestions] = useState<string[]>([])
-  const [names, setNames] = useState<SimilarName[]>([])
   const [editing, setEditing] = useState<string | null>(null)
   const [notesFailed, setNotesFailed] = useState(false)
   const [savingNotes, setSavingNotes] = useState(false)
-  const [generating, setGenerating] = useState<{ jobId: string | null; seconds: number } | null>(
-    null,
-  )
-  const [genError, setGenError] = useState<string | null>(null)
   const [pinned, setPinned] = useState<string[] | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -249,15 +50,10 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
   const [converting, setConverting] = useState(false)
   // A stage count that needs the card generated again, waiting for the user's yes.
   const [asking, setAsking] = useState<4 | 5 | null>(null)
-  // The notes the shown card was generated from: once they change, the card is stale.
-  const [generatedFrom, setGeneratedFrom] = useState<string | null>(null)
   // The notes the drawer opened with (a saved card's, else none): closing asks once they differ.
   const [openedNotes, setOpenedNotes] = useState('')
   const panel = useRef<HTMLDivElement>(null)
-  const keepWriting = useRef<HTMLButtonElement>(null)
-  const keepCard = useRef<HTMLButtonElement>(null)
-  // Lifecycle, outside render: the draft once created, whether the drawer is still mounted,
-  // the running turn's and generation's streams.
+  // Lifecycle, outside render: the draft once created, whether the drawer is still mounted.
   const life = useRef({
     started: false,
     mounted: false,
@@ -267,8 +63,6 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     // Set at once (not on the next render), so a double Ctrl+S saves once.
     saving: false,
   })
-  const stream = useRef<AbortController | null>(null)
-  const genStream = useRef<AbortController | null>(null)
 
   const draft = useQuery({
     queryKey: draftKey(draftId ?? ''),
@@ -286,6 +80,10 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
   })
   const current = draft.data
   const generated = current?.generated ?? null
+  const { stage, pending, error, changed, setChanged, questions, names, setNames, turn } =
+    useDraftTurn(current?.turns.length ?? 0)
+  const generation = useCardGeneration(draftId)
+  const { generating, generatedFrom } = generation
   // Before saving (§8): a new name shows on every card that references this one; changed ties
   // list the cards gaining or losing one.
   const nameChanged =
@@ -299,7 +97,7 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     saved.data !== undefined && generated !== null
       ? changedTies(generated, saved.data, cards.data?.cards ?? [])
       : []
-  const headline = useHeadline(request, generated, saved.data, cards.data?.cards ?? [])
+  const headline = useDrawerHeadline(request, generated, saved.data, cards.data?.cards ?? [])
   const pins = pinned ?? current?.pinned ?? []
   const stale = generated !== null && generatedFrom !== null && current?.notes !== generatedFrom
   const quiet =
@@ -332,121 +130,16 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     save: (): void => undefined,
   })
 
-  /** True when the server kept the turn (the AI answered); a failed turn leaves none. */
-  const turn = async (id: string, text: string, refs: string[]): Promise<boolean> => {
-    const controller = new AbortController()
-    stream.current = controller
-    setStage('replying')
-    // The turns kept before this one: once the draft holds more, the server has kept it.
-    setPending({ user: text, reply: '', from: current?.turns.length ?? 0 })
-    setError(null)
-    // Cleared for the turn; a failed one gives them back (the AI's last questions still stand).
-    const before = { changed, questions, names }
-    setChanged([])
-    setQuestions([])
-    setNames([])
-    const alive = () => !controller.signal.aborted
-    // Set from the event callback: never narrowed to false here.
-    let kept = false as boolean
-    try {
-      await sendTurn(
-        id,
-        { text, refs },
-        {
-          onReply: (piece) => {
-            if (alive()) setPending((old) => old && { ...old, reply: old.reply + piece })
-          },
-          onReplied: () => {
-            kept = true
-            if (alive()) setStage('organizing')
-          },
-          onSource: (update) => {
-            if (!alive()) return
-            queryClient.setQueryData<Draft>(draftKey(id), (old) => old && withNotes(old, update))
-            setChanged(update.changed)
-            setQuestions(update.questions)
-            setNames(update.similar_names)
-          },
-          onError: (code) => {
-            if (alive()) setError(errorText(code))
-          },
-        },
-        controller.signal,
-      )
-    } catch (err) {
-      if (alive()) setError(errorText(err instanceof ApiRequestError ? err.code : ''))
-    }
-    if (!alive()) return kept
-    if (!kept) {
-      setChanged(before.changed)
-      setQuestions(before.questions)
-      setNames(before.names)
-    }
-    // The turns as the server keeps them, swapped in with the pending ones in one render.
-    const fresh = await api.getDraft(id).catch(() => null)
-    if (!alive()) return kept
-    if (fresh) queryClient.setQueryData(draftKey(id), fresh)
-    setPending(null)
-    setStage('idle')
-    stream.current = null
-    return kept
-  }
-
   /** True when a card came back (a failed or cancelled one changes nothing). */
   const generate = async (
     count: 4 | 5 | null = structure,
     pinnedNow: string[] = pins,
   ): Promise<boolean> => {
     if (draftId === null || !canGenerate) return false
-    const controller = new AbortController()
-    genStream.current = controller
-    const alive = () => !controller.signal.aborted
-    setGenError(null)
     setSaveError(null)
-    setGenerating({ jobId: null, seconds: 0 })
-    try {
-      const accepted = await api.generateCard(
-        draftId,
-        count === null ? { pinned: pinnedNow } : { pinned: pinnedNow, structure: count },
-      )
-      if (!alive()) return false
-      setGenerating((old) => old && { ...old, jobId: accepted.jobId })
-      // Set from the event callback, so kept in an object.
-      const outcome = { done: false, failure: null as string | null }
-      await streamJob(
-        accepted.jobId,
-        (event) => {
-          if (event.type === 'done') outcome.done = true
-          if (event.type === 'error') outcome.failure = (event.data as { code: string }).code
-          if (event.type === 'cancelled') outcome.failure = 'CANCELLED'
-        },
-        { signal: controller.signal },
-      )
-      if (!alive()) return false
-      const failure = outcome.failure
-      if (failure !== null && failure !== 'CANCELLED') setGenError(errorText(failure))
-      // The stream ended without a result (dropped, or a restarted server).
-      else if (!outcome.done && failure === null) setGenError(strings.preview.generateFailed)
-      const fresh = await api.getDraft(draftId)
-      if (!alive()) return false
-      queryClient.setQueryData(draftKey(draftId), fresh)
-      if (outcome.done) setGeneratedFrom(fresh.notes)
-      return outcome.done
-    } catch (err) {
-      if (alive()) {
-        setGenError(
-          err instanceof ApiRequestError
-            ? (strings.drawer.errors[err.code] ?? strings.preview.generateFailed)
-            : strings.preview.generateFailed,
-        )
-      }
-      return false
-    } finally {
-      if (alive()) {
-        setGenerating(null)
-        genStream.current = null
-      }
-    }
+    return generation.run(
+      count === null ? { pinned: pinnedNow } : { pinned: pinnedNow, structure: count },
+    )
   }
 
   /** Another stage count for the generated part or episode (§7): 5→4 maps the stages in code
@@ -459,14 +152,14 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
       return
     }
     setConverting(true)
-    setGenError(null)
+    generation.setError(null)
     setSaveError(null)
     try {
       const updated = await api.putStructure(draftId, { type: 4 })
       queryClient.setQueryData(draftKey(updated.id), updated)
       setStructure(4)
     } catch (err) {
-      setGenError(
+      generation.setError(
         err instanceof ApiRequestError && err.code in strings.drawer.errors
           ? errorText(err.code)
           : strings.typeSection.convertFailed,
@@ -486,10 +179,6 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     ).then((ok) => {
       if (ok) setStructure(count)
     })
-  }
-
-  const cancelGeneration = () => {
-    if (generating?.jobId) void api.cancelJob(generating.jobId).catch(() => undefined)
   }
 
   const save = async () => {
@@ -571,8 +260,6 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
     }
     return () => {
       state.mounted = false
-      stream.current?.abort()
-      genStream.current?.abort()
       // Never kept past the drawer (§6), saved or not.
       if (state.opened !== null) queryClient.removeQueries({ queryKey: draftKey(state.opened) })
       const id = state.id
@@ -615,26 +302,6 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
       previous?.focus()
     }
   }, [])
-
-  const isGenerating = generating !== null
-  useEffect(() => {
-    if (!isGenerating) return
-    // Elapsed seconds for the long-wait note (§5).
-    const timer = window.setInterval(() => {
-      setGenerating((old) => old && { ...old, seconds: old.seconds + 1 })
-    }, 1000)
-    return () => {
-      window.clearInterval(timer)
-    }
-  }, [isGenerating])
-
-  useEffect(() => {
-    if (confirming) keepWriting.current?.focus()
-  }, [confirming])
-
-  useEffect(() => {
-    if (asking !== null) keepCard.current?.focus()
-  }, [asking])
 
   const saveNotes = async (notes: string) => {
     if (draftId === null) return
@@ -811,14 +478,14 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                       {strings.preview.elapsed(generating.seconds)}
                     </span>
                   </p>
-                  <button type="button" className="paper-button" onClick={cancelGeneration}>
+                  <button type="button" className="paper-button" onClick={generation.cancel}>
                     {strings.preview.cancel}
                   </button>
                 </div>
               )}
-              {genError && (
+              {generation.error && (
                 <p className="chat-error" role="alert">
-                  {genError}
+                  {generation.error}
                 </p>
               )}
               {converting && (
@@ -861,40 +528,10 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
                     onSelect={setSelected}
                   />
                   {nameChanged && (references.data?.references.length ?? 0) > 0 && (
-                    <div className="preview-references" role="note">
-                      <h4>{strings.preview.references}</h4>
-                      <p>{strings.preview.referencesNote}</p>
-                      <ul>
-                        {references.data?.references.map((ref) => (
-                          <li key={`${ref.card_id}:${ref.field}`}>
-                            {ref.name ?? strings.drawer.untitled}
-                            <span className="chat-mention-kind">
-                              {' '}
-                              {strings.drawer.kind[ref.type]}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    <ReferencesNotice references={references.data?.references ?? []} />
                   )}
                   {ties.length > 0 && hasTies(request.type) && (
-                    <div className="preview-references" role="note">
-                      <h4>{strings.preview.ties}</h4>
-                      <p>{strings.preview.tiesNote[request.type]}</p>
-                      <ul>
-                        {ties.map(({ card, change }) => (
-                          <li key={card.id}>
-                            {card.name ?? strings.drawer.untitled}
-                            <span className="chat-mention-kind">
-                              {' '}
-                              {strings.drawer.kind[card.type]}
-                            </span>
-                            {' · '}
-                            {strings.preview.tie[change]}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    <TiesNotice type={request.type} ties={ties} />
                   )}
                   {stale && (
                     <p className="preview-stale" role="status">
@@ -927,111 +564,34 @@ export function CardDrawer({ request, onClose, onSaved }: Props) {
             </section>
           </div>
         )}
-        {asking !== null && <div className="drawer-scrim" aria-hidden="true" />}
         {asking !== null && (
-          <div
-            className="drawer-confirm"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="structure-confirm-title"
-            aria-describedby="structure-confirm-body"
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                event.stopPropagation()
-                setAsking(null)
-              }
+          <StructureConfirm
+            count={asking}
+            onKeep={() => {
+              setAsking(null)
             }}
-          >
-            <h3 id="structure-confirm-title">{strings.typeSection.regenerateTitle(asking)}</h3>
-            <p id="structure-confirm-body">{strings.typeSection.regenerateBody}</p>
-            <div className="preview-actions">
-              <button
-                ref={keepCard}
-                type="button"
-                className="paper-button"
-                onClick={() => {
-                  setAsking(null)
-                }}
-              >
-                {strings.typeSection.keepCard}
-              </button>
-              <button
-                type="button"
-                className="paper-button"
-                data-danger
-                onClick={() => {
-                  regenerateWith(asking)
-                }}
-              >
-                {strings.typeSection.regenerate}
-              </button>
-            </div>
-          </div>
+            onRegenerate={() => {
+              regenerateWith(asking)
+            }}
+          />
         )}
-        {confirming && <div className="drawer-scrim" aria-hidden="true" />}
         {confirming && (
-          <div
-            className="drawer-confirm"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="drawer-confirm-title"
-            aria-describedby="drawer-confirm-body"
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                event.stopPropagation()
-                setConfirming(false)
-              }
+          <CloseConfirm
+            hasCard={generated !== null}
+            editMode={Boolean(request.card_id)}
+            canSave={canSave}
+            saving={saving}
+            onDiscard={() => {
+              setConfirming(false)
+              onClose()
             }}
-          >
-            <h3 id="drawer-confirm-title">
-              {generated !== null ? strings.preview.unsavedTitle : strings.drawer.closeTitle}
-            </h3>
-            <p id="drawer-confirm-body">
-              {generated !== null
-                ? strings.preview.unsavedBody
-                : request.card_id
-                  ? strings.drawer.closeBodyEdit
-                  : strings.drawer.closeBody}
-            </p>
-            <div className="preview-actions">
-              <button
-                type="button"
-                className="paper-button"
-                data-danger
-                onClick={() => {
-                  setConfirming(false)
-                  onClose()
-                }}
-              >
-                {generated !== null ? strings.preview.discard : strings.drawer.closeDiscard}
-              </button>
-              <button
-                ref={keepWriting}
-                type="button"
-                className="paper-button"
-                onClick={() => {
-                  setConfirming(false)
-                }}
-              >
-                {strings.preview.keep}
-              </button>
-              {generated !== null && (
-                <button
-                  type="button"
-                  className="paper-button"
-                  data-primary
-                  disabled={!canSave}
-                  aria-busy={saving}
-                  onClick={() => {
-                    void save()
-                  }}
-                >
-                  {saving && <span className="spinner" aria-hidden="true" />}
-                  {strings.preview.save}
-                </button>
-              )}
-            </div>
-          </div>
+            onKeep={() => {
+              setConfirming(false)
+            }}
+            onSave={() => {
+              void save()
+            }}
+          />
         )}
       </div>
     </div>
