@@ -1,54 +1,65 @@
 """Step 2: scores a run_direction.py result against the cases' gold (§20 step 2).
 
-    uv run python eval/step2/score_direction.py eval/results/step2/run9.json \
-        --json eval/results/step2/score-run9.json --md eval/results/step2/report-run9.md
+    uv run python eval/step2/score_direction.py eval/results/step2/run11.json \
+        --json eval/results/step2/score-run11.json --md eval/results/step2/report-run11.md
 
 Per scored stage (README Scoring): its scenes are those whose source is that stage; none (the
 scene call failed or gave the stage no scene) = a miss.
-- Recommended: right if an accepted technique is among the 5 recommended cards of any of them
-  (the pass criterion).
-- Top 20: right if one is among the first 20 of the same ranking (where the ranking would
-  need to be better, not worse, to reach the 5).
+- Labelled (the pass criterion): the stage's devices from a blind labeller
+  (devices/stages-claude.json, standing in for the user's correction, §9) given to each of its
+  scenes with the scene's own tags, ranked by `direction.rank`: right if an accepted technique
+  is among the 5 of any of them.
+- AI draft: the same with the devices the scene role answered yes (the run's recommendations),
+  and the first 20 of that ranking. Recorded, no criterion.
+- Agreement: the AI's yes devices against the labels over the scored stages' scenes.
 
-Also reported for setting the highlight rule (§9): the shared-device counts of the accepted
-cards that were recommended and of the other recommended cards, and how the current rule
-(direction.HIGHLIGHT_MIN_DEVICES) splits them; how many devices the scene answered yes; scene
-call failures, retries, times and token counts against the context size. A run missing a case
-episode is a PARTIAL RUN (scored over the episodes it has); a --fake run is flagged FAKE RUN; a
-run without finished_at is an UNFINISHED RUN. Only a run that is none of these can pass.
+Also reported: devices answered yes per scene; scene call failures, retries, times and token
+counts against the context size. A run missing a case episode is a PARTIAL RUN (scored over the
+episodes it has); a --fake run is flagged FAKE RUN; a run without finished_at is an UNFINISHED
+RUN. Only a run that is none of these can pass.
 """
 
 import argparse
 import json
 import statistics
 import sys
-from collections import Counter
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE.parent / "unit15"))
 
-from aiplot.services import techniques  # noqa: E402
+from aiplot.services import direction, techniques  # noqa: E402
 from check import GENRES, load  # noqa: E402
 
 TARGET = 0.8
+LABELS = json.loads((HERE / "devices" / "stages-claude.json").read_text(encoding="utf-8"))
+CATALOG = techniques.load()
 # Context size of the base profile (§13).
 CTX = 12288
 
 
 def score_stage(record: dict[str, Any], gold: dict[str, Any]) -> dict[str, Any]:
     accept = set(gold["accept"])
+    labels = LABELS[record["id"]][gold["stage"]]
     by_scene = {r["scene"]: r for r in record["recommendations"]}
     scenes = []
     for scene in (s for s in record["scenes"] if s["source"] == gold["stage"]):
         found = by_scene.get(scene["scene"], {"recommended": [], "ranked": []})
         ranked = found["ranked"]
+        labelled = [
+            asdict(r)
+            for r in direction.rank(CATALOG, labels, scene["effects"], scene["situations"])
+        ]
         scenes.append(
             {
                 **scene,
+                "labels": labels,
+                "labelled": labelled,
+                "labelled_hits": [r["rank"] for r in labelled if r["technique_id"] in accept],
                 "recommended": found["recommended"],
-                # 1-based rank of each accepted technique in the first 20.
+                # 1-based rank of each accepted technique in the AI draft's first 20.
                 "gold_ranks": {t: ranked.index(t) + 1 for t in gold["accept"] if t in ranked},
                 "hits": [r["rank"] for r in found["recommended"] if r["technique_id"] in accept],
             }
@@ -59,6 +70,7 @@ def score_stage(record: dict[str, Any], gold: dict[str, Any]) -> dict[str, Any]:
         "why": gold["why"],
         "scene_error": record["scene_call"].get("error"),
         "scenes": scenes,
+        "labelled": any(s["labelled_hits"] for s in scenes),
         "recommended": any(s["hits"] for s in scenes),
         "top20": any(s["gold_ranks"] for s in scenes),
     }
@@ -97,24 +109,21 @@ def call_stats(calls: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def highlight_stats(stages: list[dict[str, Any]]) -> dict[str, Any]:
-    """Shared devices of the recommended cards in scored scenes: accepted ones against the
-    others, and how the current highlight rule splits them."""
-    right: Counter[int] = Counter()
-    other: Counter[int] = Counter()
-    lit = {"right": 0, "other": 0}
+def agreement(stages: list[dict[str, Any]]) -> dict[str, Any]:
+    """The AI's yes devices against the labels, summed over the scored stages' scenes."""
+    both = ai = labelled = 0
     for stage in stages:
-        accept = set(stage["accept"])
         for scene in stage["scenes"]:
-            for r in scene["recommended"]:
-                is_right = r["technique_id"] in accept
-                (right if is_right else other)[len(r["devices"])] += 1
-                if r["highlighted"]:
-                    lit["right" if is_right else "other"] += 1
+            yes, labels = set(scene["devices"]), set(scene["labels"])
+            both += len(yes & labels)
+            ai += len(yes)
+            labelled += len(labels)
     return {
-        "right_by_devices": dict(sorted(right.items())),
-        "other_by_devices": dict(sorted(other.items())),
-        "highlighted": lit,
+        "shared": both,
+        "ai_yes": ai,
+        "labels": labelled,
+        "precision": round(both / ai, 3) if ai else None,
+        "recall": round(both / labelled, 3) if labelled else None,
     }
 
 
@@ -143,7 +152,7 @@ def score(run: dict[str, Any]) -> dict[str, Any]:
     finished = "finished_at" in run
     # A pass needs every case episode, the real model and a run that got to its end (§20: 20).
     full = scored > 0 and not missing and not fake and finished
-    hits = sum(1 for s in stages if s["recommended"])
+    hits = sum(1 for s in stages if s["labelled"])
     records = list(by_id.values())
     yes = [float(len(s["devices"])) for r in records for s in r["scenes"]]
     return {
@@ -151,14 +160,17 @@ def score(run: dict[str, Any]) -> dict[str, Any]:
         "partial_run": {"missing": missing} if missing else None,
         "finished": finished,
         "scored": scored,
-        "recommended": {
+        "labelled": {
             "hits": hits,
             "rate": round(hits / scored, 3) if scored else None,
             "target": TARGET,
             "pass": full and hits / scored >= TARGET,
         },
-        "top20": sum(1 for s in stages if s["top20"]),
-        "highlight": highlight_stats(stages),
+        "ai_draft": {
+            "hits": sum(1 for s in stages if s["recommended"]),
+            "top20": sum(1 for s in stages if s["top20"]),
+        },
+        "agreement": agreement(stages),
         "devices_per_scene": stats(yes),
         "scene_calls": call_stats([r["scene_call"] for r in records]),
         "stages": stages,
@@ -175,19 +187,39 @@ def spread(value: dict[str, float] | None, unit: str = "") -> str:
     return f"중앙 {value['median']:g}{unit} · 최대 {value['max']:g}{unit}"
 
 
+def card_lines(cards: list[dict[str, Any]], hits: list[int], named: Any) -> list[str]:
+    lines = []
+    for card in cards:
+        hit = " ← 정답" if card["rank"] in hits else ""
+        shared = ", ".join(card["devices"] + card["effects"] + card["situations"])
+        lines.append(f"  - {card['rank']}. {named(card['technique_id'])}{hit}: {shared}")
+    return lines
+
+
 def report(result: dict[str, Any], names: dict[str, str]) -> str:
     """The Markdown report: rates, then every scored stage with its scenes and cards."""
 
     def named(technique_id: str) -> str:
         return f"{names.get(technique_id, '?')} (`{technique_id}`)"
 
-    r, h, s = result["recommended"], result["highlight"], result["scene_calls"]
+    r, ai, ag, s = (
+        result["labelled"],
+        result["ai_draft"],
+        result["agreement"],
+        result["scene_calls"],
+    )
     rate = "-" if r["rate"] is None else f"{r['rate']:.0%}"
     per_scene = result["devices_per_scene"]
     yes = "-"
     if per_scene is not None:
         yes = f"평균 {per_scene['mean']:g} · 중앙 {per_scene['median']:g}"
         yes += f" · 최대 {per_scene['max']:g}"
+    share = "-"
+    if ag["precision"] is not None and ag["recall"] is not None:
+        share = (
+            f"AI의 예 중 라벨에도 있는 것 {ag['shared']}/{ag['ai_yes']} ({ag['precision']:.0%}), "
+        )
+        share += f"라벨 중 AI도 예라고 한 것 {ag['shared']}/{ag['labels']} ({ag['recall']:.0%})"
     lines = ["# Step 2 기법 추천 평가", ""]
     if result["fake"]:
         lines += ["> FAKE RUN: fixture 응답이라 측정이 아니에요.", ""]
@@ -196,14 +228,12 @@ def report(result: dict[str, Any], names: dict[str, str]) -> str:
     if not result["finished"]:
         lines += ["> UNFINISHED RUN: 실행이 끝나지 않았어요 (finished_at 없음).", ""]
     lines += [
-        f"- 추천 5장 안에 정답: {r['hits']}/{result['scored']} ({rate}, "
+        f"- 라벨 장치로 추천한 5장 안에 정답: {r['hits']}/{result['scored']} ({rate}, "
         f"목표 {r['target']:.0%}) {mark(r['pass'])}",
-        f"- 20위 안에 정답: {result['top20']}/{result['scored']}",
-        f"- 추천된 정답 카드의 겹친 장치 수: {h['right_by_devices']} · "
-        f"다른 추천 카드: {h['other_by_devices']}",
-        f"- 지금 강조 규칙으로 강조된 카드: 정답 {h['highlighted']['right']}, "
-        f"다른 카드 {h['highlighted']['other']}",
-        f"- 장면당 예라고 답한 장치: {yes}",
+        f"- AI 초안 장치로 추천한 5장 안에 정답: {ai['hits']}/{result['scored']}, "
+        f"20위 안: {ai['top20']}/{result['scored']}",
+        f"- AI 장치와 라벨의 일치: {share}",
+        f"- 장면당 AI가 예라고 답한 장치: {yes}",
         f"- scene 호출 {s['calls']}: 실패 {sum(s['failures'].values())} {s['failures'] or ''}, "
         f"재생성 {s['retried']}, 시간 {spread(s['time_s'], 's')}, "
         f"프롬프트 토큰 {spread(s['prompt_tokens'])}, 출력 토큰 {spread(s['completion_tokens'])}, "
@@ -213,7 +243,7 @@ def report(result: dict[str, Any], names: dict[str, str]) -> str:
     for stage in result["stages"]:
         lines += [
             f"## {stage['name']} · {stage['stage']} ({stage['genre']} `{stage['id']}`) "
-            f"추천 {mark(stage['recommended'])} 20위 {mark(stage['top20'])}",
+            f"라벨 {mark(stage['labelled'])} AI {mark(stage['recommended'])}",
             "",
             f"- 정답: {', '.join(named(t) for t in stage['accept'])}",
             f"- 근거: {stage['why']}",
@@ -227,16 +257,13 @@ def report(result: dict[str, Any], names: dict[str, str]) -> str:
             lines += [
                 "",
                 f"### 장면 {scene['scene']}: {scene['summary']}",
-                f"- 장치 {', '.join(scene['devices']) or '없음'}",
                 f"- 효과 {', '.join(scene['effects'])} · 상황 {', '.join(scene['situations'])}",
-                f"- 20위 안 정답 순위: {ranks or '없음'}",
+                f"- 라벨 장치 {', '.join(scene['labels']) or '없음'}",
+                *card_lines(scene["labelled"], scene["labelled_hits"], named),
+                f"- AI 장치 {', '.join(scene['devices']) or '없음'}",
+                f"  (AI 초안 20위 안 정답: {ranks or '없음'})",
+                *card_lines(scene["recommended"], scene["hits"], named),
             ]
-            for card in scene["recommended"]:
-                hit = " ← 정답" if card["rank"] in scene["hits"] else ""
-                star = " ✦" if card["highlighted"] else ""
-                shared = ", ".join(card["devices"] + card["effects"] + card["situations"])
-                card_name = named(card["technique_id"])
-                lines.append(f"- {card['rank']}.{star} {card_name}{hit}: {shared}")
         lines.append("")
     return "\n".join(lines)
 
@@ -249,9 +276,9 @@ def main() -> None:
     args = parser.parse_args()
 
     result = score(json.loads(args.run.read_text(encoding="utf-8")))
-    r = result["recommended"]
-    print(f"recommended {r['hits']}/{result['scored']} pass={r['pass']}")
-    print(f"top20 {result['top20']}/{result['scored']}")
+    r, ai = result["labelled"], result["ai_draft"]
+    print(f"labelled {r['hits']}/{result['scored']} pass={r['pass']}")
+    print(f"ai draft {ai['hits']}/{result['scored']} top20 {ai['top20']}/{result['scored']}")
     if result["fake"]:
         print("FAKE RUN: fixture output, not a measurement", file=sys.stderr)
     if result["partial_run"]:

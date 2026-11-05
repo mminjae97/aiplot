@@ -1,7 +1,9 @@
 # Step 2: technique choice evaluation
 
 Pass criterion (CLAUDE.md §20 step 2): over 20 scenes, the right technique is within the 5
-cards code recommends ≥80%. (Runs 1–8 measured the earlier design: 20 narrowed candidates and
+cards code recommends ≥80%, with each scored stage's devices from a blind labeller
+(`devices/stages-claude.json`) standing in for the user's correction (§9: the AI pre-checks
+the devices, the user corrects them). (Runs 1–8 measured the earlier design: 20 narrowed candidates and
 the `pick` role's combinations.)
 
 ## Cases
@@ -39,9 +41,12 @@ accepted technique must exist and be a candidate. CI runs it.
 The `scene` role splits an episode into scenes, each with its `source` stage. For a scored
 stage, its scenes are those whose source is that stage (none = a miss).
 
-- Recommended: right if any accepted technique is among the 5 cards `direction.recommend` gives
-  any of those scenes (§9: most shared devices, then most shared tags, then id).
-- Top 20 (reported, not a criterion): the same over the first 20 of that ranking.
+- Labelled (the criterion): the stage's labelled devices, given to each of its scenes with the
+  scene's own tags, ranked by `direction.rank` (§9: most shared devices, then most shared tags,
+  then id): right if any accepted technique is among the 5 of any of them.
+- AI draft (recorded): the same with the devices the scene role answered yes (what the user
+  would start from), and the first 20 of that ranking.
+- Agreement (recorded): the AI's yes devices against the labels.
 
 ## Run
 
@@ -49,8 +54,9 @@ Start llama-server by hand with the base profile's GGUF and flags (§17), alone 
 run next to other heavy work was once stopped by low system RAM), then:
 
 ```
-uv run python eval/step2/run_direction.py --url http://127.0.0.1:8796 --out eval/results/step2/run9.json
-uv run python eval/step2/score_direction.py eval/results/step2/run9.json     --json eval/results/step2/score-run9.json --md eval/results/step2/report-run9.md
+uv run python eval/step2/run_direction.py --url http://127.0.0.1:8796 --out eval/results/step2/run11.json
+uv run python eval/step2/score_direction.py eval/results/step2/run11.json \
+    --json eval/results/step2/score-run11.json --md eval/results/step2/report-run11.md
 ```
 
 `run_direction.py` builds each genre's database as `check.py` does (completed seeds, episodes,
@@ -61,12 +67,11 @@ for every scene `direction.recommend` (no model call) and the first 20 of the sa
 written after every episode and stay out of git; a run that stopped early (no `finished_at`) is
 an UNFINISHED RUN. Only a full, real, finished run can pass.
 
-The scorer also reports, to set the highlight rule (§9), how many devices the recommended
-right cards and the other recommended cards share with their scene and how the current rule
-splits them; devices answered yes per scene; scene call failures, retries, times and token
-counts (prompt + completion against ctx 12288). The Markdown report lists every scored stage
-with its scenes (devices, tags), the accepted techniques' ranks in the first 20 and the 5
-recommended cards with what they share, for the user.
+The scorer also reports devices answered yes per scene and scene call failures, retries, times
+and token counts (prompt + completion against ctx 12288). The Markdown report lists every
+scored stage with its scenes (tags, labelled and AI devices), the 5 cards each set of devices
+recommends with what they share, and the accepted techniques' ranks in the AI draft's first
+20, for the user.
 
 ## Review
 

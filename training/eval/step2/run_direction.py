@@ -2,7 +2,7 @@
 
 Start llama-server by hand with the base profile's GGUF and flags (§17), then:
     uv run python eval/step2/run_direction.py --url http://127.0.0.1:8796 \
-        --out eval/results/step2/run9.json
+        --out eval/results/step2/run11.json
 
 Each genre's completed seeds and episodes go into a throwaway database through the app's card
 save (check.py). Per episode, the app's own code: `direction.split_scenes` (the scene role,

@@ -111,7 +111,6 @@ def test_recommend_ranks_by_shared_devices_then_tags(
         assert r.effects == [e for e in card.effects if e in effects]
         assert r.situations == [s for s in card.situations if s in situations]
         assert r.devices or r.effects or r.situations
-        assert r.highlighted == (len(r.devices) >= direction.HIGHLIGHT_MIN_DEVICES)
     keys = [key(c, wanted) for c in cards]
     assert keys == sorted(keys)
     # Every candidate left out that shares something ranks after the last one kept.
@@ -124,7 +123,7 @@ def test_recommend_ranks_by_shared_devices_then_tags(
     assert all(key(c, wanted) > keys[-1] for c in left_out)
 
 
-def test_rank_order_limit_and_highlight() -> None:
+def test_rank_order_and_limit() -> None:
     catalog = [
         technique(1, devices=["overhear"], effects=["긴장"], situations=["비밀"]),
         technique(2, devices=["overhear", "knowledge_gap"], effects=["공포"]),
@@ -136,12 +135,12 @@ def test_rank_order_limit_and_highlight() -> None:
         technique(8, effects=["호기심"]),
     ]
     found = direction.rank(catalog, ["overhear", "knowledge_gap"], ["긴장", "호기심"], ["비밀"])
-    assert [(r.rank, r.technique_id, r.highlighted) for r in found] == [
-        (1, "tech_inf_002", True),  # 2 shared devices
-        (2, "tech_inf_003", False),  # 1 device, 3 tags
-        (3, "tech_inf_001", False),  # 1 device, 2 tags
-        (4, "tech_inf_004", False),  # no device, 3 tags
-        (5, "tech_inf_008", False),  # no device, 1 tag
+    assert [(r.rank, r.technique_id) for r in found] == [
+        (1, "tech_inf_002"),  # 2 shared devices
+        (2, "tech_inf_003"),  # 1 device, 3 tags
+        (3, "tech_inf_001"),  # 1 device, 2 tags
+        (4, "tech_inf_004"),  # no device, 3 tags
+        (5, "tech_inf_008"),  # no device, 1 tag
     ]
     assert found[0] == Recommendation(
         rank=1,
@@ -149,7 +148,6 @@ def test_rank_order_limit_and_highlight() -> None:
         devices=["overhear", "knowledge_gap"],
         effects=[],
         situations=[],
-        highlighted=True,
     )
     assert [r.technique_id for r in direction.rank(catalog, ["overhear"], [], [], limit=2)] == [
         "tech_inf_001",
@@ -207,6 +205,32 @@ def test_clean_scenes_keeps_the_devices_answered_true_in_list_order() -> None:
     (scene,) = direction.clean_scenes(output, ["전개"])
     assert scene.devices == ["knowledge_gap", "overhear"]
     assert direction.clean_scenes(scenes(entry(1, "전개", "가")), ["전개"])[0].devices == []
+
+
+def test_clean_scenes_refuses_an_output_with_too_many_yes_devices() -> None:
+    limit = direction.MAX_YES_DEVICES
+    at_limit = devices(*DEVICES[:limit])
+    over = devices(*DEVICES[: limit + 1])
+    kept = direction.clean_scenes(scenes(entry(1, "전개", "가", devices=at_limit)), ["전개"])
+    assert len(kept[0].devices) == limit
+    # One scene over the limit spoils the whole output, even one from another stage.
+    output = scenes(entry(1, "전개", "가"), entry(2, "기", "나", devices=over))
+    assert direction.clean_scenes(output, ["전개"]) == []
+
+
+def test_choice_rules() -> None:
+    fits = [c for c in CATALOG if direction.is_candidate(c) and not c.conflicts_with]
+    clash = [BY_ID["tech_cha_001"], BY_ID["tech_voi_010"]]
+    sentence_only = next(c for c in CATALOG if set(c.scope) == {"문장"})
+    assert direction.choice_error(fits[:1]) is None
+    assert direction.choice_error(fits[: direction.MAX_CHOSEN]) is None
+    assert direction.choice_error(fits[: direction.MAX_CHOSEN + 1]) == "TOO_MANY_TECHNIQUES"
+    assert direction.choice_error([fits[0], sentence_only]) == "TECHNIQUE_NOT_CANDIDATE"
+    assert direction.choice_error([fits[0], BY_ID[SERIAL_TECHNIQUES[0]]]) == (
+        "TECHNIQUE_NOT_CANDIDATE"
+    )
+    assert all(direction.is_candidate(c) for c in clash)
+    assert direction.choice_error(clash) == "TECHNIQUES_CONFLICT"
 
 
 def test_conflicting_either_way() -> None:

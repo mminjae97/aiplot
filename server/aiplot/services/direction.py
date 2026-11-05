@@ -39,9 +39,12 @@ CANDIDATE_SCOPES = frozenset({"장면", "회차"})
 # Cards shown per scene (§9).
 RECOMMEND_LIMIT = 5
 
-# Provisional highlight rule until the step 2 measurement sets it (§9, §20): a card sharing at
-# least this many of the scene's devices.
-HIGHLIGHT_MIN_DEVICES = 2
+# Cards the user may choose for a scene (§9).
+MAX_CHOSEN = 3
+
+# A scene answering more yes devices than this makes the scene output invalid (§9): the 8B
+# sometimes answered all 41 yes for a whole episode; normal scenes had at most 11 (runs 9-10).
+MAX_YES_DEVICES = 20
 
 
 @dataclass(frozen=True)
@@ -53,7 +56,6 @@ class Recommendation:
     devices: list[TechniqueDevice]
     effects: list[TechniqueEffect]
     situations: list[TechniqueSituation]
-    highlighted: bool
 
 
 def is_candidate(card: Technique) -> bool:
@@ -87,7 +89,6 @@ def rank(
             devices=shared_devices,
             effects=shared_effects,
             situations=shared_situations,
-            highlighted=len(shared_devices) >= HIGHLIGHT_MIN_DEVICES,
         )
         scored.append((-len(shared_devices), -tags, card.id, found))
     scored.sort(key=lambda entry: entry[:3])
@@ -103,7 +104,9 @@ def recommend(conn: sqlite3.Connection, scene: Scene) -> list[Recommendation]:
 def clean_scenes(output: SceneOutput, stage_names: Collection[str]) -> list[Scene]:
     """Scenes whose source is one of the episode's structure stage names (§9 `source` =
     episode.stage), in the model's order, numbered 1..n; the devices answered true in the
-    list's order; each tag once."""
+    list's order; each tag once. Nothing when any scene answers more than MAX_YES_DEVICES yes."""
+    if any(len(answered(scene.devices)) > MAX_YES_DEVICES for scene in output.scenes):
+        return []
     kept = [scene for scene in output.scenes if scene.source in stage_names]
     return [
         Scene(
@@ -122,6 +125,19 @@ def answered(devices: SceneDevices) -> list[TechniqueDevice]:
     """The devices answered true, in the device list's order."""
     yes = [key for key in SceneDevices.model_fields if getattr(devices, key)]
     return cast(list[TechniqueDevice], yes)
+
+
+def choice_error(techniques: Sequence[Technique]) -> str | None:
+    """Why the user's cards for a scene are refused (§9, §16), or None: more than MAX_CHOSEN,
+    a card that is not a direction candidate, or a conflicting pair. At least one card is the
+    request's to require."""
+    if len(techniques) > MAX_CHOSEN:
+        return "TOO_MANY_TECHNIQUES"
+    if not all(is_candidate(card) for card in techniques):
+        return "TECHNIQUE_NOT_CANDIDATE"
+    if conflicting(techniques):
+        return "TECHNIQUES_CONFLICT"
+    return None
 
 
 def conflicting(techniques: Sequence[Technique]) -> bool:
