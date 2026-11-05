@@ -1,0 +1,252 @@
+{
+ "c_faep1": {
+  "발단": [
+   "ordinary_life",
+   "plant"
+  ],
+  "전개": [
+   "knowledge_gap",
+   "hidden_secret",
+   "plant"
+  ],
+  "위기": [
+   "knowledge_gap",
+   "hidden_secret",
+   "held_moment"
+  ],
+  "절정": [
+   "payoff",
+   "reversal",
+   "knowledge_gap"
+  ],
+  "결말": [
+   "aftermath",
+   "unspoken",
+   "hidden_secret",
+   "meaningful_object",
+   "knowledge_gap"
+  ]
+ },
+ "c_faep2": {
+  "기": [
+   "ordinary_life",
+   "new_place"
+  ],
+  "승": [
+   "past_told",
+   "mystery"
+  ],
+  "전": [
+   "past_told",
+   "plant",
+   "hidden_secret",
+   "knowledge_gap",
+   "meaningful_object"
+  ],
+  "결": [
+   "dilemma",
+   "threshold"
+  ]
+ },
+ "c_huep1": {
+  "발단": [
+   "ordinary_life",
+   "world_rules"
+  ],
+  "전개": [
+   "plant",
+   "new_place"
+  ],
+  "위기": [
+   "deadline",
+   "relationship_shift",
+   "first_appearance"
+  ],
+  "절정": [
+   "first_appearance",
+   "reversal",
+   "world_rules",
+   "action",
+   "deadline"
+  ],
+  "결말": [
+   "repetition",
+   "action",
+   "deadline"
+  ]
+ },
+ "c_huep2": {
+  "기": [
+   "ordinary_life",
+   "new_place",
+   "plant"
+  ],
+  "승": [
+   "misunderstanding",
+   "repetition",
+   "humor",
+   "first_appearance"
+  ],
+  "전": [
+   "verbal_clash",
+   "reversal",
+   "relationship_shift",
+   "satire"
+  ],
+  "결": [
+   "aftermath",
+   "revisit",
+   "relationship_shift",
+   "meaningful_object"
+  ]
+ },
+ "c_roep1": {
+  "기": [
+   "hidden_secret"
+  ],
+  "승": [
+   "verbal_clash",
+   "hidden_secret",
+   "knowledge_gap"
+  ],
+  "전": [
+   "plant",
+   "unspoken",
+   "reveal",
+   "knowledge_gap"
+  ],
+  "결": [
+   "unspoken",
+   "relationship_shift"
+  ]
+ },
+ "c_roep2": {
+  "발단": [
+   "hidden_secret",
+   "ordinary_life"
+  ],
+  "전개": [
+   "verbal_clash",
+   "knowledge_gap"
+  ],
+  "위기": [
+   "dilemma",
+   "deadline",
+   "verbal_clash",
+   "reveal",
+   "payoff"
+  ],
+  "절정": [
+   "overhear",
+   "confession",
+   "knowledge_gap",
+   "verbal_clash",
+   "relationship_shift"
+  ],
+  "결말": [
+   "delayed_outcome",
+   "unspoken",
+   "hidden_secret",
+   "knowledge_gap"
+  ]
+ },
+ "c_muep1": {
+  "발단": [
+   "ordinary_life"
+  ],
+  "전개": [
+   "simultaneous",
+   "knowledge_gap",
+   "contrast"
+  ],
+  "위기": [
+   "action",
+   "plant",
+   "mystery",
+   "hidden_secret"
+  ],
+  "절정": [
+   "overhear",
+   "held_moment",
+   "loss",
+   "action"
+  ],
+  "결말": [
+   "aftermath",
+   "loss",
+   "mystery",
+   "plant",
+   "revisit"
+  ]
+ },
+ "c_muep2": {
+  "기": [
+   "new_place",
+   "first_appearance",
+   "plant",
+   "delayed_outcome"
+  ],
+  "승": [
+   "time_skip",
+   "repetition",
+   "ordinary_life"
+  ],
+  "전": [
+   "past_told",
+   "realization"
+  ],
+  "결": [
+   "revisit",
+   "payoff",
+   "threshold"
+  ]
+ },
+ "c_myep1": {
+  "기": [
+   "ordinary_life",
+   "embedded",
+   "mystery",
+   "meaningful_object"
+  ],
+  "승": [
+   "embedded",
+   "mystery"
+  ],
+  "전": [
+   "misunderstanding",
+   "first_appearance"
+  ],
+  "결": [
+   "embedded",
+   "plant",
+   "reveal",
+   "mystery"
+  ]
+ },
+ "c_sfep1": {
+  "발단": [
+   "ordinary_life",
+   "plant",
+   "eerie_threat"
+  ],
+  "전개": [
+   "mystery",
+   "ordinary_life",
+   "hidden_secret",
+   "eerie_threat"
+  ],
+  "위기": [
+   "eerie_threat",
+   "mystery"
+  ],
+  "절정": [
+   "reveal"
+  ],
+  "결말": [
+   "past_told",
+   "revisit",
+   "mystery",
+   "aftermath"
+  ]
+ }
+}

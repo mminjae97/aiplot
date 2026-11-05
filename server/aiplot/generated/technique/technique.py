@@ -7,7 +7,13 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 
 from ..common import technique_id
-from . import technique_category, technique_effect, technique_scope, technique_situation
+from . import (
+    technique_category,
+    technique_device,
+    technique_effect,
+    technique_scope,
+    technique_situation,
+)
 
 type Alias = Annotated[StrictStr, Field(min_length=1)]
 
@@ -40,6 +46,13 @@ class Technique(BaseModel):
     scope: Annotated[list[technique_scope.TechniqueScope], Field(min_length=1)]
     effects: Annotated[list[technique_effect.TechniqueEffect], Field(min_length=1)]
     situations: Annotated[list[technique_situation.TechniqueSituation], Field(min_length=1)]
+    devices: Annotated[
+        list[technique_device.TechniqueDevice],
+        Field(
+            description="Scene devices the technique is for (§9), 0-4; [] for a card with no scene device (style, narration mode).",
+            max_length=4,
+        ),
+    ]
     description: Annotated[StrictStr, Field(description="Definition.", min_length=1)]
     effect_detail: Annotated[
         StrictStr, Field(description="What the reader feels and why.", min_length=1)

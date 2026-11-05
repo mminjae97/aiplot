@@ -43,6 +43,7 @@ def replace_all(conn: sqlite3.Connection, techniques: list[Technique]) -> None:
                 ("scope", t.scope),
                 ("effect", t.effects),
                 ("situation", t.situations),
+                ("device", t.devices),
             )
             for tag in dict.fromkeys(tags)
         ],

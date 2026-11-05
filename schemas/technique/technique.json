@@ -13,6 +13,7 @@
     "scope",
     "effects",
     "situations",
+    "devices",
     "description",
     "effect_detail",
     "use_when",
@@ -69,6 +70,15 @@
       "uniqueItems": true,
       "items": {
         "$ref": "technique-situation.json"
+      }
+    },
+    "devices": {
+      "description": "Scene devices the technique is for (§9), 0-4; [] for a card with no scene device (style, narration mode).",
+      "type": "array",
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "technique-device.json"
       }
     },
     "description": {

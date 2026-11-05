@@ -13,7 +13,7 @@ from aiplot.db.connection import connect
 from aiplot.db.migrate import init_db
 from aiplot.generated.technique.technique import Technique
 from aiplot.main import API_PREFIX, create_app, load_techniques
-from aiplot.services import techniques
+from aiplot.services import direction, techniques
 from aiplot.services.techniques import TECHNIQUES_DIR, TechniqueDataError
 
 TOKEN = "test-token"
@@ -69,8 +69,12 @@ def test_the_catalog_is_whole() -> None:
     assert by_id["tech_ser_001"].name == "인 메디아스 레스"
     # Tags are unique per card (the schema says so; pydantic lists do not check it).
     for t in CATALOG:
-        for tags in (t.scope, t.effects, t.situations, t.pairs_with, t.conflicts_with):
+        for tags in (t.scope, t.effects, t.situations, t.devices, t.pairs_with, t.conflicts_with):
             assert len(set(tags)) == len(tags), t.id
+    # Scene devices (§9): most direction candidates are labelled; sentence-only cards never are.
+    candidates = [t for t in CATALOG if direction.is_candidate(t)]
+    assert sum(1 for t in candidates if t.devices) >= len(candidates) * 2 // 3
+    assert all(not t.devices for t in CATALOG if set(t.scope) == {"문장"})
     # The serial cards direct always gets for chapter cuts (§9).
     names = {t.name for t in CATALOG}
     assert {"회차 끝 절단", "회차 3단 설계", "전회 연결 도입", "사이다/고구마 완급"} <= names
@@ -136,7 +140,9 @@ def test_sync_mirrors_the_files_and_keeps_rows_of_cards_still_there(
         "scope": len(CATALOG[0].scope),
         "effect": len(CATALOG[0].effects),
         "situation": len(CATALOG[0].situations),
+        "device": len(CATALOG[0].devices),
     }
+    assert CATALOG[0].devices  # so the device kind is exercised
 
     # A card left out of the files goes; the others keep their rows.
     second = techniques.load(write(tmp_path / "b", {"ser": [card("ser", 1, name="바뀐 이름")]}))

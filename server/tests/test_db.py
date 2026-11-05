@@ -190,6 +190,24 @@ def test_cover_migration_keeps_books_on_cloth(conn: sqlite3.Connection) -> None:
         conn.execute("UPDATE work SET cover_id = 'cv_missing'")
 
 
+def test_device_migration_keeps_tags_and_allows_devices(conn: sqlite3.Connection) -> None:
+    shipped = discover()
+    migrate(conn, shipped[:4])
+    conn.execute("INSERT INTO technique_card VALUES ('t', 'ser', 'x', '{}')")
+    conn.execute("INSERT INTO technique_tag VALUES ('t', 'effect', '긴장')")
+    migrate(conn, shipped)
+    rows = conn.execute("SELECT * FROM technique_tag").fetchall()
+    assert [tuple(r) for r in rows] == [("t", "effect", "긴장")]
+    conn.execute("INSERT INTO technique_tag VALUES ('t', 'device', 'overhear')")
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("INSERT INTO technique_tag VALUES ('t', 'mood', 'x')")
+    # The index survives the rebuild, and the card still cascades to its tags.
+    names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'index'")}
+    assert "technique_by_tag" in names
+    conn.execute("DELETE FROM technique_card")
+    assert conn.execute("SELECT count(*) FROM technique_tag").fetchone()[0] == 0
+
+
 def test_connect_pragmas(conn: sqlite3.Connection) -> None:
     assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
     assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
