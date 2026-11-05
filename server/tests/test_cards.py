@@ -323,3 +323,35 @@ def test_order_links_keep_one_prev_and_next(conn: sqlite3.Connection) -> None:
     # Withdrawing its own claim removes only that link.
     save(conn, episode_with("c_e3", None, None))
     assert order(conn) == [("c_e2", "c_e1")]
+
+
+def test_last_episode_of_part_takes_the_highest_order_then_the_later_row(
+    conn: sqlite3.Connection,
+) -> None:
+    def add(
+        card_id: str, card_type: str, part_id: str | None = None, order: int | None = None
+    ) -> None:
+        conn.execute(
+            "INSERT INTO card (id, work_id, type, data, status) "
+            "VALUES (?, 'w_01', ?, '{}', 'incomplete')",
+            (card_id, card_type),
+        )
+        if card_type == "episode":
+            conn.execute(
+                'INSERT INTO episode (card_id, part_id, "order") VALUES (?, ?, ?)',
+                (card_id, part_id, order),
+            )
+
+    add("c_p1", "part")
+    add("c_p2", "part")
+    assert cards_db.last_episode_of_part(conn, "c_p1") is None
+    add("c_e1", "episode", "c_p1", 2)
+    add("c_e2", "episode", "c_p1", 1)
+    add("c_e3", "episode", "c_p1", 2)
+    add("c_e4", "episode", "c_p2", 9)
+    assert cards_db.last_episode_of_part(conn, "c_p1") == ("c_e3", 2, 3)
+    # An episode without an order sorts before every numbered one.
+    add("c_e5", "episode", "c_p1", None)
+    assert cards_db.last_episode_of_part(conn, "c_p1") == ("c_e3", 2, 4)
+    conn.execute("UPDATE episode SET \"order\" = NULL WHERE part_id = 'c_p2'")
+    assert cards_db.last_episode_of_part(conn, "c_p2") == ("c_e4", None, 1)
