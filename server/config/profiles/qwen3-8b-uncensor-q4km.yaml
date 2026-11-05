@@ -17,7 +17,8 @@ ctx: 12288
 kv_type: q8_0
 lora_mode: hotswap
 # Other llama-server flags; model, ctx, KV type, host, port and LoRAs are set from the fields above.
-server_args: [-ngl, "99", -fa, "on", -np, "1", --cache-ram, "1024"]
+# --load-mode none: with mmap the weights stayed ~4.7GB resident in host RAM after full offload (§17).
+server_args: [-ngl, "99", -fa, "on", -np, "1", --cache-ram, "1024", --load-mode, none]
 # Qwen3 recommended defaults; roles.yaml may override per role.
 sampling:
   thinking: { temperature: 0.6, top_p: 0.95, top_k: 20, min_p: 0.0 }
