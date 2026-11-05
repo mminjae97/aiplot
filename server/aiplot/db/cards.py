@@ -646,6 +646,19 @@ def last_part_order(conn: sqlite3.Connection, work_id: str) -> int:
     return int(row[0])
 
 
+def last_episode_of_part(
+    conn: sqlite3.Connection, part_id: str
+) -> tuple[str, int | None, int] | None:
+    """The part's last episode (highest order, the later row on a tie) as (card_id, order,
+    episodes in the part); None without episodes: a new episode goes after it."""
+    row = conn.execute(
+        'SELECT card_id, "order", count(*) OVER () FROM episode WHERE part_id = ? '
+        'ORDER BY "order" DESC, rowid DESC LIMIT 1',
+        (part_id,),
+    ).fetchone()
+    return None if row is None else (row[0], row[1], int(row[2]))
+
+
 def relations_of_work(
     conn: sqlite3.Connection, work_id: str, kind: str
 ) -> list[tuple[str, str, str | None]]:

@@ -132,12 +132,14 @@ def place_episode(
         data["order"] = None
         data["links"]["prev"] = None
         return
-    rows = conn.execute(
-        'SELECT card_id, "order" FROM episode WHERE part_id = ? ORDER BY "order" DESC, rowid DESC',
-        (part_id,),
-    ).fetchall()
-    data["order"] = (rows[0][1] or len(rows)) + 1 if rows else 1
-    data["links"]["prev"] = rows[0][0] if rows else None
+    last = cards_db.last_episode_of_part(conn, part_id)
+    if last is None:
+        data["order"] = 1
+        data["links"]["prev"] = None
+        return
+    last_id, last_order, count = last
+    data["order"] = (last_order or count) + 1
+    data["links"]["prev"] = last_id
 
 
 def place_part(conn: sqlite3.Connection, data: dict[str, Any], work_id: str) -> None:
