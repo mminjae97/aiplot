@@ -63,6 +63,19 @@ def episode_card(episode: dict[str, Any], work_id: str) -> Any:
     )
 
 
+def open_cases(folder: Path, doc: dict[str, Any], seeds: list[dict[str, Any]]) -> tuple[Any, str]:
+    """A throwaway database in folder holding the genre's seeds and episodes, saved through the
+    app's card save. Episodes twice: the first pass leaves no row for a reference to an episode
+    (or a foreshadowing it plants) later in the file; the second resolves it. The technique
+    catalog is loaded too, as at server start (narrowing reads it from the database)."""
+    conn, work_id = open_work(folder, seeds)
+    techniques.sync(conn, techniques.load())
+    for _ in range(2):
+        for episode in doc["episodes"]:
+            cards.save(conn, episode_card(episode, work_id))
+    return conn, work_id
+
+
 # The relation row each episode reference must leave on save (:ep = the episode, :ref = the
 # referenced id). Save keeps `data` verbatim but writes a row only for an id that resolves to a
 # card of the work of the right type (or a milestone, or a foreshadowing planted in another
@@ -123,15 +136,12 @@ def check_genre(genre: str, catalog: dict[str, Any]) -> tuple[list[str], int]:
     doc, seeds = load(genre)
     scored = 0
     with tempfile.TemporaryDirectory() as tmp:
-        conn, work_id = open_work(Path(tmp), seeds)
+        conn, _ = open_cases(Path(tmp), doc, seeds)
+        episode_ids = {episode["id"] for episode in doc["episodes"]}
         try:
             for row in conn.execute("SELECT id, status FROM card WHERE status != 'complete'"):
-                problems.append(f"seed {row['id']}: saved as {row['status']}")
-            # Twice: the first pass leaves no row for a reference to an episode (or a
-            # foreshadowing it plants) later in the file; the second resolves it.
-            for _ in range(2):
-                for episode in doc["episodes"]:
-                    cards.save(conn, episode_card(episode, work_id))
+                if row["id"] not in episode_ids:
+                    problems.append(f"seed {row['id']}: saved as {row['status']}")
             for episode in doc["episodes"]:
                 row = conn.execute(
                     "SELECT status FROM card WHERE id = ?", (episode["id"],)
