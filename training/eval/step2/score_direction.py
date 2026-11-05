@@ -13,7 +13,8 @@ scene call failed or gave the stage no scene) = a miss on both counts.
 Also reported: the pick reasons' style (해요체: every sentence ends in 요; ids written out;
 a single-technique combination whose reason speaks of combining, e.g. 함께, 합쳐), call failures,
 retries, times and token counts against the context size. A run missing a case episode is a
-PARTIAL RUN (scored over the episodes it has); a --fake run is flagged FAKE RUN.
+PARTIAL RUN (scored over the episodes it has); a --fake run is flagged FAKE RUN; a run without
+finished_at is an UNFINISHED RUN. Only a run that is none of these can pass.
 """
 
 import argparse
@@ -158,25 +159,29 @@ def score(run: dict[str, Any]) -> dict[str, Any]:
                     }
                 )
     scored = len(stages)
+    fake = bool(run.get("fake", False))
+    finished = "finished_at" in run
+    # A pass needs every case episode, the real model and a run that got to its end (§20: 20).
+    full = scored > 0 and not missing and not fake and finished
     hits_c = sum(1 for s in stages if s["in_candidates"])
     hits_r = sum(1 for s in stages if s["recommended"])
     records = list(by_id.values())
     return {
-        "fake": run.get("fake", False),
+        "fake": fake,
         "partial_run": {"missing": missing} if missing else None,
-        "finished": "finished_at" in run,
+        "finished": finished,
         "scored": scored,
         "candidates": {
             "hits": hits_c,
             "rate": round(hits_c / scored, 3) if scored else None,
             "target": TARGET_CANDIDATES,
-            "pass": bool(scored) and hits_c / scored >= TARGET_CANDIDATES,
+            "pass": full and hits_c / scored >= TARGET_CANDIDATES,
         },
         "recommendations": {
             "hits": hits_r,
             "rate": round(hits_r / scored, 3) if scored else None,
             "target": TARGET_RECOMMENDATIONS,
-            "pass": bool(scored) and hits_r / scored >= TARGET_RECOMMENDATIONS,
+            "pass": full and hits_r / scored >= TARGET_RECOMMENDATIONS,
             "single_misses": sum(1 for s in stages if s["single_misses"]),
         },
         "reasons": reason_stats(records),
@@ -212,6 +217,8 @@ def report(result: dict[str, Any], names: dict[str, str]) -> str:
         lines += ["> FAKE RUN: fixture 응답이라 측정이 아니에요.", ""]
     if result["partial_run"]:
         lines += [f"> PARTIAL RUN: 빠진 에피소드 {', '.join(result['partial_run']['missing'])}", ""]
+    if not result["finished"]:
+        lines += ["> UNFINISHED RUN: 실행이 끝나지 않았어요 (finished_at 없음).", ""]
     lines += [
         f"- 후보 안에 정답: {c['hits']}/{result['scored']} ({share(c)}, "
         f"목표 {c['target']:.0%}) {mark(c['pass'])}",

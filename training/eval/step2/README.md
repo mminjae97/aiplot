@@ -61,7 +61,8 @@ the technique catalog) and calls the app's own code per episode: `direction.spli
 for each scene of a scored stage `direction.candidates` and `direction.recommend`. Scenes of
 unscored stages get no pick call. `--episodes ID…` runs a subset (scored as a PARTIAL RUN);
 `--fake` uses the fixture client (a check of the scripts, scored as a FAKE RUN). Results are
-written after every episode and stay out of git.
+written after every episode and stay out of git; a run that stopped early (no `finished_at`) is
+an UNFINISHED RUN. Only a full, real, finished run can pass.
 
 The scorer also reports the pick reasons' style (해요체 = every sentence ends in 요; technique
 ids written out; a single-technique combination whose reason speaks of combining, e.g. 함께,
