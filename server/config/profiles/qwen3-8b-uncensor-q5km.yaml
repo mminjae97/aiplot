@@ -11,7 +11,8 @@ thinking_kwarg: enable_thinking
 ctx: 12288
 kv_type: q8_0
 lora_mode: hotswap
-server_args: [-ngl, "99", -fa, "on", -np, "1", --cache-ram, "1024"]
+# --load-mode none: with mmap the weights stayed ~4.7GB resident in host RAM after full offload (§17).
+server_args: [-ngl, "99", -fa, "on", -np, "1", --cache-ram, "1024", --load-mode, none]
 sampling:
   thinking: { temperature: 0.6, top_p: 0.95, top_k: 20, min_p: 0.0 }
   no_thinking: { temperature: 0.7, top_p: 0.8, top_k: 20, min_p: 0.0 }

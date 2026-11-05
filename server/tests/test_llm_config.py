@@ -166,7 +166,18 @@ def test_broken_yaml(config_dir: Path) -> None:
 
 def test_server_args_cannot_change_after_load() -> None:
     profile = load_llm_config().profiles[Q4]
-    assert profile.server_args == ("-ngl", "99", "-fa", "on", "-np", "1", "--cache-ram", "1024")
+    assert profile.server_args == (
+        "-ngl",
+        "99",
+        "-fa",
+        "on",
+        "-np",
+        "1",
+        "--cache-ram",
+        "1024",
+        "--load-mode",
+        "none",
+    )
     hash(profile)
 
 
