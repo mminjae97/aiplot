@@ -46,10 +46,33 @@ stage, its scenes are those whose source is that stage (none = a miss on both co
   scenes. When `pick` gives one of those scenes a single combination, that combination must hold
   an accepted technique.
 
+## Run
+
+Start llama-server by hand with the base profile's GGUF and flags (§17), alone on the PC (a
+run next to other heavy work was once stopped by low system RAM), then:
+
+```
+uv run python eval/step2/run_direction.py --url http://127.0.0.1:8796 --out eval/results/step2/run1.json
+uv run python eval/step2/score_direction.py eval/results/step2/run1.json     --json eval/results/step2/score-run1.json --md eval/results/step2/report-run1.md
+```
+
+`run_direction.py` builds each genre's database as `check.py` does (completed seeds, episodes,
+the technique catalog) and calls the app's own code per episode: `direction.split_scenes`, then
+for each scene of a scored stage `direction.candidates` and `direction.recommend`. Scenes of
+unscored stages get no pick call. `--episodes ID…` runs a subset (scored as a PARTIAL RUN);
+`--fake` uses the fixture client (a check of the scripts, scored as a FAKE RUN). Results are
+written after every episode and stay out of git.
+
+The scorer also reports the pick reasons' style (해요체 = every sentence ends in 요; technique
+ids written out; a single-technique combination whose reason speaks of combining, e.g. 함께,
+합쳐), call failures, retries, times and token counts (prompt + completion against ctx 12288).
+The Markdown report lists every scored stage with its scenes, the accepted techniques' ranks
+among the candidates and the recommended combinations with their reasons, for the user.
+
 ## Review
 
 Claude drafted the cases; they are reviewed in the PR before any run (the user asked for an
-independent review). The runner and scorer come with the `scene` and `pick` roles.
+independent review).
 
 ## Check
 
