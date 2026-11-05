@@ -18,13 +18,16 @@ from aiplot.db import techniques as techniques_db
 from aiplot.db import works as works_db
 from aiplot.generated.card.card import EpisodeCard
 from aiplot.generated.roles.pick_output import OutputPick, PickOutput
-from aiplot.generated.roles.scene_output import OutputScene, SceneOutput
+from aiplot.generated.roles.scene_output import SceneChecks, SceneOutput
 from aiplot.generated.technique.technique import Technique
+from aiplot.generated.technique.technique_effect import TechniqueEffect
+from aiplot.generated.technique.technique_situation import TechniqueSituation
 from aiplot.llm.client import LlmError, Message, Usage
 from aiplot.llm.config import Role
 from aiplot.llm.router import OutputMeta, Router
 from aiplot.services import cards
 from aiplot.services import direction_context as context
+from aiplot.services.direction_context import Scene
 
 # The serial cards `direct` always gets for chapter cuts (§9): 회차 끝 절단, 회차 3단 설계,
 # 사이다/고구마 완급, 전회 연결 도입. Never direction candidates.
@@ -36,6 +39,30 @@ CANDIDATE_SCOPES = frozenset({"장면", "회차"})
 CANDIDATE_LIMIT = 20
 
 MAX_PICKS = 3
+
+type CheckTags = tuple[tuple[TechniqueEffect, ...], tuple[TechniqueSituation, ...]]
+
+# The effects and situations added for each scene check answered true (§9), in the checks'
+# order: scene v1-v2 wrote summaries calling for tags it then left out (step 2 runs 1-6).
+CHECK_TAGS: dict[str, CheckTags] = {
+    "knowledge_gap": (("아이러니", "서스펜스"), ("비밀",)),
+    "hidden": (("호기심",), ("비밀",)),
+    "reveal": (("놀람", "반전"), ("진실폭로",)),
+    "payoff": (("완결감",), ("진실폭로",)),
+    "plant": (("기대형성",), ("단서제시", "징조")),
+    "deadline": (("긴장", "서스펜스"), ("위기",)),
+    "held_moment": (("감속",), ()),
+    "action": (("속도감",), ("전투", "추격")),
+    "past_told": ((), ("과거사",)),
+    "time_skip": ((), ("시간경과",)),
+    "revisit": (("대비", "순환감"), ()),
+    "unspoken": (("여운", "모호성"), ("비밀",)),
+    "relation": ((), ("관계변화", "설전")),
+    "humor": (("해학",), ("코미디",)),
+    "spectacle": (("경이",), ("세계관설명", "대규모사건")),
+    "simultaneous": ((), ("동시사건",)),
+    "breather": ((), ("숨고르기",)),
+}
 
 
 def is_candidate(card: Technique) -> bool:
@@ -76,20 +103,36 @@ def candidates(
     return narrow(techniques_db.list_all(conn), effects, situations, limit)
 
 
-def clean_scenes(output: SceneOutput, stage_names: Collection[str]) -> list[OutputScene]:
+def checked_tags(checks: SceneChecks) -> CheckTags:
+    """The tags of the checks answered true, in CHECK_TAGS order."""
+    effects: list[TechniqueEffect] = []
+    situations: list[TechniqueSituation] = []
+    for key, (added_effects, added_situations) in CHECK_TAGS.items():
+        if getattr(checks, key):
+            effects.extend(added_effects)
+            situations.extend(added_situations)
+    return tuple(effects), tuple(situations)
+
+
+def clean_scenes(output: SceneOutput, stage_names: Collection[str]) -> list[Scene]:
     """Scenes whose source is one of the episode's structure stage names (§9 `source` =
-    episode.stage), in the model's order, numbered 1..n, each tag once."""
+    episode.stage), in the model's order, numbered 1..n; the model's tags, then those of its
+    checks answered true (CHECK_TAGS), each tag once."""
     kept = [scene for scene in output.scenes if scene.source in stage_names]
-    return [
-        scene.model_copy(
-            update={
-                "scene": number,
-                "effects": list(dict.fromkeys(scene.effects)),
-                "situations": list(dict.fromkeys(scene.situations)),
-            }
+    scenes = []
+    for number, scene in enumerate(kept, start=1):
+        added_effects, added_situations = checked_tags(scene.checks)
+        scenes.append(
+            Scene(
+                scene=number,
+                source=scene.source,
+                summary=scene.summary,
+                checks=scene.checks,
+                effects=list(dict.fromkeys([*scene.effects, *added_effects])),
+                situations=list(dict.fromkeys([*scene.situations, *added_situations])),
+            )
         )
-        for number, scene in enumerate(kept, start=1)
-    ]
+    return scenes
 
 
 def conflicting(techniques: Sequence[Technique]) -> bool:
@@ -153,7 +196,7 @@ class Kept[K]:
 
 @dataclass(frozen=True)
 class SceneResult:
-    scenes: list[OutputScene]
+    scenes: list[Scene]
     meta: OutputMeta
     usage: Usage | None
     generations: int
@@ -234,7 +277,7 @@ async def split_scenes(router: Router, conn: sqlite3.Connection, episode_id: str
 
 
 async def recommend(
-    router: Router, conn: sqlite3.Connection, episode_id: str, scene: OutputScene
+    router: Router, conn: sqlite3.Connection, episode_id: str, scene: Scene
 ) -> PickResult:
     """1-3 recommended combinations for one scene, among its narrowed candidates (§9)."""
     episode = ready_episode(conn, episode_id)

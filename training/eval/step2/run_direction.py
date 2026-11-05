@@ -27,13 +27,13 @@ from typing import Any
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE.parent / "unit15"))
 
-from aiplot.generated.roles.scene_output import OutputScene  # noqa: E402
 from aiplot.llm.client import LlamaClient, LlmError, Usage  # noqa: E402
 from aiplot.llm.config import load_llm_config  # noqa: E402
 from aiplot.llm.fake import FakeClient  # noqa: E402
 from aiplot.llm.router import Router  # noqa: E402
 from aiplot.services import direction  # noqa: E402
 from aiplot.services import direction_context as context  # noqa: E402
+from aiplot.services.direction_context import Scene  # noqa: E402
 from check import GENRES, load, open_cases  # noqa: E402
 from run import write  # noqa: E402
 
@@ -49,7 +49,7 @@ def failure(exc: Exception) -> dict[str, str]:
 
 
 async def run_scene_pick(
-    router: Router, conn: Any, episode_id: str, scene: OutputScene
+    router: Router, conn: Any, episode_id: str, scene: Scene
 ) -> dict[str, Any]:
     """Candidates (kept even when the pick call fails) and the pick role's combinations."""
     record: dict[str, Any] = {"scene": scene.scene, "source": scene.source}

@@ -1,5 +1,6 @@
 """Stage 2 direction in code (§9): scenes cleaned, candidates narrowed, picks cleaned."""
 
+import json
 import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
@@ -10,13 +11,23 @@ import pytest
 from aiplot.db.connection import connect
 from aiplot.db.migrate import init_db
 from aiplot.generated.roles.pick_output import OutputPick, PickOutput
-from aiplot.generated.roles.scene_output import SceneOutput
+from aiplot.generated.roles.scene_output import SceneChecks, SceneOutput
 from aiplot.generated.technique.technique import Technique
 from aiplot.services import direction, techniques
 from aiplot.services.direction import SERIAL_TECHNIQUES
 
+SCHEMAS = Path(__file__).resolve().parents[2] / "schemas" / "technique"
+
 CATALOG = techniques.load()
 BY_ID = {card.id: card for card in CATALOG}
+EFFECTS = set(json.loads((SCHEMAS / "technique-effect.json").read_text(encoding="utf-8"))["enum"])
+SITUATIONS = set(
+    json.loads((SCHEMAS / "technique-situation.json").read_text(encoding="utf-8"))["enum"]
+)
+
+
+def checks(*true: str) -> dict[str, bool]:
+    return {key: key in true for key in SceneChecks.model_fields}
 
 
 @pytest.fixture
@@ -142,6 +153,7 @@ def test_clean_scenes_keeps_stage_scenes_renumbered_with_tags_once() -> None:
                     "scene": 1,
                     "source": "발단",
                     "summary": "가",
+                    "checks": checks(),
                     "effects": ["긴장", "긴장", "호기심"],
                     "situations": ["비밀", "비밀"],
                 },
@@ -149,6 +161,7 @@ def test_clean_scenes_keeps_stage_scenes_renumbered_with_tags_once() -> None:
                     "scene": 2,
                     "source": "기",
                     "summary": "나",
+                    "checks": checks(),
                     "effects": ["긴장"],
                     "situations": ["위기"],
                 },
@@ -156,6 +169,7 @@ def test_clean_scenes_keeps_stage_scenes_renumbered_with_tags_once() -> None:
                     "scene": 3,
                     "source": "위기",
                     "summary": "다",
+                    "checks": checks(),
                     "effects": ["긴장"],
                     "situations": ["위기"],
                 },
@@ -163,6 +177,7 @@ def test_clean_scenes_keeps_stage_scenes_renumbered_with_tags_once() -> None:
                     "scene": 3,
                     "source": "위기",
                     "summary": "라",
+                    "checks": checks(),
                     "effects": ["긴장"],
                     "situations": ["위기"],
                 },
@@ -179,6 +194,39 @@ def test_clean_scenes_keeps_stage_scenes_renumbered_with_tags_once() -> None:
     assert scenes[0].situations == ["비밀"]
     assert direction.clean_scenes(output, ["기", "승", "전", "결"])[0].summary == "나"
     assert direction.clean_scenes(output, []) == []
+
+
+def test_clean_scenes_adds_the_tags_of_checks_answered_true() -> None:
+    output = SceneOutput.model_validate(
+        {
+            "scenes": [
+                {
+                    "scene": 1,
+                    "source": "전개",
+                    "summary": "가",
+                    "checks": checks("past_told", "hidden", "knowledge_gap"),
+                    "effects": ["공감", "호기심"],
+                    "situations": ["일상"],
+                }
+            ]
+        }
+    )
+    (scene,) = direction.clean_scenes(output, ["전개"])
+    # The model's own tags first, then each true check's in CHECK_TAGS order, each once.
+    assert scene.effects == ["공감", "호기심", "아이러니", "서스펜스"]
+    assert scene.situations == ["일상", "비밀", "과거사"]
+    assert scene.checks == output.scenes[0].checks
+    # Nothing added when every check is false.
+    output.scenes[0].checks = SceneChecks.model_validate(checks())
+    assert direction.clean_scenes(output, ["전개"])[0].effects == ["공감", "호기심"]
+
+
+def test_check_tags_cover_every_check_with_real_tags() -> None:
+    assert list(direction.CHECK_TAGS) == list(SceneChecks.model_fields)
+    for key, (effects, situations) in direction.CHECK_TAGS.items():
+        assert effects or situations, key
+        assert set(effects) <= EFFECTS, key
+        assert set(situations) <= SITUATIONS, key
 
 
 def picks(*entries: tuple[int, list[str]]) -> PickOutput:

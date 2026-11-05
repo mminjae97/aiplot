@@ -9,15 +9,34 @@ import sqlite3
 from collections.abc import Sequence
 from typing import Any
 
+from pydantic import BaseModel, ConfigDict
+
 from aiplot.db import cards as cards_db
 from aiplot.generated.card.card import EpisodeCard
 from aiplot.generated.card.structure import FiveStage, FourStage
-from aiplot.generated.roles.scene_output import OutputScene
+from aiplot.generated.roles.scene_output import SceneChecks
 from aiplot.generated.technique.technique import Technique
+from aiplot.generated.technique.technique_effect import TechniqueEffect
+from aiplot.generated.technique.technique_situation import TechniqueSituation
 from aiplot.llm.client import Message
 from aiplot.services.draft_context import CATEGORY, block
 
 type Stage = FiveStage | FourStage
+
+
+class Scene(BaseModel):
+    """A cleaned `scene` output scene (§9, direction.clean_scenes): numbered 1..n, its own tags
+    first, then those of the checks answered true, each once (so more than three of each)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    scene: int
+    source: str
+    summary: str
+    checks: SceneChecks
+    effects: list[TechniqueEffect]
+    situations: list[TechniqueSituation]
+
 
 # The last line of every pick turn, the same on each call, itself in 해요체: the reasons are
 # shown to the user, and the model wrote them in 해라체 with the rule in the system prompt only.
@@ -143,7 +162,7 @@ def candidate_lines(candidates: Sequence[Technique]) -> str:
 
 
 def pick_turns(
-    episode: EpisodeCard, stage: Stage, scene: OutputScene, candidates: Sequence[Technique]
+    episode: EpisodeCard, stage: Stage, scene: Scene, candidates: Sequence[Technique]
 ) -> list[Message]:
     """§9, §13: the episode, the scene's stage, the scene and its narrowed candidates."""
     data = episode.data

@@ -1,0 +1,57 @@
+{
+  "scenes": [
+    {
+      "scene": 1,
+      "source": "발단",
+      "summary": "테오가 시장에서 낯선 편지를 받는다.",
+      "checks": {
+        "knowledge_gap": false,
+        "hidden": true,
+        "reveal": false,
+        "payoff": false,
+        "plant": false,
+        "deadline": false,
+        "held_moment": false,
+        "action": false,
+        "past_told": false,
+        "time_skip": false,
+        "revisit": false,
+        "unspoken": false,
+        "relation": false,
+        "humor": false,
+        "spectacle": false,
+        "simultaneous": false,
+        "breather": false,
+        "mood": true
+      },
+      "effects": ["호기심"],
+      "situations": ["사건발생"]
+    },
+    {
+      "scene": 2,
+      "source": "위기",
+      "summary": "편지를 보낸 자가 미라였음이 드러난다.",
+      "checks": {
+        "knowledge_gap": false,
+        "hidden": false,
+        "reveal": true,
+        "payoff": false,
+        "plant": false,
+        "deadline": false,
+        "held_moment": false,
+        "action": false,
+        "past_told": false,
+        "time_skip": false,
+        "revisit": false,
+        "unspoken": false,
+        "relation": false,
+        "humor": false,
+        "spectacle": false,
+        "simultaneous": false,
+        "breather": false
+      },
+      "effects": ["놀람", "반전"],
+      "situations": ["진실폭로"]
+    }
+  ]
+}

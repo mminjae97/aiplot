@@ -12,13 +12,14 @@ import pytest
 from aiplot.db.connection import connect
 from aiplot.db.migrate import init_db
 from aiplot.generated.roles.pick_output import PickOutput
-from aiplot.generated.roles.scene_output import OutputScene, SceneOutput
+from aiplot.generated.roles.scene_output import SceneChecks, SceneOutput
 from aiplot.llm.client import ChatRequest, Delta, LlmError, Message, Usage
 from aiplot.llm.config import PROMPTS_DIR, load_llm_config
 from aiplot.llm.fake import FakeClient
 from aiplot.llm.router import Router
 from aiplot.services import cards, direction, direction_context, techniques
 from aiplot.services.direction import EpisodeNotReadyError, UnknownStageError
+from aiplot.services.direction_context import Scene
 from tests.test_card_delete import episode
 from tests.test_cards import character, fixture, region, save, story
 from tests.test_draft_messages import Scripted
@@ -36,10 +37,12 @@ SUMMARIES = {
     "절정": "등대에서 테오가 편지의 주인과 마주친다.",
     "결말": "테오는 편지를 바다에 던지고 항구를 떠난다.",
 }
-SUSPENSE = OutputScene(
+NO_CHECKS = {key: False for key in SceneChecks.model_fields}
+SUSPENSE = Scene(
     scene=3,
     source="위기",
     summary="편지를 쓴 사람이 테오를 지켜보지만 테오는 모른다.",
+    checks=SceneChecks.model_validate(NO_CHECKS),
     effects=["서스펜스", "긴장"],
     situations=["비밀", "위기"],
 )
@@ -124,6 +127,7 @@ def scene(number: int, source: str, **changes: Any) -> dict[str, Any]:
         "scene": number,
         "source": source,
         "summary": SUMMARIES.get(source, "요약"),
+        "checks": NO_CHECKS,
         "effects": ["긴장"],
         "situations": ["위기"],
         **changes,
@@ -185,7 +189,7 @@ async def test_scene_sees_the_episode_and_its_active_cards(
     assert block(text, "지시") == "나눌 단계: 발단, 전개, 위기, 절정, 결말"
 
     assert [s.source for s in result.scenes] == FIVE
-    assert (result.meta.role, result.meta.prompt_version) == ("scene", 2)
+    assert (result.meta.role, result.meta.prompt_version) == ("scene", 3)
     # The fixture client reports no usage.
     assert (result.usage, result.generations) == (None, 1)
 
@@ -518,9 +522,10 @@ async def test_system_prompts_hold_no_per_call_values(
             assert value not in prompt, value
 
 
-def test_scene_prompt_lists_every_tag() -> None:
+@pytest.mark.parametrize("version", [1, 3])
+def test_scene_prompt_lists_every_tag(version: int) -> None:
     """The prompt's two lists are the fixed tag lists (§9), in order; glosses in brackets."""
-    text = (PROMPTS_DIR / "scene" / "v1.md").read_text(encoding="utf-8")
+    text = (PROMPTS_DIR / "scene" / f"v{version}.md").read_text(encoding="utf-8")
     for heading, file in (
         ("효과 목록 (effects)", "technique-effect.json"),
         ("상황 목록 (situations)", "technique-situation.json"),
@@ -544,6 +549,16 @@ def test_scene_checklist_leads_to_real_tags() -> None:
         assert all(tag.strip() in tags for tag in named), line
     # Within brackets too, every tag word is real.
     assert "시간경과" in text.split("과거사 (", 1)[1].split(")", 1)[0]
+
+
+def test_scene_prompt_asks_every_check_in_order() -> None:
+    """v3 explains each checks field (the model never sees the schema), in the schema's order."""
+    body = (PROMPTS_DIR / "scene" / "v3.md").read_text(encoding="utf-8").split("-->", 1)[1]
+    asked = re.findall(r"^  - ([a-z_]+): ", body, re.MULTILINE)
+    assert asked == list(SceneChecks.model_fields)
+    # Field order of the output too: the checks are answered after the summary, before the tags.
+    items = re.findall(r"^- ([a-z_]+): ", body.split("\n항목\n", 1)[1], re.MULTILINE)
+    assert items[:6] == ["scene", "source", "summary", "checks", "effects", "situations"]
 
 
 def test_pick_prompt_asks_for_haeyo_reasons() -> None:
