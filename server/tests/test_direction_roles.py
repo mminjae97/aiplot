@@ -347,7 +347,7 @@ async def test_pick_sees_the_scene_and_its_narrowed_candidates(
         ["tech_inf_001", "tech_tim_024"],
         ["tech_cha_022"],
     ]
-    assert (result.meta.role, result.meta.prompt_version) == ("pick", 1)
+    assert (result.meta.role, result.meta.prompt_version) == ("pick", 2)
 
 
 async def test_pick_marks_conflicts_among_the_candidates(
