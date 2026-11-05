@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "SceneOutput",
-  "description": "`scene` role output (§9, §13): the episode split into scenes in story order. The server drops scenes whose source is not one of the episode's structure stage names, renumbers the rest 1..n and drops repeated tags.",
+  "description": "`scene` role output (§9, §13): the episode split into scenes in story order. The server drops scenes whose source is not one of the episode's structure stage names, renumbers the rest 1..n, adds the tags of the checks answered true after the model's own and drops repeated tags.",
   "type": "object",
   "additionalProperties": false,
   "required": ["scenes"],
@@ -13,7 +13,7 @@
         "title": "OutputScene",
         "type": "object",
         "additionalProperties": false,
-        "required": ["scene", "source", "summary", "effects", "situations"],
+        "required": ["scene", "source", "summary", "checks", "effects", "situations"],
         "properties": {
           "scene": {
             "type": "integer",
@@ -28,6 +28,101 @@
             "description": "What happens, in one or two sentences.",
             "type": "string",
             "minLength": 1
+          },
+          "checks": {
+            "title": "SceneChecks",
+            "description": "Yes/no questions about the scene, answered before its tags; the server adds the tags of each question answered true (direction.CHECK_TAGS, §9).",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "knowledge_gap",
+              "hidden",
+              "reveal",
+              "payoff",
+              "plant",
+              "deadline",
+              "held_moment",
+              "action",
+              "past_told",
+              "time_skip",
+              "revisit",
+              "unspoken",
+              "relation",
+              "humor",
+              "spectacle",
+              "simultaneous",
+              "breather"
+            ],
+            "properties": {
+              "knowledge_gap": {
+                "description": "The reader knows something a character does not.",
+                "type": "boolean"
+              },
+              "hidden": {
+                "description": "A character hides something, or the reader is still kept from something.",
+                "type": "boolean"
+              },
+              "reveal": {
+                "description": "A hidden fact comes out or the reader's expectation is overturned.",
+                "type": "boolean"
+              },
+              "payoff": {
+                "description": "Foreshadowing planted earlier is paid off.",
+                "type": "boolean"
+              },
+              "plant": {
+                "description": "A clue or an ominous sign is planted for later.",
+                "type": "boolean"
+              },
+              "deadline": {
+                "description": "A set deadline or a danger drawing near.",
+                "type": "boolean"
+              },
+              "held_moment": {
+                "description": "One moment is drawn out at length.",
+                "type": "boolean"
+              },
+              "action": {
+                "description": "A fight or a chase.",
+                "type": "boolean"
+              },
+              "past_told": {
+                "description": "Past events are told or recalled.",
+                "type": "boolean"
+              },
+              "time_skip": {
+                "description": "Much time passes.",
+                "type": "boolean"
+              },
+              "revisit": {
+                "description": "A place is visited again or an earlier scene repeats.",
+                "type": "boolean"
+              },
+              "unspoken": {
+                "description": "A character leaves a feeling or meaning unsaid.",
+                "type": "boolean"
+              },
+              "relation": {
+                "description": "A relation between characters changes, or they clash in words.",
+                "type": "boolean"
+              },
+              "humor": {
+                "description": "Something is funny.",
+                "type": "boolean"
+              },
+              "spectacle": {
+                "description": "An unfamiliar world or a vast sight is shown.",
+                "type": "boolean"
+              },
+              "simultaneous": {
+                "description": "Something happens elsewhere at the same time.",
+                "type": "boolean"
+              },
+              "breather": {
+                "description": "A pause between big events.",
+                "type": "boolean"
+              }
+            }
           },
           "effects": {
             "description": "Effects the scene wants the reader to feel.",

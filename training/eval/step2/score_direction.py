@@ -270,6 +270,9 @@ def report(result: dict[str, Any], names: dict[str, str]) -> str:
                 f"- 효과 {', '.join(scene['effects'])} · 상황 {', '.join(scene['situations'])}",
                 f"- 후보 {scene['candidates']}개, 정답 순위: {ranks or '없음'}",
             ]
+            if "checks" in scene:  # scene v3 on; the tags above include the checks' own
+                yes = [key for key, answer in scene["checks"].items() if answer]
+                lines.insert(-1, f"- 예라고 답한 질문: {', '.join(yes) or '없음'}")
             if scene["pick_error"]:
                 lines.append(f"- pick 실패: {scene['pick_error']}")
             for pick in scene["picks"]:

@@ -30,13 +30,14 @@ roles:
   scene:
     profile: qwen3-8b-uncensor-q5km
     lora: null
-    prompt: 2
+    prompt: 3
     thinking: true
     sampling: { temperature: 0.3 }
-    # System prompt v2 2241 tokens (llama-server /tokenize; v1 2077). v2 runs 5-6, 10 episodes
-    # each: prompt_tokens ≤3015, completions ≤2897, total ≤5813. v1 run 1: prompt_tokens ≤2851,
-    # completions median 1317, max 3267.
-    max_tokens: 4096
+    # System prompt v3 2153 tokens (llama-tokenize; v2 2241 and v1 2077 by llama-server
+    # /tokenize). v2 runs 5-6, 10 episodes each: prompt_tokens ≤3015, completions ≤2897, total
+    # ≤5813, ≤6 scenes. v1 run 1: prompt_tokens ≤2851, completions median 1317, max 3267. v3's
+    # checks add ~103 completion tokens per scene: 6144 leaves room (≤~9.1k of ctx 12288).
+    max_tokens: 6144
   pick:
     profile: qwen3-8b-uncensor-q5km
     lora: null

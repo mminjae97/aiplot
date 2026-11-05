@@ -891,7 +891,7 @@ export interface OutputPick {
   reason: string
 }
 /**
- * `scene` role output (§9, §13): the episode split into scenes in story order. The server drops scenes whose source is not one of the episode's structure stage names, renumbers the rest 1..n and drops repeated tags.
+ * `scene` role output (§9, §13): the episode split into scenes in story order. The server drops scenes whose source is not one of the episode's structure stage names, renumbers the rest 1..n, adds the tags of the checks answered true after the model's own and drops repeated tags.
  */
 export interface SceneOutput {
   /**
@@ -909,6 +909,7 @@ export interface OutputScene {
    * What happens, in one or two sentences.
    */
   summary: string
+  checks: SceneChecks
   /**
    * Effects the scene wants the reader to feel.
    *
@@ -923,6 +924,79 @@ export interface OutputScene {
    * @maxItems 3
    */
   situations: [TechniqueSituation, ...TechniqueSituation[]]
+}
+/**
+ * Yes/no questions about the scene, answered before its tags; the server adds the tags of each question answered true (direction.CHECK_TAGS, §9).
+ */
+export interface SceneChecks {
+  /**
+   * The reader knows something a character does not.
+   */
+  knowledge_gap: boolean
+  /**
+   * A character hides something, or the reader is still kept from something.
+   */
+  hidden: boolean
+  /**
+   * A hidden fact comes out or the reader's expectation is overturned.
+   */
+  reveal: boolean
+  /**
+   * Foreshadowing planted earlier is paid off.
+   */
+  payoff: boolean
+  /**
+   * A clue or an ominous sign is planted for later.
+   */
+  plant: boolean
+  /**
+   * A set deadline or a danger drawing near.
+   */
+  deadline: boolean
+  /**
+   * One moment is drawn out at length.
+   */
+  held_moment: boolean
+  /**
+   * A fight or a chase.
+   */
+  action: boolean
+  /**
+   * Past events are told or recalled.
+   */
+  past_told: boolean
+  /**
+   * Much time passes.
+   */
+  time_skip: boolean
+  /**
+   * A place is visited again or an earlier scene repeats.
+   */
+  revisit: boolean
+  /**
+   * A character leaves a feeling or meaning unsaid.
+   */
+  unspoken: boolean
+  /**
+   * A relation between characters changes, or they clash in words.
+   */
+  relation: boolean
+  /**
+   * Something is funny.
+   */
+  humor: boolean
+  /**
+   * An unfamiliar world or a vast sight is shown.
+   */
+  spectacle: boolean
+  /**
+   * Something happens elsewhere at the same time.
+   */
+  simultaneous: boolean
+  /**
+   * A pause between big events.
+   */
+  breather: boolean
 }
 /**
  * `source` role output (§13). The model sees the notes as [n]-numbered sentences (server split, §15) and returns only edits; the server applies them, so sentences it does not name stay byte-identical. Changed sentences are the edited and added ones.
