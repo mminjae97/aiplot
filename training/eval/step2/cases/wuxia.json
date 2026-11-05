@@ -1,5 +1,59 @@
 {
  "seeds": "../../unit15/cases/wuxia.json",
+ "complete_seeds": {
+  "c_muchar1": {
+   "speech": {
+    "description": "말수가 적고, 꼭 필요한 말만 짧게 한다.",
+    "examples": [
+     "……가겠습니다.",
+     "사부님의 검이었소.",
+     "베지 않겠소."
+    ]
+   },
+   "appearance": {
+    "summary": "낡은 청의를 입고 검 한 자루를 등에 멘 마른 청년."
+   }
+  },
+  "c_muchar2": {
+   "speech": {
+    "description": "예의 바르고 온화한 말투 뒤에 계산을 숨긴다.",
+    "examples": [
+     "사제, 고생이 많았구나.",
+     "문파를 위한 일이었다.",
+     "강호는 강한 자의 것이다."
+    ]
+   },
+   "appearance": {
+    "summary": "단정한 백의에 옥 장식 검을 찬 삼십 대 검객."
+   }
+  },
+  "c_muchar3": {
+   "speech": {
+    "description": "툭툭 던지는 반말에 핀잔이 섞인다.",
+    "examples": [
+     "사흘 버텼다고 제자가 되는 줄 아느냐.",
+     "검이 떨리는구나. 마음이 떨리니까.",
+     "밥이나 지어라."
+    ]
+   },
+   "appearance": {
+    "summary": "흰 수염을 길게 늘어뜨린 맨발의 깡마른 노인."
+   }
+  },
+  "c_muchar4": {
+   "speech": {
+    "description": "시원스러운 하오체로, 농을 섞어 상대를 누른다.",
+    "examples": [
+     "손님, 외상은 안 되오.",
+     "칼을 뽑을 거면 밖에서 하시오.",
+     "이 객잔에선 내가 법이오."
+    ]
+   },
+   "appearance": {
+    "summary": "붉은 치마에 머리를 틀어 올린 삼십 대 객잔 주인."
+   }
+  }
+ },
  "episodes": [
   {
    "id": "c_muep1",
@@ -8,7 +62,7 @@
     "part_id": "c_mupart1",
     "order": 1,
     "theme": "살아남은 자의 죄책감",
-    "relation_to_main": "청운문이 하룻밤에 멸문당하는 사건(ms_mu1)을 이룬다.",
+    "relation_to_main": "청운문이 하룻밤에 멸문당하는 사건을 이룬다.",
     "fulfills": [
      "ms_mu1"
     ],
@@ -100,7 +154,7 @@
     "part_id": "c_mupart1",
     "order": 2,
     "theme": "검보다 먼저 마음을 다스리는 법",
-    "relation_to_main": "무현이 은거 고수 백운노인에게 검을 배우는 사건(ms_mu2)을 이룬다.",
+    "relation_to_main": "무현이 은거 고수 백운노인에게 검을 배우는 사건을 이룬다.",
     "fulfills": [
      "ms_mu2"
     ],

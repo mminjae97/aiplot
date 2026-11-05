@@ -1,5 +1,59 @@
 {
  "seeds": "../../unit15/cases/fantasy.json",
+ "complete_seeds": {
+  "c_fachar1": {
+   "speech": {
+    "description": "또박또박한 존댓말을 쓰다가 고집을 부릴 때는 말끝이 짧아진다.",
+    "examples": [
+     "제 이름은 제가 찾을게요.",
+     "괜찮아, 미라벨. 다시 하면 돼.",
+     "안 돼요. 한 번만 더 해 볼게요."
+    ]
+   },
+   "appearance": {
+    "summary": "회색 견습 로브를 입은 갈색 머리의 소녀."
+   }
+  },
+  "c_fachar2": {
+   "speech": {
+    "description": "낮고 짧은 말투로, 감정을 싣지 않고 결론만 말한다.",
+    "examples": [
+     "규칙은 규칙이다.",
+     "질문은 시험이 끝난 뒤에 해라.",
+     "네 이름이 무엇이었는지는 중요하지 않다."
+    ]
+   },
+   "appearance": {
+    "summary": "은발을 뒤로 묶은 마른 중년 마법사."
+   }
+  },
+  "c_fachar3": {
+   "speech": {
+    "description": "밝고 빠른 반말에 웃음을 섞어 말한다.",
+    "examples": [
+     "엘린, 차 식기 전에 마셔!",
+     "에이, 너라면 붙을 거야.",
+     "나… 아니, 아무것도 아니야."
+    ]
+   },
+   "appearance": {
+    "summary": "주근깨에 붉은 곱슬머리를 땋아 내린 견습생."
+   }
+  },
+  "c_fachar4": {
+   "speech": {
+    "description": "군인답게 딱딱한 존댓말로, 규정부터 꺼낸다.",
+    "examples": [
+     "통행증부터 보여 주십시오.",
+     "규정상 해가 지면 성문은 닫힙니다.",
+     "예외는 없습니다."
+    ]
+   },
+   "appearance": {
+    "summary": "아르칸 경비대의 청동 갑옷을 입은 건장한 사내."
+   }
+  }
+ },
  "episodes": [
   {
    "id": "c_faep1",
@@ -8,7 +62,7 @@
     "part_id": "c_fapart1",
     "order": 1,
     "theme": "믿었던 친구의 손이 남긴 상처",
-    "relation_to_main": "엘린이 시험에 떨어져 이름을 빼앗기는 사건(ms_fa1)을 이룬다.",
+    "relation_to_main": "엘린이 시험에 떨어져 이름을 빼앗기는 사건을 이룬다.",
     "fulfills": [
      "ms_fa1"
     ],
@@ -101,7 +155,7 @@
     "part_id": "c_fapart1",
     "order": 2,
     "theme": "잃어버린 것을 기억하는 사람들",
-    "relation_to_main": "엘린이 마탑 지하의 이름 장부를 알게 되는 사건(ms_fa2)을 이룬다.",
+    "relation_to_main": "엘린이 마탑 지하의 이름 장부를 알게 되는 사건을 이룬다.",
     "fulfills": [
      "ms_fa2"
     ],

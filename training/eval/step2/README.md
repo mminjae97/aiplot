@@ -10,6 +10,10 @@ single recommendation, that one must hold it.
 
 - `seeds`: the unit 15 case file whose seed cards (main story, part 1, regions, characters,
   world) the episodes build on.
+- `complete_seeds`: per seed id, fields merged into that seed's data so it is complete. The
+  unit 15 characters give only theme and traits, and an incomplete card is inactive (§11), so
+  `scene` would see no characters. Here they get speech and appearance as well (`scene` reads
+  only theme and traits). The unit 15 files stay unchanged.
 - `episodes`: complete episode cards of part 1 (structure, synopsis, characters, places,
   foreshadowing), 10 in all. Each has two scored stages in `gold`:
   - `stage`: the episode stage (§9 `source`) the scored scene comes from;
@@ -23,9 +27,9 @@ Each scored stage is written so the story itself calls for one family of techniq
 who knows what a character does not, a stated deadline, a twist at the end, three years to pass,
 a place revisited), across information, time, voice, dialogue, comedy and description.
 
-`check.py` saves every genre's episodes with their seeds into a throwaway database through the
-app's card save, twice (so a reference to an episode later in the file resolves): each must come
-out complete, every id it references (part, characters, world, places, prev/next/causes,
+`check.py` saves every genre's episodes with their completed seeds into a throwaway database
+through the app's card save, twice (so a reference to an episode later in the file resolves):
+every seed card and every episode must come out complete, every id it references (part, characters, world, places, prev/next/causes,
 fulfilled milestones, foreshadowing payoffs) must come out as its relation row (a seed card,
 another case episode, a milestone or a foreshadowing another case episode plants), and every
 accepted technique must exist and be a candidate. CI runs it.
