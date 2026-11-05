@@ -185,7 +185,7 @@ async def test_scene_sees_the_episode_and_its_active_cards(
     assert block(text, "지시") == "나눌 단계: 발단, 전개, 위기, 절정, 결말"
 
     assert [s.source for s in result.scenes] == FIVE
-    assert (result.meta.role, result.meta.prompt_version) == ("scene", 1)
+    assert (result.meta.role, result.meta.prompt_version) == ("scene", 2)
     # The fixture client reports no usage.
     assert (result.usage, result.generations) == (None, 1)
 
