@@ -1,4 +1,4 @@
-"""What the stage 2 roles see (§9, §13): tagged context blocks `<원문> <참고 카드> <지시>`.
+"""What the scene role sees (§9, §13): tagged context blocks `<원문> <참고 카드> <지시>`.
 
 The texts here are model input, not UI text: they follow the role prompts in prompts/. Cards
 the episode is tied to come from the relation tables (§6); inactive (incomplete) ones are left
@@ -14,8 +14,7 @@ from pydantic import BaseModel, ConfigDict
 from aiplot.db import cards as cards_db
 from aiplot.generated.card.card import EpisodeCard
 from aiplot.generated.card.structure import FiveStage, FourStage
-from aiplot.generated.roles.scene_output import SceneChecks
-from aiplot.generated.technique.technique import Technique
+from aiplot.generated.technique.technique_device import TechniqueDevice
 from aiplot.generated.technique.technique_effect import TechniqueEffect
 from aiplot.generated.technique.technique_situation import TechniqueSituation
 from aiplot.llm.client import Message
@@ -25,25 +24,17 @@ type Stage = FiveStage | FourStage
 
 
 class Scene(BaseModel):
-    """A cleaned `scene` output scene (§9, direction.clean_scenes): numbered 1..n, its own tags
-    first, then those of the checks answered true, each once (so more than three of each)."""
+    """A cleaned `scene` output scene (§9, direction.clean_scenes): numbered 1..n, the devices
+    answered true, each tag once."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     scene: int
     source: str
     summary: str
-    checks: SceneChecks
+    devices: list[TechniqueDevice]
     effects: list[TechniqueEffect]
     situations: list[TechniqueSituation]
-
-
-# The last line of every pick turn, the same on each call, itself in 해요체: the reasons are
-# shown to the user, and the model wrote them in 해라체 with the rule in the system prompt only.
-REASON_STYLE = (
-    "reason은 작가에게 말하듯 해요체로 써요. 문장마다 ~해요/~어요/~이에요로 끝내고, "
-    "~다/~니다로 끝내지 않아요. 효과나 상황 낱말을 따옴표로 감싸지 않아요."
-)
 
 
 def stages_of(episode: EpisodeCard) -> list[Stage]:
@@ -131,61 +122,6 @@ def scene_turns(conn: sqlite3.Connection, episode: EpisodeCard) -> list[Message]
                     block("원문", episode_lines(episode, ties)),
                     block("참고 카드", card_lines(conn, episode, ties)),
                     block("지시", f"나눌 단계: {names}"),
-                ]
-            ),
-        }
-    ]
-
-
-def candidate_lines(candidates: Sequence[Technique]) -> str:
-    """Each candidate's id, name, definition, use_when, avoid_when, requires and the other
-    candidates it conflicts with (either card listing the other, §9). Never its example."""
-    entries = []
-    for card in candidates:
-        clashes = [
-            other
-            for other in candidates
-            if other.id != card.id
-            and (other.id in card.conflicts_with or card.id in other.conflicts_with)
-        ]
-        lines = [
-            f"{card.id} {card.name}",
-            f"정의: {card.description}",
-            f"쓸 때: {' / '.join(card.use_when)}",
-            f"피할 때: {' / '.join(card.avoid_when)}",
-            f"전제: {card.requires}",
-        ]
-        if clashes:
-            lines.append(f"충돌: {', '.join(f'{c.id} {c.name}' for c in clashes)}")
-        entries.append("\n".join(lines))
-    return "\n\n".join(entries)
-
-
-def pick_turns(
-    episode: EpisodeCard, stage: Stage, scene: Scene, candidates: Sequence[Technique]
-) -> list[Message]:
-    """§9, §13: the episode, the scene's stage, the scene and its narrowed candidates."""
-    data = episode.data
-    story = [
-        *labelled("제목", episode.name),
-        *labelled("주제", data.theme),
-        *labelled("줄거리", data.synopsis),
-        f"이 장면의 단계: {stage_line(stage)}",
-    ]
-    order = [
-        f"장면: {scene.summary}",
-        f"원하는 효과: {', '.join(scene.effects)}",
-        f"상황: {', '.join(scene.situations)}",
-        REASON_STYLE,
-    ]
-    return [
-        {
-            "role": "user",
-            "content": "\n".join(
-                [
-                    block("원문", "\n".join(story)),
-                    block("참고 카드", candidate_lines(candidates)),
-                    block("지시", "\n".join(order)),
                 ]
             ),
         }

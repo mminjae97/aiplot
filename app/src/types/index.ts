@@ -909,34 +909,7 @@ export interface LoraManifest {
   base_sha256: string
 }
 /**
- * `pick` role output (§9, §13): 1-3 recommended technique combinations for one scene. The server drops ids not among the scene's candidates, repeated ids, combinations left empty, holding a conflicting pair or repeating an earlier one; keeps at most 3 in rank order and renumbers ranks 1..n.
- */
-export interface PickOutput {
-  /**
-   * @minItems 1
-   * @maxItems 3
-   */
-  picks: [OutputPick, ...OutputPick[]]
-}
-export interface OutputPick {
-  /**
-   * 1 = the best fit.
-   */
-  rank: number
-  /**
-   * The combination: 1-3 candidate technique ids used together.
-   *
-   * @minItems 1
-   * @maxItems 3
-   */
-  techniques: [TechniqueId, ...TechniqueId[]]
-  /**
-   * Why this combination fits the scene, for the user.
-   */
-  reason: string
-}
-/**
- * `scene` role output (§9, §13): the episode split into scenes in story order. The server drops scenes whose source is not one of the episode's structure stage names, renumbers the rest 1..n, adds the tags of the checks answered true after the model's own and drops repeated tags.
+ * `scene` role output (§9, §13): the episode split into scenes in story order. The server drops scenes whose source is not one of the episode's structure stage names, renumbers the rest 1..n and drops repeated tags.
  */
 export interface SceneOutput {
   /**
@@ -954,7 +927,7 @@ export interface OutputScene {
    * What happens, in one or two sentences.
    */
   summary: string
-  checks: SceneChecks
+  devices: SceneDevices
   /**
    * Effects the scene wants the reader to feel.
    *
@@ -971,77 +944,50 @@ export interface OutputScene {
   situations: [TechniqueSituation, ...TechniqueSituation[]]
 }
 /**
- * Yes/no questions about the scene, answered before its tags; the server adds the tags of each question answered true (direction.CHECK_TAGS, §9).
+ * A yes/no answer per scene device (technique-device.json, same keys in the same order), answered before the tags; code recommends the cards sharing the devices answered true (§9).
  */
-export interface SceneChecks {
-  /**
-   * The reader knows something a character does not.
-   */
+export interface SceneDevices {
   knowledge_gap: boolean
-  /**
-   * A character hides something, or the reader is still kept from something.
-   */
-  hidden: boolean
-  /**
-   * A hidden fact comes out or the reader's expectation is overturned.
-   */
+  hidden_secret: boolean
+  mystery: boolean
   reveal: boolean
-  /**
-   * Foreshadowing planted earlier is paid off.
-   */
-  payoff: boolean
-  /**
-   * A clue or an ominous sign is planted for later.
-   */
+  reversal: boolean
   plant: boolean
-  /**
-   * A set deadline or a danger drawing near.
-   */
+  payoff: boolean
+  foretold: boolean
   deadline: boolean
-  /**
-   * One moment is drawn out at length.
-   */
-  held_moment: boolean
-  /**
-   * A fight or a chase.
-   */
+  dilemma: boolean
+  eerie_threat: boolean
   action: boolean
-  /**
-   * Past events are told or recalled.
-   */
+  held_moment: boolean
   past_told: boolean
-  /**
-   * Much time passes.
-   */
+  embedded: boolean
   time_skip: boolean
-  /**
-   * A place is visited again or an earlier scene repeats.
-   */
   revisit: boolean
-  /**
-   * A character leaves a feeling or meaning unsaid.
-   */
+  repetition: boolean
   unspoken: boolean
-  /**
-   * A relation between characters changes, or they clash in words.
-   */
-  relation: boolean
-  /**
-   * Something is funny.
-   */
+  verbal_clash: boolean
+  misunderstanding: boolean
+  overhear: boolean
+  crowd_voice: boolean
+  first_appearance: boolean
+  realization: boolean
+  confession: boolean
+  delayed_outcome: boolean
+  relationship_shift: boolean
   humor: boolean
-  /**
-   * An unfamiliar world or a vast sight is shown.
-   */
-  spectacle: boolean
-  /**
-   * Something happens elsewhere at the same time.
-   */
+  satire: boolean
+  new_place: boolean
+  world_rules: boolean
   simultaneous: boolean
-  /**
-   * A pause between big events.
-   */
-  breather: boolean
+  ordinary_life: boolean
+  aftermath: boolean
+  contrast: boolean
+  loss: boolean
+  meaningful_object: boolean
+  differing_views: boolean
+  threshold: boolean
+  release: boolean
 }
 /**
  * `source` role output (§13). The model sees the notes as [n]-numbered sentences (server split, §15) and returns only edits; the server applies them, so sentences it does not name stay byte-identical. Changed sentences are the edited and added ones.

@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 
 from aiplot.generated.roles.card_output import CharacterCardOutput
-from aiplot.generated.roles.pick_output import PickOutput
 from aiplot.generated.roles.scene_output import SceneOutput
 from aiplot.generated.roles.source_output import SourceOutput
 from aiplot.llm.client import ChatRequest, Delta, LlmError, Message
@@ -181,7 +180,6 @@ async def test_shipped_fake_fixtures_match_role_outputs(prompts: Path) -> None:
     # The card role constrains output to the requested type's variant.
     await r.complete_json("card", TURNS, CharacterCardOutput)
     await r.complete_json("scene", TURNS, SceneOutput)
-    await r.complete_json("pick", TURNS, PickOutput)
 
 
 async def test_complete_json_schema_override_constrains_but_model_validates(

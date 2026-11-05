@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "SceneOutput",
-  "description": "`scene` role output (§9, §13): the episode split into scenes in story order. The server drops scenes whose source is not one of the episode's structure stage names, renumbers the rest 1..n, adds the tags of the checks answered true after the model's own and drops repeated tags.",
+  "description": "`scene` role output (§9, §13): the episode split into scenes in story order. The server drops scenes whose source is not one of the episode's structure stage names, renumbers the rest 1..n and drops repeated tags.",
   "type": "object",
   "additionalProperties": false,
   "required": ["scenes"],
@@ -13,7 +13,7 @@
         "title": "OutputScene",
         "type": "object",
         "additionalProperties": false,
-        "required": ["scene", "source", "summary", "checks", "effects", "situations"],
+        "required": ["scene", "source", "summary", "devices", "effects", "situations"],
         "properties": {
           "scene": {
             "type": "integer",
@@ -29,97 +29,176 @@
             "type": "string",
             "minLength": 1
           },
-          "checks": {
-            "title": "SceneChecks",
-            "description": "Yes/no questions about the scene, answered before its tags; the server adds the tags of each question answered true (direction.CHECK_TAGS, §9).",
+          "devices": {
+            "title": "SceneDevices",
+            "description": "A yes/no answer per scene device (technique-device.json, same keys in the same order), answered before the tags; code recommends the cards sharing the devices answered true (§9).",
             "type": "object",
             "additionalProperties": false,
             "required": [
               "knowledge_gap",
-              "hidden",
+              "hidden_secret",
+              "mystery",
               "reveal",
-              "payoff",
+              "reversal",
               "plant",
+              "payoff",
+              "foretold",
               "deadline",
-              "held_moment",
+              "dilemma",
+              "eerie_threat",
               "action",
+              "held_moment",
               "past_told",
+              "embedded",
               "time_skip",
               "revisit",
+              "repetition",
               "unspoken",
-              "relation",
+              "verbal_clash",
+              "misunderstanding",
+              "overhear",
+              "crowd_voice",
+              "first_appearance",
+              "realization",
+              "confession",
+              "delayed_outcome",
+              "relationship_shift",
               "humor",
-              "spectacle",
+              "satire",
+              "new_place",
+              "world_rules",
               "simultaneous",
-              "breather"
+              "ordinary_life",
+              "aftermath",
+              "contrast",
+              "loss",
+              "meaningful_object",
+              "differing_views",
+              "threshold",
+              "release"
             ],
             "properties": {
               "knowledge_gap": {
-                "description": "The reader knows something a character does not.",
                 "type": "boolean"
               },
-              "hidden": {
-                "description": "A character hides something, or the reader is still kept from something.",
+              "hidden_secret": {
+                "type": "boolean"
+              },
+              "mystery": {
                 "type": "boolean"
               },
               "reveal": {
-                "description": "A hidden fact comes out or the reader's expectation is overturned.",
                 "type": "boolean"
               },
-              "payoff": {
-                "description": "Foreshadowing planted earlier is paid off.",
+              "reversal": {
                 "type": "boolean"
               },
               "plant": {
-                "description": "A clue or an ominous sign is planted for later.",
+                "type": "boolean"
+              },
+              "payoff": {
+                "type": "boolean"
+              },
+              "foretold": {
                 "type": "boolean"
               },
               "deadline": {
-                "description": "A set deadline or a danger drawing near.",
                 "type": "boolean"
               },
-              "held_moment": {
-                "description": "One moment is drawn out at length.",
+              "dilemma": {
+                "type": "boolean"
+              },
+              "eerie_threat": {
                 "type": "boolean"
               },
               "action": {
-                "description": "A fight or a chase.",
+                "type": "boolean"
+              },
+              "held_moment": {
                 "type": "boolean"
               },
               "past_told": {
-                "description": "Past events are told or recalled.",
+                "type": "boolean"
+              },
+              "embedded": {
                 "type": "boolean"
               },
               "time_skip": {
-                "description": "Much time passes.",
                 "type": "boolean"
               },
               "revisit": {
-                "description": "A place is visited again or an earlier scene repeats.",
+                "type": "boolean"
+              },
+              "repetition": {
                 "type": "boolean"
               },
               "unspoken": {
-                "description": "A character leaves a feeling or meaning unsaid.",
                 "type": "boolean"
               },
-              "relation": {
-                "description": "A relation between characters changes, or they clash in words.",
+              "verbal_clash": {
+                "type": "boolean"
+              },
+              "misunderstanding": {
+                "type": "boolean"
+              },
+              "overhear": {
+                "type": "boolean"
+              },
+              "crowd_voice": {
+                "type": "boolean"
+              },
+              "first_appearance": {
+                "type": "boolean"
+              },
+              "realization": {
+                "type": "boolean"
+              },
+              "confession": {
+                "type": "boolean"
+              },
+              "delayed_outcome": {
+                "type": "boolean"
+              },
+              "relationship_shift": {
                 "type": "boolean"
               },
               "humor": {
-                "description": "Something is funny.",
                 "type": "boolean"
               },
-              "spectacle": {
-                "description": "An unfamiliar world or a vast sight is shown.",
+              "satire": {
+                "type": "boolean"
+              },
+              "new_place": {
+                "type": "boolean"
+              },
+              "world_rules": {
                 "type": "boolean"
               },
               "simultaneous": {
-                "description": "Something happens elsewhere at the same time.",
                 "type": "boolean"
               },
-              "breather": {
-                "description": "A pause between big events.",
+              "ordinary_life": {
+                "type": "boolean"
+              },
+              "aftermath": {
+                "type": "boolean"
+              },
+              "contrast": {
+                "type": "boolean"
+              },
+              "loss": {
+                "type": "boolean"
+              },
+              "meaningful_object": {
+                "type": "boolean"
+              },
+              "differing_views": {
+                "type": "boolean"
+              },
+              "threshold": {
+                "type": "boolean"
+              },
+              "release": {
                 "type": "boolean"
               }
             }

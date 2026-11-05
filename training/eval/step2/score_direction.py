@@ -1,27 +1,28 @@
 """Step 2: scores a run_direction.py result against the cases' gold (§20 step 2).
 
-    uv run python eval/step2/score_direction.py eval/results/step2/run1.json \
-        --json eval/results/step2/score-run1.json --md eval/results/step2/report-run1.md
+    uv run python eval/step2/score_direction.py eval/results/step2/run9.json \
+        --json eval/results/step2/score-run9.json --md eval/results/step2/report-run9.md
 
 Per scored stage (README Scoring): its scenes are those whose source is that stage; none (the
-scene call failed or gave the stage no scene) = a miss on both counts.
-- Candidates: right if an accepted technique is among the narrowed candidates of any of them.
-- Recommendations: right if an accepted technique is in a recommended combination of any of
-  them, and every one of them that got a single combination has one in it. A scene whose pick
-  call failed recommends nothing.
+scene call failed or gave the stage no scene) = a miss.
+- Recommended: right if an accepted technique is among the 5 recommended cards of any of them
+  (the pass criterion).
+- Top 20: right if one is among the first 20 of the same ranking (where the ranking would
+  need to be better, not worse, to reach the 5).
 
-Also reported: the pick reasons' style (해요체: every sentence ends in 요 or 죠; ids written out;
-a single-technique combination whose reason speaks of combining, e.g. 함께, 합쳐), call failures,
-retries, times and token counts against the context size. A run missing a case episode is a
-PARTIAL RUN (scored over the episodes it has); a --fake run is flagged FAKE RUN; a run without
-finished_at is an UNFINISHED RUN. Only a run that is none of these can pass.
+Also reported for setting the highlight rule (§9): the shared-device counts of the accepted
+cards that were recommended and of the other recommended cards, and how the current rule
+(direction.HIGHLIGHT_MIN_DEVICES) splits them; how many devices the scene answered yes; scene
+call failures, retries, times and token counts against the context size. A run missing a case
+episode is a PARTIAL RUN (scored over the episodes it has); a --fake run is flagged FAKE RUN; a
+run without finished_at is an UNFINISHED RUN. Only a run that is none of these can pass.
 """
 
 import argparse
 import json
-import re
 import statistics
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -31,62 +32,35 @@ sys.path.insert(0, str(HERE.parent / "unit15"))
 from aiplot.services import techniques  # noqa: E402
 from check import GENRES, load  # noqa: E402
 
-TARGET_CANDIDATES = 0.9
-TARGET_RECOMMENDATIONS = 0.8
+TARGET = 0.8
 # Context size of the base profile (§13).
 CTX = 12288
-
-SENTENCE_END = re.compile(r"(?<=[.!?…])\s+")
-# Closing marks after a sentence's last word: . ! ? … quotes (straight and curly) ) 」 』.
-CLOSERS = ".!?…\"'\u201d\u2019)」』 "
-TECHNIQUE_ID = re.compile(r"tech_[a-z]{3}_\d{3}")
-COMBINING = re.compile(r"함께|합쳐|합치|결합|조합|어우러|곁들")
-
-
-# 해요체 endings: ~요, and ~죠 (= ~지요).
-HEYO_ENDINGS = ("요", "죠")
-
-
-def heyo(reason: str) -> bool:
-    """Every sentence ends in 요 or 죠 (해요체), closing marks aside."""
-    sentences = [s.rstrip(CLOSERS) for s in SENTENCE_END.split(reason.strip())]
-    sentences = [s for s in sentences if s]
-    return bool(sentences) and all(s.endswith(HEYO_ENDINGS) for s in sentences)
 
 
 def score_stage(record: dict[str, Any], gold: dict[str, Any]) -> dict[str, Any]:
     accept = set(gold["accept"])
-    picks_by_scene = {p["scene"]: p for p in record["picks"]}
+    by_scene = {r["scene"]: r for r in record["recommendations"]}
     scenes = []
     for scene in (s for s in record["scenes"] if s["source"] == gold["stage"]):
-        call = picks_by_scene.get(scene["scene"], {})
-        found = call.get("candidates", [])
-        combos = call.get("picks", [])
+        found = by_scene.get(scene["scene"], {"recommended": [], "ranked": []})
+        ranked = found["ranked"]
         scenes.append(
             {
                 **scene,
-                # 1-based rank of each accepted technique among the scene's candidates.
-                "candidate_ranks": {t: found.index(t) + 1 for t in gold["accept"] if t in found},
-                "candidates": len(found),
-                "picks": combos,
-                "pick_error": call.get("error"),
-                "recommended": [c["rank"] for c in combos if accept.intersection(c["techniques"])],
+                "recommended": found["recommended"],
+                # 1-based rank of each accepted technique in the first 20.
+                "gold_ranks": {t: ranked.index(t) + 1 for t in gold["accept"] if t in ranked},
+                "hits": [r["rank"] for r in found["recommended"] if r["technique_id"] in accept],
             }
         )
-    in_candidates = any(s["candidate_ranks"] for s in scenes)
-    in_picks = any(s["recommended"] for s in scenes)
-    # A single combination must hold an accepted technique (§20 step 2).
-    single_misses = [s["scene"] for s in scenes if len(s["picks"]) == 1 and not s["recommended"]]
     return {
         "stage": gold["stage"],
         "accept": gold["accept"],
         "why": gold["why"],
         "scene_error": record["scene_call"].get("error"),
         "scenes": scenes,
-        "in_candidates": in_candidates,
-        "in_picks": in_picks,
-        "single_misses": single_misses,
-        "recommended": in_picks and not single_misses,
+        "recommended": any(s["hits"] for s in scenes),
+        "top20": any(s["gold_ranks"] for s in scenes),
     }
 
 
@@ -95,6 +69,7 @@ def stats(values: list[float]) -> dict[str, float] | None:
         return None
     return {
         "n": len(values),
+        "mean": round(statistics.mean(values), 1),
         "median": round(statistics.median(values), 1),
         "max": round(max(values), 1),
     }
@@ -122,23 +97,24 @@ def call_stats(calls: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def reason_stats(records: list[dict[str, Any]]) -> dict[str, Any]:
-    reasons: list[tuple[str, dict[str, Any]]] = [
-        (f"{r['id']} 장면 {call['scene']}", pick)
-        for r in records
-        for call in r["picks"]
-        for pick in call.get("picks", [])
-    ]
+def highlight_stats(stages: list[dict[str, Any]]) -> dict[str, Any]:
+    """Shared devices of the recommended cards in scored scenes: accepted ones against the
+    others, and how the current highlight rule splits them."""
+    right: Counter[int] = Counter()
+    other: Counter[int] = Counter()
+    lit = {"right": 0, "other": 0}
+    for stage in stages:
+        accept = set(stage["accept"])
+        for scene in stage["scenes"]:
+            for r in scene["recommended"]:
+                is_right = r["technique_id"] in accept
+                (right if is_right else other)[len(r["devices"])] += 1
+                if r["highlighted"]:
+                    lit["right" if is_right else "other"] += 1
     return {
-        "reasons": len(reasons),
-        "heyo": sum(1 for _, p in reasons if heyo(p["reason"])),
-        "not_heyo": [(where, p["reason"]) for where, p in reasons if not heyo(p["reason"])],
-        "ids": [(where, p["reason"]) for where, p in reasons if TECHNIQUE_ID.search(p["reason"])],
-        "single_combining": [
-            (where, p["reason"])
-            for where, p in reasons
-            if len(p["techniques"]) == 1 and COMBINING.search(p["reason"])
-        ],
+        "right_by_devices": dict(sorted(right.items())),
+        "other_by_devices": dict(sorted(other.items())),
+        "highlighted": lit,
     }
 
 
@@ -167,30 +143,24 @@ def score(run: dict[str, Any]) -> dict[str, Any]:
     finished = "finished_at" in run
     # A pass needs every case episode, the real model and a run that got to its end (§20: 20).
     full = scored > 0 and not missing and not fake and finished
-    hits_c = sum(1 for s in stages if s["in_candidates"])
-    hits_r = sum(1 for s in stages if s["recommended"])
+    hits = sum(1 for s in stages if s["recommended"])
     records = list(by_id.values())
+    yes = [float(len(s["devices"])) for r in records for s in r["scenes"]]
     return {
         "fake": fake,
         "partial_run": {"missing": missing} if missing else None,
         "finished": finished,
         "scored": scored,
-        "candidates": {
-            "hits": hits_c,
-            "rate": round(hits_c / scored, 3) if scored else None,
-            "target": TARGET_CANDIDATES,
-            "pass": full and hits_c / scored >= TARGET_CANDIDATES,
+        "recommended": {
+            "hits": hits,
+            "rate": round(hits / scored, 3) if scored else None,
+            "target": TARGET,
+            "pass": full and hits / scored >= TARGET,
         },
-        "recommendations": {
-            "hits": hits_r,
-            "rate": round(hits_r / scored, 3) if scored else None,
-            "target": TARGET_RECOMMENDATIONS,
-            "pass": full and hits_r / scored >= TARGET_RECOMMENDATIONS,
-            "single_misses": sum(1 for s in stages if s["single_misses"]),
-        },
-        "reasons": reason_stats(records),
+        "top20": sum(1 for s in stages if s["top20"]),
+        "highlight": highlight_stats(stages),
+        "devices_per_scene": stats(yes),
         "scene_calls": call_stats([r["scene_call"] for r in records]),
-        "pick_calls": call_stats([call for r in records for call in r["picks"]]),
         "stages": stages,
     }
 
@@ -205,18 +175,20 @@ def spread(value: dict[str, float] | None, unit: str = "") -> str:
     return f"중앙 {value['median']:g}{unit} · 최대 {value['max']:g}{unit}"
 
 
-def share(part: dict[str, Any]) -> str:
-    return "-" if part["rate"] is None else f"{part['rate']:.0%}"
-
-
 def report(result: dict[str, Any], names: dict[str, str]) -> str:
-    """The Markdown report: rates, then every scored stage with its scenes and picks."""
+    """The Markdown report: rates, then every scored stage with its scenes and cards."""
 
     def named(technique_id: str) -> str:
         return f"{names.get(technique_id, '?')} (`{technique_id}`)"
 
-    c, r, why = result["candidates"], result["recommendations"], result["reasons"]
-    lines = ["# Step 2 기법 선택 평가", ""]
+    r, h, s = result["recommended"], result["highlight"], result["scene_calls"]
+    rate = "-" if r["rate"] is None else f"{r['rate']:.0%}"
+    per_scene = result["devices_per_scene"]
+    yes = "-"
+    if per_scene is not None:
+        yes = f"평균 {per_scene['mean']:g} · 중앙 {per_scene['median']:g}"
+        yes += f" · 최대 {per_scene['max']:g}"
+    lines = ["# Step 2 기법 추천 평가", ""]
     if result["fake"]:
         lines += ["> FAKE RUN: fixture 응답이라 측정이 아니에요.", ""]
     if result["partial_run"]:
@@ -224,36 +196,24 @@ def report(result: dict[str, Any], names: dict[str, str]) -> str:
     if not result["finished"]:
         lines += ["> UNFINISHED RUN: 실행이 끝나지 않았어요 (finished_at 없음).", ""]
     lines += [
-        f"- 후보 안에 정답: {c['hits']}/{result['scored']} ({share(c)}, "
-        f"목표 {c['target']:.0%}) {mark(c['pass'])}",
-        f"- 추천 안에 정답: {r['hits']}/{result['scored']} ({share(r)}, "
-        f"목표 {r['target']:.0%}) {mark(r['pass'])} "
-        f"(추천이 하나뿐인데 정답이 없는 단계 {r['single_misses']})",
-        f"- 이유 해요체: {why['heyo']}/{why['reasons']}, id 노출 {len(why['ids'])}, "
-        f"단일 기법인데 결합 표현 {len(why['single_combining'])}",
+        f"- 추천 5장 안에 정답: {r['hits']}/{result['scored']} ({rate}, "
+        f"목표 {r['target']:.0%}) {mark(r['pass'])}",
+        f"- 20위 안에 정답: {result['top20']}/{result['scored']}",
+        f"- 추천된 정답 카드의 겹친 장치 수: {h['right_by_devices']} · "
+        f"다른 추천 카드: {h['other_by_devices']}",
+        f"- 지금 강조 규칙으로 강조된 카드: 정답 {h['highlighted']['right']}, "
+        f"다른 카드 {h['highlighted']['other']}",
+        f"- 장면당 예라고 답한 장치: {yes}",
+        f"- scene 호출 {s['calls']}: 실패 {sum(s['failures'].values())} {s['failures'] or ''}, "
+        f"재생성 {s['retried']}, 시간 {spread(s['time_s'], 's')}, "
+        f"프롬프트 토큰 {spread(s['prompt_tokens'])}, 출력 토큰 {spread(s['completion_tokens'])}, "
+        f"최대 합계 {s['max_total_tokens'] or '-'}/{s['ctx']}",
         "",
     ]
-    for label, key in (("scene", "scene_calls"), ("pick", "pick_calls")):
-        s = result[key]
-        lines.append(
-            f"- {label} 호출 {s['calls']}: 실패 {sum(s['failures'].values())} "
-            f"{s['failures'] or ''}, 재생성 {s['retried']}, "
-            f"시간 {spread(s['time_s'], 's')}, 프롬프트 토큰 {spread(s['prompt_tokens'])}, "
-            f"출력 토큰 {spread(s['completion_tokens'])}, "
-            f"최대 합계 {s['max_total_tokens'] or '-'}/{s['ctx']}"
-        )
-    lines.append("")
-    for title, entries in (
-        ("해요체가 아닌 이유", why["not_heyo"]),
-        ("id가 들어간 이유", why["ids"]),
-        ("단일 기법인데 결합 표현", why["single_combining"]),
-    ):
-        if entries:
-            lines += [f"## {title}", ""] + [f"- {where}: {text}" for where, text in entries] + [""]
     for stage in result["stages"]:
         lines += [
             f"## {stage['name']} · {stage['stage']} ({stage['genre']} `{stage['id']}`) "
-            f"후보 {mark(stage['in_candidates'])} 추천 {mark(stage['recommended'])}",
+            f"추천 {mark(stage['recommended'])} 20위 {mark(stage['top20'])}",
             "",
             f"- 정답: {', '.join(named(t) for t in stage['accept'])}",
             f"- 근거: {stage['why']}",
@@ -263,24 +223,20 @@ def report(result: dict[str, Any], names: dict[str, str]) -> str:
         if not stage["scenes"] and not stage["scene_error"]:
             lines.append("- 이 단계에서 나온 장면 없음")
         for scene in stage["scenes"]:
-            ranks = ", ".join(f"{named(t)} {n}위" for t, n in scene["candidate_ranks"].items())
+            ranks = ", ".join(f"{named(t)} {n}위" for t, n in scene["gold_ranks"].items())
             lines += [
                 "",
                 f"### 장면 {scene['scene']}: {scene['summary']}",
+                f"- 장치 {', '.join(scene['devices']) or '없음'}",
                 f"- 효과 {', '.join(scene['effects'])} · 상황 {', '.join(scene['situations'])}",
-                f"- 후보 {scene['candidates']}개, 정답 순위: {ranks or '없음'}",
+                f"- 20위 안 정답 순위: {ranks or '없음'}",
             ]
-            if "checks" in scene:  # scene v3 on; the tags above include the checks' own
-                yes = [key for key, answer in scene["checks"].items() if answer]
-                lines.insert(-1, f"- 예라고 답한 질문: {', '.join(yes) or '없음'}")
-            if scene["pick_error"]:
-                lines.append(f"- pick 실패: {scene['pick_error']}")
-            for pick in scene["picks"]:
-                hit = " ← 정답" if pick["rank"] in scene["recommended"] else ""
-                lines.append(
-                    f"- {pick['rank']}. {' + '.join(named(t) for t in pick['techniques'])}{hit}: "
-                    f"{pick['reason']}"
-                )
+            for card in scene["recommended"]:
+                hit = " ← 정답" if card["rank"] in scene["hits"] else ""
+                star = " ✦" if card["highlighted"] else ""
+                shared = ", ".join(card["devices"] + card["effects"] + card["situations"])
+                card_name = named(card["technique_id"])
+                lines.append(f"- {card['rank']}.{star} {card_name}{hit}: {shared}")
         lines.append("")
     return "\n".join(lines)
 
@@ -293,10 +249,9 @@ def main() -> None:
     args = parser.parse_args()
 
     result = score(json.loads(args.run.read_text(encoding="utf-8")))
-    c, r = result["candidates"], result["recommendations"]
-    print(f"candidates {c['hits']}/{result['scored']} pass={c['pass']}")
-    print(f"recommendations {r['hits']}/{result['scored']} pass={r['pass']}")
-    print(f"reasons heyo {result['reasons']['heyo']}/{result['reasons']['reasons']}")
+    r = result["recommended"]
+    print(f"recommended {r['hits']}/{result['scored']} pass={r['pass']}")
+    print(f"top20 {result['top20']}/{result['scored']}")
     if result["fake"]:
         print("FAKE RUN: fixture output, not a measurement", file=sys.stderr)
     if result["partial_run"]:

@@ -1,8 +1,8 @@
 # Step 2: technique choice evaluation
 
-Pass criteria (CLAUDE.md §20 step 2): over 20 scenes, the right technique is within the
-narrowed candidates ≥90% and within the recommendations ≥80%; when `pick` gives a scene a
-single recommendation, that one must hold it.
+Pass criterion (CLAUDE.md §20 step 2): over 20 scenes, the right technique is within the 5
+cards code recommends ≥80%. (Runs 1–8 measured the earlier design: 20 narrowed candidates and
+the `pick` role's combinations.)
 
 ## Cases
 
@@ -37,14 +37,11 @@ accepted technique must exist and be a candidate. CI runs it.
 ## Scoring
 
 The `scene` role splits an episode into scenes, each with its `source` stage. For a scored
-stage, its scenes are those whose source is that stage (none = a miss on both counts).
+stage, its scenes are those whose source is that stage (none = a miss).
 
-- Candidates: right if any accepted technique is among the narrowed candidates of any of those
-  scenes (`direction.candidates`: the top 20 direction candidates by tags shared with the scene,
-  §9).
-- Recommendations: right if any accepted technique is in any recommended combination for those
-  scenes. When `pick` gives one of those scenes a single combination, that combination must hold
-  an accepted technique.
+- Recommended: right if any accepted technique is among the 5 cards `direction.recommend` gives
+  any of those scenes (§9: most shared devices, then most shared tags, then id).
+- Top 20 (reported, not a criterion): the same over the first 20 of that ranking.
 
 ## Run
 
@@ -52,23 +49,24 @@ Start llama-server by hand with the base profile's GGUF and flags (§17), alone 
 run next to other heavy work was once stopped by low system RAM), then:
 
 ```
-uv run python eval/step2/run_direction.py --url http://127.0.0.1:8796 --out eval/results/step2/run1.json
-uv run python eval/step2/score_direction.py eval/results/step2/run1.json     --json eval/results/step2/score-run1.json --md eval/results/step2/report-run1.md
+uv run python eval/step2/run_direction.py --url http://127.0.0.1:8796 --out eval/results/step2/run9.json
+uv run python eval/step2/score_direction.py eval/results/step2/run9.json     --json eval/results/step2/score-run9.json --md eval/results/step2/report-run9.md
 ```
 
 `run_direction.py` builds each genre's database as `check.py` does (completed seeds, episodes,
 the technique catalog) and calls the app's own code per episode: `direction.split_scenes`, then
-for each scene of a scored stage `direction.candidates` and `direction.recommend`. Scenes of
-unscored stages get no pick call. `--episodes ID…` runs a subset (scored as a PARTIAL RUN);
+for every scene `direction.recommend` (no model call) and the first 20 of the same ranking.
+`--episodes ID…` runs a subset (scored as a PARTIAL RUN);
 `--fake` uses the fixture client (a check of the scripts, scored as a FAKE RUN). Results are
 written after every episode and stay out of git; a run that stopped early (no `finished_at`) is
 an UNFINISHED RUN. Only a full, real, finished run can pass.
 
-The scorer also reports the pick reasons' style (해요체 = every sentence ends in 요 or 죠 (~지요); technique
-ids written out; a single-technique combination whose reason speaks of combining, e.g. 함께,
-합쳐), call failures, retries, times and token counts (prompt + completion against ctx 12288).
-The Markdown report lists every scored stage with its scenes, the accepted techniques' ranks
-among the candidates and the recommended combinations with their reasons, for the user.
+The scorer also reports, to set the highlight rule (§9), how many devices the recommended
+right cards and the other recommended cards share with their scene and how the current rule
+splits them; devices answered yes per scene; scene call failures, retries, times and token
+counts (prompt + completion against ctx 12288). The Markdown report lists every scored stage
+with its scenes (devices, tags), the accepted techniques' ranks in the first 20 and the 5
+recommended cards with what they share, for the user.
 
 ## Review
 

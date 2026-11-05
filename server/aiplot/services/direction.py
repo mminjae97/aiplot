@@ -1,25 +1,25 @@
-"""Stage 2 direction (§9): the `scene` role splits an episode into scenes, technique candidates
-are narrowed in code per scene, and the `pick` role recommends combinations of them.
+"""Stage 2 direction (§9): the `scene` role splits an episode into scenes and answers the scene
+device questions; code recommends technique cards per scene from the devices and tags they share.
 
-Each call constrains the model by a schema narrowed to this call's values (the episode's stage
-names, the scene's candidate ids); the server cleans the output as well. Nothing is stored yet:
-plans and picks get their tables in step 3.
+The scene call is constrained by a schema narrowed to the episode's stage names; the server
+cleans its output. Recommendations need no model call. Nothing is stored yet: plans and picks
+get their tables in step 3.
 """
 
 import copy
 import sqlite3
 from collections.abc import Callable, Collection, Iterable, Sequence
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, replace
+from typing import Any, cast
 
 from pydantic import BaseModel
 
 from aiplot.db import techniques as techniques_db
 from aiplot.db import works as works_db
 from aiplot.generated.card.card import EpisodeCard
-from aiplot.generated.roles.pick_output import OutputPick, PickOutput
-from aiplot.generated.roles.scene_output import SceneChecks, SceneOutput
+from aiplot.generated.roles.scene_output import SceneDevices, SceneOutput
 from aiplot.generated.technique.technique import Technique
+from aiplot.generated.technique.technique_device import TechniqueDevice
 from aiplot.generated.technique.technique_effect import TechniqueEffect
 from aiplot.generated.technique.technique_situation import TechniqueSituation
 from aiplot.llm.client import LlmError, Message, Usage
@@ -36,33 +36,24 @@ SERIAL_TECHNIQUES = ("tech_ser_019", "tech_ser_020", "tech_ser_021", "tech_ser_0
 # Scopes a direction candidate works at (§9); 문장 cards are style material, 아크·작품 a later step.
 CANDIDATE_SCOPES = frozenset({"장면", "회차"})
 
-CANDIDATE_LIMIT = 20
+# Cards shown per scene (§9).
+RECOMMEND_LIMIT = 5
 
-MAX_PICKS = 3
+# Provisional highlight rule until the step 2 measurement sets it (§9, §20): a card sharing at
+# least this many of the scene's devices.
+HIGHLIGHT_MIN_DEVICES = 2
 
-type CheckTags = tuple[tuple[TechniqueEffect, ...], tuple[TechniqueSituation, ...]]
 
-# The effects and situations added for each scene check answered true (§9), in the checks'
-# order: scene v1-v2 wrote summaries calling for tags it then left out (step 2 runs 1-6).
-CHECK_TAGS: dict[str, CheckTags] = {
-    "knowledge_gap": (("아이러니", "서스펜스"), ("비밀",)),
-    "hidden": (("호기심",), ("비밀",)),
-    "reveal": (("놀람", "반전"), ("진실폭로",)),
-    "payoff": (("완결감",), ("진실폭로",)),
-    "plant": (("기대형성",), ("단서제시", "징조")),
-    "deadline": (("긴장", "서스펜스"), ("위기",)),
-    "held_moment": (("감속",), ()),
-    "action": (("속도감",), ("전투", "추격")),
-    "past_told": ((), ("과거사",)),
-    "time_skip": ((), ("시간경과",)),
-    "revisit": (("대비", "순환감"), ()),
-    "unspoken": (("여운", "모호성"), ("비밀",)),
-    "relation": ((), ("관계변화", "설전")),
-    "humor": (("해학",), ("코미디",)),
-    "spectacle": (("경이",), ("세계관설명", "대규모사건")),
-    "simultaneous": ((), ("동시사건",)),
-    "breather": ((), ("숨고르기",)),
-}
+@dataclass(frozen=True)
+class Recommendation:
+    """A recommended card with what it shares with the scene (the app words the reason)."""
+
+    rank: int
+    technique_id: str
+    devices: list[TechniqueDevice]
+    effects: list[TechniqueEffect]
+    situations: list[TechniqueSituation]
+    highlighted: bool
 
 
 def is_candidate(card: Technique) -> bool:
@@ -70,69 +61,67 @@ def is_candidate(card: Technique) -> bool:
     return card.id not in SERIAL_TECHNIQUES and not CANDIDATE_SCOPES.isdisjoint(card.scope)
 
 
-def narrow(
+def rank(
     catalog: Iterable[Technique],
+    devices: Collection[str],
     effects: Collection[str],
     situations: Collection[str],
-    limit: int = CANDIDATE_LIMIT,
-) -> list[Technique]:
-    """A scene's candidates: direction candidates sharing at least one of its tags (effects
-    with effects, situations with situations), most shared tags first, ties by more shared
-    effects, then id; the first `limit`."""
-    wanted_effects = set(effects)
-    wanted_situations = set(situations)
-    ranked: list[tuple[int, int, str, Technique]] = []
+    limit: int = RECOMMEND_LIMIT,
+) -> list[Recommendation]:
+    """Direction candidates sharing at least one of the scene's devices or tags (effects with
+    effects, situations with situations): most shared devices first, ties by more shared tags,
+    then id; the first `limit`, ranked 1..n."""
+    scored: list[tuple[int, int, str, Recommendation]] = []
     for card in catalog:
         if not is_candidate(card):
             continue
-        shared_effects = len(wanted_effects.intersection(card.effects))
-        shared = shared_effects + len(wanted_situations.intersection(card.situations))
-        if shared:
-            ranked.append((-shared, -shared_effects, card.id, card))
-    ranked.sort(key=lambda entry: entry[:3])
-    return [entry[3] for entry in ranked[:limit]]
+        shared_devices = [d for d in card.devices if d in devices]
+        shared_effects = [e for e in card.effects if e in effects]
+        shared_situations = [s for s in card.situations if s in situations]
+        tags = len(shared_effects) + len(shared_situations)
+        if not shared_devices and not tags:
+            continue
+        found = Recommendation(
+            rank=0,
+            technique_id=card.id,
+            devices=shared_devices,
+            effects=shared_effects,
+            situations=shared_situations,
+            highlighted=len(shared_devices) >= HIGHLIGHT_MIN_DEVICES,
+        )
+        scored.append((-len(shared_devices), -tags, card.id, found))
+    scored.sort(key=lambda entry: entry[:3])
+    return [replace(entry[3], rank=number) for number, entry in enumerate(scored[:limit], start=1)]
 
 
-def candidates(
-    conn: sqlite3.Connection,
-    effects: Collection[str],
-    situations: Collection[str],
-    limit: int = CANDIDATE_LIMIT,
-) -> list[Technique]:
-    """`narrow` over the catalog in the database."""
-    return narrow(techniques_db.list_all(conn), effects, situations, limit)
-
-
-def checked_tags(checks: SceneChecks) -> CheckTags:
-    """The tags of the checks answered true, in CHECK_TAGS order."""
-    effects: list[TechniqueEffect] = []
-    situations: list[TechniqueSituation] = []
-    for key, (added_effects, added_situations) in CHECK_TAGS.items():
-        if getattr(checks, key):
-            effects.extend(added_effects)
-            situations.extend(added_situations)
-    return tuple(effects), tuple(situations)
+def recommend(conn: sqlite3.Connection, scene: Scene) -> list[Recommendation]:
+    """The scene's recommended cards (§9), from the catalog in the database; [] when no
+    candidate shares a device or tag."""
+    return rank(techniques_db.list_all(conn), scene.devices, scene.effects, scene.situations)
 
 
 def clean_scenes(output: SceneOutput, stage_names: Collection[str]) -> list[Scene]:
     """Scenes whose source is one of the episode's structure stage names (§9 `source` =
-    episode.stage), in the model's order, numbered 1..n; the model's tags, then those of its
-    checks answered true (CHECK_TAGS), each tag once."""
+    episode.stage), in the model's order, numbered 1..n; the devices answered true in the
+    list's order; each tag once."""
     kept = [scene for scene in output.scenes if scene.source in stage_names]
-    scenes = []
-    for number, scene in enumerate(kept, start=1):
-        added_effects, added_situations = checked_tags(scene.checks)
-        scenes.append(
-            Scene(
-                scene=number,
-                source=scene.source,
-                summary=scene.summary,
-                checks=scene.checks,
-                effects=list(dict.fromkeys([*scene.effects, *added_effects])),
-                situations=list(dict.fromkeys([*scene.situations, *added_situations])),
-            )
+    return [
+        Scene(
+            scene=number,
+            source=scene.source,
+            summary=scene.summary,
+            devices=answered(scene.devices),
+            effects=list(dict.fromkeys(scene.effects)),
+            situations=list(dict.fromkeys(scene.situations)),
         )
-    return scenes
+        for number, scene in enumerate(kept, start=1)
+    ]
+
+
+def answered(devices: SceneDevices) -> list[TechniqueDevice]:
+    """The devices answered true, in the device list's order."""
+    yes = [key for key in SceneDevices.model_fields if getattr(devices, key)]
+    return cast(list[TechniqueDevice], yes)
 
 
 def conflicting(techniques: Sequence[Technique]) -> bool:
@@ -144,25 +133,6 @@ def conflicting(techniques: Sequence[Technique]) -> bool:
     )
 
 
-def clean_picks(output: PickOutput, scene_candidates: Iterable[Technique]) -> list[OutputPick]:
-    """Combinations in the model's rank order, each id once and among the scene's candidates;
-    a combination left empty, holding a conflicting pair or repeating an earlier one (same
-    cards in any order) is dropped; at most 3, ranks renumbered 1..n."""
-    by_id = {card.id: card for card in scene_candidates}
-    seen: set[frozenset[str]] = set()
-    kept: list[OutputPick] = []
-    for pick in sorted(output.picks, key=lambda pick: pick.rank):
-        ids = [i for i in dict.fromkeys(pick.techniques) if i in by_id]
-        key = frozenset(ids)
-        if not ids or key in seen or conflicting([by_id[i] for i in ids]):
-            continue
-        seen.add(key)
-        kept.append(pick.model_copy(update={"rank": len(kept) + 1, "techniques": ids}))
-        if len(kept) == MAX_PICKS:
-            break
-    return kept
-
-
 # The roles ----------------------------------------------------------------------------------
 
 # Generations when nothing survives cleaning: one more, then LLM_INVALID_OUTPUT (as source, §13).
@@ -172,14 +142,6 @@ KEPT_ATTEMPTS = 2
 class EpisodeNotReadyError(ValueError):
     """Not an episode, not active (§11: it, its part or the main story incomplete) or without
     structure stages: nothing to direct. Raised before any model call."""
-
-
-class UnknownStageError(ValueError):
-    """A scene whose source is not one of its episode's stage names."""
-
-
-class NoCandidatesError(ValueError):
-    """No direction candidate shares a tag with the scene."""
 
 
 @dataclass(frozen=True)
@@ -197,15 +159,6 @@ class Kept[K]:
 @dataclass(frozen=True)
 class SceneResult:
     scenes: list[Scene]
-    meta: OutputMeta
-    usage: Usage | None
-    generations: int
-
-
-@dataclass(frozen=True)
-class PickResult:
-    candidates: list[Technique]
-    picks: list[OutputPick]
     meta: OutputMeta
     usage: Usage | None
     generations: int
@@ -235,13 +188,6 @@ def scene_schema(stage_names: Sequence[str]) -> dict[str, Any]:
     return schema
 
 
-def pick_schema(candidate_ids: Sequence[str]) -> dict[str, Any]:
-    """PickOutput's schema with every technique id limited to the scene's candidates."""
-    schema = copy.deepcopy(PickOutput.model_json_schema())
-    schema["$defs"]["TechniqueId"] = {"type": "string", "enum": list(candidate_ids)}
-    return schema
-
-
 async def generate_kept[T: BaseModel, K](
     router: Router,
     role: Role,
@@ -262,7 +208,7 @@ async def generate_kept[T: BaseModel, K](
 
 
 async def split_scenes(router: Router, conn: sqlite3.Connection, episode_id: str) -> SceneResult:
-    """The episode's scenes in story order, each with its source stage and tags (§9)."""
+    """The episode's scenes in story order, each with its source stage, devices and tags (§9)."""
     episode = ready_episode(conn, episode_id)
     names = [stage.name for stage in context.stages_of(episode)]
     kept = await generate_kept(
@@ -274,25 +220,3 @@ async def split_scenes(router: Router, conn: sqlite3.Connection, episode_id: str
         lambda output: clean_scenes(output, names),
     )
     return SceneResult(kept.items, kept.meta, kept.usage, kept.generations)
-
-
-async def recommend(
-    router: Router, conn: sqlite3.Connection, episode_id: str, scene: Scene
-) -> PickResult:
-    """1-3 recommended combinations for one scene, among its narrowed candidates (§9)."""
-    episode = ready_episode(conn, episode_id)
-    stage = next((s for s in context.stages_of(episode) if s.name == scene.source), None)
-    if stage is None:
-        raise UnknownStageError(f"{episode_id} has no stage {scene.source}")
-    found = candidates(conn, scene.effects, scene.situations)
-    if not found:
-        raise NoCandidatesError(f"no candidate shares a tag with scene {scene.scene}")
-    kept = await generate_kept(
-        router,
-        "pick",
-        context.pick_turns(episode, stage, scene, found),
-        PickOutput,
-        pick_schema([card.id for card in found]),
-        lambda output: clean_picks(output, found),
-    )
-    return PickResult(found, kept.items, kept.meta, kept.usage, kept.generations)

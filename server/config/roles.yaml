@@ -30,24 +30,11 @@ roles:
   scene:
     profile: qwen3-8b-uncensor-q5km
     lora: null
-    prompt: 3
+    prompt: 4
     thinking: true
     sampling: { temperature: 0.3 }
-    # System prompt v3 2153 tokens (llama-tokenize; v2 2241 and v1 2077 by llama-server
-    # /tokenize). v2 runs 5-6, 10 episodes each: prompt_tokens ≤3015, completions ≤2897, total
-    # ≤5813, ≤6 scenes. v1 run 1: prompt_tokens ≤2851, completions median 1317, max 3267. v3's
-    # checks add ~103 completion tokens per scene: 6144 leaves room (≤~9.1k of ctx 12288).
-    max_tokens: 6144
-  pick:
-    profile: qwen3-8b-uncensor-q5km
-    lora: null
-    prompt: 2
-    thinking: true
-    sampling: { temperature: 0.3 }
-    # System prompt v2 1161 tokens (llama-server /tokenize; v1 1018 the same way, 981 by
-    # llama-tokenize). v2 runs 5-6 (with scene v2), 21 + 22 scenes: prompt_tokens ≤6819,
-    # completions ≤2477, total ≤8894. v1 run 1, 22 scenes:
-    # prompt_tokens median 6178, max 6657, completions median 1389, max 2748, total ≤9192 (an
-    # earlier draft truncated once at ctx 8192). The 20 longest catalog candidates make an
-    # estimated ~7.84k prompt tokens: 4096 still fits ctx 12288 (~11.94k).
-    max_tokens: 4096
+    # System prompt v4 3243 tokens (llama-tokenize; v3 2153, v2 2241 by llama-server /tokenize).
+    # User turns ran ≤862 tokens (v2 runs 5-6), so prompts ≤~4.1k. v4 answers 41 devices per
+    # scene (~250 completion tokens each); the step 2 device experiment (41 yes/no per stage,
+    # 4-5 stages) took up to 6685 completion tokens. 8000 keeps the total within ctx 12288.
+    max_tokens: 8000
