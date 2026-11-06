@@ -25,14 +25,17 @@ type Stage = FiveStage | FourStage
 
 class Scene(BaseModel):
     """A cleaned `scene` output scene (§9, direction.clean_scenes): numbered 1..n, the devices
-    answered true, each tag once."""
+    answered main (`devices`, pre-checked for the user and used for the recommendation) and sub
+    (`sub_devices`, listed first among the unchecked), each tag once."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     scene: int
     source: str
     summary: str
+    core: str
     devices: list[TechniqueDevice]
+    sub_devices: list[TechniqueDevice]
     effects: list[TechniqueEffect]
     situations: list[TechniqueSituation]
 

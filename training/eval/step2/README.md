@@ -44,9 +44,10 @@ stage, its scenes are those whose source is that stage (none = a miss).
 - Labelled (the criterion): the stage's labelled devices, given to each of its scenes with the
   scene's own tags, ranked by `direction.rank` (§9: most shared devices, then most shared tags,
   then id): right if any accepted technique is among the 5 of any of them.
-- AI draft (recorded): the same with the devices the scene role answered yes (what the user
-  would start from), and the first 20 of that ranking.
-- Agreement (recorded): the AI's yes devices against the labels.
+- AI draft (recorded): the same with the devices the scene role answered main (yes before
+  scene v5; what the user would start from), and the first 20 of that ranking.
+- Agreement (recorded): the AI's main devices against the labels, and the labels found among
+  main and sub together (sub is shown first among the unchecked devices, §9).
 
 ## Run
 
@@ -67,9 +68,9 @@ for every scene `direction.recommend` (no model call) and the first 20 of the sa
 written after every episode and stay out of git; a run that stopped early (no `finished_at`) is
 an UNFINISHED RUN. Only a full, real, finished run can pass.
 
-The scorer also reports devices answered yes per scene and scene call failures, retries, times
+The scorer also reports main and sub devices per scene and scene call failures, retries, times
 and token counts (prompt + completion against ctx 12288). The Markdown report lists every
-scored stage with its scenes (tags, labelled and AI devices), the 5 cards each set of devices
+scored stage with its scenes (tags, core, labelled and AI devices), the 5 cards each set of devices
 recommends with what they share, and the accepted techniques' ranks in the AI draft's first
 20, for the user.
 

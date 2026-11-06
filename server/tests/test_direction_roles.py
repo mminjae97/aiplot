@@ -5,13 +5,13 @@ import re
 import sqlite3
 from collections.abc import AsyncGenerator, Iterator
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args
 
 import pytest
 
 from aiplot.db.connection import connect
 from aiplot.db.migrate import init_db
-from aiplot.generated.roles.scene_output import SceneDevices, SceneOutput
+from aiplot.generated.roles.scene_output import DeviceRole, OutputScene, SceneDevices, SceneOutput
 from aiplot.llm.client import ChatRequest, Delta, LlmError, Message, Usage
 from aiplot.llm.config import PROMPTS_DIR, load_llm_config
 from aiplot.llm.fake import FakeClient
@@ -35,7 +35,7 @@ SUMMARIES = {
     "절정": "등대에서 테오가 편지의 주인과 마주친다.",
     "결말": "테오는 편지를 바다에 던지고 항구를 떠난다.",
 }
-NO_DEVICES = {key: False for key in SceneDevices.model_fields}
+NO_DEVICES = {key: "none" for key in SceneDevices.model_fields}
 
 
 TENSION = [1, 2, 4, 5, 3]
@@ -117,6 +117,7 @@ def scene(number: int, source: str, **changes: Any) -> dict[str, Any]:
         "scene": number,
         "source": source,
         "summary": SUMMARIES.get(source, "요약"),
+        "core": "핵심",
         "devices": NO_DEVICES,
         "effects": ["긴장"],
         "situations": ["위기"],
@@ -167,7 +168,7 @@ async def test_scene_sees_the_episode_and_its_active_cards(
     assert block(text, "지시") == "나눌 단계: 발단, 전개, 위기, 절정, 결말"
 
     assert [s.source for s in result.scenes] == FIVE
-    assert (result.meta.role, result.meta.prompt_version) == ("scene", 4)
+    assert (result.meta.role, result.meta.prompt_version) == ("scene", 5)
     # The fixture client reports no usage.
     assert (result.usage, result.generations) == (None, 1)
 
@@ -224,10 +225,10 @@ async def test_scene_regenerates_once_when_nothing_survives(
     assert len(client.requests) == 2
 
 
-async def test_scene_regenerates_once_when_a_scene_answers_too_many_devices_yes(
+async def test_scene_regenerates_once_when_a_scene_answers_too_many_devices_main(
     conn: sqlite3.Connection, tmp_path: Path
 ) -> None:
-    all_yes = {key: True for key in NO_DEVICES}
+    all_yes = {key: "main" for key in NO_DEVICES}
     client = Scripted()
     client.say(
         "scene",
@@ -366,17 +367,23 @@ def test_scene_checklist_leads_to_real_tags() -> None:
 
 
 def test_scene_prompt_asks_every_device_in_order() -> None:
-    """v4 asks each device (the model never sees the schema), in the device list's order, with
-    the questions first written for the cards (training/eval/step2/devices/vocab.json)."""
-    body = (PROMPTS_DIR / "scene" / "v4.md").read_text(encoding="utf-8").split("-->", 1)[1]
-    asked = re.findall(r"^  - ([a-z_]+): (.+)$", body, re.MULTILINE)
+    """v5 explains each answer (main, sub, none: the schema's values) and asks each device (the
+    model never sees the schema), in the device list's order, with the questions first written
+    for the cards (training/eval/step2/devices/vocab.json)."""
+    body = (PROMPTS_DIR / "scene" / "v5.md").read_text(encoding="utf-8").split("-->", 1)[1]
+    lines = re.findall(r"^  - ([a-z_]+): (.+)$", body, re.MULTILINE)
+    roles = list(get_args(get_args(DeviceRole.__value__)[0]))
+    assert [k for k, _ in lines[: len(roles)]] == roles == ["main", "sub", "none"]
+    asked = lines[len(roles) :]
     vocab_file = SCHEMAS.parents[1] / "training" / "eval" / "step2" / "devices" / "vocab.json"
     vocab = json.loads(vocab_file.read_text(encoding="utf-8"))
     assert asked == [(v["key"], v["question"]) for v in vocab]
     assert [k for k, _ in asked] == list(SceneDevices.model_fields)
-    # Field order of the output too: the devices are answered after the summary, before the tags.
+    # Field order of the output too: the devices are answered after the core, before the tags.
     items = re.findall(r"^- ([a-z_]+): ", body.split("\n항목\n", 1)[1], re.MULTILINE)
-    assert items[:6] == ["scene", "source", "summary", "devices", "effects", "situations"]
+    expected = ["scene", "source", "summary", "core", "devices", "effects", "situations"]
+    assert items[:7] == expected
+    assert list(OutputScene.model_fields) == expected
 
 
 def assert_plain(schema: dict[str, Any]) -> None:

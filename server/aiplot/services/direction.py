@@ -1,5 +1,6 @@
-"""Stage 2 direction (§9): the `scene` role splits an episode into scenes and answers the scene
-device questions; code recommends technique cards per scene from the devices and tags they share.
+"""Stage 2 direction (§9): the `scene` role splits an episode into scenes, writes each scene's
+core and answers every scene device main, sub or none; code recommends technique cards per scene
+from the main devices and tags they share.
 
 The scene call is constrained by a schema narrowed to the episode's stage names; the server
 cleans its output. Recommendations need no model call. Nothing is stored yet: plans and picks
@@ -10,7 +11,7 @@ import copy
 import sqlite3
 from collections.abc import Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass, replace
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from pydantic import BaseModel
 
@@ -42,9 +43,10 @@ RECOMMEND_LIMIT = 5
 # Cards the user may choose for a scene (§9).
 MAX_CHOSEN = 3
 
-# A scene answering more yes devices than this makes the scene output invalid (§9): the 8B
-# sometimes answered all 41 yes for a whole episode; normal scenes had at most 11 (runs 9-10).
-MAX_YES_DEVICES = 20
+# A scene answering more main devices than this makes the scene output invalid (§9): with yes/no
+# answers the 8B sometimes answered all 41 yes for a whole episode (runs 9-10, and a scene v5
+# draft with yes/no); main/sub/none answers gave at most 6 main per scene (runs 11-12).
+MAX_MAIN_DEVICES = 20
 
 
 @dataclass(frozen=True)
@@ -103,9 +105,10 @@ def recommend(conn: sqlite3.Connection, scene: Scene) -> list[Recommendation]:
 
 def clean_scenes(output: SceneOutput, stage_names: Collection[str]) -> list[Scene]:
     """Scenes whose source is one of the episode's structure stage names (§9 `source` =
-    episode.stage), in the model's order, numbered 1..n; the devices answered true in the
-    list's order; each tag once. Nothing when any scene answers more than MAX_YES_DEVICES yes."""
-    if any(len(answered(scene.devices)) > MAX_YES_DEVICES for scene in output.scenes):
+    episode.stage), in the model's order, numbered 1..n; the devices answered main, and those
+    answered sub, in the list's order; each tag once. Nothing when any scene answers more than
+    MAX_MAIN_DEVICES main."""
+    if any(len(answered(scene.devices, "main")) > MAX_MAIN_DEVICES for scene in output.scenes):
         return []
     kept = [scene for scene in output.scenes if scene.source in stage_names]
     return [
@@ -113,7 +116,9 @@ def clean_scenes(output: SceneOutput, stage_names: Collection[str]) -> list[Scen
             scene=number,
             source=scene.source,
             summary=scene.summary,
-            devices=answered(scene.devices),
+            core=scene.core,
+            devices=answered(scene.devices, "main"),
+            sub_devices=answered(scene.devices, "sub"),
             effects=list(dict.fromkeys(scene.effects)),
             situations=list(dict.fromkeys(scene.situations)),
         )
@@ -121,10 +126,10 @@ def clean_scenes(output: SceneOutput, stage_names: Collection[str]) -> list[Scen
     ]
 
 
-def answered(devices: SceneDevices) -> list[TechniqueDevice]:
-    """The devices answered true, in the device list's order."""
-    yes = [key for key in SceneDevices.model_fields if getattr(devices, key)]
-    return cast(list[TechniqueDevice], yes)
+def answered(devices: SceneDevices, role: Literal["main", "sub"]) -> list[TechniqueDevice]:
+    """The devices answered `role`, in the device list's order."""
+    keys = [key for key in SceneDevices.model_fields if getattr(devices, key) == role]
+    return cast(list[TechniqueDevice], keys)
 
 
 def choice_error(techniques: Sequence[Technique]) -> str | None:
