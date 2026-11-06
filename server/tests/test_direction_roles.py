@@ -224,6 +224,21 @@ async def test_scene_regenerates_once_when_nothing_survives(
     assert len(client.requests) == 2
 
 
+async def test_scene_regenerates_once_when_a_scene_answers_too_many_devices_yes(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    all_yes = {key: True for key in NO_DEVICES}
+    client = Scripted()
+    client.say(
+        "scene",
+        scenes_json(scene(1, "발단"), scene(2, "위기", devices=all_yes)),
+        scenes_json(scene(1, "발단"), scene(2, "위기")),
+    )
+    result = await direction.split_scenes(make_router(client, tmp_path), conn, "c_ep1")
+    assert [s.source for s in result.scenes] == ["발단", "위기"]
+    assert (len(client.requests), result.generations) == (2, 2)
+
+
 async def test_episode_not_ready_is_refused_before_any_call(
     conn: sqlite3.Connection, tmp_path: Path
 ) -> None:
