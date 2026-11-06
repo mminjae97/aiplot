@@ -44,8 +44,8 @@ RECOMMEND_LIMIT = 5
 MAX_CHOSEN = 3
 
 # A scene answering more main devices than this makes the scene output invalid (§9): with yes/no
-# answers the 8B sometimes answered all 41 yes for a whole episode (runs 9-10, 11); main/sub/none
-# answers gave at most 6 main per scene in the device experiment.
+# answers the 8B sometimes answered all 41 yes for a whole episode (runs 9-10, and a scene v5
+# draft with yes/no); main/sub/none answers gave at most 6 main per scene (runs 11-12).
 MAX_MAIN_DEVICES = 20
 
 
