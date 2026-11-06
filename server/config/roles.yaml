@@ -30,11 +30,11 @@ roles:
   scene:
     profile: qwen3-8b-uncensor-q5km
     lora: null
-    prompt: 4
+    prompt: 5
     thinking: true
     sampling: { temperature: 0.3 }
-    # System prompt v4 3243 tokens (llama-tokenize; v3 2153, v2 2241 by llama-server /tokenize).
-    # User turns ran ≤862 tokens (v2 runs 5-6), so prompts ≤~4.1k. v4 answers 41 devices per
-    # scene (~250 completion tokens each); the step 2 device experiment (41 yes/no per stage,
-    # 4-5 stages) took up to 6685 completion tokens. 8000 keeps the total within ctx 12288.
+    # System prompt v5 3418 tokens, v4 3243 (llama-tokenize; v3 2153, v2 2241 by llama-server
+    # /tokenize). Runs 11-12 (v5, 41 devices main/sub/none per scene): prompts ≤4192 tokens,
+    # completions ≤5554, total ≤9647; the step 2 device experiment (41 yes/no per stage, 4-5
+    # stages) took up to 6685 completion tokens. 8000 keeps the total within ctx 12288.
     max_tokens: 8000

@@ -58,6 +58,10 @@ export type JobLifecycleEvent =
   | JobErrorEvent
   | JobCancelledEvent
 /**
+ * How a scene device figures in the scene (scene v5): main = it carries the scene's core (the recommendation uses these), sub = present but incidental, none = absent, merely possible or another scene's.
+ */
+export type DeviceRole = 'main' | 'sub' | 'none'
+/**
  * Fixed effect tags (§9): what a scene wants and what a technique gives.
  */
 export type TechniqueEffect =
@@ -927,6 +931,10 @@ export interface OutputScene {
    * What happens, in one or two sentences.
    */
   summary: string
+  /**
+   * Why the scene is in the episode, in one sentence: what it must give the reader (scene v5); written before the devices, which are answered against it.
+   */
+  core: string
   devices: SceneDevices
   /**
    * Effects the scene wants the reader to feel.
@@ -944,50 +952,50 @@ export interface OutputScene {
   situations: [TechniqueSituation, ...TechniqueSituation[]]
 }
 /**
- * A yes/no answer per scene device (technique-device.json, same keys in the same order), answered before the tags; code recommends the cards sharing the devices answered true (§9).
+ * An answer per scene device (technique-device.json, same keys in the same order), main, sub or none, after the core and before the tags; code recommends the cards sharing the main devices (§9).
  */
 export interface SceneDevices {
-  knowledge_gap: boolean
-  hidden_secret: boolean
-  mystery: boolean
-  reveal: boolean
-  reversal: boolean
-  plant: boolean
-  payoff: boolean
-  foretold: boolean
-  deadline: boolean
-  dilemma: boolean
-  eerie_threat: boolean
-  action: boolean
-  held_moment: boolean
-  past_told: boolean
-  embedded: boolean
-  time_skip: boolean
-  revisit: boolean
-  repetition: boolean
-  unspoken: boolean
-  verbal_clash: boolean
-  misunderstanding: boolean
-  overhear: boolean
-  crowd_voice: boolean
-  first_appearance: boolean
-  realization: boolean
-  confession: boolean
-  delayed_outcome: boolean
-  relationship_shift: boolean
-  humor: boolean
-  satire: boolean
-  new_place: boolean
-  world_rules: boolean
-  simultaneous: boolean
-  ordinary_life: boolean
-  aftermath: boolean
-  contrast: boolean
-  loss: boolean
-  meaningful_object: boolean
-  differing_views: boolean
-  threshold: boolean
-  release: boolean
+  knowledge_gap: DeviceRole
+  hidden_secret: DeviceRole
+  mystery: DeviceRole
+  reveal: DeviceRole
+  reversal: DeviceRole
+  plant: DeviceRole
+  payoff: DeviceRole
+  foretold: DeviceRole
+  deadline: DeviceRole
+  dilemma: DeviceRole
+  eerie_threat: DeviceRole
+  action: DeviceRole
+  held_moment: DeviceRole
+  past_told: DeviceRole
+  embedded: DeviceRole
+  time_skip: DeviceRole
+  revisit: DeviceRole
+  repetition: DeviceRole
+  unspoken: DeviceRole
+  verbal_clash: DeviceRole
+  misunderstanding: DeviceRole
+  overhear: DeviceRole
+  crowd_voice: DeviceRole
+  first_appearance: DeviceRole
+  realization: DeviceRole
+  confession: DeviceRole
+  delayed_outcome: DeviceRole
+  relationship_shift: DeviceRole
+  humor: DeviceRole
+  satire: DeviceRole
+  new_place: DeviceRole
+  world_rules: DeviceRole
+  simultaneous: DeviceRole
+  ordinary_life: DeviceRole
+  aftermath: DeviceRole
+  contrast: DeviceRole
+  loss: DeviceRole
+  meaningful_object: DeviceRole
+  differing_views: DeviceRole
+  threshold: DeviceRole
+  release: DeviceRole
 }
 /**
  * `source` role output (§13). The model sees the notes as [n]-numbered sentences (server split, §15) and returns only edits; the server applies them, so sentences it does not name stay byte-identical. Changed sentences are the edited and added ones.

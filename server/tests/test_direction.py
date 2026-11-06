@@ -23,8 +23,8 @@ CATALOG = techniques.load()
 BY_ID = {card.id: card for card in CATALOG}
 
 
-def devices(*true: str) -> dict[str, bool]:
-    return {key: key in true for key in DEVICES}
+def devices(*main: str, sub: tuple[str, ...] = ()) -> dict[str, str]:
+    return {key: "main" if key in main else "sub" if key in sub else "none" for key in DEVICES}
 
 
 @pytest.fixture
@@ -94,7 +94,9 @@ def test_recommend_ranks_by_shared_devices_then_tags(
             "scene": 1,
             "source": "위기",
             "summary": "가",
+            "core": "나",
             "devices": scene_devices,
+            "sub_devices": [],
             "effects": effects,
             "situations": situations,
         }
@@ -174,6 +176,7 @@ def entry(number: int, source: str, summary: str, **changes: Any) -> dict[str, A
         "scene": number,
         "source": source,
         "summary": summary,
+        "core": "핵심",
         "devices": devices(),
         "effects": ["긴장"],
         "situations": ["위기"],
@@ -200,16 +203,19 @@ def test_clean_scenes_keeps_stage_scenes_renumbered_with_tags_once() -> None:
     assert direction.clean_scenes(output, []) == []
 
 
-def test_clean_scenes_keeps_the_devices_answered_true_in_list_order() -> None:
-    output = scenes(entry(1, "전개", "가", devices=devices("overhear", "knowledge_gap")))
+def test_clean_scenes_keeps_main_and_sub_devices_apart_in_list_order() -> None:
+    answers = devices("overhear", "knowledge_gap", sub=("loss", "mystery"))
+    output = scenes(entry(1, "전개", "가", devices=answers))
     (scene,) = direction.clean_scenes(output, ["전개"])
     assert scene.devices == ["knowledge_gap", "overhear"]
-    assert direction.clean_scenes(scenes(entry(1, "전개", "가")), ["전개"])[0].devices == []
+    assert scene.sub_devices == ["mystery", "loss"]
+    (empty,) = direction.clean_scenes(scenes(entry(1, "전개", "가")), ["전개"])
+    assert (empty.devices, empty.sub_devices) == ([], [])
 
 
-def test_clean_scenes_refuses_an_output_with_too_many_yes_devices() -> None:
-    limit = direction.MAX_YES_DEVICES
-    at_limit = devices(*DEVICES[:limit])
+def test_clean_scenes_refuses_an_output_with_too_many_main_devices() -> None:
+    limit = direction.MAX_MAIN_DEVICES
+    at_limit = devices(*DEVICES[:limit], sub=tuple(DEVICES[limit:]))
     over = devices(*DEVICES[: limit + 1])
     kept = direction.clean_scenes(scenes(entry(1, "전개", "가", devices=at_limit)), ["전개"])
     assert len(kept[0].devices) == limit

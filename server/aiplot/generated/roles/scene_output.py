@@ -2,58 +2,66 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 
 from ..technique import technique_effect, technique_situation
+
+type DeviceRole = Annotated[
+    Literal["main", "sub", "none"],
+    Field(
+        description="How a scene device figures in the scene (scene v5): main = it carries the scene's core (the recommendation uses these), sub = present but incidental, none = absent, merely possible or another scene's.",
+        title="DeviceRole",
+    ),
+]
 
 
 class SceneDevices(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    knowledge_gap: StrictBool
-    hidden_secret: StrictBool
-    mystery: StrictBool
-    reveal: StrictBool
-    reversal: StrictBool
-    plant: StrictBool
-    payoff: StrictBool
-    foretold: StrictBool
-    deadline: StrictBool
-    dilemma: StrictBool
-    eerie_threat: StrictBool
-    action: StrictBool
-    held_moment: StrictBool
-    past_told: StrictBool
-    embedded: StrictBool
-    time_skip: StrictBool
-    revisit: StrictBool
-    repetition: StrictBool
-    unspoken: StrictBool
-    verbal_clash: StrictBool
-    misunderstanding: StrictBool
-    overhear: StrictBool
-    crowd_voice: StrictBool
-    first_appearance: StrictBool
-    realization: StrictBool
-    confession: StrictBool
-    delayed_outcome: StrictBool
-    relationship_shift: StrictBool
-    humor: StrictBool
-    satire: StrictBool
-    new_place: StrictBool
-    world_rules: StrictBool
-    simultaneous: StrictBool
-    ordinary_life: StrictBool
-    aftermath: StrictBool
-    contrast: StrictBool
-    loss: StrictBool
-    meaningful_object: StrictBool
-    differing_views: StrictBool
-    threshold: StrictBool
-    release: StrictBool
+    knowledge_gap: DeviceRole
+    hidden_secret: DeviceRole
+    mystery: DeviceRole
+    reveal: DeviceRole
+    reversal: DeviceRole
+    plant: DeviceRole
+    payoff: DeviceRole
+    foretold: DeviceRole
+    deadline: DeviceRole
+    dilemma: DeviceRole
+    eerie_threat: DeviceRole
+    action: DeviceRole
+    held_moment: DeviceRole
+    past_told: DeviceRole
+    embedded: DeviceRole
+    time_skip: DeviceRole
+    revisit: DeviceRole
+    repetition: DeviceRole
+    unspoken: DeviceRole
+    verbal_clash: DeviceRole
+    misunderstanding: DeviceRole
+    overhear: DeviceRole
+    crowd_voice: DeviceRole
+    first_appearance: DeviceRole
+    realization: DeviceRole
+    confession: DeviceRole
+    delayed_outcome: DeviceRole
+    relationship_shift: DeviceRole
+    humor: DeviceRole
+    satire: DeviceRole
+    new_place: DeviceRole
+    world_rules: DeviceRole
+    simultaneous: DeviceRole
+    ordinary_life: DeviceRole
+    aftermath: DeviceRole
+    contrast: DeviceRole
+    loss: DeviceRole
+    meaningful_object: DeviceRole
+    differing_views: DeviceRole
+    threshold: DeviceRole
+    release: DeviceRole
 
 
 class OutputScene(BaseModel):
@@ -72,10 +80,17 @@ class OutputScene(BaseModel):
         StrictStr,
         Field(description="What happens, in one or two sentences.", min_length=1),
     ]
+    core: Annotated[
+        StrictStr,
+        Field(
+            description="Why the scene is in the episode, in one sentence: what it must give the reader (scene v5); written before the devices, which are answered against it.",
+            min_length=1,
+        ),
+    ]
     devices: Annotated[
         SceneDevices,
         Field(
-            description="A yes/no answer per scene device (technique-device.json, same keys in the same order), answered before the tags; code recommends the cards sharing the devices answered true (§9).",
+            description="An answer per scene device (technique-device.json, same keys in the same order), main, sub or none, after the core and before the tags; code recommends the cards sharing the main devices (§9).",
             title="SceneDevices",
         ),
     ]

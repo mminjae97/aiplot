@@ -13,7 +13,7 @@
         "title": "OutputScene",
         "type": "object",
         "additionalProperties": false,
-        "required": ["scene", "source", "summary", "devices", "effects", "situations"],
+        "required": ["scene", "source", "summary", "core", "devices", "effects", "situations"],
         "properties": {
           "scene": {
             "type": "integer",
@@ -29,9 +29,14 @@
             "type": "string",
             "minLength": 1
           },
+          "core": {
+            "description": "Why the scene is in the episode, in one sentence: what it must give the reader (scene v5); written before the devices, which are answered against it.",
+            "type": "string",
+            "minLength": 1
+          },
           "devices": {
             "title": "SceneDevices",
-            "description": "A yes/no answer per scene device (technique-device.json, same keys in the same order), answered before the tags; code recommends the cards sharing the devices answered true (§9).",
+            "description": "An answer per scene device (technique-device.json, same keys in the same order), main, sub or none, after the core and before the tags; code recommends the cards sharing the main devices (§9).",
             "type": "object",
             "additionalProperties": false,
             "required": [
@@ -79,127 +84,127 @@
             ],
             "properties": {
               "knowledge_gap": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "hidden_secret": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "mystery": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "reveal": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "reversal": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "plant": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "payoff": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "foretold": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "deadline": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "dilemma": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "eerie_threat": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "action": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "held_moment": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "past_told": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "embedded": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "time_skip": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "revisit": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "repetition": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "unspoken": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "verbal_clash": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "misunderstanding": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "overhear": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "crowd_voice": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "first_appearance": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "realization": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "confession": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "delayed_outcome": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "relationship_shift": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "humor": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "satire": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "new_place": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "world_rules": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "simultaneous": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "ordinary_life": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "aftermath": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "contrast": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "loss": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "meaningful_object": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "differing_views": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "threshold": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               },
               "release": {
-                "type": "boolean"
+                "$ref": "#/$defs/DeviceRole"
               }
             }
           },
@@ -223,6 +228,14 @@
           }
         }
       }
+    }
+  },
+  "$defs": {
+    "DeviceRole": {
+      "title": "DeviceRole",
+      "description": "How a scene device figures in the scene (scene v5): main = it carries the scene's core (the recommendation uses these), sub = present but incidental, none = absent, merely possible or another scene's.",
+      "type": "string",
+      "enum": ["main", "sub", "none"]
     }
   }
 }

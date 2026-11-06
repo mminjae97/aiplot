@@ -9,11 +9,13 @@ scene call failed or gave the stage no scene) = a miss.
   (devices/stages-claude.json, standing in for the user's correction, §9) given to each of its
   scenes with the scene's own tags, ranked by `direction.rank`: right if an accepted technique
   is among the 5 of any of them.
-- AI draft: the same with the devices the scene role answered yes (the run's recommendations),
-  and the first 20 of that ranking. Recorded, no criterion.
-- Agreement: the AI's yes devices against the labels over the scored stages' scenes.
+- AI draft: the same with the devices the scene role answered main (yes before scene v5; the
+  run's recommendations), and the first 20 of that ranking. Recorded, no criterion.
+- Agreement: the AI's main devices against the labels over the scored stages' scenes, and the
+  labels found among main and sub together (sub: present but incidental, shown first among the
+  unchecked; none before scene v5).
 
-Also reported: devices answered yes per scene; scene call failures, retries, times and token
+Also reported: main and sub devices per scene; scene call failures, retries, times and token
 counts against the context size. A run missing a case episode is a PARTIAL RUN (scored over the
 episodes it has); a --fake run is flagged FAKE RUN; a run without finished_at is an UNFINISHED
 RUN. Only a run that is none of these can pass.
@@ -110,13 +112,16 @@ def call_stats(calls: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def agreement(stages: list[dict[str, Any]]) -> dict[str, Any]:
-    """The AI's yes devices against the labels, summed over the scored stages' scenes."""
-    both = ai = labelled = 0
+    """The AI's main devices against the labels, summed over the scored stages' scenes; and
+    the labels among main and sub together."""
+    both = ai = labelled = with_sub = 0
     for stage in stages:
         for scene in stage["scenes"]:
-            yes, labels = set(scene["devices"]), set(scene["labels"])
-            both += len(yes & labels)
-            ai += len(yes)
+            main, labels = set(scene["devices"]), set(scene["labels"])
+            sub = set(scene.get("sub_devices", []))
+            both += len(main & labels)
+            with_sub += len((main | sub) & labels)
+            ai += len(main)
             labelled += len(labels)
     return {
         "shared": both,
@@ -124,6 +129,8 @@ def agreement(stages: list[dict[str, Any]]) -> dict[str, Any]:
         "labels": labelled,
         "precision": round(both / ai, 3) if ai else None,
         "recall": round(both / labelled, 3) if labelled else None,
+        "shared_with_sub": with_sub,
+        "recall_with_sub": round(with_sub / labelled, 3) if labelled else None,
     }
 
 
@@ -155,6 +162,7 @@ def score(run: dict[str, Any]) -> dict[str, Any]:
     hits = sum(1 for s in stages if s["labelled"])
     records = list(by_id.values())
     yes = [float(len(s["devices"])) for r in records for s in r["scenes"]]
+    sub = [float(len(s.get("sub_devices", []))) for r in records for s in r["scenes"]]
     return {
         "fake": fake,
         "partial_run": {"missing": missing} if missing else None,
@@ -172,6 +180,7 @@ def score(run: dict[str, Any]) -> dict[str, Any]:
         },
         "agreement": agreement(stages),
         "devices_per_scene": stats(yes),
+        "sub_devices_per_scene": stats(sub),
         "scene_calls": call_stats([r["scene_call"] for r in records]),
         "stages": stages,
     }
@@ -210,16 +219,24 @@ def report(result: dict[str, Any], names: dict[str, str]) -> str:
     )
     rate = "-" if r["rate"] is None else f"{r['rate']:.0%}"
     per_scene = result["devices_per_scene"]
-    yes = "-"
+    yes = sub = "-"
     if per_scene is not None:
         yes = f"평균 {per_scene['mean']:g} · 중앙 {per_scene['median']:g}"
         yes += f" · 최대 {per_scene['max']:g}"
+    sub_per_scene = result.get("sub_devices_per_scene")
+    if sub_per_scene is not None:
+        sub = f"평균 {sub_per_scene['mean']:g} · 최대 {sub_per_scene['max']:g}"
     share = "-"
     if ag["precision"] is not None and ag["recall"] is not None:
         share = (
-            f"AI의 예 중 라벨에도 있는 것 {ag['shared']}/{ag['ai_yes']} ({ag['precision']:.0%}), "
+            f"AI의 메인 중 라벨에도 있는 것 {ag['shared']}/{ag['ai_yes']} ({ag['precision']:.0%}), "
         )
-        share += f"라벨 중 AI도 예라고 한 것 {ag['shared']}/{ag['labels']} ({ag['recall']:.0%})"
+        share += f"라벨 중 AI도 메인으로 답한 것 {ag['shared']}/{ag['labels']} ({ag['recall']:.0%})"
+        if ag.get("recall_with_sub") is not None:
+            share += (
+                f", 메인·서브 합쳐 {ag['shared_with_sub']}/{ag['labels']} "
+                f"({ag['recall_with_sub']:.0%})"
+            )
     lines = ["# Step 2 기법 추천 평가", ""]
     if result["fake"]:
         lines += ["> FAKE RUN: fixture 응답이라 측정이 아니에요.", ""]
@@ -233,7 +250,7 @@ def report(result: dict[str, Any], names: dict[str, str]) -> str:
         f"- AI 초안 장치로 추천한 5장 안에 정답: {ai['hits']}/{result['scored']}, "
         f"20위 안: {ai['top20']}/{result['scored']}",
         f"- AI 장치와 라벨의 일치: {share}",
-        f"- 장면당 AI가 예라고 답한 장치: {yes}",
+        f"- 장면당 AI가 메인(scene v4까지는 예)으로 답한 장치: {yes} · 서브: {sub}",
         f"- scene 호출 {s['calls']}: 실패 {sum(s['failures'].values())} {s['failures'] or ''}, "
         f"재생성 {s['retried']}, 시간 {spread(s['time_s'], 's')}, "
         f"프롬프트 토큰 {spread(s['prompt_tokens'])}, 출력 토큰 {spread(s['completion_tokens'])}, "
@@ -260,7 +277,9 @@ def report(result: dict[str, Any], names: dict[str, str]) -> str:
                 f"- 효과 {', '.join(scene['effects'])} · 상황 {', '.join(scene['situations'])}",
                 f"- 라벨 장치 {', '.join(scene['labels']) or '없음'}",
                 *card_lines(scene["labelled"], scene["labelled_hits"], named),
-                f"- AI 장치 {', '.join(scene['devices']) or '없음'}",
+                *([f"- 핵심: {scene['core']}"] if scene.get("core") else []),
+                f"- AI 장치 {', '.join(scene['devices']) or '없음'}"
+                f" · 서브 {', '.join(scene.get('sub_devices', [])) or '없음'}",
                 f"  (AI 초안 20위 안 정답: {ranks or '없음'})",
                 *card_lines(scene["recommended"], scene["hits"], named),
             ]
