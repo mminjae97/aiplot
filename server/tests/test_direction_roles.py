@@ -361,7 +361,7 @@ async def test_arrange_sees_the_episode_and_its_scenes(
     assert result.chapters[0].scenes[1].reveal == [
         "미라벨이 엘린의 주문서 마지막 줄을 몰래 고쳐 썼다."
     ]
-    assert (result.meta.role, result.meta.prompt_version) == ("arrange", 1)
+    assert (result.meta.role, result.meta.prompt_version) == ("arrange", 2)
     assert (result.usage, result.generations) == (None, 1)
 
 
