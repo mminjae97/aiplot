@@ -1,4 +1,4 @@
-"""What the scene role sees (§9, §13): tagged context blocks `<원문> <참고 카드> <지시>`.
+"""What the scene and arrange roles see (§9, §13): tagged blocks `<원문> <참고 카드> <지시>`.
 
 The texts here are model input, not UI text: they follow the role prompts in prompts/. Cards
 the episode is tied to come from the relation tables (§6); inactive (incomplete) ones are left
@@ -111,6 +111,38 @@ def episode_lines(episode: EpisodeCard, ties: cards_db.EpisodeTies) -> str:
         lines += ["앞에서 심었고 이 에피소드에서 회수하는 복선:"]
         lines += [f"- {text}" for _, text in ties.payoffs]
     return "\n".join(lines)
+
+
+def scene_lines(episode: EpisodeCard, scenes: Sequence[Scene]) -> list[str]:
+    """Each scene in story order with its stage's tension, summary and core."""
+    tension: dict[str, int | None] = {stage.name: stage.tension for stage in stages_of(episode)}
+    lines: list[str] = []
+    for scene in scenes:
+        level = tension.get(scene.source)
+        stage = f"{scene.source} (긴장도 {level})" if level is not None else scene.source
+        lines += [f"{scene.scene}. {stage}: {scene.summary}", f"   핵심: {scene.core}"]
+    return lines
+
+
+def arrange_turns(episode: EpisodeCard, scenes: Sequence[Scene]) -> list[Message]:
+    """§9: the episode's name and synopsis, then its scenes in story order."""
+    story = [
+        *labelled("제목", episode.name),
+        *labelled("줄거리", episode.data.synopsis),
+        "장면 (이야기 순서):",
+        *scene_lines(episode, scenes),
+    ]
+    return [
+        {
+            "role": "user",
+            "content": "\n".join(
+                [
+                    block("원문", "\n".join(story)),
+                    block("지시", f"배치할 장면: 1~{len(scenes)}번 ({len(scenes)}개)"),
+                ]
+            ),
+        }
+    ]
 
 
 def scene_turns(conn: sqlite3.Connection, episode: EpisodeCard) -> list[Message]:
