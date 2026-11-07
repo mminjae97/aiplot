@@ -47,3 +47,11 @@ roles:
     thinking: true
     sampling: { temperature: 0.3 }
     max_tokens: 4096
+  # Step 3 (§9): one scene's beats. max_tokens a draft until measured (training/eval/step3).
+  direct:
+    profile: qwen3-8b-uncensor-q5km
+    lora: null
+    prompt: 1
+    thinking: true
+    sampling: { temperature: 0.3 }
+    max_tokens: 4096
