@@ -1,0 +1,24 @@
+{
+  "beats": [
+    {
+      "summary": "테오가 편지 봉투의 낯선 문장(紋章)을 알아보고 손을 멈춘다.",
+      "techniques": ["tech_inf_002"],
+      "pov": "테오 1인칭",
+      "mode": "장면화",
+      "focus": "감정",
+      "density": "자세히",
+      "tension": 3,
+      "target_chars": 700
+    },
+    {
+      "summary": "시장 소음 속에서 테오가 편지를 품에 넣고 자리를 뜬다.",
+      "techniques": [],
+      "pov": "테오 1인칭",
+      "mode": "요약",
+      "focus": "행동",
+      "density": "담백",
+      "tension": 2,
+      "target_chars": 400
+    }
+  ]
+}

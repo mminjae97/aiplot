@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ArrangeOutput",
+  "description": "`arrange` role output (§9, §13): the episode's scenes in chapters, each chapter's scenes in narration order (a scene moved earlier or later = flashback, in medias res), cuts between chapters only. The server requires every scene exactly once and rescales each chapter's target_chars to sum to the chapter's target, keeping the model's proportions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["chapters"],
+  "properties": {
+    "chapters": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "items": {
+        "title": "ArrangeChapter",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["scenes"],
+        "properties": {
+          "scenes": {
+            "description": "In narration order; the chapter is cut after its last scene, on a hook.",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "title": "ArrangeScene",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["scene", "target_chars", "reveal"],
+              "properties": {
+                "scene": {
+                  "description": "The scene's story-order number (narrowed per call to 1..n).",
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "target_chars": {
+                  "description": "The scene's share of its chapter in characters (a proportion: the server rescales).",
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "reveal": {
+                  "description": "What the scene reveals to the reader, possibly nothing.",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
