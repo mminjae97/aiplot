@@ -1,0 +1,24 @@
+{
+  "reasoning": "장면 다섯 개. 1화는 우정, 몰래 고쳐 쓰기, 시험장에서 읽어 내려가는 데까지 두고 덫에 걸어 들어가는 순간에 끊는다. 2화는 폭주와 낙방.",
+  "content": {
+    "chapters": [
+      {
+        "scenes": [
+          { "scene": 1, "target_chars": 1500, "reveal": [] },
+          {
+            "scene": 2,
+            "target_chars": 1800,
+            "reveal": ["미라벨이 엘린의 주문서 마지막 줄을 몰래 고쳐 썼다."]
+          },
+          { "scene": 3, "target_chars": 2200, "reveal": [] }
+        ]
+      },
+      {
+        "scenes": [
+          { "scene": 4, "target_chars": 3000, "reveal": [] },
+          { "scene": 5, "target_chars": 2500, "reveal": [] }
+        ]
+      }
+    ]
+  }
+}

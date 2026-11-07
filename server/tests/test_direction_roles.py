@@ -11,6 +11,7 @@ import pytest
 
 from aiplot.db.connection import connect
 from aiplot.db.migrate import init_db
+from aiplot.generated.roles.arrange_output import ArrangeOutput
 from aiplot.generated.roles.scene_output import DeviceRole, OutputScene, SceneDevices, SceneOutput
 from aiplot.llm.client import ChatRequest, Delta, LlmError, Message, Usage
 from aiplot.llm.config import PROMPTS_DIR, load_llm_config
@@ -18,6 +19,7 @@ from aiplot.llm.fake import FakeClient
 from aiplot.llm.router import Router
 from aiplot.services import cards, direction, techniques
 from aiplot.services.direction import EpisodeNotReadyError
+from aiplot.services.direction_context import Scene
 from tests.test_card_delete import episode
 from tests.test_cards import character, fixture, region, save, story
 from tests.test_draft_messages import Scripted
@@ -291,6 +293,189 @@ async def test_payoffs_planted_in_an_inactive_episode_stay_out(
     assert "부서진 등대" not in text
     assert "회수하는 복선" not in text
     assert "- 테오의 왼손 흉터" in text
+
+
+# arrange ------------------------------------------------------------------------------------
+
+
+def split(*sources: str) -> list[Scene]:
+    """Scenes 1..n in story order, as split_scenes returns them."""
+    return [
+        Scene(
+            scene=number,
+            source=source,
+            summary=f"{source} 요약 {number}",
+            core=f"{source} 핵심 {number}",
+            devices=[],
+            sub_devices=[],
+            effects=["긴장"],
+            situations=["위기"],
+        )
+        for number, source in enumerate(sources, start=1)
+    ]
+
+
+def placed(number: int, target: int = 1000, reveal: list[str] | None = None) -> dict[str, Any]:
+    return {"scene": number, "target_chars": target, "reveal": reveal or []}
+
+
+def chapters_json(*chapters: list[dict[str, Any]]) -> str:
+    return json.dumps({"chapters": [{"scenes": scenes} for scenes in chapters]}, ensure_ascii=False)
+
+
+def layout(result: direction.ArrangeResult) -> list[list[int]]:
+    return [[s.scene for s in chapter.scenes] for chapter in result.chapters]
+
+
+async def test_arrange_sees_the_episode_and_its_scenes(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    client = FakeClient()
+    result = await direction.arrange_scenes(
+        make_router(client, tmp_path), conn, "c_ep1", split(*FIVE)
+    )
+    text = user_turn(client)
+    assert text.startswith("<원문>\n") and text.endswith("\n</지시>")
+    expected = [
+        "제목: 1화",
+        "줄거리: 테오가 항구에 돌아와 옛 편지의 주인을 찾는다.",
+        "장면 (이야기 순서):",
+    ]
+    for number, (name, level) in enumerate(zip(FIVE, TENSION, strict=True), start=1):
+        expected += [f"{number}. {name} (긴장도 {level}): {name} 요약 {number}"]
+        expected += [f"   핵심: {name} 핵심 {number}"]
+    assert block(text, "원문").splitlines() == expected
+    assert block(text, "지시") == "배치할 장면: 1~5번 (5개)"
+    for word in ("c_", "fs_", "참고 카드"):
+        assert word not in text, word
+
+    # The fixture: scenes 1-3, then 4-5; each chapter's targets rescaled to 5500.
+    assert layout(result) == [[1, 2, 3], [4, 5]]
+    assert [c.chapter for c in result.chapters] == [1, 2]
+    for chapter in result.chapters:
+        assert chapter.target_chars == direction.CHAPTER_CHARS
+        assert sum(s.target_chars for s in chapter.scenes) == direction.CHAPTER_CHARS
+    assert [s.target_chars for s in result.chapters[1].scenes] == [3000, 2500]
+    assert result.chapters[0].scenes[1].reveal == [
+        "미라벨이 엘린의 주문서 마지막 줄을 몰래 고쳐 썼다."
+    ]
+    assert (result.meta.role, result.meta.prompt_version) == ("arrange", 1)
+    assert (result.usage, result.generations) == (None, 1)
+
+
+async def test_arrange_schema_limits_scene_numbers(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    client = FakeClient()
+    await direction.arrange_scenes(make_router(client, tmp_path), conn, "c_ep1", split(*FIVE))
+    schema = client.requests[0].json_schema
+    assert schema == direction.arrange_schema(5)
+    assert schema is not None
+    number = schema["$defs"]["ArrangeScene"]["properties"]["scene"]
+    assert (number["minimum"], number["maximum"]) == (1, 5)
+    assert_plain(schema)
+    assert (
+        "maximum"
+        not in ArrangeOutput.model_json_schema()["$defs"]["ArrangeScene"]["properties"]["scene"]
+    )
+
+
+async def test_arrange_keeps_the_narration_order_and_cleans(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    client = Scripted()
+    client.say(
+        "arrange",
+        chapters_json(
+            [placed(4, 1), placed(1, 2, [" 편지의 주인은 형이다. ", "편지의 주인은 형이다.", " "])],
+            [placed(2), placed(3), placed(5)],
+        ),
+    )
+    result = await direction.arrange_scenes(
+        make_router(client, tmp_path), conn, "c_ep1", split(*FIVE)
+    )
+    # In medias res: scene 4 first, then back to 1.
+    assert layout(result) == [[4, 1], [2, 3, 5]]
+    first, second = result.chapters
+    assert [s.target_chars for s in first.scenes] == [1834, 3666]
+    assert [s.target_chars for s in second.scenes] == [1834, 1833, 1833]
+    assert first.scenes[1].reveal == ["편지의 주인은 형이다."]
+
+
+@pytest.mark.parametrize(
+    "chapters",
+    [
+        [[placed(1), placed(2), placed(3), placed(4)]],  # 5 left out
+        [[placed(1), placed(2), placed(3)], [placed(4), placed(5), placed(3)]],  # 3 twice
+    ],
+)
+async def test_arrange_regenerates_once_unless_every_scene_is_placed_once(
+    conn: sqlite3.Connection, tmp_path: Path, chapters: list[list[dict[str, Any]]]
+) -> None:
+    good = chapters_json([placed(1), placed(2)], [placed(3), placed(4), placed(5)])
+    client = Scripted()
+    client.say("arrange", chapters_json(*chapters), good)
+    result = await direction.arrange_scenes(
+        make_router(client, tmp_path), conn, "c_ep1", split(*FIVE)
+    )
+    assert layout(result) == [[1, 2], [3, 4, 5]]
+    assert (len(client.requests), result.generations) == (2, 2)
+
+    client = Scripted()
+    client.say("arrange", chapters_json(*chapters))
+    with pytest.raises(LlmError) as exc_info:
+        await direction.arrange_scenes(make_router(client, tmp_path), conn, "c_ep1", split(*FIVE))
+    assert exc_info.value.code == "LLM_INVALID_OUTPUT"
+    assert len(client.requests) == 2
+
+
+async def test_arrange_is_refused_before_any_call(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    client = FakeClient()
+    router = make_router(client, tmp_path)
+    with pytest.raises(EpisodeNotReadyError):
+        await direction.arrange_scenes(router, conn, "c_teo", split(*FIVE))
+    for scenes in ([], split(*FIVE)[1:], list(reversed(split(*FIVE)))):
+        with pytest.raises(ValueError, match="numbered"):
+            await direction.arrange_scenes(router, conn, "c_ep1", scenes)
+    assert client.requests == []
+
+
+@pytest.mark.parametrize(
+    ("weights", "total", "shares"),
+    [
+        ([1, 1], 5500, [2750, 2750]),
+        ([1, 2], 5500, [1834, 3666]),
+        ([1500, 1800, 2200], 5500, [1500, 1800, 2200]),
+        ([1, 10000], 5500, [2, 5498]),
+        ([3], 5500, [5500]),
+        ([1, 1, 1], 3, [1, 1, 1]),
+    ],
+)
+def test_rescale_keeps_proportions_and_sums_exactly(
+    weights: list[int], total: int, shares: list[int]
+) -> None:
+    assert direction.rescale(weights, total) == shares
+    assert sum(shares) == total
+
+
+async def test_arrange_system_prompt_holds_no_per_call_values(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    client = Scripted()
+    client.say("arrange", chapters_json([placed(1), placed(2)]))
+    router = make_router(client, tmp_path)
+    save(conn, ep("c_ep4", "4화", synopsis="다른 줄거리", structure=stages()))
+    await direction.arrange_scenes(router, conn, "c_ep1", split("발단", "위기"))
+    await direction.arrange_scenes(router, conn, "c_ep4", split("전개", "결말"))
+    first, second = (r.messages[0] for r in client.requests)
+    assert first == second == {"role": "system", "content": router.system_prompt("arrange")}
+    for value in ("tech_", "c_ep", "테오", "다른 줄거리", "요약 1", "<!--"):
+        assert value not in first["content"], value
+
+
+def test_rescale_needs_one_per_share() -> None:
+    with pytest.raises(ValueError):
+        direction.rescale([1, 1, 1], 2)
 
 
 # usage --------------------------------------------------------------------------------------

@@ -38,3 +38,12 @@ roles:
     # completions ≤5554, total ≤9647; the step 2 device experiment (41 yes/no per stage, 4-5
     # stages) took up to 6685 completion tokens. 8000 keeps the total within ctx 12288.
     max_tokens: 8000
+  # Step 3 (§9): the episode's scenes into chapters. max_tokens a draft until measured
+  # (training/eval/step3); the output is short, thinking takes most of it.
+  arrange:
+    profile: qwen3-8b-uncensor-q5km
+    lora: null
+    prompt: 1
+    thinking: true
+    sampling: { temperature: 0.3 }
+    max_tokens: 4096

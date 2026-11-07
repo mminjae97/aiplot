@@ -1,10 +1,10 @@
 """Stage 2 direction (§9): the `scene` role splits an episode into scenes, writes each scene's
 core and answers every scene device main, sub or none; code recommends technique cards per scene
-from the main devices and tags they share.
+from the main devices and tags they share; the `arrange` role places the scenes in chapters.
 
-The scene call is constrained by a schema narrowed to the episode's stage names; the server
-cleans its output. Recommendations need no model call. Nothing is stored yet: plans and picks
-get their tables in step 3.
+Each call is constrained by a schema narrowed to the episode (stage names, scene numbers); the
+server cleans the output. Recommendations need no model call. Nothing is stored yet: plans and
+picks get their tables in step 3.
 """
 
 import copy
@@ -13,11 +13,12 @@ from collections.abc import Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass, replace
 from typing import Any, Literal, cast
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from aiplot.db import techniques as techniques_db
 from aiplot.db import works as works_db
 from aiplot.generated.card.card import EpisodeCard
+from aiplot.generated.roles.arrange_output import ArrangeOutput
 from aiplot.generated.roles.scene_output import SceneDevices, SceneOutput
 from aiplot.generated.technique.technique import Technique
 from aiplot.generated.technique.technique_device import TechniqueDevice
@@ -241,3 +242,104 @@ async def split_scenes(router: Router, conn: sqlite3.Connection, episode_id: str
         lambda output: clean_scenes(output, names),
     )
     return SceneResult(kept.items, kept.meta, kept.usage, kept.generations)
+
+
+# arrange ------------------------------------------------------------------------------------
+
+# A chapter's target in characters incl. spaces (§1, §10); arrange's scene targets are rescaled
+# to sum to it.
+CHAPTER_CHARS = 5500
+
+
+class ArrangedScene(BaseModel):
+    """A scene placed in a chapter: its story-order number, its target in characters (rescaled)
+    and what it reveals to the reader."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    scene: int
+    target_chars: int
+    reveal: list[str]
+
+
+class ArrangedChapter(BaseModel):
+    """A chapter numbered 1..n, its scenes in narration order (cut after the last)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    chapter: int
+    target_chars: int
+    scenes: list[ArrangedScene]
+
+
+@dataclass(frozen=True)
+class ArrangeResult:
+    chapters: list[ArrangedChapter]
+    meta: OutputMeta
+    usage: Usage | None
+    generations: int
+
+
+def rescale(weights: Sequence[int], total: int) -> list[int]:
+    """Shares of total in proportion to weights (each > 0), summing to total exactly: one each
+    first, the rest by largest remainder (ties to the earlier). Needs total >= len(weights)."""
+    if total < len(weights):
+        raise ValueError(f"total {total} below {len(weights)} shares")
+    rest = total - len(weights)
+    whole = sum(weights)
+    exact = [rest * weight / whole for weight in weights]
+    shares = [int(value) for value in exact]
+    by_remainder = sorted(range(len(weights)), key=lambda i: (shares[i] - exact[i], i))
+    for i in by_remainder[: rest - sum(shares)]:
+        shares[i] += 1
+    return [share + 1 for share in shares]
+
+
+def clean_reveal(texts: Iterable[str]) -> list[str]:
+    """Each text stripped, once, empty ones dropped."""
+    return list(dict.fromkeys(text.strip() for text in texts if text.strip()))
+
+
+def clean_arrangement(output: ArrangeOutput, count: int) -> list[ArrangedChapter]:
+    """Chapters numbered 1..n, each scene's target rescaled so a chapter's sum to CHAPTER_CHARS,
+    reveals cleaned. Nothing unless every scene 1..count appears exactly once (§9)."""
+    numbers = [scene.scene for chapter in output.chapters for scene in chapter.scenes]
+    if sorted(numbers) != list(range(1, count + 1)):
+        return []
+    chapters: list[ArrangedChapter] = []
+    for number, chapter in enumerate(output.chapters, start=1):
+        targets = rescale([scene.target_chars for scene in chapter.scenes], CHAPTER_CHARS)
+        scenes = [
+            ArrangedScene(scene=scene.scene, target_chars=target, reveal=clean_reveal(scene.reveal))
+            for scene, target in zip(chapter.scenes, targets, strict=True)
+        ]
+        chapters.append(ArrangedChapter(chapter=number, target_chars=CHAPTER_CHARS, scenes=scenes))
+    return chapters
+
+
+def arrange_schema(count: int) -> dict[str, Any]:
+    """ArrangeOutput's schema with scene numbers limited to 1..count."""
+    schema = copy.deepcopy(ArrangeOutput.model_json_schema())
+    number = schema["$defs"]["ArrangeScene"]["properties"]["scene"]
+    number["maximum"] = count
+    return schema
+
+
+async def arrange_scenes(
+    router: Router, conn: sqlite3.Connection, episode_id: str, scenes: Sequence[Scene]
+) -> ArrangeResult:
+    """The episode's scenes (numbered 1..n in story order, as split_scenes gives them) in
+    chapters: narration order, cuts between scenes, scene targets and reveals (§9)."""
+    episode = ready_episode(conn, episode_id)
+    if not scenes or [scene.scene for scene in scenes] != list(range(1, len(scenes) + 1)):
+        raise ValueError("scenes must be numbered 1..n in story order, at least one")
+    count = len(scenes)
+    kept = await generate_kept(
+        router,
+        "arrange",
+        context.arrange_turns(episode, scenes),
+        ArrangeOutput,
+        arrange_schema(count),
+        lambda output: clean_arrangement(output, count),
+    )
+    return ArrangeResult(kept.items, kept.meta, kept.usage, kept.generations)
