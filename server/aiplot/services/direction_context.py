@@ -1,4 +1,4 @@
-"""What the scene and arrange roles see (§9, §13): tagged blocks `<원문> <참고 카드> <지시>`.
+"""What the direction roles see (§9, §13): tagged blocks `<원문> <참고 카드> <지시>`.
 
 The texts here are model input, not UI text: they follow the role prompts in prompts/. Cards
 the episode is tied to come from the relation tables (§6); inactive (incomplete) ones are left
@@ -7,13 +7,16 @@ out (§11). Technique examples never reach a prompt (§9).
 
 import sqlite3
 from collections.abc import Sequence
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
 from aiplot.db import cards as cards_db
 from aiplot.generated.card.card import EpisodeCard
 from aiplot.generated.card.structure import FiveStage, FourStage
+from aiplot.generated.direction.plan import PlanBeat, PlanScene
+from aiplot.generated.technique.technique import Technique
 from aiplot.generated.technique.technique_device import TechniqueDevice
 from aiplot.generated.technique.technique_effect import TechniqueEffect
 from aiplot.generated.technique.technique_situation import TechniqueSituation
@@ -21,6 +24,28 @@ from aiplot.llm.client import Message
 from aiplot.services.draft_context import CATEGORY, block
 
 type Stage = FiveStage | FourStage
+
+# Where a scene sits in its chapter (§9): the serial cards it gets follow from it.
+type Place = Literal["first", "middle", "last", "only"]
+
+PLACE_TEXT: dict[Place, str] = {
+    "first": "첫 장면",
+    "middle": "중간 장면",
+    "last": "마지막 장면 (이 장면 뒤에서 화가 끝난다)",
+    "only": "하나뿐인 장면 (이 장면으로 화가 시작하고 끝난다)",
+}
+
+
+@dataclass(frozen=True)
+class SceneSpot:
+    """A plan scene with its place: its chapter, where in it, and the scenes just before and
+    after it in narration order (across chapters; None at the episode's ends)."""
+
+    chapter: int
+    place: Place
+    scene: PlanScene
+    previous: PlanScene | None
+    next: PlanScene | None
 
 
 class Scene(BaseModel):
@@ -113,13 +138,17 @@ def episode_lines(episode: EpisodeCard, ties: cards_db.EpisodeTies) -> str:
     return "\n".join(lines)
 
 
+def stage_label(episode: EpisodeCard, source: str) -> str:
+    """A scene's stage name with the stage's tension."""
+    tension = next((s.tension for s in stages_of(episode) if s.name == source), None)
+    return f"{source} (긴장도 {tension})" if tension is not None else source
+
+
 def scene_lines(episode: EpisodeCard, scenes: Sequence[Scene]) -> list[str]:
     """Each scene in story order with its stage's tension, summary and core."""
-    tension: dict[str, int | None] = {stage.name: stage.tension for stage in stages_of(episode)}
     lines: list[str] = []
     for scene in scenes:
-        level = tension.get(scene.source)
-        stage = f"{scene.source} (긴장도 {level})" if level is not None else scene.source
+        stage = stage_label(episode, scene.source)
         lines += [f"{scene.scene}. {stage}: {scene.summary}", f"   핵심: {scene.core}"]
     return lines
 
@@ -157,6 +186,83 @@ def scene_turns(conn: sqlite3.Connection, episode: EpisodeCard) -> list[Message]
                     block("원문", episode_lines(episode, ties)),
                     block("참고 카드", card_lines(conn, episode, ties)),
                     block("지시", f"나눌 단계: {names}"),
+                ]
+            ),
+        }
+    ]
+
+
+def beat_line(beat: PlanBeat) -> str:
+    style = f"{beat.pov}, {beat.mode}·{beat.focus}·{beat.density}, 긴장도 {beat.tension}"
+    return f"{beat.order}. ({style}) {beat.summary}"
+
+
+def technique_lines(card: Technique) -> list[str]:
+    """id, name, definition, how to apply it and when not to: never the example (§9)."""
+    return [
+        f"- {card.id} {card.name}: {card.description}",
+        f"  적용 방법: {card.mechanism}",
+        f"  피할 경우: {' / '.join(card.avoid_when)}",
+    ]
+
+
+def direct_story(episode: EpisodeCard, spot: SceneSpot) -> list[str]:
+    scene = spot.scene
+    lines = [
+        *labelled("에피소드 제목", episode.name),
+        *labelled("주제", episode.data.theme),
+        *labelled("줄거리", episode.data.synopsis),
+        "",
+        "이번 장면:",
+        f"  단계: {stage_label(episode, scene.source)}",
+        f"  요약: {scene.summary}",
+        f"  핵심: {scene.core}",
+    ]
+    if scene.reveal:
+        lines += ["  이 장면에서 드러낼 것:", *(f"  - {text}" for text in scene.reveal)]
+    lines.append("")
+    if spot.previous is None:
+        lines.append("앞 장면: 없음 (에피소드의 첫 장면)")
+    else:
+        lines.append(f"앞 장면: {spot.previous.summary}")
+        if spot.previous.beats:
+            lines += ["  앞 장면의 비트:", *(f"  {beat_line(b)}" for b in spot.previous.beats)]
+    if spot.next is None:
+        lines.append("뒤 장면: 없음 (에피소드의 마지막 장면)")
+    else:
+        lines.append(f"뒤 장면: {spot.next.summary}")
+    return lines
+
+
+def direct_turns(
+    conn: sqlite3.Connection,
+    episode: EpisodeCard,
+    spot: SceneSpot,
+    chosen: Sequence[Technique],
+    serial: Sequence[Technique],
+    beats: tuple[int, int],
+) -> list[Message]:
+    """§9: the scene in its episode with its neighbours, the episode's cards, then its place,
+    size and cards (chosen, then serial by place)."""
+    ties = cards_db.episode_ties(conn, episode.id)
+    low, high = beats
+    count = f"{low}개" if low == high else f"{low}~{high}개"
+    order = [
+        f"자리: {spot.chapter}화의 {PLACE_TEXT[spot.place]}",
+        f"분량: {spot.scene.target_chars}자, 비트 {count}",
+        "고른 기법:",
+        *(line for card in chosen for line in technique_lines(card)),
+        "연재 기법:",
+        *(line for card in serial for line in technique_lines(card)),
+    ]
+    return [
+        {
+            "role": "user",
+            "content": "\n".join(
+                [
+                    block("원문", "\n".join(direct_story(episode, spot))),
+                    block("참고 카드", card_lines(conn, episode, ties)),
+                    block("지시", "\n".join(order)),
                 ]
             ),
         }

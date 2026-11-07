@@ -8,6 +8,7 @@ picks get their tables in step 3.
 """
 
 import copy
+import math
 import sqlite3
 from collections.abc import Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass, replace
@@ -18,7 +19,15 @@ from pydantic import BaseModel, ConfigDict
 from aiplot.db import techniques as techniques_db
 from aiplot.db import works as works_db
 from aiplot.generated.card.card import EpisodeCard
+from aiplot.generated.direction.plan import (
+    DirectionPlan,
+    PlanBeat,
+    PlanChapter,
+    PlanRecommendation,
+    PlanScene,
+)
 from aiplot.generated.roles.arrange_output import ArrangeOutput
+from aiplot.generated.roles.direct_output import DirectOutput
 from aiplot.generated.roles.scene_output import SceneDevices, SceneOutput
 from aiplot.generated.technique.technique import Technique
 from aiplot.generated.technique.technique_device import TechniqueDevice
@@ -29,7 +38,7 @@ from aiplot.llm.config import Role
 from aiplot.llm.router import OutputMeta, Router
 from aiplot.services import cards
 from aiplot.services import direction_context as context
-from aiplot.services.direction_context import Scene
+from aiplot.services.direction_context import Place, Scene, SceneSpot
 
 # The serial cards `direct` always gets for chapter cuts (§9): 회차 끝 절단, 회차 3단 설계,
 # 사이다/고구마 완급, 전회 연결 도입. Never direction candidates.
@@ -343,3 +352,191 @@ async def arrange_scenes(
         lambda output: clean_arrangement(output, count),
     )
     return ArrangeResult(kept.items, kept.meta, kept.usage, kept.generations)
+
+
+def build_plan(
+    conn: sqlite3.Connection,
+    episode_id: str,
+    scenes: Sequence[Scene],
+    chapters: Sequence[ArrangedChapter],
+) -> DirectionPlan:
+    """A new plan from the scene and arrange outputs: every scene undirected, its devices the
+    AI's main answers until the user corrects them, its recommendations from those (§9)."""
+    by_number = {scene.scene: scene for scene in scenes}
+    return DirectionPlan(
+        episode=episode_id,
+        chapters=[
+            PlanChapter(
+                chapter=chapter.chapter,
+                target_chars=chapter.target_chars,
+                scenes=[
+                    plan_scene(conn, by_number[placed.scene], placed) for placed in chapter.scenes
+                ],
+            )
+            for chapter in chapters
+        ],
+    )
+
+
+def plan_scene(conn: sqlite3.Connection, scene: Scene, placed: ArrangedScene) -> PlanScene:
+    return PlanScene(
+        scene=scene.scene,
+        status="undirected",
+        source=scene.source,
+        summary=scene.summary,
+        core=scene.core,
+        target_chars=placed.target_chars,
+        ai_devices=list(scene.devices),
+        sub_devices=list(scene.sub_devices),
+        devices=list(scene.devices),
+        effects=list(scene.effects),
+        situations=list(scene.situations),
+        recommended=[
+            PlanRecommendation(
+                rank=found.rank,
+                technique=found.technique_id,
+                devices=found.devices,
+                effects=found.effects,
+                situations=found.situations,
+            )
+            for found in recommend(conn, scene)
+        ],
+        chosen=[],
+        reveal=list(placed.reveal),
+        beats=[],
+    )
+
+
+# direct -------------------------------------------------------------------------------------
+
+# Serial cards by a scene's place in its chapter (§9): 전회 연결 도입 opens a chapter, 회차 끝
+# 절단 ends it, 회차 3단 설계 and 사이다/고구마 완급 go with every scene.
+OPENING_SERIAL = "tech_ser_042"
+CUT_SERIAL = "tech_ser_019"
+EVERY_SERIAL = ("tech_ser_020", "tech_ser_021")
+
+# A beat's size in characters incl. spaces (§1); bounds a scene's beat count.
+BEAT_CHARS = (500, 1000)
+
+
+@dataclass(frozen=True)
+class DirectResult:
+    beats: list[PlanBeat]
+    meta: OutputMeta
+    usage: Usage | None
+    generations: int
+
+
+class SceneNotReadyError(ValueError):
+    """The scene cannot be directed: not in the plan, or its chosen cards are refused (no card,
+    an unknown one, or choice_error's code). Raised before any model call."""
+
+
+def serial_for(place: Place) -> list[str]:
+    opening = [OPENING_SERIAL] if place in ("first", "only") else []
+    cut = [CUT_SERIAL] if place in ("last", "only") else []
+    return [*opening, *EVERY_SERIAL, *cut]
+
+
+def place_of(index: int, size: int) -> Place:
+    if size == 1:
+        return "only"
+    if index == 0:
+        return "first"
+    return "last" if index == size - 1 else "middle"
+
+
+def locate(plan: DirectionPlan, number: int) -> SceneSpot:
+    """The scene with its chapter, place and narration-order neighbours (across chapters)."""
+    flat = [
+        (chapter.chapter, place_of(index, len(chapter.scenes)), scene)
+        for chapter in plan.chapters
+        for index, scene in enumerate(chapter.scenes)
+    ]
+    for position, (chapter, place, scene) in enumerate(flat):
+        if scene.scene == number:
+            previous = flat[position - 1][2] if position > 0 else None
+            following = flat[position + 1][2] if position + 1 < len(flat) else None
+            return SceneSpot(chapter, place, scene, previous, following)
+    raise SceneNotReadyError(f"scene {number} is not in the plan")
+
+
+def beat_range(target_chars: int) -> tuple[int, int]:
+    """How many beats of BEAT_CHARS fit the scene: at least one."""
+    low_chars, high_chars = BEAT_CHARS
+    low = max(1, math.ceil(target_chars / high_chars))
+    return low, max(low, target_chars // low_chars)
+
+
+def direct_schema(technique_ids: Sequence[str], beats: tuple[int, int]) -> dict[str, Any]:
+    """DirectOutput's schema with techniques limited to the scene's cards and the beat count to
+    the scene's range."""
+    schema = copy.deepcopy(DirectOutput.model_json_schema())
+    properties = schema["$defs"]["DirectBeat"]["properties"]
+    properties["techniques"]["items"] = {"type": "string", "enum": list(technique_ids)}
+    schema["properties"]["beats"]["minItems"], schema["properties"]["beats"]["maxItems"] = beats
+    return schema
+
+
+def clean_beats(
+    output: DirectOutput, target_chars: int, allowed: Collection[str]
+) -> list[PlanBeat]:
+    """Beats numbered 1..n, targets rescaled to the scene's, summaries stripped, each allowed
+    technique once. Nothing if a summary or pov is blank, or with more beats than characters
+    (the schema's beat count rules that out)."""
+    if len(output.beats) > target_chars:
+        return []
+    if any(not (beat.summary.strip() and beat.pov.strip()) for beat in output.beats):
+        return []
+    targets = rescale([beat.target_chars for beat in output.beats], target_chars)
+    return [
+        PlanBeat(
+            order=order,
+            summary=beat.summary.strip(),
+            techniques=list(dict.fromkeys(t for t in beat.techniques if t in allowed)),
+            pov=beat.pov.strip(),
+            mode=beat.mode,
+            focus=beat.focus,
+            density=beat.density,
+            tension=beat.tension,
+            target_chars=target,
+        )
+        for order, (beat, target) in enumerate(zip(output.beats, targets, strict=True), start=1)
+    ]
+
+
+def chosen_cards(conn: sqlite3.Connection, scene: PlanScene) -> list[Technique]:
+    if not scene.chosen:
+        raise SceneNotReadyError(f"scene {scene.scene} has no chosen card")
+    found = [techniques_db.get(conn, technique_id) for technique_id in scene.chosen]
+    cards_found = [card for card in found if card is not None]
+    if len(cards_found) < len(found):
+        raise SceneNotReadyError(f"scene {scene.scene} has an unknown card")
+    error = choice_error(cards_found)
+    if error is not None:
+        raise SceneNotReadyError(error)
+    return cards_found
+
+
+async def direct_scene(
+    router: Router, conn: sqlite3.Connection, plan: DirectionPlan, number: int
+) -> DirectResult:
+    """One scene's beats (§9): the scene in its episode with its place, neighbours, the user's
+    1-3 cards and the serial cards for its place."""
+    episode = ready_episode(conn, plan.episode)
+    spot = locate(plan, number)
+    chosen = chosen_cards(conn, spot.scene)
+    serial = [techniques_db.get(conn, technique_id) for technique_id in serial_for(spot.place)]
+    serial_cards = [card for card in serial if card is not None]
+    allowed = [card.id for card in [*chosen, *serial_cards]]
+    beats = beat_range(spot.scene.target_chars)
+    target = spot.scene.target_chars
+    kept = await generate_kept(
+        router,
+        "direct",
+        context.direct_turns(conn, episode, spot, chosen, serial_cards, beats),
+        DirectOutput,
+        direct_schema(allowed, beats),
+        lambda output: clean_beats(output, target, allowed),
+    )
+    return DirectResult(kept.items, kept.meta, kept.usage, kept.generations)

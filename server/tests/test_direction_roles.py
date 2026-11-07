@@ -11,7 +11,9 @@ import pytest
 
 from aiplot.db.connection import connect
 from aiplot.db.migrate import init_db
+from aiplot.generated.direction.plan import DirectionPlan, PlanBeat
 from aiplot.generated.roles.arrange_output import ArrangeOutput
+from aiplot.generated.roles.direct_output import DirectOutput
 from aiplot.generated.roles.scene_output import DeviceRole, OutputScene, SceneDevices, SceneOutput
 from aiplot.llm.client import ChatRequest, Delta, LlmError, Message, Usage
 from aiplot.llm.config import PROMPTS_DIR, load_llm_config
@@ -476,6 +478,323 @@ async def test_arrange_system_prompt_holds_no_per_call_values(
 def test_rescale_needs_one_per_share() -> None:
     with pytest.raises(ValueError):
         direction.rescale([1, 1, 1], 2)
+
+
+# plan + direct ------------------------------------------------------------------------------
+
+CHOSEN = "tech_inf_001"
+
+
+def arranged(*chapters: list[int], targets: dict[int, int] | None = None) -> list[Any]:
+    output = ArrangeOutput.model_validate(
+        {
+            "chapters": [
+                {"scenes": [placed(n, (targets or {}).get(n, 1000)) for n in numbers]}
+                for numbers in chapters
+            ]
+        }
+    )
+    count = sum(len(numbers) for numbers in chapters)
+    return direction.clean_arrangement(output, count)
+
+
+def make_plan(
+    conn: sqlite3.Connection, *chapters: list[int], chosen: list[str] | None = None
+) -> DirectionPlan:
+    """c_ep1's five scenes in the given chapters, every scene choosing `chosen`."""
+    plan = direction.build_plan(conn, "c_ep1", split(*FIVE), arranged(*chapters))
+    picks = [CHOSEN] if chosen is None else chosen
+    return plan.model_copy(
+        update={
+            "chapters": [
+                chapter.model_copy(
+                    update={
+                        "scenes": [s.model_copy(update={"chosen": picks}) for s in chapter.scenes]
+                    }
+                )
+                for chapter in plan.chapters
+            ]
+        }
+    )
+
+
+def with_beats(plan: DirectionPlan, number: int, beats: list[PlanBeat]) -> DirectionPlan:
+    return plan.model_copy(
+        update={
+            "chapters": [
+                chapter.model_copy(
+                    update={
+                        "scenes": [
+                            s.model_copy(update={"beats": beats, "status": "directed"})
+                            if s.scene == number
+                            else s
+                            for s in chapter.scenes
+                        ]
+                    }
+                )
+                for chapter in plan.chapters
+            ]
+        }
+    )
+
+
+def beat(**changes: Any) -> dict[str, Any]:
+    return {
+        "summary": "테오가 등대에 오른다.",
+        "techniques": [CHOSEN],
+        "pov": "테오 1인칭",
+        "mode": "장면화",
+        "focus": "감정",
+        "density": "자세히",
+        "tension": 4,
+        "target_chars": 700,
+        **changes,
+    }
+
+
+def beats_json(*beats: dict[str, Any]) -> str:
+    return json.dumps({"beats": list(beats)}, ensure_ascii=False)
+
+
+def test_build_plan_starts_every_scene_undirected(conn: sqlite3.Connection) -> None:
+    scenes = split(*FIVE)
+    plan = direction.build_plan(conn, "c_ep1", scenes, arranged([2, 1], [3, 4, 5]))
+    assert plan.episode == "c_ep1"
+    assert [c.chapter for c in plan.chapters] == [1, 2]
+    assert [[s.scene for s in c.scenes] for c in plan.chapters] == [[2, 1], [3, 4, 5]]
+    first = plan.chapters[0].scenes[1]
+    assert (first.status, first.source, first.summary, first.core) == (
+        "undirected",
+        "발단",
+        "발단 요약 1",
+        "발단 핵심 1",
+    )
+    assert first.target_chars == 2750
+    assert (first.chosen, first.beats, first.reveal) == ([], [], [])
+    expected = direction.recommend(conn, scenes[0])
+    assert expected  # the tags alone find candidates
+    assert [(r.rank, r.technique) for r in first.recommended] == [
+        (r.rank, r.technique_id) for r in expected
+    ]
+    # Round-trips through the plan schema.
+    assert DirectionPlan.model_validate(plan.model_dump()) == plan
+
+
+@pytest.mark.parametrize(
+    ("size", "places"),
+    [(1, ["only"]), (2, ["first", "last"]), (4, ["first", "middle", "middle", "last"])],
+)
+def test_place_of(size: int, places: list[str]) -> None:
+    assert [direction.place_of(i, size) for i in range(size)] == places
+
+
+def test_serial_cards_follow_the_place() -> None:
+    every = ["tech_ser_020", "tech_ser_021"]
+    assert direction.serial_for("first") == ["tech_ser_042", *every]
+    assert direction.serial_for("middle") == every
+    assert direction.serial_for("last") == [*every, "tech_ser_019"]
+    assert direction.serial_for("only") == ["tech_ser_042", *every, "tech_ser_019"]
+    assert {*direction.serial_for("only")} == set(direction.SERIAL_TECHNIQUES)
+
+
+def test_locate_finds_neighbours_across_chapters(conn: sqlite3.Connection) -> None:
+    plan = make_plan(conn, [1, 2], [3], [4, 5])
+    spot = direction.locate(plan, 3)
+    assert (spot.chapter, spot.place, spot.scene.scene) == (2, "only", 3)
+    assert (spot.previous and spot.previous.scene, spot.next and spot.next.scene) == (2, 4)
+    first, last = direction.locate(plan, 1), direction.locate(plan, 5)
+    assert (first.place, first.previous, last.place, last.next) == ("first", None, "last", None)
+    with pytest.raises(direction.SceneNotReadyError):
+        direction.locate(plan, 9)
+
+
+@pytest.mark.parametrize(
+    ("target", "expected"),
+    [(300, (1, 1)), (500, (1, 1)), (1000, (1, 2)), (2200, (3, 4)), (5500, (6, 11))],
+)
+def test_beat_range_fits_beats_of_500_to_1000(target: int, expected: tuple[int, int]) -> None:
+    assert direction.beat_range(target) == expected
+
+
+async def test_direct_sees_the_scene_its_place_and_cards(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    plan = make_plan(conn, [1, 2, 3], [4, 5])
+    before = [PlanBeat(order=1, **beat(summary="미라가 편지를 건넨다.", target_chars=2750))]
+    plan = with_beats(plan, 2, before)
+    scene = plan.chapters[0].scenes[2]
+    plan = plan.model_copy(
+        update={
+            "chapters": [
+                plan.chapters[0].model_copy(
+                    update={
+                        "scenes": [
+                            *plan.chapters[0].scenes[:2],
+                            scene.model_copy(update={"reveal": ["편지의 주인은 형이다."]}),
+                        ]
+                    }
+                ),
+                plan.chapters[1],
+            ]
+        }
+    )
+    client = FakeClient()
+    result = await direction.direct_scene(make_router(client, tmp_path), conn, plan, 3)
+    text = user_turn(client)
+    assert text.startswith("<원문>\n") and text.endswith("\n</지시>")
+    assert block(text, "원문").splitlines() == [
+        "에피소드 제목: 1화",
+        "주제: 귀환",
+        "줄거리: 테오가 항구에 돌아와 옛 편지의 주인을 찾는다.",
+        "",
+        "이번 장면:",
+        "  단계: 위기 (긴장도 4)",
+        "  요약: 위기 요약 3",
+        "  핵심: 위기 핵심 3",
+        "  이 장면에서 드러낼 것:",
+        "  - 편지의 주인은 형이다.",
+        "",
+        "앞 장면: 전개 요약 2",
+        "  앞 장면의 비트:",
+        "  1. (테오 1인칭, 장면화·감정·자세히, 긴장도 4) 미라가 편지를 건넨다.",
+        "뒤 장면: 절정 요약 4",
+    ]
+    # The same cards as the scene role sees.
+    assert block(text, "참고 카드").splitlines()[0] == "메인 스토리: 상실과 회복"
+    order = block(text, "지시").splitlines()
+    assert order[:3] == [
+        "자리: 1화의 마지막 장면 (이 장면 뒤에서 화가 끝난다)",
+        "분량: 1833자, 비트 2~3개",
+        "고른 기법:",
+    ]
+    chosen = BY_ID[CHOSEN]
+    assert order[3:6] == [
+        f"- {CHOSEN} {chosen.name}: {chosen.description}",
+        f"  적용 방법: {chosen.mechanism}",
+        f"  피할 경우: {' / '.join(chosen.avoid_when)}",
+    ]
+    assert order[6] == "연재 기법:"
+    serial = [line.split(" ", 2)[1] for line in order[7:] if line.startswith("- ")]
+    assert serial == ["tech_ser_020", "tech_ser_021", "tech_ser_019"]
+    for card in (chosen, *(BY_ID[i] for i in serial)):
+        assert card.example not in text  # §9: never in a prompt
+    for word in ("c_", "fs_", "ms_"):
+        assert word not in text, word
+
+    # The fixture's three beats, numbered, their targets rescaled to the scene's 1833.
+    assert [b.order for b in result.beats] == [1, 2, 3]
+    assert [b.target_chars for b in result.beats] == [583, 750, 500]
+    assert sum(b.target_chars for b in result.beats) == scene.target_chars
+    assert [b.techniques for b in result.beats] == [["tech_ser_020"], [CHOSEN], ["tech_ser_019"]]
+    assert (result.meta.role, result.meta.prompt_version) == ("direct", 1)
+    assert (result.usage, result.generations) == (None, 1)
+
+
+async def test_direct_schema_limits_techniques_and_beat_count(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    plan = make_plan(conn, [1], [2, 3, 4, 5])
+    client = Scripted()
+    client.say("direct", beats_json(beat()))
+    await direction.direct_scene(make_router(client, tmp_path), conn, plan, 1)
+    schema = client.requests[0].json_schema
+    assert schema is not None
+    allowed = [CHOSEN, "tech_ser_042", "tech_ser_020", "tech_ser_021", "tech_ser_019"]
+    assert schema == direction.direct_schema(allowed, (6, 11))
+    items = schema["$defs"]["DirectBeat"]["properties"]["techniques"]["items"]
+    assert items == {"type": "string", "enum": allowed}
+    beats = schema["properties"]["beats"]
+    assert (beats["minItems"], beats["maxItems"]) == (6, 11)
+    assert_plain(schema)
+    original = DirectOutput.model_json_schema()
+    assert "maxItems" not in original["properties"]["beats"]
+    assert "enum" not in json.dumps(original["$defs"]["DirectBeat"]["properties"]["techniques"])
+
+
+async def test_direct_output_is_cleaned(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    plan = make_plan(conn, [1, 2, 3], [4, 5])
+    client = Scripted()
+    client.say(
+        "direct",
+        beats_json(
+            beat(summary="  등대 계단을 오른다. ", pov=" 테오 1인칭 ", target_chars=1),
+            beat(techniques=[CHOSEN, CHOSEN, "tech_ser_042", "tech_ser_019"], target_chars=2),
+        ),
+    )
+    result = await direction.direct_scene(make_router(client, tmp_path), conn, plan, 2)
+    first, second = result.beats
+    assert (first.summary, first.pov) == ("등대 계단을 오른다.", "테오 1인칭")
+    # A middle scene: 042 and 019 are not its cards.
+    assert second.techniques == [CHOSEN]
+    assert [b.target_chars for b in result.beats] == [611, 1222]
+
+
+async def test_direct_regenerates_once_when_a_beat_is_blank(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    plan = make_plan(conn, [1, 2, 3], [4, 5])
+    client = Scripted()
+    client.say("direct", beats_json(beat(summary="  ")), beats_json(beat()))
+    result = await direction.direct_scene(make_router(client, tmp_path), conn, plan, 2)
+    assert (len(result.beats), result.generations) == (1, 2)
+
+    client = Scripted()
+    client.say("direct", beats_json(beat(pov=" ")))
+    with pytest.raises(LlmError) as exc_info:
+        await direction.direct_scene(make_router(client, tmp_path), conn, plan, 2)
+    assert exc_info.value.code == "LLM_INVALID_OUTPUT"
+    assert len(client.requests) == 2
+
+
+def test_clean_beats_refuses_more_beats_than_characters() -> None:
+    output = DirectOutput.model_validate({"beats": [beat(), beat()]})
+    assert direction.clean_beats(output, 1, [CHOSEN]) == []
+    assert [b.target_chars for b in direction.clean_beats(output, 2, [CHOSEN])] == [1, 1]
+
+
+@pytest.mark.parametrize(
+    ("chosen", "reason"),
+    [
+        ([], "no chosen card"),
+        (["tech_xxx_999"], "unknown card"),
+        (["tech_inf_001", "tech_inf_002", "tech_inf_003", "tech_inf_004"], "TOO_MANY_TECHNIQUES"),
+        (["tech_ser_019"], "TECHNIQUE_NOT_CANDIDATE"),
+    ],
+)
+async def test_direct_refuses_bad_choices_before_any_call(
+    conn: sqlite3.Connection, tmp_path: Path, chosen: list[str], reason: str
+) -> None:
+    client = FakeClient()
+    plan = make_plan(conn, [1, 2, 3], [4, 5], chosen=chosen)
+    with pytest.raises(direction.SceneNotReadyError, match=reason):
+        await direction.direct_scene(make_router(client, tmp_path), conn, plan, 1)
+    assert client.requests == []
+
+
+async def test_direct_refuses_an_inactive_episode_before_any_call(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    client = FakeClient()
+    plan = make_plan(conn, [1, 2, 3], [4, 5]).model_copy(update={"episode": "c_teo"})
+    with pytest.raises(EpisodeNotReadyError):
+        await direction.direct_scene(make_router(client, tmp_path), conn, plan, 1)
+    assert client.requests == []
+
+
+async def test_direct_system_prompt_holds_no_per_call_values(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    client = Scripted()
+    client.say("direct", beats_json(beat()))
+    router = make_router(client, tmp_path)
+    plan = make_plan(conn, [1, 2, 3], [4, 5])
+    await direction.direct_scene(router, conn, plan, 1)
+    await direction.direct_scene(router, conn, plan, 4)
+    first, second = (r.messages[0] for r in client.requests)
+    assert first == second == {"role": "system", "content": router.system_prompt("direct")}
+    assert client.requests[0].messages[1] != client.requests[1].messages[1]
+    for value in ("c_ep", "테오", "요약 1", "<!--", BY_ID[CHOSEN].name):
+        assert value not in first["content"], value
 
 
 # usage --------------------------------------------------------------------------------------
