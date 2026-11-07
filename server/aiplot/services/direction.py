@@ -518,11 +518,19 @@ def chosen_cards(conn: sqlite3.Connection, scene: PlanScene) -> list[Technique]:
     return cards_found
 
 
-async def direct_scene(
-    router: Router, conn: sqlite3.Connection, plan: DirectionPlan, number: int
-) -> DirectResult:
-    """One scene's beats (§9): the scene in its episode with its place, neighbours, the user's
-    1-3 cards and the serial cards for its place."""
+@dataclass(frozen=True)
+class DirectCall:
+    """What a direct call sends and cleans against: the turns, the narrowed schema, the ids the
+    beats may name and the scene's target."""
+
+    turns: list[Message]
+    schema: dict[str, Any]
+    allowed: list[str]
+    target_chars: int
+
+
+def prepare_direct(conn: sqlite3.Connection, plan: DirectionPlan, number: int) -> DirectCall:
+    """The direct call for one scene, after the checks made before any model call."""
     episode = ready_episode(conn, plan.episode)
     spot = locate(plan, number)
     chosen = chosen_cards(conn, spot.scene)
@@ -530,13 +538,26 @@ async def direct_scene(
     serial_cards = [card for card in serial if card is not None]
     allowed = [card.id for card in [*chosen, *serial_cards]]
     beats = beat_range(spot.scene.target_chars)
-    target = spot.scene.target_chars
+    return DirectCall(
+        turns=context.direct_turns(conn, episode, spot, chosen, serial_cards, beats),
+        schema=direct_schema(allowed, beats),
+        allowed=allowed,
+        target_chars=spot.scene.target_chars,
+    )
+
+
+async def direct_scene(
+    router: Router, conn: sqlite3.Connection, plan: DirectionPlan, number: int
+) -> DirectResult:
+    """One scene's beats (§9): the scene in its episode with its place, neighbours, the user's
+    1-3 cards and the serial cards for its place."""
+    call = prepare_direct(conn, plan, number)
     kept = await generate_kept(
         router,
         "direct",
-        context.direct_turns(conn, episode, spot, chosen, serial_cards, beats),
+        call.turns,
         DirectOutput,
-        direct_schema(allowed, beats),
-        lambda output: clean_beats(output, target, allowed),
+        call.schema,
+        lambda output: clean_beats(output, call.target_chars, call.allowed),
     )
     return DirectResult(kept.items, kept.meta, kept.usage, kept.generations)
