@@ -40,7 +40,8 @@ roles:
     max_tokens: 8000
   # Step 3 (§9): the episode's scenes into chapters. Run 1 (v1, training/eval/step3): prompts
   # ≤1530 tokens, completions ≤3575 when kept, 2/10 cut at max_tokens 4096 (thinking). 8000
-  # keeps the total within ctx 12288 (§13: never cut thinking to save time).
+  # keeps the total within ctx 12288 (§13: never cut thinking to save time). Runs 2-3 (v2):
+  # prompts ≤1608, completions ≤6735, none cut.
   arrange:
     profile: qwen3-8b-uncensor-q5km
     lora: null
@@ -50,7 +51,8 @@ roles:
     max_tokens: 8000
   # Step 3 (§9): one scene's beats. Run 1 (v1, training/eval/step3): prompts ≤3802 tokens,
   # completions ≤3668 when kept, 1/39 cut at max_tokens 4096 (thinking). 7500 leaves ~1k tokens
-  # of ctx 12288 for larger works' prompts.
+  # of ctx 12288 for larger works' prompts. Runs 2-3: prompts ≤3786, completions ≤7300, none cut
+  # (the longest within 200 of the cap).
   direct:
     profile: qwen3-8b-uncensor-q5km
     lora: null
