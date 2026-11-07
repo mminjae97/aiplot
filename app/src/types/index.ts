@@ -33,34 +33,66 @@ export type DraftId = string
 export type JobId = string
 export type TechniqueId = string
 /**
- * `card` role output (§13). The server constrains and validates with the variant for the requested type. Evidence indexes are the 0-based [n] numbers of the server-split note sentences in the prompt. The server then drops out-of-range indexes, unknown field paths and unknown card ids, assigns ms_/fs_ ids, sets placement fields from context and restores pinned fields (§13).
+ * How much detail a beat gives (§9), independent of its focus.
  */
-export type CardOutput =
-  | WorldCardOutput
-  | CharacterCardOutput
-  | RegionCardOutput
-  | MainStoryCardOutput
-  | PartCardOutput
-  | EpisodeCardOutput
+export type BeatDensity = '담백' | '자세히'
 /**
- * data of the SSE events of POST /drafts/{draftId}/messages; the SSE event name is the type. Order: reply*, then (unless the turn was the AI's opening) replied and source, or error at any point; always done last. The event name tells them apart (reply and replied share a shape), hence anyOf.
+ * What a beat dwells on (§9).
  */
-export type DraftMessageEvent =
-  DraftReplyEvent | DraftRepliedEvent | DraftSourceEvent | DraftErrorEvent | DraftDoneEvent
+export type BeatFocus = '감정' | '행동' | '정보'
 /**
- * data of the SSE events every job can send on GET /jobs/{jobId}/events; the SSE event name is the type (§16). Job kinds add their own events (e.g. chapter: beat_start, sentence).
+ * How a beat is narrated (§9): 장면화 shows it moment by moment, 요약 tells it in brief.
  */
-export type JobLifecycleEvent =
-  | JobProgressEvent
-  | JobPausedEvent
-  | JobResumedEvent
-  | JobDoneEvent
-  | JobErrorEvent
-  | JobCancelledEvent
+export type BeatMode = '장면화' | '요약'
 /**
- * How a scene device figures in the scene (scene v5): main = it carries the scene's core (the recommendation uses these), sub = present but incidental, none = absent, merely possible or another scene's.
+ * A plan scene's direction state (§9): undirected (no beats yet), directed, stale (its place or neighbours changed after it was directed: direct again), confirmed.
  */
-export type DeviceRole = 'main' | 'sub' | 'none'
+export type SceneStatus = 'undirected' | 'directed' | 'stale' | 'confirmed'
+/**
+ * Fixed scene devices (§9): what a scene does with information, time, talk or people, observable in its summary. A scene answers each yes or no; a technique lists the devices it is for. Drawn from the cards' text alone, blind to the eval cases (training/eval/step2/devices).
+ */
+export type TechniqueDevice =
+  | 'knowledge_gap'
+  | 'hidden_secret'
+  | 'mystery'
+  | 'reveal'
+  | 'reversal'
+  | 'plant'
+  | 'payoff'
+  | 'foretold'
+  | 'deadline'
+  | 'dilemma'
+  | 'eerie_threat'
+  | 'action'
+  | 'held_moment'
+  | 'past_told'
+  | 'embedded'
+  | 'time_skip'
+  | 'revisit'
+  | 'repetition'
+  | 'unspoken'
+  | 'verbal_clash'
+  | 'misunderstanding'
+  | 'overhear'
+  | 'crowd_voice'
+  | 'first_appearance'
+  | 'realization'
+  | 'confession'
+  | 'delayed_outcome'
+  | 'relationship_shift'
+  | 'humor'
+  | 'satire'
+  | 'new_place'
+  | 'world_rules'
+  | 'simultaneous'
+  | 'ordinary_life'
+  | 'aftermath'
+  | 'contrast'
+  | 'loss'
+  | 'meaningful_object'
+  | 'differing_views'
+  | 'threshold'
+  | 'release'
 /**
  * Fixed effect tags (§9): what a scene wants and what a technique gives.
  */
@@ -156,54 +188,38 @@ export type TechniqueSituation =
   | '징조'
   | '깨달음'
 /**
+ * `card` role output (§13). The server constrains and validates with the variant for the requested type. Evidence indexes are the 0-based [n] numbers of the server-split note sentences in the prompt. The server then drops out-of-range indexes, unknown field paths and unknown card ids, assigns ms_/fs_ ids, sets placement fields from context and restores pinned fields (§13).
+ */
+export type CardOutput =
+  | WorldCardOutput
+  | CharacterCardOutput
+  | RegionCardOutput
+  | MainStoryCardOutput
+  | PartCardOutput
+  | EpisodeCardOutput
+/**
+ * data of the SSE events of POST /drafts/{draftId}/messages; the SSE event name is the type. Order: reply*, then (unless the turn was the AI's opening) replied and source, or error at any point; always done last. The event name tells them apart (reply and replied share a shape), hence anyOf.
+ */
+export type DraftMessageEvent =
+  DraftReplyEvent | DraftRepliedEvent | DraftSourceEvent | DraftErrorEvent | DraftDoneEvent
+/**
+ * data of the SSE events every job can send on GET /jobs/{jobId}/events; the SSE event name is the type (§16). Job kinds add their own events (e.g. chapter: beat_start, sentence).
+ */
+export type JobLifecycleEvent =
+  | JobProgressEvent
+  | JobPausedEvent
+  | JobResumedEvent
+  | JobDoneEvent
+  | JobErrorEvent
+  | JobCancelledEvent
+/**
+ * How a scene device figures in the scene (scene v5): main = it carries the scene's core (the recommendation uses these), sub = present but incidental, none = absent, merely possible or another scene's.
+ */
+export type DeviceRole = 'main' | 'sub' | 'none'
+/**
  * Catalog field (§9): rhe 수사법·문체, str 구성·플롯 구조, tim 시간·속도, voi 시점·서술자·화법, inf 정보 조절·긴장·장르 효과, cha 인물·대화, des 묘사·공간·상징·상호텍스트, ser 도입·결말·연재·매체 차용.
  */
 export type TechniqueCategory = 'rhe' | 'str' | 'tim' | 'voi' | 'inf' | 'cha' | 'des' | 'ser'
-/**
- * Fixed scene devices (§9): what a scene does with information, time, talk or people, observable in its summary. A scene answers each yes or no; a technique lists the devices it is for. Drawn from the cards' text alone, blind to the eval cases (training/eval/step2/devices).
- */
-export type TechniqueDevice =
-  | 'knowledge_gap'
-  | 'hidden_secret'
-  | 'mystery'
-  | 'reveal'
-  | 'reversal'
-  | 'plant'
-  | 'payoff'
-  | 'foretold'
-  | 'deadline'
-  | 'dilemma'
-  | 'eerie_threat'
-  | 'action'
-  | 'held_moment'
-  | 'past_told'
-  | 'embedded'
-  | 'time_skip'
-  | 'revisit'
-  | 'repetition'
-  | 'unspoken'
-  | 'verbal_clash'
-  | 'misunderstanding'
-  | 'overhear'
-  | 'crowd_voice'
-  | 'first_appearance'
-  | 'realization'
-  | 'confession'
-  | 'delayed_outcome'
-  | 'relationship_shift'
-  | 'humor'
-  | 'satire'
-  | 'new_place'
-  | 'world_rules'
-  | 'simultaneous'
-  | 'ordinary_life'
-  | 'aftermath'
-  | 'contrast'
-  | 'loss'
-  | 'meaningful_object'
-  | 'differing_views'
-  | 'threshold'
-  | 'release'
 /**
  * The level a technique works at (§9); sentence-only cards are never direction candidates.
  */
@@ -646,6 +662,126 @@ export interface VramUsage {
   total_mb: number
 }
 /**
+ * An episode's direction plan (§9): chapters in order, each chapter's scenes in narration order, each scene's beats in narration order. Confirmed when every scene is.
+ */
+export interface DirectionPlan {
+  episode: CardId
+  /**
+   * @minItems 1
+   * @maxItems 5
+   */
+  chapters: [PlanChapter, ...PlanChapter[]]
+}
+export interface PlanChapter {
+  /**
+   * 1..n within the episode; the chapter is cut after its last scene.
+   */
+  chapter: number
+  /**
+   * Characters incl. spaces; the chapter's scene targets sum to it.
+   */
+  target_chars: number
+  /**
+   * In narration order.
+   *
+   * @minItems 1
+   */
+  scenes: [PlanScene, ...PlanScene[]]
+}
+export interface PlanScene {
+  /**
+   * Story-order number from the `scene` role (1..n).
+   */
+  scene: number
+  status: SceneStatus
+  /**
+   * The episode structure stage the scene comes from.
+   */
+  source: string
+  summary: string
+  /**
+   * What the scene must give the reader, one sentence.
+   */
+  core: string
+  /**
+   * Characters incl. spaces; the scene's beat targets sum to it.
+   */
+  target_chars: number
+  /**
+   * The devices the scene role answered main (pre-checked for the user).
+   */
+  ai_devices: TechniqueDevice[]
+  /**
+   * The devices the scene role answered sub (first among the unchecked).
+   */
+  sub_devices: TechniqueDevice[]
+  /**
+   * The user's checked devices (ai_devices until corrected); the recommendation uses them.
+   */
+  devices: TechniqueDevice[]
+  /**
+   * @maxItems 3
+   */
+  effects: TechniqueEffect[]
+  /**
+   * @maxItems 3
+   */
+  situations: TechniqueSituation[]
+  /**
+   * The scene's recommended cards in rank order with what they share with it.
+   *
+   * @maxItems 5
+   */
+  recommended: PlanRecommendation[]
+  /**
+   * The user's cards for the scene (1-3 to direct it; empty before the pick).
+   *
+   * @maxItems 3
+   */
+  chosen: TechniqueId[]
+  /**
+   * What the scene reveals to the reader (from `arrange`), possibly nothing.
+   */
+  reveal: string[]
+  /**
+   * In narration order; empty until the scene is directed.
+   */
+  beats: PlanBeat[]
+}
+export interface PlanRecommendation {
+  rank: number
+  technique: TechniqueId
+  devices: TechniqueDevice[]
+  effects: TechniqueEffect[]
+  situations: TechniqueSituation[]
+}
+export interface PlanBeat {
+  /**
+   * 1..n within the scene, set by the server.
+   */
+  order: number
+  /**
+   * What happens in the beat (the write role's instruction).
+   */
+  summary: string
+  /**
+   * The scene's chosen or serial cards this beat realizes.
+   */
+  techniques: TechniqueId[]
+  /**
+   * Point of view, e.g. 테오 1인칭, 3인칭 관찰.
+   */
+  pov: string
+  mode: BeatMode
+  focus: BeatFocus
+  density: BeatDensity
+  tension: number
+  /**
+   * Characters incl. spaces, set by the server from the model's proportions.
+   */
+  target_chars: number
+}
+/**
  * POST /works/{workId}/drafts: open the card drawer (§8). card_id = edit that card (its notes load, the chat starts empty); null = a new card. 423 STAGE_LOCKED once planning is locked.
  */
 export interface DraftCreate {
@@ -911,6 +1047,66 @@ export interface LoraManifest {
    * sha256 of the base GGUF the adapter was trained for.
    */
   base_sha256: string
+}
+/**
+ * `arrange` role output (§9, §13): the episode's scenes in chapters, each chapter's scenes in narration order (a scene moved earlier or later = flashback, in medias res), cuts between chapters only. The server requires every scene exactly once and rescales each chapter's target_chars to sum to the chapter's target, keeping the model's proportions.
+ */
+export interface ArrangeOutput {
+  /**
+   * @minItems 1
+   * @maxItems 5
+   */
+  chapters: [ArrangeChapter, ...ArrangeChapter[]]
+}
+export interface ArrangeChapter {
+  /**
+   * In narration order; the chapter is cut after its last scene, on a hook.
+   *
+   * @minItems 1
+   */
+  scenes: [ArrangeScene, ...ArrangeScene[]]
+}
+export interface ArrangeScene {
+  /**
+   * The scene's story-order number (narrowed per call to 1..n).
+   */
+  scene: number
+  /**
+   * The scene's share of its chapter in characters (a proportion: the server rescales).
+   */
+  target_chars: number
+  /**
+   * What the scene reveals to the reader, possibly nothing.
+   */
+  reveal: string[]
+}
+/**
+ * `direct` role output (§9, §13): one scene's beats in narration order. The server numbers them 1..n and rescales their target_chars to sum to the scene's, keeping the model's proportions.
+ */
+export interface DirectOutput {
+  /**
+   * @minItems 1
+   */
+  beats: [DirectBeat, ...DirectBeat[]]
+}
+export interface DirectBeat {
+  /**
+   * What happens in the beat, one or two sentences.
+   */
+  summary: string
+  /**
+   * Cards the beat realizes, among the scene's chosen and serial cards (narrowed per call).
+   */
+  techniques: TechniqueId[]
+  pov: string
+  mode: BeatMode
+  focus: BeatFocus
+  density: BeatDensity
+  tension: number
+  /**
+   * The beat's share of the scene in characters (a proportion: the server rescales).
+   */
+  target_chars: number
 }
 /**
  * `scene` role output (§9, §13): the episode split into scenes in story order. The server drops scenes whose source is not one of the episode's structure stage names, renumbers the rest 1..n and drops repeated tags.

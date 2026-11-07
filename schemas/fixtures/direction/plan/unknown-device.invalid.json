@@ -1,0 +1,76 @@
+{
+  "episode": "c_ep7",
+  "chapters": [
+    {
+      "chapter": 1,
+      "target_chars": 5500,
+      "scenes": [
+        {
+          "scene": 1,
+          "status": "directed",
+          "source": "발단",
+          "summary": "테오가 시장에서 낯선 편지를 받는다.",
+          "core": "보낸 이를 모르는 편지로 테오의 평범한 하루를 깨뜨린다.",
+          "target_chars": 1100,
+          "ai_devices": ["mystery"],
+          "sub_devices": ["plant"],
+          "devices": ["telepathy"],
+          "effects": ["호기심"],
+          "situations": ["사건발생"],
+          "recommended": [
+            {
+              "rank": 1,
+              "technique": "tech_inf_002",
+              "devices": ["mystery"],
+              "effects": ["호기심"],
+              "situations": []
+            }
+          ],
+          "chosen": ["tech_inf_002"],
+          "reveal": [],
+          "beats": [
+            {
+              "order": 1,
+              "summary": "테오가 편지 봉투의 낯선 문장(紋章)을 알아보고 손을 멈춘다.",
+              "techniques": ["tech_inf_002"],
+              "pov": "테오 1인칭",
+              "mode": "장면화",
+              "focus": "감정",
+              "density": "자세히",
+              "tension": 3,
+              "target_chars": 700
+            },
+            {
+              "order": 2,
+              "summary": "시장 소음 속에서 테오가 편지를 품에 넣고 자리를 뜬다.",
+              "techniques": [],
+              "pov": "테오 1인칭",
+              "mode": "요약",
+              "focus": "행동",
+              "density": "담백",
+              "tension": 2,
+              "target_chars": 400
+            }
+          ]
+        },
+        {
+          "scene": 2,
+          "status": "undirected",
+          "source": "전개",
+          "summary": "테오가 형의 옛 친구를 찾아간다.",
+          "core": "편지의 단서를 쫓게 만든다.",
+          "target_chars": 4400,
+          "ai_devices": ["mystery"],
+          "sub_devices": ["plant"],
+          "devices": ["mystery", "meaningful_object"],
+          "effects": ["호기심"],
+          "situations": ["사건발생"],
+          "recommended": [],
+          "chosen": [],
+          "reveal": [],
+          "beats": []
+        }
+      ]
+    }
+  ]
+}

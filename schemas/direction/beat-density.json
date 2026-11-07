@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BeatDensity",
+  "description": "How much detail a beat gives (§9), independent of its focus.",
+  "type": "string",
+  "enum": ["담백", "자세히"]
+}

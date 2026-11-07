@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SceneStatus",
+  "description": "A plan scene's direction state (§9): undirected (no beats yet), directed, stale (its place or neighbours changed after it was directed: direct again), confirmed.",
+  "type": "string",
+  "enum": ["undirected", "directed", "stale", "confirmed"]
+}

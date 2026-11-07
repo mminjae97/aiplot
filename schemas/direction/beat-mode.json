@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BeatMode",
+  "description": "How a beat is narrated (§9): 장면화 shows it moment by moment, 요약 tells it in brief.",
+  "type": "string",
+  "enum": ["장면화", "요약"]
+}

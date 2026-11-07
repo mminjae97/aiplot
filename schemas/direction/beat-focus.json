@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BeatFocus",
+  "description": "What a beat dwells on (§9).",
+  "type": "string",
+  "enum": ["감정", "행동", "정보"]
+}

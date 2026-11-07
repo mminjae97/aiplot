@@ -1,0 +1,26 @@
+{
+  "chapters": [
+    {
+      "scenes": [
+        {
+          "scene": 2,
+          "target_chars": 2000,
+          "reveal": []
+        },
+        {
+          "scene": 1,
+          "target_chars": 3000,
+          "reveal": ["편지를 보낸 이는 테오의 형이다."]
+        }
+      ]
+    },
+    {
+      "scenes": [
+        {
+          "scene": 3,
+          "target_chars": 5500
+        }
+      ]
+    }
+  ]
+}
