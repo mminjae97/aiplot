@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PlanStatus",
+  "description": "A direction plan's state (§9, §14): directing until every scene is confirmed, then confirmed.",
+  "type": "string",
+  "enum": ["directing", "confirmed"]
+}

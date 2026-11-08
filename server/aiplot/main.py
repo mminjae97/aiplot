@@ -14,7 +14,7 @@ import uvicorn
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from aiplot.api import cards, drafts, health, jobs, setup, techniques, works
+from aiplot.api import cards, drafts, health, jobs, plans, setup, techniques, works
 from aiplot.api.auth import TokenMiddleware
 from aiplot.api.errors import install_error_handlers
 from aiplot.db.connection import connect
@@ -108,6 +108,7 @@ def create_app(
     api.include_router(cards.router)
     api.include_router(drafts.router)
     api.include_router(techniques.router)
+    api.include_router(plans.router)
     app.include_router(api)
     return app
 

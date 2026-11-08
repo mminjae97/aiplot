@@ -31,6 +31,7 @@ export type WorldlineId = string
 export type CoverId = string
 export type DraftId = string
 export type JobId = string
+export type PlanId = string
 export type TechniqueId = string
 /**
  * How much detail a beat gives (§9), independent of its focus.
@@ -44,6 +45,10 @@ export type BeatFocus = '감정' | '행동' | '정보'
  * How a beat is narrated (§9): 장면화 shows it moment by moment, 요약 tells it in brief.
  */
 export type BeatMode = '장면화' | '요약'
+/**
+ * A direction plan's state (§9, §14): directing until every scene is confirmed, then confirmed.
+ */
+export type PlanStatus = 'directing' | 'confirmed'
 /**
  * A plan scene's direction state (§9): undirected (no beats yet), directed, stale (its place or neighbours changed after it was directed: direct again), confirmed.
  */
@@ -660,6 +665,24 @@ export interface LlamaHealth {
 export interface VramUsage {
   used_mb: number
   total_mb: number
+}
+/**
+ * GET /episodes/{episodeId}/plans: the episode's plan, or none yet (one per episode).
+ */
+export interface PlanList {
+  /**
+   * @maxItems 1
+   */
+  plans: PlanRecord[]
+}
+/**
+ * A stored direction plan (§14 direction_plan): one per episode.
+ */
+export interface PlanRecord {
+  id: PlanId
+  episode_id: CardId
+  status: PlanStatus
+  plan: DirectionPlan
 }
 /**
  * An episode's direction plan (§9): chapters in order, each chapter's scenes in narration order, each scene's beats in narration order. Confirmed when every scene is.
