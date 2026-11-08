@@ -115,6 +115,8 @@ jobs:
       - run: uv run mypy eval
       # Step 2 eval cases save into a temp DB through the app's card save (no model, no GPU).
       - run: uv run python eval/step2/check.py
+      # Step 4 eval cases: the step 2 cases plus the episodes continuing them, and the rubric.
+      - run: uv run python eval/step4/check_cases.py
 
   # Windows installer (§19, from unit 14): main pushes and manual runs only (a few minutes).
   installer:

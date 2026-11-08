@@ -1,0 +1,99 @@
+{
+  "base": "../../step2/cases/mystery.json",
+  "episodes": [
+    {
+      "id": "c_myep2",
+      "name": "찢긴 쪽",
+      "data": {
+        "part_id": "c_mypart1",
+        "order": 2,
+        "theme": "가장 믿던 기록이 거짓일 때",
+        "relation_to_main": "재희가 등대섬에서 자기 수첩의 한 쪽이 찢겨 나간 것을 알게 된다.",
+        "fulfills": ["ms_my2"],
+        "characters": ["c_mychar1", "c_mychar4", "c_mychar2"],
+        "locations": { "main": "c_myreg2", "others": ["c_myreg1"] },
+        "world": [],
+        "links": { "prev": "c_myep1", "next": "c_myep3", "causes": [] },
+        "foreshadowing": {
+          "plants": [{ "id": "fs_my2", "text": "찢긴 쪽에 남은 글자 '진혁이 배를'" }],
+          "payoffs": []
+        },
+        "worldline_id": null,
+        "structure": {
+          "type": 5,
+          "stages": [
+            {
+              "name": "발단",
+              "summary": "재희와 민준이 배를 타고 등대섬으로 간다. 재희는 흔들리는 배 안에서 오늘 아침 읽은 수첩을 몇 번이고 다시 읽는다.",
+              "tension": 2
+            },
+            {
+              "name": "전개",
+              "summary": "등대지기는 사진을 찍은 적이 없다고 말한다. 그러면서 십 년 전 한수아가 사라진 날 오진혁 형사가 혼자 배를 타고 섬에 왔었다고 덧붙인다.",
+              "tension": 3
+            },
+            {
+              "name": "위기",
+              "summary": "재희는 그날의 기록을 찾으려 수첩을 넘기다가 그 날짜의 쪽이 뜯겨 나간 것을 발견한다. 민준은 오진혁에게 확인 전화를 하자며 휴대폰을 꺼낸다.",
+              "tension": 4
+            },
+            {
+              "name": "절정",
+              "summary": "재희는 민준의 손을 막고, 찢긴 자리의 종이 끝에 남은 자기 필체 '진혁이 배를'을 읽는다. 누군가 자기 수첩을 고쳤다는 것을 재희는 처음으로 확신한다.",
+              "tension": 5
+            },
+            {
+              "name": "결말",
+              "summary": "돌아가는 배에서 오진혁에게 '섬은 어땠어?'라는 문자가 온다. 재희는 오늘 섬에 간다고 누구에게도 말한 적이 없다.",
+              "tension": 4
+            }
+          ]
+        },
+        "synopsis": "등대섬을 찾은 재희와 민준은 등대지기에게서 수아가 사라진 날 오진혁이 섬에 왔었다는 말을 듣는다. 재희는 그날 쪽이 찢겨 나간 수첩에서 '진혁이 배를'이라는 글자를 찾고, 돌아가는 배에서 섬 이야기를 묻는 오진혁의 문자를 받는다."
+      }
+    },
+    {
+      "id": "c_myep3",
+      "name": "어제의 나에게",
+      "data": {
+        "part_id": "c_mypart1",
+        "order": 3,
+        "theme": "잊어버리는 나를 위해 남기는 말",
+        "relation_to_main": "재희가 수첩의 찢긴 쪽을 찾아 오진혁이 준 약을 먹지 말라는 자신의 경고를 읽는다.",
+        "fulfills": [],
+        "characters": ["c_mychar1", "c_mychar4", "c_mychar2"],
+        "locations": { "main": "c_myreg3", "others": [] },
+        "world": [],
+        "links": { "prev": "c_myep2", "next": null, "causes": [] },
+        "foreshadowing": { "plants": [], "payoffs": ["fs_my2"] },
+        "worldline_id": null,
+        "structure": {
+          "type": 4,
+          "stages": [
+            {
+              "name": "기",
+              "summary": "아침, 기억이 하루 더 사라진 재희는 등대섬 일을 처음 듣는 이야기처럼 수첩으로 읽는다. 놀라는 자기 모습이 낯설다.",
+              "tension": 2
+            },
+            {
+              "name": "승",
+              "summary": "민준과 오피스텔 벽의 메모를 정리하던 중, 민준이 메모 한 장이 재희의 필체가 아니라고 짚는다. 재희의 글씨를 흉내 낸 듯 획이 조금씩 다르다.",
+              "tension": 3
+            },
+            {
+              "name": "전",
+              "summary": "오진혁이 걱정스러운 얼굴로 찾아와 병원에서 새로 받아 왔다며 약봉투를 건넨다. 재희는 고맙다고 하고, 오진혁이 떠난 뒤 수첩에 '진혁이 준 약'이라고 적는다.",
+              "tension": 4
+            },
+            {
+              "name": "결",
+              "summary": "밤, 재희는 침대 밑 상자에서 찢긴 수첩의 쪽을 찾는다. 자기 필체로 '진혁이 배를 타고 섬에 갔다. 진혁이 주는 약은 먹지 마.'라고 적혀 있다. 재희는 약봉투를 내려다본다.",
+              "tension": 5
+            }
+          ]
+        },
+        "synopsis": "기억이 또 사라진 재희는 등대섬 일을 수첩으로 다시 배운다. 벽의 메모 하나가 남의 필체라는 것을 민준이 알아채고, 오진혁은 새 약을 건네고 간다. 밤에 재희는 침대 밑에서 찢긴 쪽을 찾고, 오진혁이 주는 약을 먹지 말라는 자신의 경고를 읽는다."
+      }
+    }
+  ]
+}

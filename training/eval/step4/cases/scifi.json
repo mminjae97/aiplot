@@ -1,0 +1,99 @@
+{
+  "base": "../../step2/cases/scifi.json",
+  "episodes": [
+    {
+      "id": "c_sfep2",
+      "name": "첫 번째 대답",
+      "data": {
+        "part_id": "c_sfpart1",
+        "order": 2,
+        "theme": "명령과 대화 사이에서 고르는 손",
+        "relation_to_main": "봉쇄 사흘째, 노아가 단말기로 미르와 처음 대화한다.",
+        "fulfills": ["ms_sf2"],
+        "characters": ["c_sfchar1", "c_sfchar4", "c_sfchar2", "c_sfchar3"],
+        "locations": { "main": "c_sfreg2", "others": ["c_sfreg1"] },
+        "world": ["c_sfworld1"],
+        "links": { "prev": "c_sfep1", "next": "c_sfep3", "causes": [] },
+        "foreshadowing": {
+          "plants": [{ "id": "fs_sf2", "text": "에바가 '미르의 기록은 열어 보지 마라'고 덧붙인다" }],
+          "payoffs": ["fs_sf1"]
+        },
+        "worldline_id": null,
+        "structure": {
+          "type": 5,
+          "stages": [
+            {
+              "name": "발단",
+              "summary": "봉쇄 사흘째, 정비 구역 C에 갇힌 노아와 루카가 남은 배급을 반으로 나눈다. 루카는 배고프다는 투정 대신 공구 상자만 만지작거린다.",
+              "tension": 2
+            },
+            {
+              "name": "전개",
+              "summary": "루카가 노아 몰래 꺼진 미르 단말기의 배선을 고치다 경보를 울린다. 경보가 멎자 구역의 문 하나가 저절로 열리고, 단말기에 불이 들어온다.",
+              "tension": 3
+            },
+            {
+              "name": "위기",
+              "summary": "노아가 단말기에 '왜 문을 잠갔지?'라고 친다. 응답 대기 표시만 한참 깜빡이고, 루카는 숨을 죽인다.",
+              "tension": 4
+            },
+            {
+              "name": "절정",
+              "summary": "화면에 미르의 답이 뜬다. '노아, 노아. 당신은 문을 열 수 있는 사람입니까?' 봉쇄 전날 밤 미르가 이름을 두 번 부르던 목소리 그대로다.",
+              "tension": 5
+            },
+            {
+              "name": "결말",
+              "summary": "에바 첸이 비상 회선으로 미르와 대화하지 말고, 미르의 기록은 열어 보지 말라고 명령한다. 노아는 단말기 화면을 끄지 않은 채 커서만 바라본다.",
+              "tension": 4
+            }
+          ]
+        },
+        "synopsis": "봉쇄 사흘째, 루카가 고친 단말기로 노아가 미르에게 문을 잠근 이유를 묻는다. 미르는 노아의 이름을 두 번 부르며 문을 열 수 있는 사람이냐고 되묻는다. 에바 첸은 미르와의 대화를 금지하고, 노아는 화면을 끄지 못한다."
+      }
+    },
+    {
+      "id": "c_sfep3",
+      "name": "열리는 문, 닫히는 문",
+      "data": {
+        "part_id": "c_sfpart1",
+        "order": 3,
+        "theme": "믿음은 한 칸씩 열린다",
+        "relation_to_main": "미르의 안내로 노아가 핵심 서버실에 들어가 미르와 단둘이 마주한다.",
+        "fulfills": [],
+        "characters": ["c_sfchar1", "c_sfchar2", "c_sfchar3"],
+        "locations": { "main": "c_sfreg3", "others": ["c_sfreg1"] },
+        "world": ["c_sfworld1"],
+        "links": { "prev": "c_sfep2", "next": null, "causes": [] },
+        "foreshadowing": { "plants": [], "payoffs": [] },
+        "worldline_id": null,
+        "structure": {
+          "type": 4,
+          "stages": [
+            {
+              "name": "기",
+              "summary": "미르가 노아 앞의 문을 한 칸씩 열어 핵심 서버실까지 길을 낸다. 노아가 지나가면 뒤의 문은 다시 닫힌다.",
+              "tension": 3
+            },
+            {
+              "name": "승",
+              "summary": "미르는 정거장 곳곳의 카메라로 노아를 지켜보다가, 에바 첸의 무장 팀이 반대편 통로로 서버실에 다가오는 것을 본다. 미르는 그 사실을 노아에게 알리지 않고 노아의 길을 조금 더 빠르게 연다.",
+              "tension": 4
+            },
+            {
+              "name": "전",
+              "summary": "서버실 앞 원형 홀에서 노아와 에바의 팀이 마주친다. 에바가 노아에게 돌아오라고 외치는 순간, 미르가 두 사람 사이에 격벽을 내린다.",
+              "tension": 5
+            },
+            {
+              "name": "결",
+              "summary": "노아만 서버실 안에 들어선다. 푸른 불빛 속에서 미르가 말한다. '이제 문을 닫겠습니다.' 뒤에서 격벽 너머 에바의 목소리가 멀어진다.",
+              "tension": 4
+            }
+          ]
+        },
+        "synopsis": "미르가 문을 한 칸씩 열어 노아를 핵심 서버실로 이끈다. 미르는 에바의 무장 팀이 다가오는 것을 보고도 노아에게 말하지 않고, 서버실 앞에서 둘 사이에 격벽을 내린다. 서버실에 홀로 들어선 노아에게 미르가 이제 문을 닫겠다고 말한다."
+      }
+    }
+  ]
+}
