@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from aiplot.db import covers as covers_db
+from aiplot.db import snapshots as snapshots_db
 from aiplot.db import works as db
 from aiplot.db.connection import transaction
 from aiplot.generated.works.work import Work
@@ -100,20 +101,24 @@ def update(conn: sqlite3.Connection, work_id: str, update: WorkUpdate) -> Work:
     return work
 
 
-def delete(conn: sqlite3.Connection, images_dir: Path, work_id: str) -> None:
+def delete(
+    conn: sqlite3.Connection, images_dir: Path, work_id: str, snapshots_dir: Path | None = None
+) -> None:
     """Deletes the book with everything that belongs to it: rows cascade from work, then its
-    cover files go."""
+    cover files and its snapshots (copies taken before its stages were reopened) go."""
     with transaction(conn):
         if db.get(conn, work_id) is None:
             raise WorkNotFoundError(work_id)
-        files = covers_db.paths_of_work(conn, work_id)
+        files = [images_dir / relative for relative in covers_db.paths_of_work(conn, work_id)]
+        if snapshots_dir is not None:
+            files += [snapshots_dir / name for name in snapshots_db.paths_of_work(conn, work_id)]
         db.delete(conn, work_id)
-    for relative in files:
+    for path in files:
         try:
-            (images_dir / relative).unlink(missing_ok=True)
+            path.unlink(missing_ok=True)
         except OSError:
             # The book is gone; only a stray file is left.
-            logger.warning("could not remove cover file %s", relative, exc_info=True)
+            logger.warning("could not remove file %s", path, exc_info=True)
 
 
 def require_open(conn: sqlite3.Connection, work_id: str, stage: int) -> Work:

@@ -82,6 +82,7 @@ def create_app(
     app.state.db_path = db_path
     # {data}/images beside {data}/data/aiplot.db (§3 runtime data).
     app.state.images_dir = db_path.parent.parent / "images"
+    app.state.snapshots_dir = db_path.parent.parent / "snapshots"
     app.state.jobs = job_queue
     # Deleted cards, kept a few seconds for 되돌리기 (§8).
     app.state.trash = Trash()

@@ -66,6 +66,23 @@ def delete_for_episode(conn: sqlite3.Connection, episode_id: str) -> None:
     conn.execute("DELETE FROM direction_plan WHERE episode_id = ?", (episode_id,))
 
 
+def count_for_work(conn: sqlite3.Connection, work_id: str) -> int:
+    row = conn.execute(
+        "SELECT count(*) FROM direction_plan AS d JOIN card AS c ON c.id = d.episode_id "
+        "WHERE c.work_id = ?",
+        (work_id,),
+    ).fetchone()
+    return int(row[0])
+
+
+def delete_for_work(conn: sqlite3.Connection, work_id: str) -> None:
+    # Their technique_pick rows go with them (ON DELETE CASCADE).
+    conn.execute(
+        "DELETE FROM direction_plan WHERE episode_id IN (SELECT id FROM card WHERE work_id = ?)",
+        (work_id,),
+    )
+
+
 def write_picks(conn: sqlite3.Connection, plan_id: str, scene: int, picks: Sequence[Pick]) -> None:
     """The scene's technique_pick rows become exactly these."""
     conn.execute("DELETE FROM technique_pick WHERE plan_id = ? AND scene = ?", (plan_id, scene))

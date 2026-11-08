@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StageReopenPreview",
+  "description": "GET /works/{workId}/stage/reopen-preview?stage=: what reopening the stage deletes (§11), for the warning's counts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["stage", "plans", "chapters", "title_required"],
+  "properties": {
+    "stage": { "description": "The locked stage to reopen.", "enum": [1, 2] },
+    "plans": { "description": "Direction plans deleted (one per episode).", "type": "integer", "minimum": 0 },
+    "chapters": { "description": "Written chapters deleted.", "type": "integer", "minimum": 0 },
+    "title_required": {
+      "description": "A manuscript would be deleted: the reopen needs the work's title typed.",
+      "type": "boolean"
+    }
+  }
+}

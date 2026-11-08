@@ -230,6 +230,7 @@ export type TechniqueCategory = 'rhe' | 'str' | 'tim' | 'voi' | 'inf' | 'cha' | 
  * The level a technique works at (§9); sentence-only cards are never direction candidates.
  */
 export type TechniqueScope = '문장' | '장면' | '회차' | '아크' | '작품'
+export type PreviewCardType = 'world' | 'character' | 'region' | 'main_story' | 'part' | 'episode'
 /**
  * Shown on the spine and cover; the server trims it.
  */
@@ -1459,6 +1460,63 @@ export interface Cover {
    * ISO 8601 UTC.
    */
   created_at: string
+}
+/**
+ * GET /works/{workId}/stage/advance-preview: what the lock warning shows before the next stage starts (§11): the active episodes, and the incomplete cards (inactive after the advance) with the complete cards referencing them.
+ */
+export interface StageAdvancePreview {
+  /**
+   * The current stage, the one the advance locks.
+   */
+  stage: 1 | 2
+  active_episodes: number
+  /**
+   * Active episodes without a confirmed direction plan (stage 2 needs none).
+   */
+  unconfirmed_episodes: number
+  incomplete: InactiveCard[]
+}
+export interface InactiveCard {
+  card_id: CardId
+  type: PreviewCardType
+  name: string | null
+  /**
+   * Complete cards pointing at it (relation tables), each once.
+   */
+  referenced_by: ReferencingCard[]
+}
+export interface ReferencingCard {
+  card_id: CardId
+  type: PreviewCardType
+  name: string | null
+}
+/**
+ * GET /works/{workId}/stage/reopen-preview?stage=: what reopening the stage deletes (§11), for the warning's counts.
+ */
+export interface StageReopenPreview {
+  /**
+   * The locked stage to reopen.
+   */
+  stage: 1 | 2
+  /**
+   * Direction plans deleted (one per episode).
+   */
+  plans: number
+  /**
+   * Written chapters deleted.
+   */
+  chapters: number
+  /**
+   * A manuscript would be deleted: the reopen needs the work's title typed.
+   */
+  title_required: boolean
+}
+/**
+ * POST /works/{workId}/stage/reopen: the locked stage to reopen; title as typed by the user when the preview says title_required (else 422 TITLE_MISMATCH).
+ */
+export interface StageReopen {
+  stage: 1 | 2
+  title?: string
 }
 /**
  * POST /works: "새로 만들기" asks for the title only (§12 S0).

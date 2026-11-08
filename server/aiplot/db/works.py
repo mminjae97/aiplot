@@ -55,6 +55,14 @@ def advance_stage(conn: sqlite3.Connection, work_id: str, stage: int, now: str) 
     )
 
 
+def reopen_stage(conn: sqlite3.Connection, work_id: str, stage: int, now: str) -> None:
+    """Back to stage, writable again; only the stages before it stay locked (§11)."""
+    conn.execute(
+        "UPDATE work SET stage = ?, locked_stage = ?, updated_at = ? WHERE id = ?",
+        (stage, stage - 1, now, work_id),
+    )
+
+
 # Active episodes (e): complete, and so are their part and the work's main story (§11).
 ACTIVE_EPISODES = (
     "FROM card AS e JOIN episode ON episode.card_id = e.id "

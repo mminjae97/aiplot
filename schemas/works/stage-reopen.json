@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StageReopen",
+  "description": "POST /works/{workId}/stage/reopen: the locked stage to reopen; title as typed by the user when the preview says title_required (else 422 TITLE_MISMATCH).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["stage"],
+  "properties": {
+    "stage": { "enum": [1, 2] },
+    "title": { "type": "string" }
+  }
+}
