@@ -3,18 +3,22 @@
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import FileResponse
 
 from aiplot.api.deps import Db
 from aiplot.api.errors import AppError
 from aiplot.generated.works.cover import Cover
 from aiplot.generated.works.cover_list import CoverList
+from aiplot.generated.works.stage_advance_preview import StageAdvancePreview
+from aiplot.generated.works.stage_reopen import StageReopen
+from aiplot.generated.works.stage_reopen_preview import StageReopenPreview
 from aiplot.generated.works.work import Work
 from aiplot.generated.works.work_create import WorkCreate
 from aiplot.generated.works.work_list import WorkList
 from aiplot.generated.works.work_update import WorkUpdate
-from aiplot.services import covers, works
+from aiplot.jobs.queue import JobQueue
+from aiplot.services import covers, stage, works
 
 router = APIRouter()
 
@@ -79,7 +83,7 @@ def update_work(db: Db, workId: str, body: WorkUpdate) -> Work:
 @router.delete("/works/{workId}", status_code=204)
 def delete_work(db: Db, request: Request, workId: str) -> None:
     try:
-        works.delete(db, images_dir(request), workId)
+        works.delete(db, images_dir(request), workId, request.app.state.snapshots_dir)
     except works.WorkNotFoundError as exc:
         raise work_not_found(workId) from exc
 
@@ -99,6 +103,52 @@ def advance_stage(db: Db, workId: str) -> Work:
         raise AppError(409, "STAGE_NOT_READY", str(exc)) from exc
     except works.StageFinalError as exc:
         raise AppError(409, "STAGE_FINAL", str(exc)) from exc
+
+
+@router.get("/works/{workId}/stage/advance-preview")
+def advance_preview(db: Db, workId: str) -> StageAdvancePreview:
+    """The lock warning's contents: what the advance makes inactive (§11)."""
+    try:
+        return stage.advance_preview(db, workId)
+    except works.WorkNotFoundError as exc:
+        raise work_not_found(workId) from exc
+    except works.StageFinalError as exc:
+        raise AppError(409, "STAGE_FINAL", str(exc)) from exc
+
+
+@router.get("/works/{workId}/stage/reopen-preview")
+def reopen_preview(
+    db: Db, workId: str, stage_: Annotated[int, Query(alias="stage")]
+) -> StageReopenPreview:
+    """What reopening the locked stage deletes, for the warning's counts (§11)."""
+    try:
+        return stage.reopen_preview(db, workId, stage_)
+    except works.WorkNotFoundError as exc:
+        raise work_not_found(workId) from exc
+    except stage.StageNotLockedError as exc:
+        raise AppError(409, "STAGE_NOT_LOCKED", str(exc)) from exc
+
+
+@router.post("/works/{workId}/stage/reopen")
+async def reopen_stage(db: Db, request: Request, workId: str, body: StageReopen) -> Work:
+    """A snapshot, then the later stages' data deleted and the stage open again (§11). Async:
+    the work's direction jobs are cancelled on the event loop."""
+    try:
+        work = stage.reopen(db, request.app.state.snapshots_dir, workId, body.stage, body.title)
+    except works.WorkNotFoundError as exc:
+        raise work_not_found(workId) from exc
+    except stage.StageNotLockedError as exc:
+        raise AppError(409, "STAGE_NOT_LOCKED", str(exc)) from exc
+    except stage.TitleMismatchError as exc:
+        raise AppError(422, "TITLE_MISMATCH", str(exc), "type the work's title") from exc
+    except stage.SnapshotFailedError as exc:
+        raise AppError(500, "SNAPSHOT_FAILED", str(exc), "check the disk and try again") from exc
+    jobs: JobQueue = request.app.state.jobs
+    for job in jobs.for_work(workId):
+        # Their plans are gone or about to be stale against the reopened stage.
+        if job.kind in ("plan", "direct"):
+            jobs.cancel(job)
+    return work
 
 
 @router.get("/works/{workId}/covers")

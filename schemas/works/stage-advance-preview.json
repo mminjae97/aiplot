@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StageAdvancePreview",
+  "description": "GET /works/{workId}/stage/advance-preview: what the lock warning shows before the next stage starts (§11): the active episodes, and the incomplete cards (inactive after the advance) with the complete cards referencing them.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["stage", "active_episodes", "unconfirmed_episodes", "incomplete"],
+  "properties": {
+    "stage": { "description": "The current stage, the one the advance locks.", "enum": [1, 2] },
+    "active_episodes": { "type": "integer", "minimum": 0 },
+    "unconfirmed_episodes": {
+      "description": "Active episodes without a confirmed direction plan (stage 2 needs none).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "incomplete": {
+      "type": "array",
+      "items": {
+        "title": "InactiveCard",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["card_id", "type", "name", "referenced_by"],
+        "properties": {
+          "card_id": { "$ref": "../common/card-id.json" },
+          "type": { "$ref": "#/$defs/cardType" },
+          "name": { "type": ["string", "null"] },
+          "referenced_by": {
+            "description": "Complete cards pointing at it (relation tables), each once.",
+            "type": "array",
+            "items": {
+              "title": "ReferencingCard",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["card_id", "type", "name"],
+              "properties": {
+                "card_id": { "$ref": "../common/card-id.json" },
+                "type": { "$ref": "#/$defs/cardType" },
+                "name": { "type": ["string", "null"] }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "cardType": {
+      "title": "PreviewCardType",
+      "enum": ["world", "character", "region", "main_story", "part", "episode"]
+    }
+  }
+}
