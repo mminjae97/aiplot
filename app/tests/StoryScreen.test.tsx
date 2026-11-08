@@ -86,6 +86,7 @@ type State = {
   noMilestones?: boolean
   parts?: Card[]
   assigned?: Record<string, string[]>
+  work?: Work
 }
 
 /** A new episode's draft with its card already made, ready to save (as 1화 귀환). */
@@ -126,6 +127,7 @@ const DRAFT: Draft = {
 function serve(state: State = {}) {
   const calls: Call[] = []
   const parts = state.parts ?? []
+  let work: Work = state.work ?? WORK
   let episodes = [EP]
   const completeness: Completeness =
     state.main === false || state.noMilestones
@@ -158,7 +160,25 @@ function serve(state: State = {}) {
       calls.push({ method, path })
       const json = (data: unknown, status = 200) =>
         Promise.resolve(new Response(JSON.stringify(data), { status }))
-      if (path === '/works/w_1') return json(WORK)
+      if (path === '/works/w_1') return json(work)
+      if (path === '/works/w_1/stage/advance-preview')
+        return json({
+          stage: 1,
+          active_episodes: 1,
+          unconfirmed_episodes: 1,
+          incomplete: [
+            {
+              card_id: 'c_ghost',
+              type: 'character',
+              name: '유령',
+              referenced_by: [{ card_id: 'c_ep1', type: 'episode', name: '1화 귀환' }],
+            },
+          ],
+        })
+      if (method === 'POST' && path === '/works/w_1/stage/advance') {
+        work = { ...WORK, stage: 2, locked_stage: 1 }
+        return json(work)
+      }
       if (path === '/works/w_1/cards?type=main_story')
         return json({ cards: state.main === false ? [] : [MAIN] })
       if (path === '/works/w_1/cards?type=part') return json({ cards: parts })
@@ -436,4 +456,41 @@ test('a saved episode is highlighted on the timeline for 0.3s', async () => {
   await waitFor(() => {
     expect(episodeNode()?.hasAttribute('data-highlight')).toBe(false)
   })
+})
+
+test('연출 구성 시작 warns what the lock makes inactive, then opens the contents', async () => {
+  const { calls } = serve({
+    parts: [part('c_p1', 1, '항구')],
+    assigned: { ms_1: ['c_p1'], ms_2: ['c_p1'] },
+  })
+  renderStory()
+  const panel = await screen.findByRole('complementary', { name: strings.story.completeness })
+  fireEvent.click(within(panel).getByRole('button', { name: strings.stageLock.start }))
+  const dialog = await screen.findByRole('alertdialog', { name: strings.stageLock.advanceTitle })
+  expect(await within(dialog).findByText(strings.stageLock.activeEpisodes(1))).toBeTruthy()
+  expect(within(dialog).getByText(strings.stageLock.incompleteHeading(1))).toBeTruthy()
+  expect(within(dialog).getByText(strings.stageLock.referencedBy('1화 귀환'))).toBeTruthy()
+  // Never the default: the focus starts on 취소.
+  const cancel = within(dialog).getByRole('button', { name: strings.stageLock.cancel })
+  await waitFor(() => {
+    expect(document.activeElement).toBe(cancel)
+  })
+  const start = within(dialog).getByRole('button', { name: strings.stageLock.start })
+  expect(start.hasAttribute('data-danger')).toBe(true)
+  fireEvent.click(start)
+  expect(await screen.findByRole('heading', { name: strings.contents.heading })).toBeTruthy()
+  const advances = calls.filter((c) => c.method === 'POST' && c.path === '/works/w_1/stage/advance')
+  expect(advances).toHaveLength(1)
+  expect(await screen.findByText(strings.library.stageOf(strings.stage[2]))).toBeTruthy()
+})
+
+test('a locked story offers no 연출 구성 시작', async () => {
+  serve({
+    parts: [part('c_p1', 1, '항구')],
+    assigned: { ms_1: ['c_p1'], ms_2: ['c_p1'] },
+    work: { ...WORK, stage: 2, locked_stage: 1 },
+  })
+  renderStory()
+  const panel = await screen.findByRole('complementary', { name: strings.story.completeness })
+  expect(within(panel).queryByRole('button', { name: strings.stageLock.start })).toBeNull()
 })

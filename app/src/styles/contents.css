@@ -79,6 +79,22 @@
   font-weight: 700;
 }
 
+.contents-group-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.contents-group-head h3 {
+  margin-bottom: 0;
+}
+
+.contents-reopen {
+  padding: 1px 10px;
+  font-size: var(--size-small);
+}
+
 .contents-group[data-later] {
   color: var(--ink-faint);
 }

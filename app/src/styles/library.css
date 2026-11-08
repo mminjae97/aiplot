@@ -595,6 +595,38 @@
   color: var(--danger);
 }
 
+/* The lock warning (§11): what turns inactive in orange, what is deleted in red (§5). */
+.stage-lock {
+  max-width: 560px;
+}
+
+.stage-lock-warning {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.stage-lock-cards {
+  display: grid;
+  gap: 4px;
+  max-height: 220px;
+  margin: 4px 0 0;
+  padding: 0 0 0 4px;
+  overflow: auto;
+  list-style: none;
+}
+
+.stage-lock-cards li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  align-items: baseline;
+}
+
+.stage-lock-refs {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
 .new-book-error {
   min-height: 1.6em;
   color: var(--danger);

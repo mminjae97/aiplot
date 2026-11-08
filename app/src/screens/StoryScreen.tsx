@@ -9,6 +9,7 @@ import { EpisodeTimeline } from '../components/EpisodeTimeline'
 import { FlipCard } from '../components/FlipCard'
 import { timelineOf } from '../components/storyLayout'
 import { Overlay } from '../components/Overlay'
+import { StageLockDialog } from '../components/StageLockDialog'
 import { useArrival } from '../components/useArrival'
 import type { PlanningScreen, StoryStep } from '../stores/navigation'
 import { strings } from '../strings'
@@ -44,6 +45,7 @@ export function StoryScreen({
   const [undo, setUndo] = useState<{ card: Card; until: string } | null>(null)
   const [picked, setPicked] = useState<{ id: string; origin: DOMRect | null } | null>(null)
   const [chosenPart, setPart] = useState<string | null>(null)
+  const [advancing, setAdvancing] = useState(false)
   const tabRefs = useRef(new Map<Step, HTMLButtonElement>())
 
   const work = useQuery({ queryKey: ['works', workId], queryFn: () => api.getWork(workId) })
@@ -188,7 +190,7 @@ export function StoryScreen({
     parts: strings.story.stepParts,
     episodes: strings.story.stepEpisodes,
   }
-  const busy = drawer !== null || deleting !== null || current !== null
+  const busy = drawer !== null || deleting !== null || current !== null || advancing
   useEffect(() => {
     onBusy(busy)
     return () => {
@@ -456,7 +458,23 @@ export function StoryScreen({
                       <span className="spinner" aria-hidden="true" />
                     )}
                   </div>
-                  <CompletenessPanel completeness={completeness.data} names={names} />
+                  <CompletenessPanel
+                    completeness={completeness.data}
+                    names={names}
+                    action={
+                      work.data?.stage === 1 && !locked ? (
+                        <button
+                          type="button"
+                          className="paper-button"
+                          onClick={() => {
+                            setAdvancing(true)
+                          }}
+                        >
+                          {strings.stageLock.start}
+                        </button>
+                      ) : undefined
+                    }
+                  />
                 </div>
               ))}
           </div>
@@ -537,6 +555,19 @@ export function StoryScreen({
               setUndo({ card: deleting, until })
               setDeleting(null)
               setPicked(null)
+            }}
+          />
+        )}
+        {advancing && work.data && (
+          <StageLockDialog
+            work={work.data}
+            action={{ kind: 'advance' }}
+            onClose={() => {
+              setAdvancing(false)
+            }}
+            onDone={() => {
+              setAdvancing(false)
+              turn({ name: 'contents', workId })
             }}
           />
         )}

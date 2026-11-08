@@ -57,6 +57,39 @@ export const strings = {
     cancel: '취소',
     failed: '제목을 바꾸지 못했어요. 다시 시도해 주세요.',
   },
+  stageLock: {
+    advanceTitle: '연출 구성 시작',
+    advanceQuestion: '기획 단계를 잠그고 연출 구성을 시작할까요?',
+    advanceLock:
+      '시작하면 세계관·캐릭터·지역·스토리 카드는 읽기만 할 수 있어요. 목차에서 기획 단계를 다시 열 수 있지만, 그때는 연출한 내용이 삭제돼요.',
+    activeEpisodes: (n: number) => `연출할 에피소드는 ${String(n)}개예요.`,
+    noActive:
+      '완성된 에피소드가 없어 시작할 수 없어요. 에피소드와 그 부, 메인 스토리를 먼저 완성해 주세요.',
+    incompleteHeading: (n: number) =>
+      `미완성 카드 ${String(n)}장은 연출에서 빠져요. 이 카드를 가리키는 내용도 무시돼요.`,
+    referencedBy: (names: string) => `가리키는 카드: ${names}`,
+    start: '연출 구성 시작',
+    startFailed: '시작하지 못했어요. 다시 시도해 주세요.',
+    cancel: '취소',
+    loading: '확인하는 중이에요…',
+    loadFailed: '내용을 불러오지 못했어요. 다시 시도해 주세요.',
+    reopenQuestion: (stage: string) => `${stage} 단계를 다시 열까요?`,
+    reopenDeletes: (stage: string, plans: number, chapters: number) => {
+      const what = [
+        plans > 0 ? `연출 계획서 ${String(plans)}개` : null,
+        chapters > 0 ? `집필한 원고 ${String(chapters)}화` : null,
+      ].filter((item) => item !== null)
+      return `${stage} 단계를 다시 열면 ${what.join('와 ')}가 삭제돼요.`
+    },
+    reopenNothing: '삭제되는 내용은 없어요.',
+    reopenLater: (stage: string) =>
+      `다시 열면 그다음 단계는 ${stage} 단계를 다시 마칠 때까지 닫혀요.`,
+    snapshot: '다시 열기 전에 지금 상태를 스냅샷으로 따로 저장해 둬요.',
+    irreversible: '이 작업은 되돌릴 수 없어요.',
+    reopen: '다시 열기',
+    reopenFailed: '다시 열지 못했어요. 다시 시도해 주세요.',
+    snapshotFailed: '스냅샷을 저장하지 못해 다시 열지 않았어요. 디스크 공간을 확인해 주세요.',
+  },
   deleteBook: {
     title: '작품 삭제',
     question: (title: string) => `「${title}」 작품을 삭제할까요?`,
@@ -521,6 +554,9 @@ export const strings = {
     heading: '목차',
     notStarted: '시작 전',
     laterStage: '앞 단계를 마치면 열려요',
+    locked: '잠김 · 읽기 전용',
+    reopen: '다시 열기',
+    reopenOf: (stage: string) => `${stage} 단계 다시 열기`,
     loadFailed: '작품을 불러오지 못했어요.',
     groups: [
       { stage: 1, items: ['세계관', '캐릭터', '지역', '스토리'] },
