@@ -77,16 +77,3 @@ def write_picks(conn: sqlite3.Connection, plan_id: str, scene: int, picks: Seque
             for pick in picks
         ],
     )
-
-
-def picks_of(conn: sqlite3.Connection, plan_id: str, scene: int) -> list[Pick]:
-    """Ranked rows first in rank order, then the user's own in the order added."""
-    rows = conn.execute(
-        "SELECT rank, technique_id, matched, chosen FROM technique_pick "
-        "WHERE plan_id = ? AND scene = ? ORDER BY rank IS NULL, rank, id",
-        (plan_id, scene),
-    ).fetchall()
-    return [
-        Pick(row["rank"], row["technique_id"], json.loads(row["matched"]), bool(row["chosen"]))
-        for row in rows
-    ]

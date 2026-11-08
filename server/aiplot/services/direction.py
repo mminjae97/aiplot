@@ -3,8 +3,8 @@ core and answers every scene device main, sub or none; code recommends technique
 from the main devices and tags they share; the `arrange` role places the scenes in chapters.
 
 Each call is constrained by a schema narrowed to the episode (stage names, scene numbers); the
-server cleans the output. Recommendations need no model call. Nothing is stored yet: plans and
-picks get their tables in step 3.
+server cleans the output. Recommendations need no model call. Nothing is stored here:
+services/plans keeps the plans and picks.
 """
 
 import copy
