@@ -79,8 +79,9 @@ async function openReopen() {
   const button = await screen.findByRole('button', {
     name: strings.contents.reopenOf(strings.stage[1]),
   })
-  // The four planning items are read-only.
+  // The four planning items are read-only; the heading names only the stage.
   expect(screen.getAllByText(strings.contents.locked)).toHaveLength(4)
+  expect(screen.getByRole('heading', { name: strings.stage[1] })).toBeTruthy()
   fireEvent.click(button)
   return screen.findByRole('alertdialog', { name: strings.contents.reopenOf(strings.stage[1]) })
 }

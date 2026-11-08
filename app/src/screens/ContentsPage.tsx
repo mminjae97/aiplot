@@ -76,8 +76,9 @@ export function ContentsPage({
                 data-later={later || undefined}
                 data-locked={locked || undefined}
               >
-                <h3>
-                  {strings.stage[group.stage]}
+                {/* The button stays out of the heading, which names only the stage. */}
+                <div className="contents-group-head">
+                  <h3>{strings.stage[group.stage]}</h3>
                   {locked && group.stage !== 3 && (
                     <button
                       type="button"
@@ -90,7 +91,7 @@ export function ContentsPage({
                       {strings.contents.reopen}
                     </button>
                   )}
-                </h3>
+                </div>
                 <ol>
                   {group.items.map((item, index) => (
                     <li key={item}>
