@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PlanRecord",
+  "description": "A stored direction plan (§14 direction_plan): one per episode.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "episode_id", "status", "plan"],
+  "properties": {
+    "id": { "$ref": "../common/plan-id.json" },
+    "episode_id": { "$ref": "../common/card-id.json" },
+    "status": { "$ref": "./plan-status.json" },
+    "plan": { "$ref": "./plan.json" }
+  }
+}

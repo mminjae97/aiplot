@@ -29,6 +29,10 @@ class StageLockedError(PermissionError):
     """The stage is read-only once a later one started (§1, §11): 423 STAGE_LOCKED."""
 
 
+class StageNotStartedError(ValueError):
+    """The stage has not begun: its data waits for the stage advance (§1)."""
+
+
 class NoActiveEpisodeError(ValueError):
     """Direction works per episode: stage 2 needs at least one active episode."""
 
@@ -119,6 +123,14 @@ def require_open(conn: sqlite3.Connection, work_id: str, stage: int) -> Work:
         raise WorkNotFoundError(work_id)
     if work.locked_stage >= stage:
         raise StageLockedError(f"stage {stage} of {work_id} is locked")
+    return work
+
+
+def require_current(conn: sqlite3.Connection, work_id: str, stage: int) -> Work:
+    """The work, if this stage has started and is not locked."""
+    work = require_open(conn, work_id, stage)
+    if work.stage < stage:
+        raise StageNotStartedError(f"{work_id} has not reached stage {stage}")
     return work
 
 

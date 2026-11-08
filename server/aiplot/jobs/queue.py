@@ -60,6 +60,7 @@ class JobRecord:
     lane: Lane
     work_id: str | None
     fn: "JobFn"
+    key: str | None = None
     status: Status = "queued"
     created_at: str = field(default_factory=now)
     started_at: str | None = None
@@ -147,6 +148,8 @@ class JobQueue:
             lane: asyncio.Queue() for lane in lane_slots
         }
         self._workers: list[asyncio.Task[None]] = []
+        # key -> the id of the last job submitted with it, until that job finishes.
+        self._keyed: dict[str, str] = {}
 
     def start(self) -> None:
         for lane, slots in self._lane_slots.items():
@@ -160,11 +163,25 @@ class JobQueue:
         self._workers.clear()
 
     def submit(
-        self, kind: str, fn: JobFn, *, lane: Lane = "llm", work_id: str | None = None
+        self,
+        kind: str,
+        fn: JobFn,
+        *,
+        lane: Lane = "llm",
+        work_id: str | None = None,
+        key: str | None = None,
     ) -> JobRecord:
-        job = JobRecord(f"job_{secrets.token_hex(8)}", kind, lane, work_id, fn)
+        """A new job; with a key, the job of that key still queued, running or paused instead
+        (one generation per plan or scene at a time)."""
+        if key is not None:
+            current = self._jobs.get(self._keyed.get(key, ""))
+            if current is not None and current.status not in TERMINAL:
+                return current
+        job = JobRecord(f"job_{secrets.token_hex(8)}", kind, lane, work_id, fn, key)
         job.resume.set()
         self._jobs[job.id] = job
+        if key is not None:
+            self._keyed[key] = job.id
         self._queues[lane].put_nowait(job)
         return job
 
@@ -259,6 +276,8 @@ class JobQueue:
     def _finish(self, job: JobRecord, status: Status, event: str, data: dict[str, Any]) -> None:
         job.status = status
         job.finished_at = now()
+        if job.key is not None and self._keyed.get(job.key) == job.id:
+            del self._keyed[job.key]
         job.add_event(event, data)
         # Oldest finished first (finished_at has whole seconds, so the order they finished in
         # is kept here), never the job just finished: a long job submitted early and ending

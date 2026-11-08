@@ -66,6 +66,30 @@ async def test_llm_lane_runs_one_job_at_a_time(jobs: JobQueue) -> None:
     assert order.index("a end") < order.index("b start")
 
 
+async def test_a_key_answers_with_its_unfinished_job(jobs: JobQueue) -> None:
+    gate = asyncio.Event()
+
+    async def work(ctx: JobContext) -> None:
+        await gate.wait()
+
+    blocker = jobs.submit("chapter", work)
+    first = jobs.submit("plan", work, key="plan:c_ep1")
+    # Queued behind the blocker, then running: the same job either way.
+    assert jobs.submit("plan", work, key="plan:c_ep1") is first
+    other = jobs.submit("plan", work, key="plan:c_ep2")
+    assert other is not first
+    await settle(blocker, "running")
+    gate.set()
+    await settle(first, "done")
+    await settle(other, "done")
+    again = jobs.submit("plan", work, key="plan:c_ep1")
+    assert again is not first
+    await settle(again, "done")
+    cancelled = jobs.submit("plan", work, key="plan:c_ep1")
+    jobs.cancel(cancelled)
+    assert jobs.submit("plan", work, key="plan:c_ep1") is not cancelled
+
+
 async def test_pause_waits_at_checkpoint_and_resumes(jobs: JobQueue) -> None:
     step = asyncio.Event()
 

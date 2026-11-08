@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PlanList",
+  "description": "GET /episodes/{episodeId}/plans: the episode's plan, or none yet (one per episode).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["plans"],
+  "properties": {
+    "plans": { "type": "array", "maxItems": 1, "items": { "$ref": "./plan-record.json" } }
+  }
+}
