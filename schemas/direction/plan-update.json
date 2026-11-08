@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PlanUpdate",
+  "description": "PATCH /plans/{planId}: the user's narration order and cuts (§9): chapters in order, each a list of story-order scene numbers in narration order, cut after its last. Every scene exactly once and 1-5 chapters, else 422 PLAN_LAYOUT_INVALID.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["chapters"],
+  "properties": {
+    "chapters": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

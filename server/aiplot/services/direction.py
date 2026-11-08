@@ -89,28 +89,54 @@ def rank(
     for card in catalog:
         if not is_candidate(card):
             continue
-        shared_devices = [d for d in card.devices if d in devices]
-        shared_effects = [e for e in card.effects if e in effects]
-        shared_situations = [s for s in card.situations if s in situations]
-        tags = len(shared_effects) + len(shared_situations)
-        if not shared_devices and not tags:
+        found = shared(card, devices, effects, situations)
+        tags = len(found.effects) + len(found.situations)
+        if not found.devices and not tags:
             continue
-        found = Recommendation(
-            rank=0,
-            technique_id=card.id,
-            devices=shared_devices,
-            effects=shared_effects,
-            situations=shared_situations,
-        )
-        scored.append((-len(shared_devices), -tags, card.id, found))
+        scored.append((-len(found.devices), -tags, card.id, found))
     scored.sort(key=lambda entry: entry[:3])
     return [replace(entry[3], rank=number) for number, entry in enumerate(scored[:limit], start=1)]
+
+
+def shared(
+    card: Technique,
+    devices: Collection[str],
+    effects: Collection[str],
+    situations: Collection[str],
+) -> Recommendation:
+    """What the card shares with a scene, in the card's order; rank 0 (unranked)."""
+    return Recommendation(
+        rank=0,
+        technique_id=card.id,
+        devices=[d for d in card.devices if d in devices],
+        effects=[e for e in card.effects if e in effects],
+        situations=[s for s in card.situations if s in situations],
+    )
 
 
 def recommend(conn: sqlite3.Connection, scene: Scene) -> list[Recommendation]:
     """The scene's recommended cards (§9), from the catalog in the database; [] when no
     candidate shares a device or tag."""
     return rank(techniques_db.list_all(conn), scene.devices, scene.effects, scene.situations)
+
+
+def plan_recommendations(
+    conn: sqlite3.Connection,
+    devices: Collection[str],
+    effects: Collection[str],
+    situations: Collection[str],
+) -> list[PlanRecommendation]:
+    """The ranked cards (rank) for the devices and tags, as the plan stores them."""
+    return [
+        PlanRecommendation(
+            rank=found.rank,
+            technique=found.technique_id,
+            devices=found.devices,
+            effects=found.effects,
+            situations=found.situations,
+        )
+        for found in rank(techniques_db.list_all(conn), devices, effects, situations)
+    ]
 
 
 def clean_scenes(output: SceneOutput, stage_names: Collection[str]) -> list[Scene]:
@@ -391,16 +417,7 @@ def plan_scene(conn: sqlite3.Connection, scene: Scene, placed: ArrangedScene) ->
         devices=list(scene.devices),
         effects=list(scene.effects),
         situations=list(scene.situations),
-        recommended=[
-            PlanRecommendation(
-                rank=found.rank,
-                technique=found.technique_id,
-                devices=found.devices,
-                effects=found.effects,
-                situations=found.situations,
-            )
-            for found in recommend(conn, scene)
-        ],
+        recommended=plan_recommendations(conn, scene.devices, scene.effects, scene.situations),
         chosen=[],
         reveal=list(placed.reveal),
         beats=[],

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SceneDevicesUpdate",
+  "description": "PUT /plans/{planId}/scenes/{scene}/devices: the user's checked devices for the scene (§9); its recommendations are recomputed from them.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["devices"],
+  "properties": {
+    "devices": {
+      "type": "array",
+      "items": { "$ref": "../technique/technique-device.json" }
+    }
+  }
+}
