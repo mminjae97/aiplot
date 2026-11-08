@@ -105,12 +105,11 @@ def set_devices(
 def pick(
     conn: sqlite3.Connection, plan_id: str, number: int, technique_ids: Sequence[str]
 ) -> PlanRecord:
-    """The cards to direct the scene with (each once, in the user's order): recommended or any
-    other direction candidate, 1-3, none conflicting. New cards on a directed or confirmed scene
-    make it stale; its beats stay until it is directed again."""
+    """The cards to direct the scene with (each once, in the user's order; at least one, as the
+    request schema requires): recommended or any other direction candidate, 1-3, none
+    conflicting. New cards on a directed or confirmed scene make it stale; its beats stay until
+    it is directed again."""
     chosen = list(dict.fromkeys(technique_ids))
-    if not chosen:
-        raise ChoiceRefusedError("TECHNIQUE_NOT_CANDIDATE", "no card given")
     with editing(conn, plan_id) as plan:
         scene = scene_in(plan, number)
         found = [techniques_db.get(conn, technique_id) for technique_id in chosen]

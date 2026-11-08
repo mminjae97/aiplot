@@ -10,7 +10,7 @@
       "type": "array",
       "items": {
         "type": "array",
-        "items": { "type": "integer", "minimum": 1 }
+        "items": { "title": "PlanSceneNumber", "type": "integer", "minimum": 1 }
       }
     }
   }

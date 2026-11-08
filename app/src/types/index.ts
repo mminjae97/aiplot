@@ -192,6 +192,7 @@ export type TechniqueSituation =
   | '비밀'
   | '징조'
   | '깨달음'
+export type PlanSceneNumber = number
 /**
  * `card` role output (§13). The server constrains and validates with the variant for the requested type. Evidence indexes are the 0-based [n] numbers of the server-split note sentences in the prompt. The server then drops out-of-range indexes, unknown field paths and unknown card ids, assigns ms_/fs_ ids, sets placement fields from context and restores pinned fields (§13).
  */
@@ -808,7 +809,7 @@ export interface PlanBeat {
  * PATCH /plans/{planId}: the user's narration order and cuts (§9): chapters in order, each a list of story-order scene numbers in narration order, cut after its last. Every scene exactly once and 1-5 chapters, else 422 PLAN_LAYOUT_INVALID.
  */
 export interface PlanUpdate {
-  chapters: number[][]
+  chapters: PlanSceneNumber[][]
 }
 /**
  * PUT /plans/{planId}/scenes/{scene}/devices: the user's checked devices for the scene (§9); its recommendations are recomputed from them.

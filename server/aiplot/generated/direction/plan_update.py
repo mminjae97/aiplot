@@ -6,11 +6,11 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
-type Chapter = Annotated[StrictInt, Field(ge=1)]
+type PlanSceneNumber = Annotated[StrictInt, Field(ge=1, title="PlanSceneNumber")]
 
 
 class PlanUpdate(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    chapters: list[list[Chapter]]
+    chapters: list[list[PlanSceneNumber]]
