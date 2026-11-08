@@ -34,15 +34,49 @@ the rubric's five items with 1/3/5 anchors. CI runs it.
 5 (2 and 4 lie between). One score per item per bundle; the episode's stages, tension and
 foreshadowing are the reference, the scenes, chapters and beats are what is scored.
 
+## Run
+
+Start llama-server by hand with the base profile's GGUF and flags (§17), alone on the PC, then:
+
+```
+uv run python eval/step4/run_bundles.py --url http://127.0.0.1:8796 --out eval/results/step4/run1.json
+uv run python eval/step4/make_page.py eval/results/step4/run1.json --dir eval/results/step4/run1
+```
+
+`run_bundles.py` loads each genre (`check_cases.load_genre`) into a throwaway database and runs
+step 3's per-episode runner (`eval/step3/run_plan.py`: `scene`, `arrange`, `build_plan`, then
+`direct` scene by scene in narration order with the first recommended card), keeping beside each
+plan the episode as saved and the text of the cards the plan names. `--fake` runs the fixture
+client (a check of the scripts: its 4-stage episodes fail the scene call), `--episodes ID…` a
+subset. Results stay out of git (eval/results/ is gitignored).
+
 ## Scoring
 
-Blind: the scoring page shows a bundle's episode (synopsis, stages with tension, foreshadowing),
-its chapters with their scenes (summary, core, reveals, chosen cards) and beats (summary, POV,
-mode, focus, density, tension, cards), and the cards' description, never the run, prompt
-versions or times. The user scores on a local HTML page (scores kept in the browser, exported
-as JSON); Claude scores the same bundles apart; the report gives both and their agreement.
+`make_page.py` writes, into `--dir`:
 
-The run script, scoring page and report come in unit 4-2.
+- `bundles.html`: one self-contained page, the bundles in a shuffled order (seed 4) as 묶음
+  01…20. Blind: no episode id, genre, run, prompt version, time or token count. A bundle shows
+  the episode (theme, synopsis, stages with tension, foreshadowing planted and paid off), its
+  chapters with their scenes in narration order (summary, core, reveals, chosen cards) and beats
+  (POV, mode, focus, density, tension, chars, cards, summary), and the cards' description and
+  mechanism; then the five items as radio buttons 1–5 (the anchors on hover, the full rubric at
+  the top) and a note. Scores stay in the browser (localStorage, per page) and leave it only by
+  "JSON 내보내기" as `scores-{scorer}-{page}.json`. A bundle whose plan failed is struck out
+  in the number bar and has no form.
+- `bundles.md`: the same bundles as text, for Claude to score apart, written by hand as the
+  same JSON (`"scorer": "claude"`), before reading the user's scores.
+- `key.json`: bundle number → episode id, genre and whether it can be scored. Not for scorers.
+
+```
+uv run python eval/step4/score_bundles.py eval/results/step4/run1/key.json \
+    eval/results/step4/run1/scores-*.json \
+    --json eval/results/step4/score-run1.json --md eval/results/step4/report-run1.md
+```
+
+Per scorer: each item's mean over the bundles it scored completely, overall and per genre, and
+the scorable bundles it left incomplete. With two scorers, per item over the bundles both
+scored: exact agreement, within one point, mean absolute difference and quadratic weighted
+kappa. Then every bundle's scores and the notes. No pass number: the scores are the baseline.
 
 ## Review
 
