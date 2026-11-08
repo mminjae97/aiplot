@@ -79,6 +79,13 @@
   font-weight: 700;
 }
 
+.contents-group h3 .contents-reopen {
+  margin-left: 10px;
+  padding: 1px 10px;
+  font-size: var(--size-small);
+  font-weight: 400;
+}
+
 .contents-group[data-later] {
   color: var(--ink-faint);
 }

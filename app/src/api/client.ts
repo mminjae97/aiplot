@@ -19,6 +19,9 @@ import type {
   JobAccepted,
   SetupPathsRequest,
   SetupStatus,
+  StageAdvancePreview,
+  StageReopen,
+  StageReopenPreview,
   Work,
   WorkCreate,
   WorkList,
@@ -177,6 +180,14 @@ export const api = {
   deleteWork: (workId: string) => request<null>(work(workId), { method: 'DELETE' }),
   updateWork: (workId: string, body: WorkUpdate) =>
     request<Work>(work(workId), { method: 'PATCH', body: JSON.stringify(body) }),
+  advancePreview: (workId: string) =>
+    request<StageAdvancePreview>(`${work(workId)}/stage/advance-preview`),
+  advanceStage: (workId: string) =>
+    request<Work>(`${work(workId)}/stage/advance`, { method: 'POST' }),
+  reopenPreview: (workId: string, stage: StageReopen['stage']) =>
+    request<StageReopenPreview>(`${work(workId)}/stage/reopen-preview?stage=${String(stage)}`),
+  reopenStage: (workId: string, body: StageReopen) =>
+    request<Work>(`${work(workId)}/stage/reopen`, { method: 'POST', body: JSON.stringify(body) }),
   listCovers: (workId: string) => request<CoverList>(`${work(workId)}/covers`),
   uploadCover: (workId: string, image: Blob) =>
     request<Cover>(`${work(workId)}/covers`, {

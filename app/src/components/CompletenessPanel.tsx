@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { strings } from '../strings'
 import type { Completeness } from '../types'
 import { inkOf } from './EpisodeTimeline'
@@ -5,11 +6,13 @@ import { inkOf } from './EpisodeTimeline'
 type Props = {
   completeness: Completeness
   names: Map<string, string>
+  /** Shown under the lists: the step that follows the planning (연출 구성 시작, §8). */
+  action?: ReactNode
 }
 
 /** Completeness (§7, §8 S1-3): each milestone with the episodes that fulfil it, foreshadowing
  * not paid off yet, and cards with a required field missing. Missing things in orange words. */
-export function CompletenessPanel({ completeness, names }: Props) {
+export function CompletenessPanel({ completeness, names, action }: Props) {
   const unpaid = completeness.foreshadowing.filter((item) => item.payoff_episode_id === null)
   return (
     <aside className="completeness" aria-label={strings.story.completeness}>
@@ -71,6 +74,7 @@ export function CompletenessPanel({ completeness, names }: Props) {
           </ul>
         )}
       </section>
+      {action}
     </aside>
   )
 }

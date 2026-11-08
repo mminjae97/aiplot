@@ -476,6 +476,10 @@
   font-size: var(--size-small);
 }
 
+.completeness-start {
+  margin-top: 18px;
+}
+
 .card-delete-reconnect {
   display: flex;
   gap: 6px;

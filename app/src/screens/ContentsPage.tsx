@@ -1,5 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import { api } from '../api/client'
+import { Overlay } from '../components/Overlay'
+import { StageLockDialog } from '../components/StageLockDialog'
 import type { PlanningScreen } from '../stores/navigation'
 import { strings } from '../strings'
 import type { PageProps } from './PlanningBook'
@@ -13,13 +16,25 @@ const dateFormat = new Intl.DateTimeFormat('ko-KR', {
 // The planning items' screens, in the contents' order (§12).
 const ITEM_SCREENS = ['world', 'characters', 'regions', 'story'] as const
 
-/** S1 contents, minimal (§12; the full page arrives in step 9): the opened book's spread. */
+/** S1 contents, minimal (§12; the full page arrives in step 9): the opened book's spread. A
+ * locked stage is read-only and can be opened again (다시 열기, §11). */
 export function ContentsPage({
   screen,
   turn,
+  onBusy,
 }: PageProps<Extract<PlanningScreen, { name: 'contents' }>>) {
   const { workId } = screen
   const work = useQuery({ queryKey: ['works', workId], queryFn: () => api.getWork(workId) })
+  const [reopening, setReopening] = useState<1 | 2 | null>(null)
+
+  const busy = reopening !== null
+  useEffect(() => {
+    onBusy(busy)
+    return () => {
+      // A page leaving the book never leaves it shut.
+      onBusy(false)
+    }
+  }, [busy, onBusy])
 
   if (!work.data) {
     return (
@@ -36,7 +51,7 @@ export function ContentsPage({
     )
   }
 
-  const { title, stage, updated_at } = work.data
+  const { title, stage, locked_stage, updated_at } = work.data
   return (
     <>
       <article className="spread">
@@ -53,9 +68,29 @@ export function ContentsPage({
           </h2>
           {strings.contents.groups.map((group) => {
             const later = group.stage > stage
+            const locked = group.stage <= locked_stage
             return (
-              <div className="contents-group" key={group.stage} data-later={later || undefined}>
-                <h3>{strings.stage[group.stage]}</h3>
+              <div
+                className="contents-group"
+                key={group.stage}
+                data-later={later || undefined}
+                data-locked={locked || undefined}
+              >
+                <h3>
+                  {strings.stage[group.stage]}
+                  {locked && group.stage !== 3 && (
+                    <button
+                      type="button"
+                      className="paper-button contents-reopen"
+                      aria-label={strings.contents.reopenOf(strings.stage[group.stage])}
+                      onClick={() => {
+                        setReopening(group.stage === 1 ? 1 : 2)
+                      }}
+                    >
+                      {strings.contents.reopen}
+                    </button>
+                  )}
+                </h3>
                 <ol>
                   {group.items.map((item, index) => (
                     <li key={item}>
@@ -76,7 +111,11 @@ export function ContentsPage({
                       )}
                       <span className="leader" aria-hidden="true" />
                       <span className="status">
-                        {later ? strings.contents.laterStage : strings.contents.notStarted}
+                        {later
+                          ? strings.contents.laterStage
+                          : locked
+                            ? strings.contents.locked
+                            : strings.contents.notStarted}
                       </span>
                     </li>
                   ))}
@@ -86,6 +125,20 @@ export function ContentsPage({
           })}
         </section>
       </article>
+      <Overlay>
+        {reopening !== null && (
+          <StageLockDialog
+            work={work.data}
+            action={{ kind: 'reopen', stage: reopening }}
+            onClose={() => {
+              setReopening(null)
+            }}
+            onDone={() => {
+              setReopening(null)
+            }}
+          />
+        )}
+      </Overlay>
     </>
   )
 }
