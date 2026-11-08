@@ -54,6 +54,13 @@ def insert(conn: sqlite3.Connection, plan_id: str, status: PlanStatus, plan: Dir
     )
 
 
+def update(conn: sqlite3.Connection, plan_id: str, status: PlanStatus, plan: DirectionPlan) -> None:
+    conn.execute(
+        "UPDATE direction_plan SET status = ?, plan = ? WHERE id = ?",
+        (status, plan.model_dump_json(), plan_id),
+    )
+
+
 def delete_for_episode(conn: sqlite3.Connection, episode_id: str) -> None:
     # Its technique_pick rows go with it (ON DELETE CASCADE).
     conn.execute("DELETE FROM direction_plan WHERE episode_id = ?", (episode_id,))

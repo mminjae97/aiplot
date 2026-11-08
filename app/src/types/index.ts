@@ -192,6 +192,7 @@ export type TechniqueSituation =
   | '비밀'
   | '징조'
   | '깨달음'
+export type PlanSceneNumber = number
 /**
  * `card` role output (§13). The server constrains and validates with the variant for the requested type. Evidence indexes are the 0-based [n] numbers of the server-split note sentences in the prompt. The server then drops out-of-range indexes, unknown field paths and unknown card ids, assigns ms_/fs_ ids, sets placement fields from context and restores pinned fields (§13).
  */
@@ -803,6 +804,27 @@ export interface PlanBeat {
    * Characters incl. spaces, set by the server from the model's proportions.
    */
   target_chars: number
+}
+/**
+ * PATCH /plans/{planId}: the user's narration order and cuts (§9): chapters in order, each a list of story-order scene numbers in narration order, cut after its last. Every scene exactly once and 1-5 chapters, else 422 PLAN_LAYOUT_INVALID.
+ */
+export interface PlanUpdate {
+  chapters: PlanSceneNumber[][]
+}
+/**
+ * PUT /plans/{planId}/scenes/{scene}/devices: the user's checked devices for the scene (§9); its recommendations are recomputed from them.
+ */
+export interface SceneDevicesUpdate {
+  devices: TechniqueDevice[]
+}
+/**
+ * POST /plans/{planId}/scenes/{scene}/pick: the cards to direct the scene with, in the user's order (§9). The count (1-3) beyond one and the cards themselves are checked by the server: TOO_MANY_TECHNIQUES, TECHNIQUE_NOT_CANDIDATE, TECHNIQUES_CONFLICT.
+ */
+export interface ScenePick {
+  /**
+   * @minItems 1
+   */
+  techniques: [TechniqueId, ...TechniqueId[]]
 }
 /**
  * POST /works/{workId}/drafts: open the card drawer (§8). card_id = edit that card (its notes load, the chat starts empty); null = a new card. 423 STAGE_LOCKED once planning is locked.

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from aiplot.db import plans as plans_db
+from aiplot.db import techniques as techniques_db
 from aiplot.db.connection import connect, transaction
 from aiplot.generated.direction.plan import DirectionPlan, PlanScene
 from aiplot.generated.direction.plan_record import PlanRecord
@@ -51,22 +52,34 @@ def check_new(conn: sqlite3.Connection, episode_id: str, replace: bool) -> str:
     return work_id
 
 
-def picks(scene: PlanScene) -> list[plans_db.Pick]:
+def picks(conn: sqlite3.Connection, scene: PlanScene) -> list[plans_db.Pick]:
     """A scene's technique_pick rows: its recommended cards, then the chosen ones not among them
-    (the user's own: rank null)."""
+    (the user's own: rank null) with what they share with the scene."""
     chosen = set(scene.chosen)
+    fields = {"devices", "effects", "situations"}
     rows = [
         plans_db.Pick(
             found.rank,
             found.technique,
-            found.model_dump(mode="json", include={"devices", "effects", "situations"}),
+            found.model_dump(mode="json", include=fields),
             found.technique in chosen,
         )
         for found in scene.recommended
     ]
     recommended = {found.technique for found in scene.recommended}
-    empty: dict[str, Any] = {"devices": [], "effects": [], "situations": []}
-    rows += [plans_db.Pick(None, t, empty, True) for t in scene.chosen if t not in recommended]
+    for technique_id in scene.chosen:
+        if technique_id in recommended:
+            continue
+        card = techniques_db.get(conn, technique_id)
+        matched: dict[str, Any] = {"devices": [], "effects": [], "situations": []}
+        if card is not None:
+            found = direction.shared(card, scene.devices, scene.effects, scene.situations)
+            matched = {
+                "devices": found.devices,
+                "effects": found.effects,
+                "situations": found.situations,
+            }
+        rows.append(plans_db.Pick(None, technique_id, matched, True))
     return rows
 
 
@@ -80,7 +93,7 @@ def store_new(conn: sqlite3.Connection, plan: DirectionPlan, replace: bool) -> P
         plans_db.insert(conn, plan_id, "directing", plan)
         for chapter in plan.chapters:
             for scene in chapter.scenes:
-                plans_db.write_picks(conn, plan_id, scene.scene, picks(scene))
+                plans_db.write_picks(conn, plan_id, scene.scene, picks(conn, scene))
     stored = plans_db.get(conn, plan_id)
     assert stored is not None
     return stored
