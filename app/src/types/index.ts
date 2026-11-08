@@ -812,6 +812,28 @@ export interface PlanUpdate {
   chapters: PlanSceneNumber[][]
 }
 /**
+ * PUT /plans/{planId}/scenes/{scene}/beats: the user's beats for a directed scene in narration order (§9). The server numbers them 1..n and rescales target_chars (weights) to the scene's; techniques must be the scene's chosen or serial cards (422 BEATS_INVALID).
+ */
+export interface SceneBeatsUpdate {
+  /**
+   * @minItems 1
+   */
+  beats: [BeatEdit, ...BeatEdit[]]
+}
+export interface BeatEdit {
+  summary: string
+  techniques: TechniqueId[]
+  pov: string
+  mode: BeatMode
+  focus: BeatFocus
+  density: BeatDensity
+  tension: number
+  /**
+   * A weight: the server rescales the beats' to sum to the scene's target.
+   */
+  target_chars: number
+}
+/**
  * PUT /plans/{planId}/scenes/{scene}/devices: the user's checked devices for the scene (§9); its recommendations are recomputed from them.
  */
 export interface SceneDevicesUpdate {

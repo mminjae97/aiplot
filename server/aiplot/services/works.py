@@ -38,7 +38,7 @@ class NoActiveEpisodeError(ValueError):
 
 
 class StageNotReadyError(ValueError):
-    """Stage 2 -> 3 needs every active episode's direction confirmed (step 3)."""
+    """Stage 2 -> 3 needs every active episode's direction plan confirmed (§11)."""
 
 
 class StageFinalError(ValueError):
@@ -136,7 +136,8 @@ def require_current(conn: sqlite3.Connection, work_id: str, stage: int) -> Work:
 
 def advance(conn: sqlite3.Connection, work_id: str) -> Work:
     """Starts the next stage and locks the earlier ones (§1, §11). Incomplete cards never
-    block it; they become inactive. Planning -> direction needs one active episode."""
+    block it; they become inactive. Planning -> direction needs one active episode, direction
+    -> writing every active episode's plan confirmed."""
     with transaction(conn):
         work = db.get(conn, work_id)
         if work is None:
@@ -144,11 +145,14 @@ def advance(conn: sqlite3.Connection, work_id: str) -> Work:
         if work.stage == 3:
             raise StageFinalError("writing is the last stage")
         if work.stage == 2:
-            # Direction plans and their confirmation arrive in step 3 (§20).
-            raise StageNotReadyError("every active episode's direction must be confirmed first")
-        if db.active_episode_count(conn, work_id) == 0:
-            raise NoActiveEpisodeError("no complete episode in a complete part and main story")
-        db.advance_stage(conn, work_id, 2, now())
+            # §11: all confirmed = at least one active episode, every one with a confirmed plan.
+            if db.active_episode_count(conn, work_id) == 0 or db.unconfirmed_count(conn, work_id):
+                raise StageNotReadyError("every active episode's direction must be confirmed")
+            db.advance_stage(conn, work_id, 3, now())
+        else:
+            if db.active_episode_count(conn, work_id) == 0:
+                raise NoActiveEpisodeError("no complete episode in a complete part and main story")
+            db.advance_stage(conn, work_id, 2, now())
     advanced = db.get(conn, work_id)
     assert advanced is not None
     return advanced

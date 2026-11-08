@@ -75,3 +75,13 @@ def active_episode_count(conn: sqlite3.Connection, work_id: str) -> int:
 def is_active_episode(conn: sqlite3.Connection, episode_id: str) -> bool:
     row = conn.execute(f"SELECT 1 {ACTIVE_EPISODES} AND e.id = ?", (episode_id,)).fetchone()
     return row is not None
+
+
+def unconfirmed_count(conn: sqlite3.Connection, work_id: str) -> int:
+    """Active episodes without a confirmed direction plan."""
+    row = conn.execute(
+        f"SELECT count(*) {ACTIVE_EPISODES} AND e.work_id = ? AND NOT EXISTS ("
+        "SELECT 1 FROM direction_plan AS d WHERE d.episode_id = e.id AND d.status = 'confirmed')",
+        (work_id,),
+    ).fetchone()
+    return int(row[0])

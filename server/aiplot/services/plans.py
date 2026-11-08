@@ -111,8 +111,9 @@ SAVE_ERRORS: dict[type[Exception], str] = {
 }
 
 
-def refusal_code(exc: Exception) -> str:
-    return next(code for kind, code in SAVE_ERRORS.items() if isinstance(exc, kind))
+def refusal_code(exc: Exception, errors: dict[type[Exception], str] = SAVE_ERRORS) -> str:
+    """The code of the first kind in errors that exc is."""
+    return next(code for kind, code in errors.items() if isinstance(exc, kind))
 
 
 def start_new(
