@@ -7,12 +7,13 @@ from aiplot.api.errors import AppError
 from aiplot.generated.direction.plan_list import PlanList
 from aiplot.generated.direction.plan_record import PlanRecord
 from aiplot.generated.direction.plan_update import PlanUpdate
+from aiplot.generated.direction.scene_beats import SceneBeatsUpdate
 from aiplot.generated.direction.scene_devices import SceneDevicesUpdate
 from aiplot.generated.direction.scene_pick import ScenePick
 from aiplot.generated.jobs.job_accepted import JobAccepted
 from aiplot.jobs.queue import JobQueue
 from aiplot.llm.runtime import LlmRuntime
-from aiplot.services import cards, direction, plan_scenes, plans, works
+from aiplot.services import cards, direction, plan_direct, plan_scenes, plans, works
 
 router = APIRouter()
 
@@ -74,6 +75,14 @@ def edit_error(exc: Exception, plan_id: str) -> AppError:
         return AppError(422, exc.code, str(exc))
     if isinstance(exc, plan_scenes.LayoutInvalidError):
         return AppError(422, "PLAN_LAYOUT_INVALID", str(exc))
+    if isinstance(exc, plan_scenes.BeatsInvalidError):
+        return AppError(422, "BEATS_INVALID", str(exc))
+    if isinstance(exc, plan_scenes.SceneNotDirectedError):
+        return AppError(409, "SCENE_NOT_DIRECTED", str(exc), "direct the scene first")
+    if isinstance(exc, direction.SceneNotReadyError):
+        return AppError(409, "SCENE_NOT_READY", str(exc), "pick 1-3 cards first")
+    if isinstance(exc, direction.EpisodeNotReadyError):
+        return AppError(409, "EPISODE_NOT_READY", str(exc))
     raise exc
 
 
@@ -82,6 +91,10 @@ EDIT_ERRORS = (
     plan_scenes.SceneNotFoundError,
     plan_scenes.ChoiceRefusedError,
     plan_scenes.LayoutInvalidError,
+    plan_scenes.BeatsInvalidError,
+    plan_scenes.SceneNotDirectedError,
+    direction.SceneNotReadyError,
+    direction.EpisodeNotReadyError,
     cards.CardNotFoundError,
     works.WorkNotFoundError,
     works.StageLockedError,
@@ -112,5 +125,39 @@ def patch_plan(db: Db, planId: str, body: PlanUpdate) -> PlanRecord:
     """The user's narration order and cuts; scenes whose place changed become stale (§9)."""
     try:
         return plan_scenes.rearrange(db, planId, body.chapters)
+    except EDIT_ERRORS as exc:
+        raise edit_error(exc, planId) from exc
+
+
+@router.post("/plans/{planId}/scenes/{scene}/direct", status_code=202)
+async def direct_scene(db: Db, request: Request, planId: str, scene: int) -> JobAccepted:
+    """The scene's beats as a job (async: the job queue lives on the event loop); needs its 1-3
+    chosen cards (§9)."""
+    try:
+        work_id = plan_direct.check(db, planId, scene)
+    except EDIT_ERRORS as exc:
+        raise edit_error(exc, planId) from exc
+    runtime: LlmRuntime = request.app.state.llm
+    jobs: JobQueue = request.app.state.jobs
+    job_id = plan_direct.start(
+        runtime.router, jobs, request.app.state.db_path, planId, scene, work_id
+    )
+    return JobAccepted(jobId=job_id)
+
+
+@router.put("/plans/{planId}/scenes/{scene}/beats")
+def put_beats(db: Db, planId: str, scene: int, body: SceneBeatsUpdate) -> PlanRecord:
+    """The user's beats for a directed scene (§9)."""
+    try:
+        return plan_scenes.set_beats(db, planId, scene, body.beats)
+    except EDIT_ERRORS as exc:
+        raise edit_error(exc, planId) from exc
+
+
+@router.post("/plans/{planId}/scenes/{scene}/confirm")
+def confirm_scene(db: Db, planId: str, scene: int) -> PlanRecord:
+    """The scene's beats accepted; the plan is confirmed once every scene is (§9)."""
+    try:
+        return plan_scenes.confirm(db, planId, scene)
     except EDIT_ERRORS as exc:
         raise edit_error(exc, planId) from exc

@@ -14,9 +14,10 @@ from contextlib import contextmanager
 from aiplot.db import plans as plans_db
 from aiplot.db import techniques as techniques_db
 from aiplot.db.connection import transaction
-from aiplot.generated.direction.plan import DirectionPlan, PlanChapter, PlanScene
+from aiplot.generated.direction.plan import DirectionPlan, PlanBeat, PlanChapter, PlanScene
 from aiplot.generated.direction.plan_record import PlanRecord
 from aiplot.generated.direction.plan_status import PlanStatus
+from aiplot.generated.direction.scene_beats import BeatEdit
 from aiplot.generated.technique.technique_device import TechniqueDevice
 from aiplot.services import direction, plans, works
 
@@ -38,6 +39,15 @@ class SceneNotFoundError(LookupError):
 
 class LayoutInvalidError(ValueError):
     """Not 1-5 non-empty chapters holding every scene exactly once."""
+
+
+class SceneNotDirectedError(ValueError):
+    """Beats to edit or confirm need a directed scene: not undirected, and for confirming not
+    stale either (direct it again first)."""
+
+
+class BeatsInvalidError(ValueError):
+    """A beat names a card the scene may not use, or there are more beats than characters."""
 
 
 class ChoiceRefusedError(ValueError):
@@ -166,3 +176,81 @@ def rearrange(
             if scene.status in DIRECTED and spot_key(plan, number) != before[number]:
                 scene.status = "stale"
     return stored(conn, plan_id)
+
+
+# Beats ---------------------------------------------------------------------------------------
+
+
+def allowed_techniques(plan: DirectionPlan, number: int) -> list[str]:
+    """The cards a scene's beats may name: its chosen ones and the serial cards for its place."""
+    spot = direction.locate(plan, number)
+    return [*spot.scene.chosen, *direction.serial_for(spot.place)]
+
+
+def set_beats(
+    conn: sqlite3.Connection, plan_id: str, number: int, beats: Sequence[BeatEdit]
+) -> PlanRecord:
+    """The user's beats for a directed scene: numbered 1..n, targets rescaled to the scene's,
+    texts stripped, each card once. A confirmed scene goes back to directed (confirm again); a
+    stale one stays stale."""
+    with editing(conn, plan_id) as plan:
+        scene = scene_in(plan, number)
+        if scene.status == "undirected":
+            raise SceneNotDirectedError(f"scene {number} has no beats yet")
+        allowed = allowed_techniques(plan, number)
+        named = {technique for beat in beats for technique in beat.techniques}
+        if not named <= set(allowed):
+            raise BeatsInvalidError(
+                f"cards not chosen for scene {number}: {sorted(named - set(allowed))}"
+            )
+        if len(beats) > scene.target_chars:
+            raise BeatsInvalidError(f"more beats than the scene's {scene.target_chars} characters")
+        targets = direction.rescale([beat.target_chars for beat in beats], scene.target_chars)
+        scene.beats = [
+            PlanBeat(
+                order=order,
+                summary=beat.summary.strip(),
+                techniques=list(dict.fromkeys(beat.techniques)),
+                pov=beat.pov.strip(),
+                mode=beat.mode,
+                focus=beat.focus,
+                density=beat.density,
+                tension=beat.tension,
+                target_chars=target,
+            )
+            for order, (beat, target) in enumerate(zip(beats, targets, strict=True), start=1)
+        ]
+        if scene.status == "confirmed":
+            scene.status = "directed"
+    return stored(conn, plan_id)
+
+
+def confirm(conn: sqlite3.Connection, plan_id: str, number: int) -> PlanRecord:
+    """The user accepts the scene's beats; the plan is confirmed once every scene is (§9)."""
+    with editing(conn, plan_id) as plan:
+        scene = scene_in(plan, number)
+        if scene.status in ("undirected", "stale"):
+            raise SceneNotDirectedError(f"scene {number} is {scene.status}: direct it first")
+        scene.status = "confirmed"
+    return stored(conn, plan_id)
+
+
+def store_beats(
+    conn: sqlite3.Connection,
+    plan_id: str,
+    number: int,
+    beats: Sequence[PlanBeat],
+    basis: tuple[SpotKey, list[str]],
+) -> PlanRecord:
+    """A direct job's beats. The scene is directed if its place and cards are still what the
+    beats were directed from (basis_of), else stale: the user changed them while it ran."""
+    with editing(conn, plan_id) as plan:
+        scene = scene_in(plan, number)
+        scene.beats = list(beats)
+        scene.status = "directed" if basis_of(plan, number) == basis else "stale"
+    return stored(conn, plan_id)
+
+
+def basis_of(plan: DirectionPlan, number: int) -> tuple[SpotKey, list[str]]:
+    """What a direct call reads of the plan for the scene: its place and its chosen cards."""
+    return spot_key(plan, number), list(scene_in(plan, number).chosen)
