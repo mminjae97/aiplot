@@ -476,8 +476,15 @@
   font-size: var(--size-small);
 }
 
-.completeness-start {
+/* Pinned under the lists on a paper strip as wide as the panel: never scrolled out of reach,
+   and the lists run out of sight under it. */
+.completeness-action {
+  position: sticky;
+  bottom: -2px;
   margin-top: 18px;
+  padding: 10px 0 2px;
+  background: var(--paper);
+  box-shadow: 0 -8px 10px var(--paper);
 }
 
 .card-delete-reconnect {

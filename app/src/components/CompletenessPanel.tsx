@@ -74,7 +74,7 @@ export function CompletenessPanel({ completeness, names, action }: Props) {
           </ul>
         )}
       </section>
-      {action}
+      {action && <div className="completeness-action">{action}</div>}
     </aside>
   )
 }

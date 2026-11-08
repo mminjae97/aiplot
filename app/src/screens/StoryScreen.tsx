@@ -465,7 +465,7 @@ export function StoryScreen({
                       work.data?.stage === 1 && !locked ? (
                         <button
                           type="button"
-                          className="paper-button completeness-start"
+                          className="paper-button"
                           onClick={() => {
                             setAdvancing(true)
                           }}
