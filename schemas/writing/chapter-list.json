@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ChapterList",
+  "description": "GET /works/{workId}/chapters: the work's chapters in order; none before writing starts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["chapters"],
+  "properties": {
+    "chapters": { "type": "array", "items": { "$ref": "./chapter.json" } }
+  }
+}

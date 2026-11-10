@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from aiplot.db import works as works_db
 from aiplot.generated.direction.plan import DirectionPlan
 from aiplot.generated.direction.plan_record import PlanRecord
 from aiplot.generated.direction.plan_status import PlanStatus
@@ -64,6 +65,21 @@ def update(conn: sqlite3.Connection, plan_id: str, status: PlanStatus, plan: Dir
 def delete_for_episode(conn: sqlite3.Connection, episode_id: str) -> None:
     # Its technique_pick rows go with it (ON DELETE CASCADE).
     conn.execute("DELETE FROM direction_plan WHERE episode_id = ?", (episode_id,))
+
+
+def confirmed_in_story_order(conn: sqlite3.Connection, work_id: str) -> list[PlanRecord]:
+    """The confirmed plans of the work's active episodes (§11) in story order: by part, then
+    the episode's order in it, then as the episodes were made."""
+    rows = conn.execute(
+        f"SELECT {', '.join(f'd.{name}' for name in COLUMNS.split(', '))} "
+        "FROM direction_plan AS d JOIN episode AS ep ON ep.card_id = d.episode_id "
+        "JOIN card AS c ON c.id = d.episode_id LEFT JOIN part AS pt ON pt.card_id = ep.part_id "
+        "WHERE d.status = 'confirmed' "
+        f"AND d.episode_id IN (SELECT e.id {works_db.ACTIVE_EPISODES} AND e.work_id = ?) "
+        'ORDER BY pt."order", ep."order", c.rowid',
+        (work_id,),
+    ).fetchall()
+    return [to_record(row) for row in rows]
 
 
 def count_for_work(conn: sqlite3.Connection, work_id: str) -> int:

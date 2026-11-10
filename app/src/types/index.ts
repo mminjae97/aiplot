@@ -28,6 +28,8 @@ export type MilestoneId = string
 export type StoryStructure = FourStageStructure | FiveStageStructure
 export type ForeshadowingId = string
 export type WorldlineId = string
+export type BeatId = string
+export type ChapterId = string
 export type CoverId = string
 export type DraftId = string
 export type JobId = string
@@ -1579,4 +1581,72 @@ export interface WorkUpdate {
    * One of this book's covers (404 COVER_NOT_FOUND otherwise); null = cloth cover in the book colour.
    */
   cover_id?: CoverId | null
+}
+/**
+ * GET /works/{workId}/chapters: the work's chapters in order; none before writing starts.
+ */
+export interface ChapterList {
+  chapters: Chapter[]
+}
+/**
+ * A chapter of the manuscript (§14 chapter): made from a confirmed direction plan's chapter when writing starts, with its beats in narration order.
+ */
+export interface Chapter {
+  id: ChapterId
+  plan_id: PlanId
+  episode_id: CardId
+  /**
+   * 1..n within the work, in story order of the episodes.
+   */
+  number: number
+  /**
+   * Characters incl. spaces; the chapter's beat targets sum to it.
+   */
+  target_chars: number
+  read: boolean
+  /**
+   * Characters incl. spaces written so far (the beats' current versions).
+   */
+  chars: number
+  /**
+   * In narration order.
+   */
+  beats: ChapterBeat[]
+}
+export interface ChapterBeat {
+  id: BeatId
+  /**
+   * 1..n within the chapter.
+   */
+  order: number
+  /**
+   * The plan scene the beat belongs to (its story-order number).
+   */
+  scene: number
+  /**
+   * The episode structure stage the beat's scene comes from.
+   */
+  source_stage: string
+  /**
+   * What happens in the beat (the write role's instruction).
+   */
+  summary: string
+  techniques: TechniqueId[]
+  pov: string
+  mode: BeatMode
+  focus: BeatFocus
+  density: BeatDensity
+  tension: number
+  /**
+   * Characters incl. spaces, from the plan.
+   */
+  target_chars: number
+  /**
+   * The current version's number; null until the beat is written.
+   */
+  version: number | null
+  /**
+   * The current version's characters incl. spaces; null until written.
+   */
+  chars: number | null
 }

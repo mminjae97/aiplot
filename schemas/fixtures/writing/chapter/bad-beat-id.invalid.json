@@ -1,0 +1,27 @@
+{
+  "id": "ch_01",
+  "plan_id": "pl_01",
+  "episode_id": "c_ep7",
+  "number": 1,
+  "target_chars": 5500,
+  "read": false,
+  "chars": 0,
+  "beats": [
+    {
+      "id": "beat_01",
+      "order": 1,
+      "scene": 2,
+      "source_stage": "위기",
+      "summary": "테오가 편지를 읽는다.",
+      "techniques": [],
+      "pov": "테오 1인칭",
+      "mode": "장면화",
+      "focus": "감정",
+      "density": "자세히",
+      "tension": 4,
+      "target_chars": 800,
+      "version": null,
+      "chars": null
+    }
+  ]
+}

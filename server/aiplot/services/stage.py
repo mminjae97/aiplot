@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from aiplot.db import cards as cards_db
+from aiplot.db import chapters as chapters_db
 from aiplot.db import plans as plans_db
 from aiplot.db import snapshots as snapshots_db
 from aiplot.db import works as works_db
@@ -88,14 +89,14 @@ def advance_preview(conn: sqlite3.Connection, work_id: str) -> StageAdvancePrevi
 
 
 def reopen_preview(conn: sqlite3.Connection, work_id: str, stage: int) -> StageReopenPreview:
-    """What reopening the locked stage deletes: planning takes the direction plans with it (and,
-    from step 7, the manuscript); direction only the manuscript."""
+    """What reopening the locked stage deletes: planning takes the direction plans and the
+    manuscript with it; direction only the manuscript. Chapters are counted once they hold
+    text."""
     work = require_work(conn, work_id)
     if stage < 1 or stage > work.locked_stage:
         raise StageNotLockedError(f"stage {stage} of {work_id} is not locked")
     plans = plans_db.count_for_work(conn, work_id) if stage == 1 else 0
-    # Written chapters get their tables in step 7 (§20); until then there is no manuscript.
-    chapters = 0
+    chapters = chapters_db.written_count(conn, work_id)
     return StageReopenPreview(
         stage=stage, plans=plans, chapters=chapters, title_required=chapters > 0
     )
@@ -136,6 +137,7 @@ def reopen(
         with transaction(conn):
             # Checked again: another request may have reopened or advanced meanwhile.
             reopen_preview(conn, work_id, stage)
+            chapters_db.delete_for_work(conn, work_id)
             if stage == 1:
                 plans_db.delete_for_work(conn, work_id)
             works_db.reopen_stage(conn, work_id, stage, now())
