@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { ApiRequestError, api } from '../api/client'
 import { strings } from '../strings'
-import type { EpisodeCard, Job, PlanRecord, SceneStatus } from '../types'
+import type { EpisodeCard, Job, PlanList, PlanRecord, SceneStatus } from '../types'
 import { confirmedScenes, isJobActive } from './directionEpisodes'
 import { DualTimeline } from './DualTimeline'
 import { narrationOrder } from './dualTimelineLayout'
@@ -74,6 +74,14 @@ export function EpisodePlanPanel({
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['jobs', workId] }),
   })
 
+  const rearrange = useMutation({
+    mutationFn: ({ planId, layout }: { planId: string; layout: number[][] }) =>
+      api.rearrangePlan(planId, layout),
+    onSuccess: (updated) => {
+      queryClient.setQueryData<PlanList>(['plans', card.id], { plans: [updated] })
+    },
+  })
+
   const failure = job?.status === 'failed' && !dismissed.has(job.jobId) ? job : null
   const startFailure =
     start.error instanceof ApiRequestError
@@ -81,13 +89,21 @@ export function EpisodePlanPanel({
       : start.isError
         ? strings.direction.failed
         : null
-  const notice = startFailure ?? (failure ? errorText(failure.error?.code ?? '') : null)
+  const rearrangeFailure =
+    rearrange.error instanceof ApiRequestError
+      ? errorText(rearrange.error.code)
+      : rearrange.isError
+        ? strings.direction.rearrangeFailed
+        : null
+  const actionFailure = startFailure ?? rearrangeFailure
+  const notice = actionFailure ?? (failure ? errorText(failure.error?.code ?? '') : null)
   const scenes = record ? narrationOrder(record.plan) : []
   // The picked scene, or the first told (a remade plan may not have the picked one).
   const scene = scenes.find((item) => item.scene === selected) ?? scenes[0]
   const directed = scenes.filter((scene) => scene.status !== 'undirected').length
   const canMake = active && !locked && !running && !loading && !loadFailed
   const step = progress?.step ?? null
+  const canArrange = active && !locked && !running && !rearrange.isPending
 
   return (
     <div className="direction-panel">
@@ -137,7 +153,7 @@ export function EpisodePlanPanel({
       {notice && (
         <div className="direction-failure" role="alert">
           <p>{notice}</p>
-          {record && failure && !startFailure && (
+          {record && failure && !actionFailure && (
             <button
               type="button"
               className="paper-button"
@@ -192,6 +208,13 @@ export function EpisodePlanPanel({
             structure={card.data.structure}
             selected={scene.scene}
             onSelect={setSelected}
+            onLayout={
+              canArrange
+                ? (layout) => {
+                    rearrange.mutate({ planId: record.id, layout })
+                  }
+                : null
+            }
           />
           <section className="scene-detail" aria-label={strings.direction.sceneName(scene.scene)}>
             <h4>

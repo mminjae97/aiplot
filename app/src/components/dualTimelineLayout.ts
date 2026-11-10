@@ -82,3 +82,46 @@ export function tensionPoints(plan: DirectionPlan, structure: Structure): Tensio
     return tension === null ? [] : [{ x: column + 0.5, tension, estimated: true }]
   })
 }
+
+/** The plan's layout as PATCH /plans/{planId} takes it: each chapter's scene numbers, told. */
+export function layoutOf(plan: DirectionPlan): number[][] {
+  return plan.chapters.map((chapter) => chapter.scenes.map((scene) => scene.scene))
+}
+
+export function sameLayout(a: readonly number[][], b: readonly number[][]): boolean {
+  return JSON.stringify(a) === JSON.stringify(b)
+}
+
+/** The scene dropped before or after `target`, in the target's chapter. A chapter it leaves
+ * empty goes, and its cut with it. */
+export function moveScene(
+  layout: readonly number[][],
+  scene: number,
+  target: number,
+  after: boolean,
+): number[][] {
+  if (scene === target) return layout.map((chapter) => [...chapter])
+  return layout
+    .map((chapter) => chapter.filter((item) => item !== scene))
+    .map((chapter) => {
+      const at = chapter.indexOf(target)
+      return at === -1 ? chapter : chapter.toSpliced(after ? at + 1 : at, 0, scene)
+    })
+    .filter((chapter) => chapter.length > 0)
+}
+
+/** The end of chapter `cut` moved to column boundary `boundary` of the told row, kept between
+ * its neighbours: cuts lie between scenes and no chapter is left empty. */
+export function moveCut(layout: readonly number[][], cut: number, boundary: number): number[][] {
+  const told = layout.flat()
+  const ends: number[] = []
+  let end = 0
+  for (const chapter of layout) {
+    end += chapter.length
+    ends.push(end)
+  }
+  const low = (ends[cut - 1] ?? 0) + 1
+  const high = (ends[cut + 1] ?? told.length) - 1
+  ends[cut] = Math.min(high, Math.max(low, boundary))
+  return ends.map((stop, at) => told.slice(ends[at - 1] ?? 0, stop))
+}

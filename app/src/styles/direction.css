@@ -360,3 +360,53 @@
   color: var(--warning);
   font-weight: 700;
 }
+
+/* Dragging: the told scenes and the cuts (§9); the bar shows where it would land. */
+.dual-row {
+  position: relative;
+}
+
+.timeline-scene[data-dragging] {
+  opacity: 0.45;
+}
+
+.dual-drop {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 3px;
+  margin-left: -1px;
+  background: var(--brass);
+  pointer-events: none;
+}
+
+.dual-chapters {
+  position: relative;
+}
+
+.dual-cut {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 18px;
+  margin-left: -9px;
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-weight: 700;
+  line-height: 1.6;
+  text-align: center;
+  touch-action: none;
+  user-select: none;
+  transition: background var(--motion);
+}
+
+.dual-cut:hover,
+.dual-cut[data-dragging] {
+  background: var(--paper-edge);
+  color: var(--ink);
+}
+
+.timeline-scene {
+  touch-action: none;
+}

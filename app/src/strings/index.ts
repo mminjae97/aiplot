@@ -470,6 +470,10 @@ export const strings = {
     tensionLabel: (tensions: readonly number[]) =>
       tensions.length > 0 ? `서술 순서의 긴장도: ${tensions.join(', ')}` : '긴장도 정보가 없어요.',
     tensionLegend: '● 연출한 비트의 긴장도 · ○ 연출 전 단계의 긴장도 · 점선은 화가 끊기는 자리',
+    cutLabel: (chapter: number) => `${String(chapter)}화가 끝나는 자리`,
+    dragHint:
+      '서술 줄의 장면과 ⋮ 표시를 끌어서 순서와 화 나눔을 바꿀 수 있어요. 자리가 바뀐 장면은 다시 연출해야 해요.',
+    rearrangeFailed: '순서를 바꾸지 못했어요. 다시 시도해 주세요.',
     core: '핵심',
     reveal: '공개',
     sceneShort: {
@@ -502,6 +506,8 @@ export const strings = {
       STAGE_LOCKED: '연출 단계가 잠겨 있어요. 목차에서 다시 열어야 고칠 수 있어요.',
       EPISODE_NOT_READY: '이 에피소드는 아직 연출할 수 없어요. 카드가 완성되었는지 확인해 주세요.',
       PLAN_EXISTS: '이 에피소드에는 이미 계획이 있어요.',
+      PLAN_NOT_FOUND: '계획을 찾을 수 없어요. 페이지를 다시 열어 주세요.',
+      PLAN_LAYOUT_INVALID: '이 순서로는 바꿀 수 없어요.',
       CARD_NOT_FOUND: '에피소드를 찾을 수 없어요.',
       WORK_NOT_FOUND: '작품을 찾을 수 없어요.',
       LLM_INVALID_OUTPUT: 'AI가 장면을 제대로 나누지 못했어요. 다시 시도해 주세요.',
