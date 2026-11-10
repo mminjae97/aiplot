@@ -8,6 +8,7 @@ import { DualTimeline } from './DualTimeline'
 import { narrationOrder } from './dualTimelineLayout'
 import { GenerationProgress } from './GenerationProgress'
 import { ReplacePlanDialog } from './ReplacePlanDialog'
+import { SceneDirectionSide } from './SceneDirectionSide'
 import { useJobProgress } from './useJobProgress'
 
 type Props = {
@@ -106,156 +107,168 @@ export function EpisodePlanPanel({
   const canArrange = active && !locked && !running && !rearrange.isPending
 
   return (
-    <div className="direction-panel">
-      <header className="direction-head">
-        <h3>{card.name ?? strings.drawer.untitled}</h3>
-        {record && (
-          <p className="direction-count">
-            {strings.direction.confirmedOf(
-              confirmedScenes(record).confirmed,
-              confirmedScenes(record).total,
-            )}
-          </p>
-        )}
-        {record && canMake && (
-          <button
-            type="button"
-            className="paper-button direction-replace"
-            onClick={() => {
-              start.reset()
-              setReplacing(true)
-            }}
-          >
-            {strings.direction.replace}
-          </button>
-        )}
-      </header>
-      {card.data.synopsis && <p className="direction-synopsis">{card.data.synopsis}</p>}
-
-      {!active && <p className="direction-note">{strings.direction.inactive}</p>}
-
-      {running && (
-        <GenerationProgress
-          progress={progress}
-          queued={job.status === 'queued'}
-          stepLabel={step ? (strings.direction.steps[step] ?? step) : strings.direction.starting}
-          usual={strings.direction.usual}
-          onCancel={
-            cancel.isPending
-              ? null
-              : () => {
-                  cancel.mutate(job.jobId)
-                }
-          }
-        />
-      )}
-
-      {notice && (
-        <div className="direction-failure" role="alert">
-          <p>{notice}</p>
-          {record && failure && !actionFailure && (
+    <>
+      <div className="direction-panel">
+        <header className="direction-head">
+          <h3>{card.name ?? strings.drawer.untitled}</h3>
+          {record && (
+            <p className="direction-count">
+              {strings.direction.confirmedOf(
+                confirmedScenes(record).confirmed,
+                confirmedScenes(record).total,
+              )}
+            </p>
+          )}
+          {record && canMake && (
             <button
               type="button"
-              className="paper-button"
+              className="paper-button direction-replace"
               onClick={() => {
-                onDismiss(failure.jobId)
+                start.reset()
+                setReplacing(true)
               }}
             >
-              {strings.direction.dismiss}
+              {strings.direction.replace}
             </button>
           )}
-        </div>
-      )}
+        </header>
+        {card.data.synopsis && <p className="direction-synopsis">{card.data.synopsis}</p>}
 
-      {loadFailed && (
-        <div className="direction-failure" role="alert">
-          <p>{strings.direction.loadFailed}</p>
-          <button type="button" className="paper-button" onClick={onRetryLoad}>
-            {strings.direction.retry}
-          </button>
-        </div>
-      )}
+        {!active && <p className="direction-note">{strings.direction.inactive}</p>}
 
-      {!record && active && !loading && !loadFailed && !running && (
-        <div className="direction-empty">
-          {locked ? (
-            <p className="direction-note">{strings.direction.noPlanLocked}</p>
-          ) : (
-            <>
-              <p className="direction-note">{strings.direction.noPlan}</p>
+        {running && (
+          <GenerationProgress
+            progress={progress}
+            queued={job.status === 'queued'}
+            stepLabel={step ? (strings.direction.steps[step] ?? step) : strings.direction.starting}
+            usual={strings.direction.usual}
+            onCancel={
+              cancel.isPending
+                ? null
+                : () => {
+                    cancel.mutate(job.jobId)
+                  }
+            }
+          />
+        )}
+
+        {notice && (
+          <div className="direction-failure" role="alert">
+            <p>{notice}</p>
+            {record && failure && !actionFailure && (
               <button
                 type="button"
                 className="paper-button"
-                data-primary
-                disabled={start.isPending}
-                aria-busy={start.isPending}
                 onClick={() => {
-                  start.mutate(false)
+                  onDismiss(failure.jobId)
                 }}
               >
-                {start.isPending && <span className="spinner" aria-hidden="true" />}
-                {strings.direction.make}
+                {strings.direction.dismiss}
               </button>
-            </>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
 
-      {record && scene && (
-        <>
-          <DualTimeline
-            plan={record.plan}
-            structure={card.data.structure}
-            selected={scene.scene}
-            onSelect={setSelected}
-            onLayout={
-              canArrange
-                ? (layout) => {
-                    rearrange.mutate({ planId: record.id, layout })
-                  }
-                : null
-            }
+        {loadFailed && (
+          <div className="direction-failure" role="alert">
+            <p>{strings.direction.loadFailed}</p>
+            <button type="button" className="paper-button" onClick={onRetryLoad}>
+              {strings.direction.retry}
+            </button>
+          </div>
+        )}
+
+        {!record && active && !loading && !loadFailed && !running && (
+          <div className="direction-empty">
+            {locked ? (
+              <p className="direction-note">{strings.direction.noPlanLocked}</p>
+            ) : (
+              <>
+                <p className="direction-note">{strings.direction.noPlan}</p>
+                <button
+                  type="button"
+                  className="paper-button"
+                  data-primary
+                  disabled={start.isPending}
+                  aria-busy={start.isPending}
+                  onClick={() => {
+                    start.mutate(false)
+                  }}
+                >
+                  {start.isPending && <span className="spinner" aria-hidden="true" />}
+                  {strings.direction.make}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {record && scene && (
+          <>
+            <DualTimeline
+              plan={record.plan}
+              structure={card.data.structure}
+              selected={scene.scene}
+              onSelect={setSelected}
+              onLayout={
+                canArrange
+                  ? (layout) => {
+                      rearrange.mutate({ planId: record.id, layout })
+                    }
+                  : null
+              }
+            />
+            <section className="scene-detail" aria-label={strings.direction.sceneName(scene.scene)}>
+              <h4>
+                {strings.direction.sceneMeta(scene.scene, scene.source, scene.target_chars)}
+                <span className="direction-scene-status" data-status={scene.status}>
+                  {STATUS[scene.status]}
+                </span>
+              </h4>
+              <p>{scene.summary}</p>
+              <dl>
+                <dt>{strings.direction.core}</dt>
+                <dd>{scene.core}</dd>
+                {scene.reveal.length > 0 && (
+                  <>
+                    <dt>{strings.direction.reveal}</dt>
+                    <dd>
+                      <ul>
+                        {scene.reveal.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </dd>
+                  </>
+                )}
+              </dl>
+            </section>
+          </>
+        )}
+
+        {replacing && (
+          <ReplacePlanDialog
+            directed={directed}
+            onCancel={() => {
+              setReplacing(false)
+            }}
+            onConfirm={() => {
+              setReplacing(false)
+              start.mutate(true)
+            }}
           />
-          <section className="scene-detail" aria-label={strings.direction.sceneName(scene.scene)}>
-            <h4>
-              {strings.direction.sceneMeta(scene.scene, scene.source, scene.target_chars)}
-              <span className="direction-scene-status" data-status={scene.status}>
-                {STATUS[scene.status]}
-              </span>
-            </h4>
-            <p>{scene.summary}</p>
-            <dl>
-              <dt>{strings.direction.core}</dt>
-              <dd>{scene.core}</dd>
-              {scene.reveal.length > 0 && (
-                <>
-                  <dt>{strings.direction.reveal}</dt>
-                  <dd>
-                    <ul>
-                      {scene.reveal.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </dd>
-                </>
-              )}
-            </dl>
-          </section>
-        </>
-      )}
-
-      {replacing && (
-        <ReplacePlanDialog
-          directed={directed}
-          onCancel={() => {
-            setReplacing(false)
-          }}
-          onConfirm={() => {
-            setReplacing(false)
-            start.mutate(true)
-          }}
+        )}
+      </div>
+      {record && scene && (
+        <SceneDirectionSide
+          key={`${record.id}:${String(scene.scene)}`}
+          episodeId={card.id}
+          record={record}
+          scene={scene}
+          readOnly={!active || locked || running}
+          keysActive={!replacing}
         />
       )}
-    </div>
+    </>
   )
 }
