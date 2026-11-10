@@ -206,3 +206,47 @@ def current_texts(conn: sqlite3.Connection, chapter_id: str) -> dict[str, str]:
         (chapter_id,),
     ).fetchall()
     return {row["beat_id"]: row["text"] for row in rows}
+
+
+def current_chars(conn: sqlite3.Connection, chapter_id: str) -> dict[str, int]:
+    """beat id -> its current version's chars, for the chapter's written beats."""
+    rows = conn.execute(
+        f"SELECT cur.beat_id, cur.chars FROM ({CURRENT_VERSION}) AS cur "
+        "JOIN beat ON beat.id = cur.beat_id WHERE beat.chapter_id = ?",
+        (chapter_id,),
+    ).fetchall()
+    return {row["beat_id"]: row["chars"] for row in rows}
+
+
+def insert_version(
+    conn: sqlite3.Connection,
+    beat_id: str,
+    text: str,
+    chars: int,
+    origin: str,
+    prompt_version: int | None,
+    style_id: str | None,
+    style_version: int | None,
+    created_at: str,
+) -> int:
+    """The beat's next version (its number): the latest one is the current one."""
+    row = conn.execute(
+        "SELECT coalesce(max(version), 0) + 1 FROM beat_version WHERE beat_id = ?", (beat_id,)
+    ).fetchone()
+    version = int(row[0])
+    conn.execute(
+        "INSERT INTO beat_version (beat_id, version, text, chars, origin, prompt_version, "
+        "style_id, style_version, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            beat_id,
+            version,
+            text,
+            chars,
+            origin,
+            prompt_version,
+            style_id,
+            style_version,
+            created_at,
+        ),
+    )
+    return version

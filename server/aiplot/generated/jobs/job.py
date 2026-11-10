@@ -25,7 +25,7 @@ class Job(BaseModel):
     key: Annotated[
         StrictStr | None,
         Field(
-            description="What the job is about (plan:{episodeId}, direct:{planId}:{scene}): a screen finds the running job of what it shows. Null for jobs with no such target."
+            description="What the job is about (plan:{episodeId}, direct:{planId}:{scene}, chapter:{chapterId}, beat:{beatId}): a screen finds the running job of what it shows. Null for jobs with no such target."
         ),
     ]
     workId: work_id.WorkId | None

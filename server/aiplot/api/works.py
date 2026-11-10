@@ -132,7 +132,7 @@ def reopen_preview(
 @router.post("/works/{workId}/stage/reopen")
 async def reopen_stage(db: Db, request: Request, workId: str, body: StageReopen) -> Work:
     """A snapshot, then the later stages' data deleted and the stage open again (§11). Async:
-    the work's direction jobs are cancelled on the event loop."""
+    the work's direction and writing jobs are cancelled on the event loop."""
     try:
         work = stage.reopen(db, request.app.state.snapshots_dir, workId, body.stage, body.title)
     except works.WorkNotFoundError as exc:
@@ -145,8 +145,10 @@ async def reopen_stage(db: Db, request: Request, workId: str, body: StageReopen)
         raise AppError(500, "SNAPSHOT_FAILED", str(exc), "check the disk and try again") from exc
     jobs: JobQueue = request.app.state.jobs
     for job in jobs.for_work(workId):
-        # Their plans are gone or about to be stale against the reopened stage.
-        if job.kind in ("plan", "direct"):
+        # Their plans or chapters are gone or about to be stale against the reopened stage.
+        # Nothing ran between the reopen and here (no await), so none of them stored
+        # anything after the snapshot.
+        if job.kind in ("plan", "direct", "chapter", "beat"):
             jobs.cancel(job)
     return work
 
