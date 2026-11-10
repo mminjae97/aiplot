@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react'
 import { ApiRequestError, api } from '../api/client'
 import { strings } from '../strings'
 import type { EpisodeCard, Job, PlanRecord, SceneStatus } from '../types'
-import { confirmedScenes, isJobActive, scenesOf } from './directionEpisodes'
+import { confirmedScenes, isJobActive } from './directionEpisodes'
+import { DualTimeline } from './DualTimeline'
+import { narrationOrder } from './dualTimelineLayout'
 import { GenerationProgress } from './GenerationProgress'
 import { ReplacePlanDialog } from './ReplacePlanDialog'
 import { useJobProgress } from './useJobProgress'
@@ -51,6 +53,7 @@ export function EpisodePlanPanel({
 }: Props) {
   const queryClient = useQueryClient()
   const [replacing, setReplacing] = useState(false)
+  const [selected, setSelected] = useState<number | null>(null)
   const running = job !== null && isJobActive(job)
   const progress = useJobProgress(running ? job.jobId : null)
 
@@ -79,7 +82,9 @@ export function EpisodePlanPanel({
         ? strings.direction.failed
         : null
   const notice = startFailure ?? (failure ? errorText(failure.error?.code ?? '') : null)
-  const scenes = record ? scenesOf(record.plan) : []
+  const scenes = record ? narrationOrder(record.plan) : []
+  // The picked scene, or the first told (a remade plan may not have the picked one).
+  const scene = scenes.find((item) => item.scene === selected) ?? scenes[0]
   const directed = scenes.filter((scene) => scene.status !== 'undirected').length
   const canMake = active && !locked && !running && !loading && !loadFailed
   const step = progress?.step ?? null
@@ -180,25 +185,40 @@ export function EpisodePlanPanel({
         </div>
       )}
 
-      {record && (
-        <ol className="direction-chapters">
-          {record.plan.chapters.map((chapter) => (
-            <li key={chapter.chapter}>
-              <h4>{strings.direction.chapter(chapter.chapter, chapter.target_chars)}</h4>
-              <ol className="direction-scenes">
-                {chapter.scenes.map((scene) => (
-                  <li key={scene.scene} data-status={scene.status}>
-                    <p className="direction-scene-meta">
-                      {strings.direction.sceneMeta(scene.scene, scene.source, scene.target_chars)}
-                      <span className="direction-scene-status">{STATUS[scene.status]}</span>
-                    </p>
-                    <p>{scene.summary}</p>
-                  </li>
-                ))}
-              </ol>
-            </li>
-          ))}
-        </ol>
+      {record && scene && (
+        <>
+          <DualTimeline
+            plan={record.plan}
+            structure={card.data.structure}
+            selected={scene.scene}
+            onSelect={setSelected}
+          />
+          <section className="scene-detail" aria-label={strings.direction.sceneName(scene.scene)}>
+            <h4>
+              {strings.direction.sceneMeta(scene.scene, scene.source, scene.target_chars)}
+              <span className="direction-scene-status" data-status={scene.status}>
+                {STATUS[scene.status]}
+              </span>
+            </h4>
+            <p>{scene.summary}</p>
+            <dl>
+              <dt>{strings.direction.core}</dt>
+              <dd>{scene.core}</dd>
+              {scene.reveal.length > 0 && (
+                <>
+                  <dt>{strings.direction.reveal}</dt>
+                  <dd>
+                    <ul>
+                      {scene.reveal.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </dd>
+                </>
+              )}
+            </dl>
+          </section>
+        </>
       )}
 
       {replacing && (

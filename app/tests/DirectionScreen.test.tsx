@@ -74,9 +74,21 @@ const RECORD = {
             status: 'confirmed',
             source: '전개',
             summary: '문을 연다',
+            core: '문 너머',
+            reveal: ['집이 비어 있다'],
+            beats: [{ order: 1, tension: 3 }],
             target_chars: 3000,
           },
-          { scene: 1, status: 'stale', source: '발단', summary: '돌아온다', target_chars: 2500 },
+          {
+            scene: 1,
+            status: 'stale',
+            source: '발단',
+            summary: '돌아온다',
+            core: '귀환',
+            reveal: [],
+            beats: [],
+            target_chars: 2500,
+          },
         ],
       },
     ],
@@ -200,16 +212,32 @@ test('episodes come in order under their part; the first active one opens', asyn
   expect((await row(/2화 추격/)).textContent).toContain(strings.direction.rowNoPlan)
 })
 
-test('a plan lists its chapters and scenes in narration order, each with its status', async () => {
+test('a plan is laid out in story order over narration, and a scene opens on click', async () => {
   mockServer({ plans: { c_ep1: [RECORD] } })
   renderBook(SCREEN)
   await screen.findByText(strings.direction.confirmedOf(1, 2))
-  expect(screen.getByRole('heading', { name: strings.direction.chapter(1, 5500) })).toBeTruthy()
-  const summaries = [...document.querySelectorAll('.direction-scenes > li')].map((item) =>
-    item.textContent.includes('문을 연다') ? 'first' : 'second',
-  )
-  expect(summaries).toEqual(['first', 'second'])
+  const timeline = screen.getByRole('group', { name: strings.direction.timeline })
+  const names = within(timeline)
+    .getAllByRole('button')
+    .map((node) => node.querySelector('.timeline-scene-name')?.textContent)
+  // Story order first (1, 2), then as told (2, 1): the moved scene is marked in both rows.
+  expect(names.filter((name) => name?.includes(strings.direction.reorderedMark))).toHaveLength(2)
+  expect(names.map((name) => name?.replace(/\D/g, ''))).toEqual(['1', '2', '2', '1'])
+  expect(within(timeline).getByText(strings.direction.chapter(1, 5500))).toBeTruthy()
+
+  // The first told opens; its core and reveals are shown.
+  expect(screen.getByText('문을 연다')).toBeTruthy()
+  expect(screen.getByText('문 너머')).toBeTruthy()
+  expect(screen.getByText('집이 비어 있다')).toBeTruthy()
+
+  const stale = within(timeline).getAllByRole('button', {
+    name: new RegExp(strings.direction.sceneStatus.stale),
+  })
+  fireEvent.click(stale[0] as HTMLElement)
+  expect(await screen.findByText('돌아온다')).toBeTruthy()
+  expect(screen.queryByText('문을 연다')).toBeNull()
   expect(screen.getByText(strings.direction.sceneStatus.stale)).toBeTruthy()
+  expect(stale[0]?.getAttribute('aria-current')).toBe('true')
 })
 
 test('an inactive episode says why and cannot be planned', async () => {

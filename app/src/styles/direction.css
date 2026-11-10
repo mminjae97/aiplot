@@ -157,43 +157,206 @@
   accent-color: var(--brass);
 }
 
-.direction-chapters,
-.direction-scenes {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+/* The dual timeline: story order, its links, narration, chapters and tension in one grid, the
+   scenes' columns shared. Wide plans scroll sideways rather than squeeze the scenes. */
+.dual-timeline {
+  display: grid;
+  flex-shrink: 0;
+  grid-template-columns: 44px minmax(calc(var(--columns) * 84px), 1fr);
+  gap: 0 8px;
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-color: var(--ink-faint) transparent;
+  scrollbar-width: thin;
 }
 
-.direction-chapters h4 {
-  margin: 0 0 8px;
-  font-size: var(--size-lead);
-}
-
-.direction-chapters > li + li {
-  margin-top: 18px;
-}
-
-.direction-scenes > li {
-  border-top: 1px solid var(--paper-edge);
-  padding: 8px 0;
-}
-
-.direction-scenes p {
-  margin: 0;
-}
-
-.direction-scene-meta {
-  display: flex;
-  gap: 10px;
+.dual-label {
+  grid-column: 1;
   color: var(--ink-soft);
   font-size: var(--size-small);
 }
 
-.direction-scene-status {
-  margin-left: auto;
+.dual-row,
+.dual-chapters {
+  display: grid;
+  grid-column: 2;
+  grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
 }
 
-.direction-scenes > li[data-status='stale'] .direction-scene-status {
+.timeline-scene {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  align-items: center;
+  margin: 0 4px;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: var(--paper);
+  padding: 5px 2px;
+  transition: background var(--motion);
+}
+
+.timeline-scene:hover {
+  background: var(--paper-edge);
+}
+
+.timeline-scene small {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.timeline-scene[data-reordered] {
+  border-color: var(--brass);
+}
+
+.timeline-scene[data-status='stale'] small {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.timeline-scene[aria-current] {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+  font-weight: 700;
+}
+
+.dual-links {
+  grid-column: 2;
+  width: 100%;
+  height: 56px;
+}
+
+.dual-links path {
+  fill: none;
+  stroke: var(--ink-faint);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.dual-links path[data-reordered] {
+  stroke: var(--brass);
+  stroke-width: 2.5;
+}
+
+.dual-links path[data-selected] {
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+.dual-chapters {
+  margin-top: 6px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  text-align: center;
+}
+
+.dual-chapters span + span {
+  border-left: 1px dashed var(--ink-soft);
+}
+
+.tension-chart {
+  position: relative;
+  grid-column: 2;
+  height: 96px;
+  margin: 10px 0 6px;
+}
+
+.tension-chart svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.tension-grid {
+  stroke: var(--paper-edge);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.tension-cut {
+  stroke: var(--ink-soft);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.tension-line {
+  fill: none;
+  stroke: var(--brass);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.tension-point {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border: 2px solid var(--brass);
+  border-radius: 50%;
+  background: var(--brass);
+}
+
+/* Not directed yet: the stage's tension, hollow. */
+.tension-point[data-estimated] {
+  background: var(--paper);
+}
+
+.dual-legend {
+  grid-column: 2;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.scene-detail {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 8px;
+  border-top: 1px solid var(--paper-edge);
+  padding-top: 12px;
+}
+
+.scene-detail h4 {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  font-size: var(--size-body);
+}
+
+.scene-detail p,
+.scene-detail dl,
+.scene-detail dd,
+.scene-detail ul {
+  margin: 0;
+}
+
+.scene-detail ul {
+  padding-left: 18px;
+}
+
+.scene-detail dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 12px;
+}
+
+.scene-detail dt {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  font-weight: 700;
+}
+
+.direction-scene-status {
+  margin-left: auto;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  font-weight: 400;
+}
+
+.direction-scene-status[data-status='stale'] {
   color: var(--warning);
   font-weight: 700;
 }
