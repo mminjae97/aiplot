@@ -459,6 +459,25 @@ export const strings = {
       `${String(chapter)}화 · ${chars.toLocaleString('ko-KR')}자`,
     sceneMeta: (scene: number, source: string, chars: number) =>
       `장면 ${String(scene)} · ${source} · ${chars.toLocaleString('ko-KR')}자`,
+    timeline: '장면 타임라인',
+    rowStory: '이야기',
+    rowNarration: '서술',
+    rowTension: '긴장',
+    sceneName: (scene: number) => `장면 ${String(scene)}`,
+    reorderedMark: '⇄',
+    sceneLabel: (scene: number, source: string, status: string, reordered: boolean) =>
+      `장면 ${String(scene)}, ${source}, ${status}${reordered ? ', 이야기 순서와 다르게 서술' : ''}`,
+    tensionLabel: (tensions: readonly number[]) =>
+      tensions.length > 0 ? `서술 순서의 긴장도: ${tensions.join(', ')}` : '긴장도 정보가 없어요.',
+    tensionLegend: '● 연출한 비트의 긴장도 · ○ 연출 전 단계의 긴장도 · 점선은 화가 끊기는 자리',
+    core: '핵심',
+    reveal: '공개',
+    sceneShort: {
+      undirected: '연출 전',
+      directed: '연출됨',
+      stale: '다시 연출',
+      confirmed: '확정',
+    },
     sceneStatus: {
       undirected: '아직 연출 안 함',
       directed: '연출됨',

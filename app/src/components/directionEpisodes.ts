@@ -1,6 +1,7 @@
 // The S2 episode list (§9, §11): episodes in reading order, grouped by part, and what the
 // server's active test says about each.
-import type { DirectionPlan, EpisodeCard, Job, PartCard, PlanRecord } from '../types'
+import type { EpisodeCard, Job, PartCard, PlanRecord } from '../types'
+import { narrationOrder } from './dualTimelineLayout'
 
 export type EpisodeRow = { card: EpisodeCard; active: boolean }
 export type EpisodeGroup = { part: PartCard | null; episodes: EpisodeRow[] }
@@ -35,13 +36,9 @@ export function episodeGroups(
   )
 }
 
-export function scenesOf(plan: DirectionPlan) {
-  return plan.chapters.flatMap((chapter) => chapter.scenes)
-}
-
 /** How many of the plan's scenes are confirmed (§9), of how many. */
 export function confirmedScenes(record: PlanRecord): { confirmed: number; total: number } {
-  const scenes = scenesOf(record.plan)
+  const scenes = narrationOrder(record.plan)
   return {
     confirmed: scenes.filter((scene) => scene.status === 'confirmed').length,
     total: scenes.length,
