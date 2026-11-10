@@ -69,10 +69,9 @@ export function TechniqueCardPicker({ scene, disabled, keysActive, saving, onCon
       setDraft(draft.filter((item) => item !== id))
       return
     }
-    const next = cardOf.get(id)
     const chosen = draft.flatMap((item) => cardOf.get(item) ?? [])
-    const refused = next ? pickRefusal(chosen, next) : null
-    if (refused?.kind === 'too_many' || (!next && draft.length >= MAX_CHOSEN)) {
+    const refused = pickRefusal(draft.length, chosen, cardOf.get(id))
+    if (refused?.kind === 'too_many') {
       setRefusal(strings.direction.tooManyCards(MAX_CHOSEN))
     } else if (refused?.kind === 'conflict') {
       setRefusal(strings.direction.conflictCard(refused.name))

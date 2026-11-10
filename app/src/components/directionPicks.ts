@@ -31,9 +31,16 @@ export function deviceGroups(scene: PlanScene): DeviceGroups {
 
 export type PickRefusal = { kind: 'too_many' } | { kind: 'conflict'; name: string }
 
-/** Why `next` cannot join `chosen`, or null. A pair conflicts if either lists the other. */
-export function pickRefusal(chosen: readonly Technique[], next: Technique): PickRefusal | null {
-  if (chosen.length >= MAX_CHOSEN) return { kind: 'too_many' }
+/** Why a card cannot join the `count` picked, or null. `chosen` and `next` are those whose
+ * details have arrived, so the limit goes by the count; a conflict with a card not loaded yet
+ * is left to the server's check on saving. A pair conflicts if either lists the other. */
+export function pickRefusal(
+  count: number,
+  chosen: readonly Technique[],
+  next: Technique | undefined,
+): PickRefusal | null {
+  if (count >= MAX_CHOSEN) return { kind: 'too_many' }
+  if (next === undefined) return null
   const clash = chosen.find(
     (card) => card.conflicts_with.includes(next.id) || next.conflicts_with.includes(card.id),
   )

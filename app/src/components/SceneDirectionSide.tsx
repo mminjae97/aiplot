@@ -42,11 +42,13 @@ export function SceneDirectionSide({ episodeId, record, scene, readOnly, keysAct
   const queryClient = useQueryClient()
   const planKey = ['plans', episodeId]
   const devicesKey = ['plan-devices', record.id]
+  // One save at a time, in order: each device save sends the whole list, so the last click
+  // must win, and each answer is the whole plan.
+  const saveScope = `plan-saves:${record.id}`
 
   const saveDevices = useMutation({
     mutationKey: devicesKey,
-    // One at a time, in order: each sends the whole list, and the last click must win.
-    scope: { id: `plan-devices:${record.id}` },
+    scope: { id: saveScope },
     mutationFn: (devices: TechniqueDevice[]) =>
       api.setSceneDevices(record.id, scene.scene, devices),
     onMutate: (devices) => {
@@ -64,9 +66,13 @@ export function SceneDirectionSide({ episodeId, record, scene, readOnly, keysAct
   })
 
   const pick = useMutation({
+    scope: { id: saveScope },
     mutationFn: (techniques: string[]) => api.pickTechniques(record.id, scene.scene, techniques),
     onSuccess: (updated) => {
-      queryClient.setQueryData<PlanList>(planKey, { plans: [updated] })
+      // A device click still on its way shows at once, and its answer carries these cards.
+      if (queryClient.isMutating({ mutationKey: devicesKey }) === 0) {
+        queryClient.setQueryData<PlanList>(planKey, { plans: [updated] })
+      }
     },
   })
 

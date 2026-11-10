@@ -34,19 +34,25 @@ test('scene and episode cards are candidates; serial and sentence-only ones are 
 
 test('a fourth card is too many', () => {
   const three = [card('a', '가'), card('b', '나'), card('c', '다')]
-  expect(pickRefusal(three, card('d', '라'))).toEqual({ kind: 'too_many' })
+  expect(pickRefusal(3, three, card('d', '라'))).toEqual({ kind: 'too_many' })
+})
+
+test('the limit goes by the count, even with cards not loaded yet', () => {
+  expect(pickRefusal(3, [card('a', '가')], card('d', '라'))).toEqual({ kind: 'too_many' })
+  expect(pickRefusal(3, [], undefined)).toEqual({ kind: 'too_many' })
+  expect(pickRefusal(2, [], undefined)).toBeNull()
 })
 
 test('a pair conflicts if either lists the other', () => {
-  expect(pickRefusal([card('a', '가', ['b'])], card('b', '나'))).toEqual({
+  expect(pickRefusal(1, [card('a', '가', ['b'])], card('b', '나'))).toEqual({
     kind: 'conflict',
     name: '가',
   })
-  expect(pickRefusal([card('a', '가')], card('b', '나', ['a']))).toEqual({
+  expect(pickRefusal(1, [card('a', '가')], card('b', '나', ['a']))).toEqual({
     kind: 'conflict',
     name: '가',
   })
-  expect(pickRefusal([card('a', '가')], card('b', '나'))).toBeNull()
+  expect(pickRefusal(1, [card('a', '가')], card('b', '나'))).toBeNull()
 })
 
 test('the same cards in another order are other cards', () => {

@@ -196,7 +196,12 @@ function mockServer(state: World) {
         return json({ techniques: world.catalog ?? [] })
       }
       const technique = /^\/techniques\/(.+)$/.exec(path)
-      if (technique) return json(world.techniques?.[technique[1] ?? ''] ?? {})
+      if (technique) {
+        const found = world.techniques?.[technique[1] ?? '']
+        return found
+          ? json(found)
+          : json({ code: 'TECHNIQUE_NOT_FOUND', message: 'no', hint: null }, 404)
+      }
       if (method === 'PUT' && path.endsWith('/devices')) {
         const body = JSON.parse(init.body as string) as { devices: string[] }
         deviceSaves.push(body)
@@ -737,6 +742,18 @@ test('a fourth card is refused with the reason', async () => {
   fireEvent.click(await pickRow('엡실론'))
   expect((await screen.findByRole('alert')).textContent).toBe(strings.direction.tooManyCards(3))
   expect((await pickRow('엡실론')).checked).toBe(false)
+})
+
+test('three saved cards are the limit even if one of them cannot be read', async () => {
+  mockServer({
+    plans: { c_ep1: [sided({ chosen: ['tech_a', 'tech_b', 'tech_missing'] })] },
+    techniques: CARDS,
+  })
+  renderBook(SCREEN)
+  await screen.findByText('알파 예시')
+  fireEvent.click(await pickRow('델타'))
+  expect((await screen.findByRole('alert')).textContent).toBe(strings.direction.tooManyCards(3))
+  expect((await pickRow('델타')).checked).toBe(false)
 })
 
 test('a conflicting card is refused with the reason', async () => {
