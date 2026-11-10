@@ -13,10 +13,11 @@ CREATE TABLE chapter (
     read INTEGER NOT NULL DEFAULT 0 CHECK (read IN (0, 1)),
     progress_summary TEXT,
     summary_long TEXT,
-    summary_short TEXT,
-    UNIQUE (work_id, number)
+    summary_short TEXT
 );
 
+-- Not unique: numbering per worldline (§7) would repeat numbers within a work.
+CREATE INDEX chapter_work_number ON chapter (work_id, number);
 CREATE INDEX chapter_plan ON chapter (plan_id);
 
 CREATE TABLE beat (
