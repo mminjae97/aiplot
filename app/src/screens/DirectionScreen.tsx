@@ -82,6 +82,8 @@ export function DirectionScreen({
       queryKey: ['plans', id],
       queryFn: () => api.listPlans(id),
       enabled: started,
+      // Only this page changes plans; a refetch on focus would only flicker the make button.
+      refetchOnWindowFocus: false,
     })),
   })
   const planOf = new Map(activeIds.map((id, at) => [id, planQueries[at]]))
