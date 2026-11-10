@@ -2,6 +2,8 @@
 
 A role's system prompt is its prompt file, sent first and unchanged on every call so the
 llama.cpp prompt cache reuses it; callers pass the remaining turns (tagged context blocks).
+A role with a style framework (write, §10) gets the style's role line before the prompt file
+and its every-beat sections after it, the same on every call too.
 """
 
 import re
@@ -15,6 +17,7 @@ from pydantic import BaseModel, ValidationError
 from aiplot.llm import lora
 from aiplot.llm.client import ChatRequest, Delta, LlmClient, LlmError, Message, Usage
 from aiplot.llm.config import PROMPTS_DIR, LlmConfig, Role, prompt_path
+from aiplot.llm.style import STYLE_DIR, Style, StyleError, load_style
 
 # Author notes in prompt files never reach the model.
 COMMENT = re.compile(r"<!--.*?-->\n?", re.DOTALL)
@@ -23,12 +26,14 @@ JSON_ATTEMPTS = 2
 
 @dataclass(frozen=True)
 class OutputMeta:
-    """Stored with every output (§5): which prompt, base and LoRA produced it."""
+    """Stored with every output (§5): which prompt, base, LoRA and style produced it."""
 
     role: Role
     prompt_version: int
     profile: str
     lora: str | None
+    style_id: str | None = None
+    style_version: int | None = None
 
 
 @dataclass(frozen=True)
@@ -49,16 +54,41 @@ class Router:
         *,
         lora_dir: Path,
         prompts_dir: Path = PROMPTS_DIR,
+        style_dir: Path = STYLE_DIR,
     ) -> None:
         self._config = config
         self._client = client
         self._lora_dir = lora_dir
         self._prompts_dir = prompts_dir
+        self._style_dir = style_dir
         self._prompts: dict[Role, str] = {}
+        self._styles: dict[Role, Style] = {}
 
     def meta(self, role: Role) -> OutputMeta:
         config = self._config.roles[role]
-        return OutputMeta(role, config.prompt, config.profile, config.lora)
+        style = config.style
+        return OutputMeta(
+            role,
+            config.prompt,
+            config.profile,
+            config.lora,
+            style.id if style else None,
+            style.version if style else None,
+        )
+
+    def style(self, role: Role) -> Style | None:
+        """The role's style framework (roles.yaml), read once; None for roles without one."""
+        if role not in self._config.roles:
+            raise LlmError("ROLE_NOT_CONFIGURED", f"role {role} is not in roles.yaml")
+        ref = self._config.roles[role].style
+        if ref is None:
+            return None
+        if role not in self._styles:
+            try:
+                self._styles[role] = load_style(ref.id, ref.version, self._style_dir)
+            except StyleError as exc:
+                raise LlmError("PROMPT_MISSING", f"{role}: {exc}") from exc
+        return self._styles[role]
 
     def system_prompt(self, role: Role) -> str:
         if role not in self._prompts:
@@ -67,7 +97,12 @@ class Router:
                 text = path.read_text(encoding="utf-8")
             except OSError as exc:
                 raise LlmError("PROMPT_MISSING", f"{role}: {exc}") from exc
-            self._prompts[role] = COMMENT.sub("", text).strip()
+            prompt = COMMENT.sub("", text).strip()
+            style = self.style(role)
+            if style is not None:
+                parts = (style.role, prompt, style.every_beat)
+                prompt = "\n\n".join(part for part in parts if part)
+            self._prompts[role] = prompt
         return self._prompts[role]
 
     def request(

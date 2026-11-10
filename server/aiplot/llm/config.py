@@ -165,11 +165,21 @@ class LlamaBuild(StrictModel):
     archives: tuple[LlamaArchive, ...] = Field(strict=False, min_length=1)
 
 
+class StyleRef(StrictModel):
+    """A style framework file, data/style/{id}-v{version}.md (§10)."""
+
+    id: str = Field(pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$")
+    version: int = Field(ge=1)
+
+
 class RoleConfig(StrictModel):
     profile: str
     lora: str | None
     prompt: int = Field(ge=1)
     thinking: bool
+    # The style framework the role writes in (write only): its every-beat sections join the
+    # system prompt.
+    style: StyleRef | None = None
     sampling: SamplingOverride = SamplingOverride()
     max_tokens: int = Field(gt=0)
 
