@@ -63,8 +63,9 @@ subset. Results stay out of git (eval/results/ is gitignored).
   the top) and a note. Scores stay in the browser (localStorage, per page) and leave it only by
   "JSON 내보내기" as `scores-{scorer}-{page}.json`. A bundle whose plan failed is struck out
   in the number bar and has no form.
-- `bundles.md`: the same bundles as text, for Claude to score apart, written by hand as the
-  same JSON (`"scorer": "claude"`), before reading the user's scores.
+- `bundles.md`: the same bundles as text, for Claude scorers: each a fresh agent writing the
+  same JSON (`"scorer": "claude"`, `"claude2"`) without reading `key.json` or another's scores.
+  Run 1 was scored this way by two agents; no person scored it (CLAUDE.md §20 step 4).
 - `key.json`: bundle number → episode id, genre and whether it can be scored. Not for scorers.
 
 ```
