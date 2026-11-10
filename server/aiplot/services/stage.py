@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from aiplot.db import cards as cards_db
+from aiplot.db import chapters as chapters_db
 from aiplot.db import plans as plans_db
 from aiplot.db import snapshots as snapshots_db
 from aiplot.db import works as works_db
@@ -88,17 +89,29 @@ def advance_preview(conn: sqlite3.Connection, work_id: str) -> StageAdvancePrevi
 
 
 def reopen_preview(conn: sqlite3.Connection, work_id: str, stage: int) -> StageReopenPreview:
-    """What reopening the locked stage deletes: planning takes the direction plans with it (and,
-    from step 7, the manuscript); direction only the manuscript."""
+    """What reopening the locked stage deletes: planning takes the direction plans and the
+    manuscript with it; direction only the manuscript. Chapters are counted once they hold
+    text."""
     work = require_work(conn, work_id)
     if stage < 1 or stage > work.locked_stage:
         raise StageNotLockedError(f"stage {stage} of {work_id} is not locked")
     plans = plans_db.count_for_work(conn, work_id) if stage == 1 else 0
-    # Written chapters get their tables in step 7 (§20); until then there is no manuscript.
-    chapters = 0
+    chapters = chapters_db.written_count(conn, work_id)
     return StageReopenPreview(
         stage=stage, plans=plans, chapters=chapters, title_required=chapters > 0
     )
+
+
+def check_reopen(conn: sqlite3.Connection, work_id: str, stage: int, title: str | None) -> None:
+    """The stage is locked, and the work's title was typed if a manuscript goes (§5, §11)."""
+    if not reopen_preview(conn, work_id, stage).title_required:
+        return
+    try:
+        typed = clean_title(title or "")
+    except (TitleEmptyError, TitleTooLongError):
+        typed = None
+    if typed != require_work(conn, work_id).title:
+        raise TitleMismatchError("the typed title does not match the work's")
 
 
 def snapshot_name(snapshots_dir: Path, work_id: str, stage: int, at: datetime) -> str:
@@ -116,15 +129,7 @@ def reopen(
 ) -> Work:
     """Copies the database to a snapshot, then deletes what the stage's later stages hold and
     opens it again (§11); cards are kept. A failed copy deletes nothing."""
-    preview = reopen_preview(conn, work_id, stage)
-    if preview.title_required:
-        work = require_work(conn, work_id)
-        try:
-            typed = clean_title(title or "")
-        except (TitleEmptyError, TitleTooLongError):
-            typed = None
-        if typed != work.title:
-            raise TitleMismatchError("the typed title does not match the work's")
+    check_reopen(conn, work_id, stage, title)
     at = datetime.now(UTC)
     try:
         snapshots_dir.mkdir(parents=True, exist_ok=True)
@@ -134,8 +139,10 @@ def reopen(
         raise SnapshotFailedError(f"could not write the snapshot: {exc}") from exc
     try:
         with transaction(conn):
-            # Checked again: another request may have reopened or advanced meanwhile.
-            reopen_preview(conn, work_id, stage)
+            # Checked again: another request may have reopened or advanced meanwhile, or a
+            # first beat been written (the title is needed then).
+            check_reopen(conn, work_id, stage, title)
+            chapters_db.delete_for_work(conn, work_id)
             if stage == 1:
                 plans_db.delete_for_work(conn, work_id)
             works_db.reopen_stage(conn, work_id, stage, now())

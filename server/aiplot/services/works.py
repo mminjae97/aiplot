@@ -12,6 +12,7 @@ from aiplot.db import works as db
 from aiplot.db.connection import transaction
 from aiplot.generated.works.work import Work
 from aiplot.generated.works.work_update import WorkUpdate
+from aiplot.services import manuscript
 
 TITLE_MAX = 100
 
@@ -142,7 +143,8 @@ def require_current(conn: sqlite3.Connection, work_id: str, stage: int) -> Work:
 def advance(conn: sqlite3.Connection, work_id: str) -> Work:
     """Starts the next stage and locks the earlier ones (§1, §11). Incomplete cards never
     block it; they become inactive. Planning -> direction needs one active episode, direction
-    -> writing every active episode's plan confirmed."""
+    -> writing every active episode's plan confirmed; the plans then become the manuscript's
+    chapters and beats (§14)."""
     with transaction(conn):
         work = db.get(conn, work_id)
         if work is None:
@@ -154,6 +156,7 @@ def advance(conn: sqlite3.Connection, work_id: str) -> Work:
             if db.active_episode_count(conn, work_id) == 0 or db.unconfirmed_count(conn, work_id):
                 raise StageNotReadyError("every active episode's direction must be confirmed")
             db.advance_stage(conn, work_id, 3, now())
+            manuscript.create(conn, work_id)
         else:
             if db.active_episode_count(conn, work_id) == 0:
                 raise NoActiveEpisodeError("no complete episode in a complete part and main story")

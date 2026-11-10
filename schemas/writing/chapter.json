@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Chapter",
+  "description": "A chapter of the manuscript (§14 chapter): made from a confirmed direction plan's chapter when writing starts, with its beats in narration order.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "plan_id", "episode_id", "number", "target_chars", "read", "chars", "beats"],
+  "properties": {
+    "id": { "$ref": "../common/chapter-id.json" },
+    "plan_id": { "$ref": "../common/plan-id.json" },
+    "episode_id": { "$ref": "../common/card-id.json" },
+    "number": {
+      "description": "1..n within the work, in story order of the episodes.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "target_chars": {
+      "description": "Characters incl. spaces; the chapter's beat targets sum to it.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "read": { "type": "boolean" },
+    "chars": {
+      "description": "Characters incl. spaces written so far (the beats' current versions).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "beats": {
+      "description": "In narration order.",
+      "type": "array",
+      "items": {
+        "title": "ChapterBeat",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "order",
+          "scene",
+          "source_stage",
+          "summary",
+          "techniques",
+          "pov",
+          "mode",
+          "focus",
+          "density",
+          "tension",
+          "target_chars",
+          "version",
+          "chars"
+        ],
+        "properties": {
+          "id": { "$ref": "../common/beat-id.json" },
+          "order": {
+            "description": "1..n within the chapter.",
+            "type": "integer",
+            "minimum": 1
+          },
+          "scene": {
+            "description": "The plan scene the beat belongs to (its story-order number).",
+            "type": "integer",
+            "minimum": 1
+          },
+          "source_stage": {
+            "description": "The episode structure stage the beat's scene comes from.",
+            "type": "string",
+            "minLength": 1
+          },
+          "summary": {
+            "description": "What happens in the beat (the write role's instruction).",
+            "type": "string",
+            "minLength": 1
+          },
+          "techniques": {
+            "type": "array",
+            "items": { "$ref": "../common/technique-id.json" }
+          },
+          "pov": { "type": "string", "minLength": 1 },
+          "mode": { "$ref": "../direction/beat-mode.json" },
+          "focus": { "$ref": "../direction/beat-focus.json" },
+          "density": { "$ref": "../direction/beat-density.json" },
+          "tension": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "target_chars": {
+            "description": "Characters incl. spaces, from the plan.",
+            "type": "integer",
+            "minimum": 1
+          },
+          "version": {
+            "description": "The current version's number; null until the beat is written.",
+            "type": ["integer", "null"],
+            "minimum": 1
+          },
+          "chars": {
+            "description": "The current version's characters incl. spaces; null until written.",
+            "type": ["integer", "null"],
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}
