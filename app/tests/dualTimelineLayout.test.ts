@@ -1,8 +1,12 @@
 import { expect, test } from 'vitest'
 import {
   chapterSpans,
+  layoutOf,
+  moveCut,
+  moveScene,
   narrationOrder,
   reorderedScenes,
+  sameLayout,
   storyOrder,
   tensionPoints,
 } from '../src/components/dualTimelineLayout'
@@ -89,4 +93,52 @@ test('undirected scenes take their stage tension, or give no point if it has non
     { x: 3.5, tension: 4, estimated: true },
   ])
   expect(tensionPoints(p, null)).toEqual([])
+})
+
+test('the layout is what PATCH takes; equal layouts are equal', () => {
+  const layout = layoutOf(plan([[3, 1], [2]]))
+  expect(layout).toEqual([[3, 1], [2]])
+  expect(sameLayout(layout, [[3, 1], [2]])).toBe(true)
+  expect(sameLayout(layout, [[3], [1, 2]])).toBe(false)
+})
+
+const TWO = [
+  [1, 2, 3],
+  [4, 5],
+]
+
+test('a scene lands before or after its target, in the target chapter', () => {
+  expect(moveScene(TWO, 4, 1, false)).toEqual([[4, 1, 2, 3], [5]])
+  expect(moveScene(TWO, 1, 3, true)).toEqual([
+    [2, 3, 1],
+    [4, 5],
+  ])
+  expect(moveScene(TWO, 3, 4, true)).toEqual([
+    [1, 2],
+    [4, 3, 5],
+  ])
+})
+
+test('dropped on itself nothing changes', () => {
+  expect(sameLayout(moveScene(TWO, 2, 2, true), TWO)).toBe(true)
+})
+
+test('a chapter left empty goes', () => {
+  expect(moveScene([[1, 2], [3]], 3, 1, false)).toEqual([[3, 1, 2]])
+})
+
+test('a cut moves to a boundary between scenes', () => {
+  expect(moveCut(TWO, 0, 2)).toEqual([
+    [1, 2],
+    [3, 4, 5],
+  ])
+  expect(moveCut(TWO, 0, 4)).toEqual([[1, 2, 3, 4], [5]])
+})
+
+test('a cut stays clear of its neighbours and the ends: no chapter goes empty', () => {
+  const three = [[1, 2], [3], [4, 5]]
+  expect(moveCut(three, 0, 9)).toEqual([[1, 2], [3], [4, 5]])
+  expect(moveCut(three, 1, 1)).toEqual([[1, 2], [3], [4, 5]])
+  expect(moveCut(TWO, 0, 0)).toEqual([[1], [2, 3, 4, 5]])
+  expect(moveCut(TWO, 0, 99)).toEqual([[1, 2, 3, 4], [5]])
 })

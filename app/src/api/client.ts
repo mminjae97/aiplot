@@ -19,6 +19,7 @@ import type {
   JobAccepted,
   JobList,
   PlanList,
+  PlanRecord,
   SetupPathsRequest,
   SetupStatus,
   StageAdvancePreview,
@@ -115,6 +116,12 @@ export const api = {
   listWorkJobs: (workId: string) => request<JobList>(`${work(workId)}/jobs`),
   listPlans: (episodeId: string) =>
     request<PlanList>(`/episodes/${encodeURIComponent(episodeId)}/plans`),
+  /** PATCH /plans/{planId}: the told order and cuts; scenes whose place changed go stale. */
+  rearrangePlan: (planId: string, chapters: number[][]) =>
+    request<PlanRecord>(`/plans/${encodeURIComponent(planId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ chapters }),
+    }),
   /** POST /episodes/{episodeId}/plans (job): replace drops the plan the episode has. */
   createPlan: (episodeId: string, replace: boolean) =>
     request<JobAccepted>(

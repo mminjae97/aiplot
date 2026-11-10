@@ -118,7 +118,9 @@ type World = {
   events?: string
   // The job is over before the list first shows it.
   instant?: boolean
-  // POST /episodes/.../plans answers with this error code.
+  // The answer to PATCH /plans/pl_1.
+  patched?: PlanRecord
+  // POST /episodes/.../plans and PATCH /plans/pl_1 answer with this error code.
   refuse?: string
   plansFail?: boolean
   slowPlans?: boolean
@@ -126,11 +128,13 @@ type World = {
 type Call = { method: string; path: string }
 
 let calls: Call[]
+let patches: string[]
 let world: World
 
 function mockServer(state: World) {
   world = state
   calls = []
+  patches = []
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string, init: RequestInit = {}) => {
@@ -166,6 +170,11 @@ function mockServer(state: World) {
           return json({ jobId: 'job_1' }, 202)
         }
         return json({ plans: world.plans?.[plans[1] ?? ''] ?? [] })
+      }
+      if (method === 'PATCH' && path === '/plans/pl_1') {
+        patches.push(init.body as string)
+        if (world.refuse) return json({ code: world.refuse, message: 'no', hint: null }, 422)
+        return json(world.patched ?? RECORD)
       }
       if (path.startsWith('/jobs/job_1/events'))
         return Promise.resolve(new Response(world.events ?? '', { status: 200 }))
@@ -238,6 +247,144 @@ test('a plan is laid out in story order over narration, and a scene opens on cli
   expect(screen.queryByText('문을 연다')).toBeNull()
   expect(screen.getByText(strings.direction.sceneStatus.stale)).toBeTruthy()
   expect(stale[0]?.getAttribute('aria-current')).toBe('true')
+})
+
+const THREE = {
+  ...RECORD,
+  plan: {
+    episode: 'c_ep1',
+    chapters: [
+      {
+        chapter: 1,
+        target_chars: 5500,
+        scenes: [1, 2].map((scene) => ({
+          scene,
+          status: 'undirected',
+          source: '위기',
+          summary: `요약 ${String(scene)}`,
+          core: '핵심',
+          reveal: [],
+          beats: [],
+          target_chars: 2750,
+        })),
+      },
+      {
+        chapter: 2,
+        target_chars: 5500,
+        scenes: [3].map((scene) => ({
+          scene,
+          status: 'undirected',
+          source: '위기',
+          summary: `요약 ${String(scene)}`,
+          core: '핵심',
+          reveal: [],
+          beats: [],
+          target_chars: 5500,
+        })),
+      },
+    ],
+  },
+} as unknown as PlanRecord
+
+/** The told row of the timeline, 300px wide from x = 0: 100px a column. */
+async function toldRow() {
+  const timeline = await screen.findByRole('group', { name: strings.direction.timeline })
+  const nodes = within(timeline).getAllByRole('button')
+  const told = nodes.slice(nodes.length / 2)
+  const row = told[0]?.parentElement as HTMLElement
+  row.getBoundingClientRect = () => ({ left: 0, width: 300 }) as DOMRect
+  told.forEach((node) => {
+    node.setPointerCapture = () => undefined
+  })
+  return { timeline, told }
+}
+
+function dragTo(node: HTMLElement, from: number, to: number) {
+  fireEvent.pointerDown(node, { clientX: from, button: 0, pointerId: 1 })
+  fireEvent.pointerMove(node, { clientX: to, pointerId: 1 })
+  fireEvent.pointerUp(node, { clientX: to, pointerId: 1 })
+}
+
+test('dragging a told scene sends the new order, and the answer is shown', async () => {
+  const moved = {
+    ...THREE,
+    plan: {
+      ...THREE.plan,
+      chapters: [
+        { ...THREE.plan.chapters[0], scenes: [...THREE.plan.chapters[0].scenes].reverse() },
+        THREE.plan.chapters[1],
+      ],
+    },
+  } as unknown as PlanRecord
+  mockServer({ plans: { c_ep1: [THREE] }, patched: moved })
+  renderBook(SCREEN)
+  const { timeline, told } = await toldRow()
+  dragTo(told[0] as HTMLElement, 50, 180)
+  await waitFor(() => {
+    expect(patches.map((body) => JSON.parse(body) as unknown)).toEqual([
+      { chapters: [[2, 1], [3]] },
+    ])
+  })
+  await waitFor(() => {
+    const names = within(timeline)
+      .getAllByRole('button')
+      .map((node) => node.querySelector('.timeline-scene-name')?.textContent.replace(/\D/g, ''))
+    expect(names).toEqual(['1', '2', '3', '2', '1', '3'])
+  })
+  // The click ending the drag does not pick the scene: the first told stays open.
+  fireEvent.click(told[0] as HTMLElement)
+  expect(screen.getByText('요약 2')).toBeTruthy()
+  expect(screen.queryByText('요약 1')).toBeNull()
+})
+
+test('a scene that barely moves is a click: it opens, nothing is sent', async () => {
+  mockServer({ plans: { c_ep1: [THREE] } })
+  renderBook(SCREEN)
+  const { told } = await toldRow()
+  dragTo(told[1] as HTMLElement, 150, 152)
+  fireEvent.click(told[1] as HTMLElement)
+  await screen.findByText('요약 2')
+  expect(patches).toEqual([])
+})
+
+test('dropped where it was, nothing is sent', async () => {
+  mockServer({ plans: { c_ep1: [THREE] } })
+  renderBook(SCREEN)
+  const { told } = await toldRow()
+  dragTo(told[0] as HTMLElement, 50, 40)
+  expect(patches).toEqual([])
+})
+
+test('dragging a cut moves it between scenes', async () => {
+  mockServer({ plans: { c_ep1: [THREE] } })
+  renderBook(SCREEN)
+  await toldRow()
+  const cut = screen.getByRole('separator', { name: strings.direction.cutLabel(1) })
+  cut.setPointerCapture = () => undefined
+  dragTo(cut, 200, 95)
+  await waitFor(() => {
+    expect(patches.map((body) => JSON.parse(body) as unknown)).toEqual([
+      { chapters: [[1], [2, 3]] },
+    ])
+  })
+})
+
+test('a refused change says why and the plan stays', async () => {
+  mockServer({ plans: { c_ep1: [THREE] }, refuse: 'PLAN_LAYOUT_INVALID' })
+  renderBook(SCREEN)
+  const { told } = await toldRow()
+  dragTo(told[0] as HTMLElement, 50, 180)
+  const alert = await screen.findByRole('alert')
+  expect(alert.textContent).toContain(strings.direction.errors.PLAN_LAYOUT_INVALID)
+})
+
+test('once locked nothing drags', async () => {
+  mockServer({ work: { ...WORK, stage: 3, locked_stage: 2 }, plans: { c_ep1: [THREE] } })
+  renderBook(SCREEN)
+  const { told } = await toldRow()
+  dragTo(told[0] as HTMLElement, 50, 180)
+  expect(patches).toEqual([])
+  expect(screen.queryByRole('separator')).toBeNull()
 })
 
 test('an inactive episode says why and cannot be planned', async () => {
