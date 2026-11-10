@@ -2,7 +2,7 @@
 
 import json
 import sqlite3
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -416,6 +416,17 @@ def tied_worlds(conn: sqlite3.Connection, card_id: str, card_type: str) -> set[s
     else:
         return set()
     return {row[0] for row in conn.execute(sql, (card_id,))}
+
+
+def worlds_tied_to(conn: sqlite3.Connection, card_ids: Sequence[str]) -> list[str]:
+    """The world cards listing any of these cards in their 함께 보기 (world_relation), each
+    once, in the order they were tied."""
+    marks = ", ".join("?" for _ in card_ids)
+    rows = conn.execute(
+        f"SELECT world_id FROM world_relation WHERE card_id IN ({marks}) ORDER BY rowid",
+        tuple(card_ids),
+    ).fetchall()
+    return list(dict.fromkeys(row[0] for row in rows))
 
 
 @dataclass(frozen=True)
