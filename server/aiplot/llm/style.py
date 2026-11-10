@@ -24,6 +24,13 @@ TENSION_RANGE = re.compile(r"\A([1-5])(?:-([1-5]))?\Z")
 # Every beat, in this order, after the role line.
 EVERY_BEAT = ("summary", "rules", "dialogue", "format")
 BANNED_LABEL = "금지 표현"
+# The beat values (§9) a by_mode, by_focus or by_density heading may name.
+BEAT_VALUES: dict[str, frozenset[str]] = {
+    "by_mode": frozenset({"장면화", "요약"}),
+    "by_focus": frozenset({"감정", "행동", "정보"}),
+    "by_density": frozenset({"담백", "자세히"}),
+}
+EXAMPLE_VALUES = frozenset().union(*BEAT_VALUES.values())
 
 
 class StyleError(ValueError):
@@ -138,6 +145,23 @@ def parse_style(text: str, style_id: str, version: int, name: str = "style") -> 
     parts = [sections.get(key, "") for key in EVERY_BEAT]
     if phrases:
         parts.append(f"{BANNED_LABEL}: " + ", ".join(f'"{phrase}"' for phrase in phrases))
+    by = {
+        key: subsections(sections.get(key, ""))
+        for key in ("by_mode", "by_focus", "by_density", "by_pov", "by_tension")
+    }
+    # A heading no beat can match would be left out without a word.
+    for key, allowed in BEAT_VALUES.items():
+        unknown = sorted(set(by[key]) - allowed)
+        if unknown:
+            raise StyleError(f"{name}: {key} has unknown headings {unknown}")
+    unknown = sorted(h for h in by["by_tension"] if TENSION_RANGE.match(h) is None)
+    if unknown:
+        raise StyleError(f"{name}: by_tension has unknown headings {unknown}")
+    found = examples(sections.get("examples", ""))
+    for example in found:
+        unknown = sorted(example.applies - EXAMPLE_VALUES)
+        if unknown:
+            raise StyleError(f"{name}: example {example.title}: unknown values {unknown}")
     return Style(
         id=style_id,
         version=version,
@@ -145,11 +169,8 @@ def parse_style(text: str, style_id: str, version: int, name: str = "style") -> 
         every_beat="\n\n".join(part for part in parts if part),
         banned_phrases=tuple(phrases),
         banned_patterns=tuple(patterns),
-        examples=tuple(examples(sections.get("examples", ""))),
-        by={
-            key: subsections(sections.get(key, ""))
-            for key in ("by_mode", "by_focus", "by_density", "by_pov", "by_tension")
-        },
+        examples=tuple(found),
+        by=by,
     )
 
 

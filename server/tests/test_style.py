@@ -108,8 +108,8 @@ def test_every_beat_sections_come_in_a_fixed_order_without_comments() -> None:
 def test_only_matching_sections_go_with_a_beat() -> None:
     style = parse_style(SAMPLE, "sample", 2)
     always = "예시: 늘 넣는 예\n좋은 예: 숨이 걸렸다."
-    # 요약 has no text, 행동 no subsection, 자세히 no subsection, tension 3 no heading.
-    assert style.for_beat(**beat(density="보통")) == always
+    # 요약 has no text, 행동 no subsection, tension 3 no heading.
+    assert style.for_beat(**beat(density="담백")) == "- 꾸밈없이 쓴다.\n\n" + always
     matched = style.for_beat(
         **beat(mode="장면화", focus="감정", density="담백", pov="테오 1인칭", tension=2)
     )
@@ -153,6 +153,10 @@ def test_banned_phrases_and_patterns_are_found_in_the_text() -> None:
         (SAMPLE.replace("id: sample", "id: other"), "id sample"),
         (SAMPLE.replace("너는 작가다.\n", ""), "role"),
         (SAMPLE.replace("/^\\s*(알겠습니다|네,)/", "/(/"), "banned pattern"),
+        (SAMPLE.replace("### 장면화", "### 장면"), "by_mode has unknown headings"),
+        (SAMPLE.replace("### 담백", "### 담백하게"), "by_density has unknown headings"),
+        (SAMPLE.replace("### 1-2", "### 1~2"), "by_tension has unknown headings"),
+        (SAMPLE.replace("적용: 감정, 자세히", "적용: 감정, 자세하게"), "unknown values"),
     ],
 )
 def test_a_broken_style_file_is_refused(text: str, message: str) -> None:
