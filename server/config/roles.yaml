@@ -60,3 +60,15 @@ roles:
     thinking: true
     sampling: { temperature: 0.3 }
     max_tokens: 7500
+  # Step 7 (§10): one beat's prose, streamed. Sampling as in unit 5's prose runs (temperature
+  # 0.8, presence 1.5: no sentence loops in 20 beats on either quant); the profile's top_p,
+  # top_k and min_p stay. max_tokens 1500 as there (a 1000-char beat is ~800 tokens); both are
+  # drafts until the step 7 length run.
+  write:
+    profile: qwen3-8b-uncensor-q5km
+    lora: null
+    prompt: 1
+    thinking: false
+    style: { id: webnovel-style, version: 3 }
+    sampling: { temperature: 0.8, presence_penalty: 1.5 }
+    max_tokens: 1500

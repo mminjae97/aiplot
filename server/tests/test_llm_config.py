@@ -30,7 +30,7 @@ def edit_role(config_dir: Path, role: str, change: dict[str, object]) -> None:
 
 def test_shipped_config_loads() -> None:
     config = load_llm_config()
-    assert set(config.roles) == {"chat", "source", "card", "scene", "arrange", "direct"}
+    assert set(config.roles) == {"chat", "source", "card", "scene", "arrange", "direct", "write"}
     assert set(config.profiles) == {Q4, Q5}
     assert all(role.profile == Q5 for role in config.roles.values())
     assert config.profile_for("chat").gguf.file == "Qwen3-8B-Uncensor-v2.i1-Q5_K_M.gguf"
