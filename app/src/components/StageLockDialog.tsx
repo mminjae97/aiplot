@@ -52,9 +52,12 @@ export function StageLockDialog({ work, action, onClose, onDone }: Props) {
 
   const preview = action.kind === 'advance' ? advancePreview : reopenPreview
   const titleRequired = reopenPreview.data?.title_required ?? false
+  // Advancing from direction starts the writing (§11).
+  const writing = action.kind === 'advance' && work.stage === 2
   const ready =
     action.kind === 'advance'
-      ? (advancePreview.data?.active_episodes ?? 0) > 0
+      ? (advancePreview.data?.active_episodes ?? 0) > 0 &&
+        (!writing || advancePreview.data?.unconfirmed_episodes === 0)
       : reopenPreview.isSuccess && (!titleRequired || cleanTitle(typed) === work.title)
 
   const confirm = () => {
@@ -93,7 +96,9 @@ export function StageLockDialog({ work, action, onClose, onDone }: Props) {
       >
         <h2 id="stage-lock-title">
           {action.kind === 'advance'
-            ? strings.stageLock.advanceTitle
+            ? writing
+              ? strings.stageLock.writeTitle
+              : strings.stageLock.advanceTitle
             : strings.contents.reopenOf(stageName)}
         </h2>
         <div id="stage-lock-what" className="delete-book-what">
@@ -156,7 +161,11 @@ export function StageLockDialog({ work, action, onClose, onDone }: Props) {
             aria-busy={run.isPending}
           >
             {run.isPending && <span className="spinner" aria-hidden="true" />}
-            {action.kind === 'advance' ? strings.stageLock.start : strings.stageLock.reopen}
+            {action.kind !== 'advance'
+              ? strings.stageLock.reopen
+              : writing
+                ? strings.stageLock.writeStart
+                : strings.stageLock.start}
           </button>
         </div>
       </form>
@@ -168,14 +177,17 @@ function AdvanceWhat({ preview }: { preview: StageAdvancePreview }) {
   const name = (card: { name: string | null }) => card.name ?? strings.drawer.untitled
   return (
     <>
-      <p>{strings.stageLock.advanceQuestion}</p>
-      <p>{strings.stageLock.advanceLock}</p>
+      <p>
+        {preview.stage === 2 ? strings.stageLock.writeQuestion : strings.stageLock.advanceQuestion}
+      </p>
+      <p>{preview.stage === 2 ? strings.stageLock.writeLock : strings.stageLock.advanceLock}</p>
       {preview.active_episodes > 0 ? (
         <p>{strings.stageLock.activeEpisodes(preview.active_episodes)}</p>
       ) : (
         <p className="stage-lock-warning">{strings.stageLock.noActive}</p>
       )}
-      {preview.incomplete.length > 0 && (
+      {/* From direction they are out already. */}
+      {preview.stage === 1 && preview.incomplete.length > 0 && (
         <>
           <p className="stage-lock-warning">
             {strings.stageLock.incompleteHeading(preview.incomplete.length)}

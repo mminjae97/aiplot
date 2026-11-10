@@ -186,6 +186,12 @@ function mockServer(state: World) {
       calls.push({ method, path })
       const json = (data: unknown, status = 200) =>
         Promise.resolve(new Response(JSON.stringify(data), { status }))
+      if (path === '/works/w_1/stage/advance-preview') {
+        return json({ stage: 2, active_episodes: 2, unconfirmed_episodes: 0, incomplete: [] })
+      }
+      if (method === 'POST' && path === '/works/w_1/stage/advance') {
+        return json({ ...WORK, stage: 3, locked_stage: 2 })
+      }
       if (path === '/works/w_1') return json(world.work ?? WORK)
       if (path === '/works/w_1/cards?type=main_story') return json({ cards: [MAIN] })
       if (path === '/works/w_1/cards?type=part') return json({ cards: [PART] })
@@ -1160,5 +1166,65 @@ test('directing again clears an earlier save failure', async () => {
   await screen.findByText(strings.direction.directing)
   await waitFor(() => {
     expect(screen.queryByRole('alert')).toBeNull()
+  })
+})
+
+test('the planning can be looked at, read-only, from the direction page', async () => {
+  mockServer({})
+  renderBook(SCREEN)
+  fireEvent.click(await screen.findByRole('button', { name: strings.direction.viewPlanning }))
+  expect(useNavigation.getState().screen).toMatchObject({ name: 'story', workId: 'w_1' })
+})
+
+test('writing starts only once every active episode is confirmed', async () => {
+  mockServer({ plans: { c_ep1: [{ ...RECORD, status: 'confirmed' }] } })
+  renderBook(SCREEN)
+  await screen.findByText(strings.direction.writingProgress(1, 2))
+  expect(
+    screen.getByRole<HTMLButtonElement>('button', { name: strings.direction.startWriting })
+      .disabled,
+  ).toBe(true)
+})
+
+test('all confirmed, writing starts after the lock warning, then the contents', async () => {
+  const confirmed = (episode_id: string) =>
+    ({ ...RECORD, id: `pl_${episode_id}`, episode_id, status: 'confirmed' }) as PlanRecord
+  mockServer({ plans: { c_ep1: [confirmed('c_ep1')], c_ep2: [confirmed('c_ep2')] } })
+  renderBook(SCREEN)
+  await screen.findByText(strings.direction.writingProgress(2, 2))
+  fireEvent.click(screen.getByRole('button', { name: strings.direction.startWriting }))
+  const dialog = await screen.findByRole('alertdialog', { name: strings.stageLock.writeTitle })
+  await within(dialog).findByText(strings.stageLock.writeLock)
+  expect(document.activeElement?.textContent).toBe(strings.stageLock.cancel)
+  const start = within(dialog).getByRole<HTMLButtonElement>('button', {
+    name: strings.stageLock.writeStart,
+  })
+  await waitFor(() => {
+    expect(start.disabled).toBe(false)
+  })
+  expect(start.hasAttribute('data-danger')).toBe(true)
+  fireEvent.click(start)
+  await waitFor(() => {
+    expect(useNavigation.getState().screen).toMatchObject({ name: 'contents', workId: 'w_1' })
+  })
+  expect(calls).toContainEqual({ method: 'POST', path: '/works/w_1/stage/advance' })
+})
+
+test('once writing has started there is no button to start it', async () => {
+  mockServer({ work: { ...WORK, stage: 3, locked_stage: 2 } })
+  renderBook(SCREEN)
+  await screen.findByRole('button', { name: strings.direction.viewPlanning })
+  expect(screen.queryByRole('button', { name: strings.direction.startWriting })).toBeNull()
+})
+
+test('Enter on a scene just clicked in the timeline directs it', async () => {
+  serveSide()
+  fireEvent.click(await pickRow('알파'))
+  const timeline = screen.getByRole('group', { name: strings.direction.timeline })
+  const scene = timeline.querySelector<HTMLElement>('.timeline-scene') as HTMLElement
+  scene.focus()
+  fireEvent.keyDown(scene, { key: 'Enter' })
+  await waitFor(() => {
+    expect(directs).toHaveLength(1)
   })
 })

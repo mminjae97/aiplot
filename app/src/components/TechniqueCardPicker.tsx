@@ -105,7 +105,11 @@ export function TechniqueCardPicker({
         target?.tagName === 'SELECT' ||
         (target instanceof HTMLInputElement && target.type !== 'checkbox')
       if (typing || event.repeat || event.ctrlKey || event.altKey || event.metaKey) return
-      if (event.key === 'Enter' && target?.tagName !== 'BUTTON' && target?.tagName !== 'SUMMARY') {
+      // Enter on a scene just clicked in the timeline directs it; on other buttons it is theirs.
+      const ownEnter =
+        (target?.tagName === 'BUTTON' && target.closest('.timeline-scene') === null) ||
+        target?.tagName === 'SUMMARY'
+      if (event.key === 'Enter' && !ownEnter) {
         event.preventDefault()
         confirm()
       } else if (/^[1-5]$/.test(event.key)) {

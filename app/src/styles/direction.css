@@ -32,6 +32,29 @@
   min-height: 0;
 }
 
+.direction-left {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.direction-left .direction-episodes {
+  flex: 1;
+}
+
+.direction-actions {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.direction-actions small {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
 .direction-episodes,
 .direction-panel {
   min-height: 0;
@@ -725,4 +748,38 @@
 .scene-confirm small {
   color: var(--warning);
   font-size: var(--size-small);
+}
+
+/* A narrow book (§12): two columns, the episodes in a strip above them. */
+@container (max-width: 1300px) {
+  .direction-columns:has(.direction-side) {
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+
+  .direction-columns:has(.direction-side) .direction-left {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .direction-columns:has(.direction-side) .direction-actions {
+    width: 130px;
+  }
+
+  .direction-columns:has(.direction-side) .direction-episodes {
+    display: flex;
+    gap: 16px;
+    max-height: 104px;
+    overflow: auto hidden;
+  }
+
+  .direction-columns:has(.direction-side) .direction-episodes ul {
+    display: flex;
+    margin: 0;
+  }
+
+  .direction-columns:has(.direction-side) .direction-episode {
+    width: 130px;
+  }
 }

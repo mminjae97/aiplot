@@ -10,6 +10,8 @@ import {
   planJobKey,
 } from '../components/directionEpisodes'
 import { EpisodePlanPanel } from '../components/EpisodePlanPanel'
+import { Overlay } from '../components/Overlay'
+import { StageLockDialog } from '../components/StageLockDialog'
 import type { PlanningScreen } from '../stores/navigation'
 import { strings } from '../strings'
 import type { Card, EpisodeCard, Job, MainStoryCard, PartCard, PlanRecord } from '../types'
@@ -42,6 +44,7 @@ export function DirectionScreen({
   const { workId } = screen
   const queryClient = useQueryClient()
   const [chosen, setChosen] = useState<string | null>(null)
+  const [advancing, setAdvancing] = useState(false)
   // Failed jobs the reader closed; here so that going to another episode keeps them closed.
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set())
 
@@ -104,6 +107,9 @@ export function DirectionScreen({
     }
   }, [jobs.data, queryClient])
 
+  const confirmedEpisodes = activeIds.filter((id) => recordOf(id)?.status === 'confirmed').length
+  const allConfirmed = activeIds.length > 0 && confirmedEpisodes === activeIds.length
+
   const selected =
     rows.find((row) => row.card.id === chosen) ?? rows.find((row) => row.active) ?? rows[0]
   const loaded = work.isSuccess && mains.isSuccess && partCards.isSuccess && episodeCards.isSuccess
@@ -128,37 +134,68 @@ export function DirectionScreen({
         )}
         {loaded && started && (
           <div className="direction-columns">
-            <nav className="direction-episodes" aria-label={strings.direction.episodes}>
-              {groups.map((group) => (
-                <section key={group.part?.id ?? 'none'}>
-                  <h3>{group.part?.data.title ?? strings.direction.noPart}</h3>
-                  <ul>
-                    {group.episodes.map(({ card, active }) => (
-                      <li key={card.id}>
-                        <button
-                          type="button"
-                          className="direction-episode"
-                          data-inactive={active ? undefined : ''}
-                          aria-current={selected?.card.id === card.id ? 'true' : undefined}
-                          onClick={() => {
-                            setChosen(card.id)
-                          }}
-                        >
-                          <span>{card.name ?? strings.drawer.untitled}</span>
-                          <small>
-                            {rowStatus(
-                              active,
-                              latestJob(jobList, planJobKey(card.id)),
-                              recordOf(card.id),
-                            )}
-                          </small>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ))}
-            </nav>
+            <div className="direction-left">
+              <div className="direction-actions">
+                <button
+                  type="button"
+                  className="paper-button"
+                  onClick={() => {
+                    turn({ name: 'story', workId })
+                  }}
+                >
+                  {strings.direction.viewPlanning}
+                </button>
+                {!locked && (
+                  <>
+                    <button
+                      type="button"
+                      className="paper-button"
+                      disabled={!allConfirmed}
+                      onClick={() => {
+                        setAdvancing(true)
+                        onBusy(true)
+                      }}
+                    >
+                      {strings.direction.startWriting}
+                    </button>
+                    <small>
+                      {strings.direction.writingProgress(confirmedEpisodes, activeIds.length)}
+                    </small>
+                  </>
+                )}
+              </div>
+              <nav className="direction-episodes" aria-label={strings.direction.episodes}>
+                {groups.map((group) => (
+                  <section key={group.part?.id ?? 'none'}>
+                    <h3>{group.part?.data.title ?? strings.direction.noPart}</h3>
+                    <ul>
+                      {group.episodes.map(({ card, active }) => (
+                        <li key={card.id}>
+                          <button
+                            type="button"
+                            className="direction-episode"
+                            data-inactive={active ? undefined : ''}
+                            aria-current={selected?.card.id === card.id ? 'true' : undefined}
+                            onClick={() => {
+                              setChosen(card.id)
+                            }}
+                          >
+                            <span>{card.name ?? strings.drawer.untitled}</span>
+                            <small>
+                              {rowStatus(
+                                active,
+                                latestJob(jobList, planJobKey(card.id)),
+                                recordOf(card.id),
+                              )}
+                            </small>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </nav>
+            </div>
             {selected && (
               <EpisodePlanPanel
                 key={selected.card.id}
@@ -185,6 +222,23 @@ export function DirectionScreen({
           </div>
         )}
       </section>
+      {advancing && work.data && (
+        <Overlay>
+          <StageLockDialog
+            work={work.data}
+            action={{ kind: 'advance' }}
+            onClose={() => {
+              setAdvancing(false)
+              onBusy(false)
+            }}
+            onDone={() => {
+              setAdvancing(false)
+              onBusy(false)
+              turn({ name: 'contents', workId })
+            }}
+          />
+        </Overlay>
+      )}
     </article>
   )
 }
