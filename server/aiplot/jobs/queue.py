@@ -83,6 +83,7 @@ class JobRecord:
         return Job(
             jobId=self.id,
             kind=self.kind,
+            key=self.key,
             workId=self.work_id,
             status=self.status,
             createdAt=self.created_at,

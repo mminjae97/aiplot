@@ -1,7 +1,7 @@
 import type { PlanningScreen } from '../stores/navigation'
 import { strings } from '../strings'
 
-type Props = { screen: Extract<PlanningScreen, { name: 'direction' | 'writing' | 'reading' }> }
+type Props = { screen: Extract<PlanningScreen, { name: 'writing' | 'reading' }> }
 
 /** A section's page before its step builds it (§20): blank paper, its post-it already in the
  * book. Named for screen readers only. */

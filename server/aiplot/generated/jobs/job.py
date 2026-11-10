@@ -22,6 +22,12 @@ class Job(BaseModel):
             pattern="^[a-z][a-z_]*$",
         ),
     ]
+    key: Annotated[
+        StrictStr | None,
+        Field(
+            description="What the job is about (plan:{episodeId}, direct:{planId}:{scene}): a screen finds the running job of what it shows. Null for jobs with no such target."
+        ),
+    ]
     workId: work_id.WorkId | None
     status: Literal["queued", "running", "paused", "done", "failed", "cancelled"]
     createdAt: Annotated[StrictStr, Field(description="ISO 8601 UTC.")]

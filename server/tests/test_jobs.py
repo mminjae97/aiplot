@@ -76,6 +76,8 @@ async def test_a_key_answers_with_its_unfinished_job(jobs: JobQueue) -> None:
     first = jobs.submit("plan", work, key="plan:c_ep1")
     # Queued behind the blocker, then running: the same job either way.
     assert jobs.submit("plan", work, key="plan:c_ep1") is first
+    # The job list says what each job is about (a screen finds its running job by this).
+    assert (first.view().key, blocker.view().key) == ("plan:c_ep1", None)
     other = jobs.submit("plan", work, key="plan:c_ep2")
     assert other is not first
     await settle(blocker, "running")

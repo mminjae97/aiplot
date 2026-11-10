@@ -1087,6 +1087,10 @@ export interface Job {
    * What the job does, e.g. chapter, plan, download.
    */
   kind: string
+  /**
+   * What the job is about (plan:{episodeId}, direct:{planId}:{scene}): a screen finds the running job of what it shows. Null for jobs with no such target.
+   */
+  key: string | null
   workId: WorkId | null
   status: 'queued' | 'running' | 'paused' | 'done' | 'failed' | 'cancelled'
   /**

@@ -419,6 +419,75 @@ export const strings = {
     chooseEpisodes: '이 부에 에피소드가 있어요. 옮길지 함께 지울지 골라 주세요.',
     restoreFailed: '되돌리지 못했어요. 되돌릴 수 있는 시간이 지났어요.',
   },
+  generation: {
+    queued: '앞선 작업이 끝나기를 기다리고 있어요.',
+    progressLabel: '진행률',
+    etaSeconds: (seconds: number) => `약 ${String(seconds)}초 남았어요.`,
+    etaMinutes: (minutes: number, seconds: number) =>
+      `약 ${String(minutes)}분 ${String(seconds)}초 남았어요.`,
+    background: '다른 페이지로 넘어가도 계속 진행돼요.',
+    cancel: '취소',
+  },
+  direction: {
+    episodes: '에피소드',
+    noPart: '부 없음',
+    beforeTitle: '아직 연출을 시작하지 않았어요',
+    before: '스토리 페이지의 "연출 구성 시작"으로 기획을 마치면 이 페이지가 열려요.',
+    toStory: '스토리로 가기',
+    rowInactive: '연출에서 제외',
+    rowNoPlan: '계획 없음',
+    rowMaking: '계획 만드는 중',
+    rowQueued: '차례 기다리는 중',
+    rowConfirmed: '확정',
+    rowProgress: (confirmed: number, total: number) =>
+      `장면 확정 ${String(confirmed)}/${String(total)}`,
+    confirmedOf: (confirmed: number, total: number) =>
+      `장면 ${String(total)}개 중 ${String(confirmed)}개 확정`,
+    inactive:
+      '이 에피소드나 그 부, 메인 스토리가 미완성이라 연출에서 빠졌어요. 기획 단계를 다시 열어 완성하면 연출할 수 있어요.',
+    noPlan:
+      'AI가 이 에피소드를 장면으로 나누고 화를 구성해요. 만든 뒤에 순서와 화 나눔을 고칠 수 있어요.',
+    noPlanLocked: '이 에피소드에는 연출 계획이 없어요.',
+    make: '연출 계획 만들기',
+    starting: '준비하는 중이에요.',
+    usual: '보통 2~3분 걸려요.',
+    steps: {
+      scene: '장면을 나누는 중이에요.',
+      arrange: '화를 구성하는 중이에요.',
+    } as Record<string, string>,
+    chapter: (chapter: number, chars: number) =>
+      `${String(chapter)}화 · ${chars.toLocaleString('ko-KR')}자`,
+    sceneMeta: (scene: number, source: string, chars: number) =>
+      `장면 ${String(scene)} · ${source} · ${chars.toLocaleString('ko-KR')}자`,
+    sceneStatus: {
+      undirected: '아직 연출 안 함',
+      directed: '연출됨',
+      stale: '다시 연출 필요',
+      confirmed: '확정',
+    },
+    replace: '계획 다시 만들기',
+    replaceTitle: '계획을 다시 만들까요?',
+    replaceWhat: (directed: number) =>
+      directed > 0
+        ? `새 계획이 완성되면 지금 계획이 사라져요. 연출한 장면 ${String(directed)}개와 고른 카드, 화 나눔이 모두 지워져요.`
+        : '새 계획이 완성되면 지금 계획이 사라져요. 고른 카드와 화 나눔이 모두 지워져요.',
+    replaceIrreversible: '이 작업은 되돌릴 수 없어요.',
+    replaceConfirm: '다시 만들기',
+    cancel: '취소',
+    dismiss: '닫기',
+    retry: '다시 시도',
+    loadFailed: '이 에피소드의 계획을 불러오지 못했어요.',
+    failed: '연출 계획을 만들지 못했어요. 다시 시도해 주세요.',
+    errors: {
+      STAGE_NOT_STARTED: '아직 연출 단계가 아니에요. 스토리 페이지에서 연출 구성을 시작해 주세요.',
+      STAGE_LOCKED: '연출 단계가 잠겨 있어요. 목차에서 다시 열어야 고칠 수 있어요.',
+      EPISODE_NOT_READY: '이 에피소드는 아직 연출할 수 없어요. 카드가 완성되었는지 확인해 주세요.',
+      PLAN_EXISTS: '이 에피소드에는 이미 계획이 있어요.',
+      CARD_NOT_FOUND: '에피소드를 찾을 수 없어요.',
+      WORK_NOT_FOUND: '작품을 찾을 수 없어요.',
+      LLM_INVALID_OUTPUT: 'AI가 장면을 제대로 나누지 못했어요. 다시 시도해 주세요.',
+    } as Record<string, string>,
+  },
   book: {
     prev: '이전 페이지',
     next: '다음 페이지',

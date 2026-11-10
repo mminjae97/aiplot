@@ -9,6 +9,7 @@ import { strings } from '../strings'
 import { CharacterDexScreen } from './CharacterDexScreen'
 import { BlankPage } from './BlankPage'
 import { ContentsPage } from './ContentsPage'
+import { DirectionScreen } from './DirectionScreen'
 import {
   canTurn,
   type CarriedNotes,
@@ -200,9 +201,10 @@ export function PlanningBook({ screen }: Props) {
             <RegionMapScreen key={screen.cardId ?? ''} screen={screen} {...pageProps} />
           )}
           {screen.name === 'story' && <StoryScreen screen={screen} {...pageProps} />}
-          {(screen.name === 'direction' ||
-            screen.name === 'writing' ||
-            screen.name === 'reading') && <BlankPage screen={screen} />}
+          {screen.name === 'direction' && <DirectionScreen screen={screen} {...pageProps} />}
+          {(screen.name === 'writing' || screen.name === 'reading') && (
+            <BlankPage screen={screen} />
+          )}
           <span className="book-bottom" aria-hidden="true" />
           {(['left', 'right'] as const).flatMap((side) =>
             SECTIONS.map((section, at) => (
