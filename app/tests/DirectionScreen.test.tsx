@@ -106,6 +106,10 @@ type World = {
   events?: string
   // The job is over before the list first shows it.
   instant?: boolean
+  // POST /episodes/.../plans answers with this error code.
+  refuse?: string
+  plansFail?: boolean
+  slowPlans?: boolean
 }
 type Call = { method: string; path: string }
 
@@ -130,6 +134,20 @@ function mockServer(state: World) {
       if (path === '/works/w_1/jobs') return json({ jobs: world.jobs ?? [] })
       const plans = /^\/episodes\/(c_ep\d)\/plans/.exec(path)
       if (plans) {
+        if (method === 'POST' && world.refuse) {
+          return json({ code: world.refuse, message: 'no', hint: null }, 423)
+        }
+        if (method === 'GET' && world.plansFail) {
+          return json({ code: 'INTERNAL_ERROR', message: 'no', hint: null }, 500)
+        }
+        if (method === 'GET' && world.slowPlans) {
+          const answer = json({ plans: world.plans?.[plans[1] ?? ''] ?? [] })
+          return new Promise((resolve) => {
+            setTimeout(() => {
+              resolve(answer)
+            }, 100)
+          })
+        }
         if (method === 'POST') {
           world.jobs = [job(world.instant ? 'done' : 'running')]
           if (world.instant) world.plans = { c_ep1: [RECORD] }
@@ -226,7 +244,7 @@ test('a job over before the list first shows it still brings up the plan', async
   await screen.findByText(strings.direction.confirmedOf(1, 2))
 })
 
-test('coming back to a running job picks it up without starting another', async () => {
+test('a job already running is picked up without starting another', async () => {
   mockServer({
     jobs: [job('running')],
     events: 'id: 1\nevent: progress\ndata: {"done":0,"total":2,"etaSec":null,"step":"scene"}\n\n',
@@ -258,19 +276,47 @@ test('a failed job says why and the plan can be tried again', async () => {
 })
 
 test('a refused start says why', async () => {
-  mockServer({})
+  mockServer({ refuse: 'STAGE_LOCKED' })
   renderBook(SCREEN)
-  const make = await screen.findByRole('button', { name: strings.direction.make })
-  vi.mocked(fetch).mockImplementationOnce(() =>
-    Promise.resolve(
-      new Response(JSON.stringify({ code: 'STAGE_LOCKED', message: 'no', hint: null }), {
-        status: 423,
-      }),
-    ),
-  )
-  fireEvent.click(make)
+  fireEvent.click(await screen.findByRole('button', { name: strings.direction.make }))
   const alert = await screen.findByRole('alert')
   expect(alert.textContent).toContain(strings.direction.errors.STAGE_LOCKED)
+})
+
+test('a closed failure stays closed when the reader comes back to the episode', async () => {
+  mockServer({
+    plans: { c_ep1: [RECORD] },
+    jobs: [job('failed', { error: { code: 'LLM_INVALID_OUTPUT', message: 'bad' } })],
+  })
+  renderBook(SCREEN)
+  const alert = await screen.findByRole('alert')
+  fireEvent.click(within(alert).getByRole('button', { name: strings.direction.dismiss }))
+  expect(screen.queryByRole('alert')).toBeNull()
+  fireEvent.click(await row(/2화 추격/))
+  await screen.findByText(strings.direction.noPlan)
+  fireEvent.click(await row(/1화 귀환/))
+  await screen.findByText(strings.direction.confirmedOf(1, 2))
+  expect(screen.queryByRole('alert')).toBeNull()
+})
+
+test('a plan that cannot be read offers a retry, not a new plan', async () => {
+  mockServer({ plansFail: true })
+  renderBook(SCREEN)
+  await screen.findByText(strings.direction.loadFailed)
+  expect(screen.queryByRole('button', { name: strings.direction.make })).toBeNull()
+  world.plansFail = false
+  fireEvent.click(screen.getByRole('button', { name: strings.direction.retry }))
+  await screen.findByRole('button', { name: strings.direction.make })
+  expect(screen.queryByRole('alert')).toBeNull()
+})
+
+test('the make button stays away while a finished job brings its plan', async () => {
+  mockServer({ jobs: [job('done')], plans: { c_ep1: [RECORD] }, slowPlans: true })
+  renderBook(SCREEN)
+  await screen.findByRole('navigation', { name: strings.direction.episodes })
+  expect(screen.queryByRole('button', { name: strings.direction.make })).toBeNull()
+  await screen.findByText(strings.direction.confirmedOf(1, 2))
+  expect(screen.queryByRole('button', { name: strings.direction.make })).toBeNull()
 })
 
 test('replacing a plan asks first, cancel is the default, and red confirms', async () => {

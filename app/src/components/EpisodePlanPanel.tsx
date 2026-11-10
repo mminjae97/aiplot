@@ -16,6 +16,12 @@ type Props = {
   locked: boolean
   record: PlanRecord | null
   loading: boolean
+  /** The plan could not be read: whether the episode has one is unknown. */
+  loadFailed: boolean
+  onRetryLoad: () => void
+  /** Failed jobs the reader has closed. */
+  dismissed: ReadonlySet<string>
+  onDismiss: (jobId: string) => void
   /** The newest job of this episode's plan, if any is known. */
   job: Job | null
   onBusy: (busy: boolean) => void
@@ -36,12 +42,15 @@ export function EpisodePlanPanel({
   locked,
   record,
   loading,
+  loadFailed,
+  onRetryLoad,
+  dismissed,
+  onDismiss,
   job,
   onBusy,
 }: Props) {
   const queryClient = useQueryClient()
   const [replacing, setReplacing] = useState(false)
-  const [dismissed, setDismissed] = useState<string | null>(null)
   const running = job !== null && isJobActive(job)
   const progress = useJobProgress(running ? job.jobId : null)
 
@@ -62,7 +71,7 @@ export function EpisodePlanPanel({
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['jobs', workId] }),
   })
 
-  const failure = job?.status === 'failed' && job.jobId !== dismissed ? job : null
+  const failure = job?.status === 'failed' && !dismissed.has(job.jobId) ? job : null
   const startFailure =
     start.error instanceof ApiRequestError
       ? errorText(start.error.code)
@@ -72,7 +81,7 @@ export function EpisodePlanPanel({
   const notice = startFailure ?? (failure ? errorText(failure.error?.code ?? '') : null)
   const scenes = record ? scenesOf(record.plan) : []
   const directed = scenes.filter((scene) => scene.status !== 'undirected').length
-  const canMake = active && !locked && !running && !loading
+  const canMake = active && !locked && !running && !loading && !loadFailed
   const step = progress?.step ?? null
 
   return (
@@ -128,7 +137,7 @@ export function EpisodePlanPanel({
               type="button"
               className="paper-button"
               onClick={() => {
-                setDismissed(failure.jobId)
+                onDismiss(failure.jobId)
               }}
             >
               {strings.direction.dismiss}
@@ -137,7 +146,16 @@ export function EpisodePlanPanel({
         </div>
       )}
 
-      {!record && active && !loading && !running && (
+      {loadFailed && (
+        <div className="direction-failure" role="alert">
+          <p>{strings.direction.loadFailed}</p>
+          <button type="button" className="paper-button" onClick={onRetryLoad}>
+            {strings.direction.retry}
+          </button>
+        </div>
+      )}
+
+      {!record && active && !loading && !loadFailed && !running && (
         <div className="direction-empty">
           {locked ? (
             <p className="direction-note">{strings.direction.noPlanLocked}</p>

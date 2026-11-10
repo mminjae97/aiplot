@@ -434,7 +434,7 @@ export const strings = {
     beforeTitle: '아직 연출을 시작하지 않았어요',
     before: '스토리 페이지의 "연출 구성 시작"으로 기획을 마치면 이 페이지가 열려요.',
     toStory: '스토리로 가기',
-    rowInactive: '미완성 · 연출에서 제외',
+    rowInactive: '연출에서 제외',
     rowNoPlan: '계획 없음',
     rowMaking: '계획 만드는 중',
     rowQueued: '차례 기다리는 중',
@@ -444,7 +444,7 @@ export const strings = {
     confirmedOf: (confirmed: number, total: number) =>
       `장면 ${String(total)}개 중 ${String(confirmed)}개 확정`,
     inactive:
-      '이 에피소드는 카드가 미완성이라 연출에서 빠졌어요. 기획 단계를 다시 열어 완성하면 연출할 수 있어요.',
+      '이 에피소드나 그 부, 메인 스토리가 미완성이라 연출에서 빠졌어요. 기획 단계를 다시 열어 완성하면 연출할 수 있어요.',
     noPlan:
       'AI가 이 에피소드를 장면으로 나누고 화를 구성해요. 만든 뒤에 순서와 화 나눔을 고칠 수 있어요.',
     noPlanLocked: '이 에피소드에는 연출 계획이 없어요.',
@@ -475,6 +475,8 @@ export const strings = {
     replaceConfirm: '다시 만들기',
     cancel: '취소',
     dismiss: '닫기',
+    retry: '다시 시도',
+    loadFailed: '이 에피소드의 계획을 불러오지 못했어요.',
     failed: '연출 계획을 만들지 못했어요. 다시 시도해 주세요.',
     errors: {
       STAGE_NOT_STARTED: '아직 연출 단계가 아니에요. 스토리 페이지에서 연출 구성을 시작해 주세요.',

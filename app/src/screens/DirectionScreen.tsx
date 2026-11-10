@@ -42,6 +42,8 @@ export function DirectionScreen({
   const { workId } = screen
   const queryClient = useQueryClient()
   const [chosen, setChosen] = useState<string | null>(null)
+  // Failed jobs the reader closed; here so that going to another episode keeps them closed.
+  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set())
 
   const work = useQuery({ queryKey: ['works', workId], queryFn: () => api.getWork(workId) })
   const mains = useQuery({
@@ -162,7 +164,16 @@ export function DirectionScreen({
                 active={selected.active}
                 locked={locked}
                 record={recordOf(selected.card.id)}
-                loading={planOf.get(selected.card.id)?.isPending !== false}
+                // Also while refetching: a job just done has a plan the list does not show yet.
+                loading={planOf.get(selected.card.id)?.isFetching !== false}
+                loadFailed={planOf.get(selected.card.id)?.isError === true}
+                onRetryLoad={() => {
+                  void planOf.get(selected.card.id)?.refetch()
+                }}
+                dismissed={dismissed}
+                onDismiss={(jobId) => {
+                  setDismissed((old) => new Set(old).add(jobId))
+                }}
                 job={latestJob(jobList, planJobKey(selected.card.id))}
                 onBusy={onBusy}
               />
