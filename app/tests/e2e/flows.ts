@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process'
+import { join, resolve } from 'node:path'
 import { type ElectronApplication, expect } from '@playwright/test'
 import { strings } from '../../src/strings'
 
@@ -48,4 +50,53 @@ export async function saveACharacter(app: ElectronApplication): Promise<void> {
   await expect(card).toBeVisible()
   await card.click()
   await expect(win.getByText('짧고 건조한 반말')).toBeVisible()
+}
+
+/** The sample work in the data dir (§4), as `scripts/seed_academy.py` makes it. */
+export function seedAcademy(dataDir: string): void {
+  const server = resolve(__dirname, '../../../server')
+  execFileSync(join(server, '.venv/Scripts/python.exe'), ['scripts/seed_academy.py', dataDir], {
+    cwd: server,
+    stdio: 'pipe',
+  })
+}
+
+/** §20 step 5: in the sample work (its one 5-stage episode: the fixture scenes are 5-stage),
+ * plan an episode, then pick a card, direct and confirm each of its scenes. */
+export async function directAnEpisode(app: ElectronApplication): Promise<void> {
+  const win = await app.firstWindow()
+  await win
+    .getByRole('button', { name: /이름 없는 기사의 노래/ })
+    .first()
+    .click({ timeout: 45_000 })
+  const notes = win.getByRole('navigation', { name: strings.book.sections })
+
+  await notes.getByRole('button', { name: strings.book.notes.story }).click()
+  await win.getByRole('button', { name: strings.stageLock.start }).first().click()
+  const lock = win.getByRole('alertdialog')
+  await lock.getByRole('button', { name: strings.stageLock.start }).click({ timeout: 15_000 })
+  await expect(lock).toHaveCount(0, { timeout: 15_000 })
+  await notes.getByRole('button', { name: strings.book.notes.direction }).click()
+
+  const episodes = win.getByRole('navigation', { name: strings.direction.episodes })
+  const episode = episodes.getByRole('button', { name: /첫 비극/ })
+  await episode.click()
+  await win.getByRole('button', { name: strings.direction.make }).click()
+  const timeline = win.getByRole('group', { name: strings.direction.timeline })
+  await expect(timeline).toBeVisible({ timeout: 30_000 })
+
+  const told = timeline.locator('.dual-row').nth(1).locator('.timeline-scene')
+  const scenes = await told.count()
+  expect(scenes).toBeGreaterThan(0)
+  for (let at = 0; at < scenes; at += 1) {
+    await told.nth(at).click()
+    await win.keyboard.press('1')
+    await win.getByRole('button', { name: strings.direction.directScene }).click()
+    const confirm = win.getByRole('button', { name: strings.direction.confirmScene })
+    await expect(confirm).toBeEnabled({ timeout: 30_000 })
+    await confirm.click()
+    await expect(win.getByRole('button', { name: strings.direction.confirmed })).toBeVisible()
+  }
+  await expect(episode).toContainText(strings.direction.rowConfirmed)
+  await expect(win.getByText(strings.direction.confirmedOf(scenes, scenes))).toBeVisible()
 }

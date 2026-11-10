@@ -9,6 +9,8 @@ export async function withApp(
   use: (app: ElectronApplication) => Promise<void>,
   /** A packaged Aiplot.exe instead of the repo's build run by the dev Electron. */
   executablePath?: string,
+  /** Fills the data dir before the app starts. */
+  prepare?: (dataDir: string) => void,
 ): Promise<void> {
   // Always test the built renderer, never a leftover dev server URL.
   const env = Object.fromEntries(
@@ -18,6 +20,7 @@ export async function withApp(
     ),
   )
   const dataDir = mkdtempSync(join(tmpdir(), 'aiplot-e2e-'))
+  prepare?.(dataDir)
   env.AIPLOT_DATA_DIR = dataDir
   // Fixture LLM: no GPU or model download (§4).
   env.AIPLOT_FAKE_LLM = '1'

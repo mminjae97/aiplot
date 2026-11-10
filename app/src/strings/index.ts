@@ -58,6 +58,10 @@ export const strings = {
     failed: '제목을 바꾸지 못했어요. 다시 시도해 주세요.',
   },
   stageLock: {
+    writeTitle: '집필 시작',
+    writeQuestion: '연출 단계를 잠그고 집필을 시작할까요?',
+    writeLock: '시작하면 기획 카드와 연출 계획은 읽기만 할 수 있어요.',
+    writeStart: '집필 시작',
     advanceTitle: '연출 구성 시작',
     advanceQuestion: '기획 단계를 잠그고 연출 구성을 시작할까요?',
     advanceLock:
@@ -430,6 +434,10 @@ export const strings = {
   },
   direction: {
     episodes: '에피소드',
+    viewPlanning: '기획 보기',
+    startWriting: '집필 시작',
+    writingProgress: (confirmed: number, total: number) =>
+      `에피소드 ${String(total)}개 중 ${String(confirmed)}개 확정`,
     noPart: '부 없음',
     beforeTitle: '아직 연출을 시작하지 않았어요',
     before: '스토리 페이지의 "연출 구성 시작"으로 기획을 마치면 이 페이지가 열려요.',
