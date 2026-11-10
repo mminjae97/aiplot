@@ -89,17 +89,18 @@ export function DirectionScreen({
   const planOf = new Map(activeIds.map((id, at) => [id, planQueries[at]]))
   const recordOf = (id: string) => planOf.get(id)?.data?.plans[0] ?? null
 
-  // A finished plan job: its episode has a new plan. By job, not by watching one leave the
-  // running list: a job can be over before the list first shows it.
+  // A finished job changed a plan: a plan job its episode's, a direction job one of the
+  // plans. By job, not by watching one leave the running list: a job can be over before the
+  // list first shows it.
   const handledJobs = useRef(new Set<string>())
   useEffect(() => {
     for (const job of jobs.data?.jobs ?? []) {
-      const episodeId = planJobEpisode(job)
-      if (episodeId === null || job.status !== 'done' || handledJobs.current.has(job.jobId)) {
-        continue
-      }
+      if (job.status !== 'done' || job.key === null || handledJobs.current.has(job.jobId)) continue
       handledJobs.current.add(job.jobId)
-      void queryClient.invalidateQueries({ queryKey: ['plans', episodeId] })
+      const episodeId = planJobEpisode(job)
+      void queryClient.invalidateQueries({
+        queryKey: episodeId === null ? ['plans'] : ['plans', episodeId],
+      })
     }
   }, [jobs.data, queryClient])
 
@@ -177,6 +178,7 @@ export function DirectionScreen({
                   setDismissed((old) => new Set(old).add(jobId))
                 }}
                 job={latestJob(jobList, planJobKey(selected.card.id))}
+                jobs={jobList}
                 onBusy={onBusy}
               />
             )}

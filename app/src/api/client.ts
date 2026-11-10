@@ -1,6 +1,7 @@
 import { useServer } from '../stores/server'
 import type {
   ApiError,
+  BeatEdit,
   Card,
   CardList,
   CardDeleted,
@@ -134,6 +135,21 @@ export const api = {
   listTechniques: (q: string) => request<TechniqueList>(`/techniques?q=${encodeURIComponent(q)}`),
   getTechnique: (techniqueId: string) =>
     request<Technique>(`/techniques/${encodeURIComponent(techniqueId)}`),
+  /** POST .../direct (job): the scene's beats from its chosen cards. */
+  directScene: (planId: string, scene: number) =>
+    request<JobAccepted>(`/plans/${encodeURIComponent(planId)}/scenes/${String(scene)}/direct`, {
+      method: 'POST',
+    }),
+  /** PUT .../beats: the user's beats; targets rescaled, numbered by the server. */
+  setSceneBeats: (planId: string, scene: number, beats: [BeatEdit, ...BeatEdit[]]) =>
+    request<PlanRecord>(`/plans/${encodeURIComponent(planId)}/scenes/${String(scene)}/beats`, {
+      method: 'PUT',
+      body: JSON.stringify({ beats }),
+    }),
+  confirmScene: (planId: string, scene: number) =>
+    request<PlanRecord>(`/plans/${encodeURIComponent(planId)}/scenes/${String(scene)}/confirm`, {
+      method: 'POST',
+    }),
   /** PATCH /plans/{planId}: the told order and cuts; scenes whose place changed go stale. */
   rearrangePlan: (planId: string, chapters: number[][]) =>
     request<PlanRecord>(`/plans/${encodeURIComponent(planId)}`, {

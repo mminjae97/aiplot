@@ -1,5 +1,6 @@
 // The S2 episode list (§9, §11): episodes in reading order, grouped by part, and what the
 // server's active test says about each.
+import { strings } from '../strings'
 import type { EpisodeCard, Job, PartCard, PlanRecord } from '../types'
 import { narrationOrder } from './dualTimelineLayout'
 
@@ -51,6 +52,17 @@ export const planJobKey = (episodeId: string) => `plan:${episodeId}`
 /** The episode a job plans, if it is a plan job. */
 export function planJobEpisode(job: Job): string | null {
   return job.key?.startsWith('plan:') ? job.key.slice('plan:'.length) : null
+}
+
+/** The job key of a scene's direction job (§16, the server's plan_direct.start). */
+export const directJobKey = (planId: string, scene: number) => `direct:${planId}:${String(scene)}`
+
+/** One save of a plan at a time, in order: each answer is the whole plan. */
+export const planSaveScope = (planId: string) => `plan-saves:${planId}`
+
+/** An API or job error code as the user reads it on the direction page. */
+export function directionErrorText(code: string): string {
+  return strings.direction.errors[code] ?? strings.drawer.errors[code] ?? strings.direction.failed
 }
 
 export const isJobActive = (job: Job) =>

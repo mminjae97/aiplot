@@ -589,3 +589,140 @@
   font-size: var(--size-small);
   font-weight: 700;
 }
+
+/* A scene's beats (§9), under its details. */
+.scene-beats {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 10px;
+}
+
+.beat-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.beat-row {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--paper-edge);
+  padding: 8px 0;
+}
+
+.beat-row[data-dragging] {
+  opacity: 0.45;
+}
+
+.beat-row[data-drop='before']::before,
+.beat-row[data-drop='after']::after {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: var(--brass);
+  content: '';
+}
+
+.beat-row[data-drop='before']::before {
+  top: -2px;
+}
+
+.beat-row[data-drop='after']::after {
+  bottom: -2px;
+}
+
+.beat-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.beat-head small {
+  margin-left: auto;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.beat-handle {
+  color: var(--ink-faint);
+  font-weight: 700;
+  touch-action: none;
+  user-select: none;
+}
+
+.beat-order {
+  font-weight: 700;
+}
+
+.beat-row textarea,
+.beat-fields input,
+.beat-fields select,
+.pick-search input {
+  font: inherit;
+}
+
+.beat-row textarea {
+  box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
+}
+
+.beat-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.beat-fields label {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.beat-fields input:not([type='number']) {
+  width: 120px;
+}
+
+.beat-fields input[type='number'] {
+  width: 64px;
+}
+
+.beat-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.beat-card {
+  border: 1px solid var(--ink-faint);
+  border-radius: 10px;
+  background: none;
+  padding: 1px 8px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  transition: background var(--motion);
+}
+
+.beat-card[aria-pressed='true'] {
+  border-color: var(--brass);
+  background: var(--paper-edge);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.scene-confirm {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.scene-confirm small {
+  color: var(--warning);
+  font-size: var(--size-small);
+}
