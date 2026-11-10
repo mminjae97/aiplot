@@ -61,13 +61,15 @@ def beat_spot(conn: sqlite3.Connection, beat_id: str) -> BeatSpot:
 
 
 def tail(text: str, limit: int) -> str:
-    """The end of text within limit chars, from the start of a paragraph or a sentence."""
+    """The end of text within limit chars, from the start of a paragraph, or of a sentence
+    when the paragraphs that fit whole are under half the limit."""
     if len(text) <= limit:
         return text
     cut = text[-limit:]
     line = cut.find("\n")
-    if line != -1:
-        return cut[line:].lstrip("\n")
+    paragraphs = cut[line:].lstrip("\n") if line != -1 else ""
+    if len(paragraphs) >= limit // 2:
+        return paragraphs
     end = SENTENCE_END.search(cut)
     return cut[end.end() :] if end else cut
 
@@ -247,10 +249,17 @@ def write_turns(
     )
     story = newest_within(summaries, SUMMARY_CHARS)
     before = previous_text(conn, spot)
+    # A chapter's first beat follows the chapter before: it opens anew, it does not run on.
+    if spot.before:
+        label, nothing = "바로 앞 원고:", "(아직 없음)"
+    elif before:
+        label, nothing = "앞 화의 끝 (이 비트는 새 화의 첫머리다):", ""
+    else:
+        label, nothing = "바로 앞 원고:", "(없음: 작품의 첫머리)"
     source = [
         *(["지금까지의 줄거리:", *story, ""] if story else []),
-        "바로 앞 원고:",
-        before or "(없음: 화의 첫머리)",
+        label,
+        before or nothing,
     ]
     parts = [
         f"이 비트의 문체\n{matched}" if matched else "",

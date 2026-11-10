@@ -107,7 +107,9 @@ def test_the_first_and_last_beats_say_where_they_are(
     first = content(conn, beats[0]["id"])
     assert f"자리: 1화, 비트 1/{len(beats)} (화의 첫 비트)" in first
     # The work's first beat: nothing was written before it.
-    assert block(first, "원문") == "바로 앞 원고:\n(없음: 화의 첫머리)"
+    assert block(first, "원문") == "바로 앞 원고:\n(없음: 작품의 첫머리)"
+    # A later beat whose earlier ones are not written yet.
+    assert block(content(conn, beats[1]["id"]), "원문") == "바로 앞 원고:\n(아직 없음)"
     last = content(conn, beats[-1]["id"])
     assert f"자리: 1화, 비트 {len(beats)}/{len(beats)} (화의 마지막 비트)" in last
     assert last.endswith("다음 비트: 없음 (이 비트에서 화가 끝난다)\n</지시>")
@@ -139,7 +141,7 @@ def test_a_chapters_first_beat_continues_the_chapter_before(
     opening = written[1]["beats"]
     text = block(content(conn, opening[0]["id"]), "원문")
     # The current versions of the chapter before, in order.
-    assert text == "바로 앞 원고:\n첫 비트.\n\n휘장 끝이 흔들렸다."
+    assert text == "앞 화의 끝 (이 비트는 새 화의 첫머리다):\n첫 비트.\n\n휘장 끝이 흔들렸다."
     # Within a chapter only its own beats count; an unwritten one is skipped.
     write(conn, opening[0]["id"], 1, "2화가 시작됐다.")
     write(conn, opening[2]["id"], 1, "뒤의 비트.")
@@ -163,6 +165,8 @@ def test_tail_starts_at_a_paragraph_or_a_sentence() -> None:
     assert tail("가나다.\n\n라마바사 아자차카", 12) == "라마바사 아자차카"
     assert tail('가나다. "라마바!" 사아자. 차카타파.', 14) == "사아자. 차카타파."
     assert tail("가나다라마바사아자차카타파하", 5) == "차카타파하"
+    # A short last paragraph alone would lose the context: back to a sentence start.
+    assert tail("가나다라. 마바사아자차카타.\n\n파하.", 16) == "마바사아자차카타.\n\n파하."
 
 
 def test_summaries_and_state_are_given_when_there_are_any(
@@ -179,7 +183,7 @@ def test_summaries_and_state_are_given_when_there_are_any(
     assert block(text, "상태") == "테오: 북부 항구에 있다\n테오: 왼팔 부상"
     assert text.index("<참고 카드>") < text.index("<상태>") < text.index("<원문>")
     assert block(text, "원문") == (
-        "지금까지의 줄거리:\n1화 요약.\n2화 요약.\n\n바로 앞 원고:\n(없음: 화의 첫머리)"
+        "지금까지의 줄거리:\n1화 요약.\n2화 요약.\n\n바로 앞 원고:\n(없음: 작품의 첫머리)"
     )
     # The adjusted target replaces the plan's.
     assert "분량: 공백 포함 432자 안팎" in text
