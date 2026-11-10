@@ -2,11 +2,14 @@ import { type CSSProperties, type PointerEvent, useRef, useState } from 'react'
 import { strings } from '../strings'
 import type { DirectionPlan, EpisodeCard, PlanScene } from '../types'
 import {
+  addCut,
   chapterSpans,
   layoutOf,
+  MAX_CHAPTERS,
   moveCut,
   moveScene,
   narrationOrder,
+  removeCut,
   reorderedScenes,
   sameLayout,
   storyOrder,
@@ -92,6 +95,7 @@ export function DualTimeline({ plan, structure, selected, onSelect, onLayout }: 
     },
   })
   const dropAt = drag?.boundary ?? null
+  const leftOf = (boundary: number) => `${String((boundary / columns) * 100)}%`
 
   const node = (scene: PlanScene, toldRowNode: boolean) => {
     const moved = reordered.has(scene.scene)
@@ -162,13 +166,60 @@ export function DualTimeline({ plan, structure, selected, onSelect, onLayout }: 
       <div ref={toldRow} className="dual-row">
         {told.map((scene) => node(scene, true))}
         {dropAt !== null && (
-          <span
-            className="dual-drop"
-            style={{ left: `${String((dropAt / columns) * 100)}%` }}
-            aria-hidden="true"
-          />
+          <span className="dual-drop" style={{ left: leftOf(dropAt) }} aria-hidden="true" />
         )}
       </div>
+
+      {onLayout !== null && (
+        <div className="dual-grips">
+          {spans.slice(1).map((span, cut) => (
+            <div key={span.chapter} style={{ left: leftOf(span.start) }} className="dual-grip">
+              <div
+                className="dual-cut"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={strings.direction.cutLabel(cut + 1)}
+                data-dragging={drag?.kind === 'cut' && drag.cut === cut ? '' : undefined}
+                {...gripHandlers({ kind: 'cut', cut })}
+              >
+                <span aria-hidden="true">⋮</span>
+              </div>
+              <button
+                type="button"
+                className="dual-remove-cut"
+                aria-label={strings.direction.removeCut(cut + 1, cut + 2)}
+                title={strings.direction.removeCut(cut + 1, cut + 2)}
+                onClick={() => {
+                  onLayout(removeCut(layout, cut))
+                }}
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+          ))}
+          {spans.length < MAX_CHAPTERS &&
+            told.slice(1).flatMap((scene, at) => {
+              const boundary = at + 1
+              if (spans.some((span) => span.start === boundary)) return []
+              const before = told[at]?.scene ?? scene.scene
+              return [
+                <button
+                  key={boundary}
+                  type="button"
+                  className="dual-add-cut"
+                  style={{ left: leftOf(boundary) }}
+                  aria-label={strings.direction.addCut(before)}
+                  title={strings.direction.addCut(before)}
+                  onClick={() => {
+                    onLayout(addCut(layout, boundary))
+                  }}
+                >
+                  <span aria-hidden="true">+</span>
+                </button>,
+              ]
+            })}
+        </div>
+      )}
 
       <div className="dual-chapters">
         {spans.map((span) => (
@@ -176,21 +227,6 @@ export function DualTimeline({ plan, structure, selected, onSelect, onLayout }: 
             {strings.direction.chapter(span.chapter, span.targetChars)}
           </span>
         ))}
-        {onLayout !== null &&
-          spans.slice(1).map((span, cut) => (
-            <div
-              key={span.chapter}
-              className="dual-cut"
-              role="separator"
-              aria-orientation="vertical"
-              aria-label={strings.direction.cutLabel(cut + 1)}
-              data-dragging={drag?.kind === 'cut' && drag.cut === cut ? '' : undefined}
-              style={{ left: `${String((span.start / columns) * 100)}%` }}
-              {...gripHandlers({ kind: 'cut', cut })}
-            >
-              <span aria-hidden="true">⋮</span>
-            </div>
-          ))}
       </div>
 
       <span className="dual-label">{strings.direction.rowTension}</span>

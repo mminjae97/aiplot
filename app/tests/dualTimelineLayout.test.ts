@@ -1,10 +1,12 @@
 import { expect, test } from 'vitest'
 import {
+  addCut,
   chapterSpans,
   layoutOf,
   moveCut,
   moveScene,
   narrationOrder,
+  removeCut,
   reorderedScenes,
   sameLayout,
   storyOrder,
@@ -141,4 +143,26 @@ test('a cut stays clear of its neighbours and the ends: no chapter goes empty', 
   expect(moveCut(three, 1, 1)).toEqual([[1, 2], [3], [4, 5]])
   expect(moveCut(TWO, 0, 0)).toEqual([[1], [2, 3, 4, 5]])
   expect(moveCut(TWO, 0, 99)).toEqual([[1, 2, 3, 4], [5]])
+})
+
+test('a new cut splits the chapter it falls in', () => {
+  expect(addCut(TWO, 1)).toEqual([[1], [2, 3], [4, 5]])
+  expect(addCut(TWO, 4)).toEqual([[1, 2, 3], [4], [5]])
+})
+
+test('a cut on an existing boundary or an end changes nothing', () => {
+  expect(addCut(TWO, 3)).toEqual(TWO)
+  expect(addCut(TWO, 0)).toEqual(TWO)
+  expect(addCut(TWO, 5)).toEqual(TWO)
+})
+
+test('taking a cut away joins its two chapters in order', () => {
+  expect(removeCut([[1, 2], [3], [4, 5]], 0)).toEqual([
+    [1, 2, 3],
+    [4, 5],
+  ])
+  expect(removeCut([[1, 2], [3], [4, 5]], 1)).toEqual([
+    [1, 2],
+    [3, 4, 5],
+  ])
 })
