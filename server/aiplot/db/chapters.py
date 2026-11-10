@@ -2,6 +2,7 @@
 
 import sqlite3
 from collections import defaultdict
+from dataclasses import dataclass
 
 from aiplot.generated.direction.plan import PlanBeat
 from aiplot.generated.writing.chapter import Chapter
@@ -119,3 +120,89 @@ def written_count(conn: sqlite3.Connection, work_id: str) -> int:
 def delete_for_work(conn: sqlite3.Connection, work_id: str) -> None:
     # Their beats, the beats' cards and versions go with them (ON DELETE CASCADE).
     conn.execute("DELETE FROM chapter WHERE work_id = ?", (work_id,))
+
+
+@dataclass(frozen=True)
+class ChapterRow:
+    id: str
+    plan_id: str
+    episode_id: str
+    work_id: str
+    number: int
+    target_chars: int
+
+
+@dataclass(frozen=True)
+class BeatRow:
+    """A beat as the write role needs it: its plan values and the cards it names, in order."""
+
+    id: str
+    chapter_id: str
+    order: int
+    scene: int
+    source_stage: str
+    summary: str
+    pov: str
+    mode: str
+    focus: str
+    density: str
+    tension: int
+    target_chars: int
+    techniques: tuple[str, ...]
+
+
+CHAPTER_COLUMNS = (
+    "chapter.id, chapter.plan_id, d.episode_id, chapter.work_id, chapter.number, "
+    "chapter.target_chars"
+)
+CHAPTER_FROM = "FROM chapter JOIN direction_plan AS d ON d.id = chapter.plan_id"
+
+
+def get_chapter(conn: sqlite3.Connection, chapter_id: str) -> ChapterRow | None:
+    row = conn.execute(
+        f"SELECT {CHAPTER_COLUMNS} {CHAPTER_FROM} WHERE chapter.id = ?", (chapter_id,)
+    ).fetchone()
+    return ChapterRow(**dict(row)) if row else None
+
+
+def chapter_before(conn: sqlite3.Connection, chapter: ChapterRow) -> ChapterRow | None:
+    """The chapter read just before this one in the work, if any."""
+    row = conn.execute(
+        f"SELECT {CHAPTER_COLUMNS} {CHAPTER_FROM} WHERE chapter.work_id = ? AND chapter.number < ? "
+        "ORDER BY chapter.number DESC, chapter.rowid DESC LIMIT 1",
+        (chapter.work_id, chapter.number),
+    ).fetchone()
+    return ChapterRow(**dict(row)) if row else None
+
+
+def beats_of(conn: sqlite3.Connection, chapter_id: str) -> list[BeatRow]:
+    """The chapter's beats in order."""
+    techniques: dict[str, list[str]] = defaultdict(list)
+    for row in conn.execute(
+        "SELECT t.beat_id, t.technique_id FROM beat_technique AS t "
+        "JOIN beat ON beat.id = t.beat_id WHERE beat.chapter_id = ? ORDER BY t.rowid",
+        (chapter_id,),
+    ):
+        techniques[row["beat_id"]].append(row["technique_id"])
+    rows = conn.execute(
+        'SELECT id, chapter_id, "order", scene, source_stage, summary, pov, mode, focus, density, '
+        'tension, target_chars FROM beat WHERE chapter_id = ? ORDER BY "order"',
+        (chapter_id,),
+    ).fetchall()
+    return [BeatRow(**dict(row), techniques=tuple(techniques[row["id"]])) for row in rows]
+
+
+def chapter_of_beat(conn: sqlite3.Connection, beat_id: str) -> str | None:
+    row = conn.execute("SELECT chapter_id FROM beat WHERE id = ?", (beat_id,)).fetchone()
+    return row[0] if row else None
+
+
+def current_texts(conn: sqlite3.Connection, chapter_id: str) -> dict[str, str]:
+    """beat id -> its current version's text, for the chapter's written beats."""
+    rows = conn.execute(
+        "SELECT v.beat_id, v.text FROM beat_version AS v JOIN beat ON beat.id = v.beat_id "
+        "WHERE beat.chapter_id = ? AND v.version = "
+        "(SELECT max(version) FROM beat_version WHERE beat_id = v.beat_id)",
+        (chapter_id,),
+    ).fetchall()
+    return {row["beat_id"]: row["text"] for row in rows}
