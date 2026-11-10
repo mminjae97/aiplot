@@ -88,7 +88,19 @@ const RECORD = {
             core: '문 너머',
             ...SIDE,
             reveal: ['집이 비어 있다'],
-            beats: [{ order: 1, tension: 3 }],
+            beats: [
+              {
+                order: 1,
+                summary: '비트',
+                techniques: [],
+                pov: '테오 1인칭',
+                mode: '장면화',
+                focus: '감정',
+                density: '담백',
+                tension: 3,
+                target_chars: 3000,
+              },
+            ],
             target_chars: 3000,
           },
           {
@@ -135,6 +147,10 @@ type World = {
   catalog?: unknown[]
   afterDevices?: PlanRecord
   refusePick?: string
+  refuseDirect?: string
+  refuseBeats?: string
+  directDone?: PlanRecord
+  afterConfirm?: PlanRecord
   // The answer to PATCH /plans/pl_1.
   patched?: PlanRecord
   // POST /episodes/.../plans and PATCH /plans/pl_1 answer with this error code.
@@ -148,6 +164,9 @@ let calls: Call[]
 let patches: string[]
 let deviceSaves: { devices: string[] }[]
 let picks: { techniques: string[] }[]
+let directs: string[]
+let beatSaves: { beats: unknown[] }[]
+let confirms: string[]
 let world: World
 
 function mockServer(state: World) {
@@ -156,6 +175,9 @@ function mockServer(state: World) {
   patches = []
   deviceSaves = []
   picks = []
+  directs = []
+  beatSaves = []
+  confirms = []
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string, init: RequestInit = {}) => {
@@ -220,6 +242,32 @@ function mockServer(state: World) {
           return json({ code: world.refusePick, message: 'no', hint: null }, 422)
         }
         return json(world.plans?.c_ep1?.[0])
+      }
+      if (method === 'POST' && path.endsWith('/direct')) {
+        directs.push(path)
+        if (world.refuseDirect) {
+          return json({ code: world.refuseDirect, message: 'no', hint: null }, 409)
+        }
+        world.jobs = [
+          job(world.directDone ? 'done' : 'running', {
+            jobId: 'job_2',
+            kind: 'direct',
+            key: 'direct:pl_1:1',
+          }),
+        ]
+        if (world.directDone) world.plans = { c_ep1: [world.directDone] }
+        return json({ jobId: 'job_2' }, 202)
+      }
+      if (method === 'PUT' && path.endsWith('/beats')) {
+        beatSaves.push(JSON.parse(init.body as string) as { beats: unknown[] })
+        if (world.refuseBeats) {
+          return json({ code: world.refuseBeats, message: 'no', hint: null }, 422)
+        }
+        return json(world.plans?.c_ep1?.[0])
+      }
+      if (method === 'POST' && path.endsWith('/confirm')) {
+        confirms.push(path)
+        return json(world.afterConfirm ?? world.plans?.c_ep1?.[0])
       }
       if (method === 'PATCH' && path === '/plans/pl_1') {
         patches.push(init.body as string)
@@ -779,7 +827,7 @@ test('nothing is picked for the user and an empty pick cannot be sent', async ()
   serveSide()
   await pickRow('알파')
   expect(
-    screen.getByRole<HTMLButtonElement>('button', { name: strings.direction.pickConfirm }).disabled,
+    screen.getByRole<HTMLButtonElement>('button', { name: strings.direction.directScene }).disabled,
   ).toBe(true)
   fireEvent.keyDown(window, { key: 'Enter' })
   expect(picks).toEqual([])
@@ -862,7 +910,7 @@ test('the evidence shows the reason, the card and its example', async () => {
 test('saved cards say so; a refusal on saving says why', async () => {
   serveSide({ refusePick: 'TECHNIQUES_CONFLICT' })
   fireEvent.click(await pickRow('알파'))
-  fireEvent.click(screen.getByRole('button', { name: strings.direction.pickConfirm }))
+  fireEvent.click(screen.getByRole('button', { name: strings.direction.directScene }))
   expect((await screen.findByRole('alert')).textContent).toBe(
     strings.direction.errors.TECHNIQUES_CONFLICT,
   )
@@ -876,4 +924,208 @@ test('once locked the devices and cards are read-only, keys included', async () 
   fireEvent.keyDown(window, { key: '1' })
   expect(first.checked).toBe(false)
   expect(screen.queryByRole('searchbox')).toBeNull()
+})
+
+const BEATS = [
+  {
+    order: 1,
+    summary: '첫 비트',
+    techniques: ['tech_a'],
+    pov: '테오 1인칭',
+    mode: '장면화',
+    focus: '감정',
+    density: '자세히',
+    tension: 3,
+    target_chars: 2500,
+  },
+  {
+    order: 2,
+    summary: '둘째 비트',
+    techniques: [],
+    pov: '테오 1인칭',
+    mode: '요약',
+    focus: '정보',
+    density: '담백',
+    tension: 4,
+    target_chars: 3000,
+  },
+]
+
+const DIRECTED = { status: 'directed', beats: BEATS, chosen: ['tech_a'] }
+
+async function saveBody() {
+  await waitFor(() => {
+    expect(beatSaves).toHaveLength(1)
+  })
+  return beatSaves[0]?.beats as { summary: string; tension: number; techniques: string[] }[]
+}
+
+test('the chosen cards are saved, then the scene is directed', async () => {
+  serveSide()
+  fireEvent.click(await pickRow('알파'))
+  fireEvent.click(screen.getByRole('button', { name: strings.direction.directScene }))
+  await waitFor(() => {
+    expect(directs).toEqual(['/plans/pl_1/scenes/1/direct'])
+  })
+  expect(picks).toEqual([{ techniques: ['tech_a'] }])
+})
+
+test('while a scene is directed its progress shows and the cards are read-only', async () => {
+  serveSide()
+  fireEvent.click(await pickRow('알파'))
+  fireEvent.click(screen.getByRole('button', { name: strings.direction.directScene }))
+  await screen.findByText(strings.direction.directing)
+  await waitFor(async () => {
+    expect((await pickRow('베타')).disabled).toBe(true)
+  })
+})
+
+test('a finished direction brings up the beats', async () => {
+  serveSide({ directDone: sided(DIRECTED) })
+  fireEvent.click(await pickRow('알파'))
+  fireEvent.click(screen.getByRole('button', { name: strings.direction.directScene }))
+  expect(await screen.findByDisplayValue('첫 비트')).toBeTruthy()
+  expect(screen.getByRole('button', { name: strings.direction.confirmScene })).toBeTruthy()
+})
+
+test('a refused direction says why', async () => {
+  serveSide({ refuseDirect: 'SCENE_NOT_READY' })
+  fireEvent.click(await pickRow('알파'))
+  fireEvent.click(screen.getByRole('button', { name: strings.direction.directScene }))
+  expect((await screen.findByRole('alert')).textContent).toContain(
+    strings.direction.errors.SCENE_NOT_READY,
+  )
+})
+
+test('directing again asks first, because the beats go', async () => {
+  mockServer({ plans: { c_ep1: [sided(DIRECTED)] }, techniques: CARDS })
+  renderBook(SCREEN)
+  await screen.findByDisplayValue('첫 비트')
+  fireEvent.click(screen.getByRole('button', { name: strings.direction.redirect }))
+  const dialog = await screen.findByRole('alertdialog')
+  expect(directs).toEqual([])
+  expect(document.activeElement?.textContent).toBe(strings.direction.cancel)
+  fireEvent.click(within(dialog).getByRole('button', { name: strings.direction.redirect }))
+  await waitFor(() => {
+    expect(directs).toHaveLength(1)
+  })
+})
+
+test('a changed beat is saved with the whole list, without its number', async () => {
+  mockServer({ plans: { c_ep1: [sided(DIRECTED)] }, techniques: CARDS })
+  renderBook(SCREEN)
+  const summary = await screen.findByDisplayValue('첫 비트')
+  fireEvent.change(summary, { target: { value: ' 고친 비트 ' } })
+  fireEvent.blur(summary)
+  const beats = await saveBody()
+  expect(beats.map((beat) => beat.summary)).toEqual(['고친 비트', '둘째 비트'])
+  expect(beats[0]).not.toHaveProperty('order')
+})
+
+test('a summary left blank goes back to what it was, nothing is saved', async () => {
+  mockServer({ plans: { c_ep1: [sided(DIRECTED)] }, techniques: CARDS })
+  renderBook(SCREEN)
+  const summary = await screen.findByDisplayValue<HTMLTextAreaElement>('첫 비트')
+  fireEvent.change(summary, { target: { value: '   ' } })
+  fireEvent.blur(summary)
+  expect(summary.value).toBe('첫 비트')
+  expect(beatSaves).toEqual([])
+})
+
+test('a select saves at once', async () => {
+  mockServer({ plans: { c_ep1: [sided(DIRECTED)] }, techniques: CARDS })
+  renderBook(SCREEN)
+  await screen.findByDisplayValue('첫 비트')
+  const tension = screen.getAllByRole('combobox', { name: strings.direction.beatTension })[1]
+  fireEvent.change(tension as HTMLElement, { target: { value: '5' } })
+  expect((await saveBody())[1]?.tension).toBe(5)
+})
+
+test('a beat names only its scene cards and the serial ones of its place', async () => {
+  mockServer({ plans: { c_ep1: [sided(DIRECTED)] }, techniques: CARDS })
+  renderBook(SCREEN)
+  await screen.findByDisplayValue('첫 비트')
+  const groups = screen.getAllByRole('group', { name: strings.direction.beatCards })
+  const buttons = within(groups[0] as HTMLElement).getAllByRole('button')
+  // The only scene of its chapter: tech_a, then all four serial cards.
+  expect(buttons).toHaveLength(5)
+  fireEvent.click(buttons[0] as HTMLElement)
+  expect((await saveBody())[0]?.techniques).toEqual([])
+})
+
+test('dragging a beat by its handle reorders the list', async () => {
+  mockServer({ plans: { c_ep1: [sided(DIRECTED)] }, techniques: CARDS })
+  renderBook(SCREEN)
+  await screen.findByDisplayValue('첫 비트')
+  const list = screen.getByRole('list', { name: strings.direction.beatsTitle })
+  const rows = [...list.children] as HTMLElement[]
+  rows.forEach((row, at) => {
+    row.getBoundingClientRect = () => ({ top: at * 100, height: 100 }) as DOMRect
+  })
+  const handle = screen.getByRole('separator', { name: strings.direction.beatHandle(1) })
+  handle.setPointerCapture = () => undefined
+  fireEvent.pointerDown(handle, { clientY: 50, button: 0, pointerId: 1 })
+  fireEvent.pointerMove(handle, { clientY: 190, pointerId: 1 })
+  fireEvent.pointerUp(handle, { clientY: 190, pointerId: 1 })
+  expect((await saveBody()).map((beat) => beat.summary)).toEqual(['둘째 비트', '첫 비트'])
+})
+
+test('a directed scene is confirmed; a confirmed one says so', async () => {
+  mockServer({
+    plans: { c_ep1: [sided(DIRECTED)] },
+    techniques: CARDS,
+    afterConfirm: sided({ ...DIRECTED, status: 'confirmed' }),
+  })
+  renderBook(SCREEN)
+  fireEvent.click(await screen.findByRole('button', { name: strings.direction.confirmScene }))
+  await waitFor(() => {
+    expect(confirms).toEqual(['/plans/pl_1/scenes/1/confirm'])
+  })
+  const done = await screen.findByRole<HTMLButtonElement>('button', {
+    name: strings.direction.confirmed,
+  })
+  expect(done.disabled).toBe(true)
+})
+
+test('a stale scene cannot be confirmed and says why', async () => {
+  mockServer({ plans: { c_ep1: [sided({ ...DIRECTED, status: 'stale' })] }, techniques: CARDS })
+  renderBook(SCREEN)
+  await screen.findByText(strings.direction.confirmStale)
+  expect(
+    screen.getByRole<HTMLButtonElement>('button', { name: strings.direction.confirmScene })
+      .disabled,
+  ).toBe(true)
+})
+
+test('while the scene is directed its beats cannot be edited or confirmed', async () => {
+  mockServer({
+    plans: { c_ep1: [sided(DIRECTED)] },
+    techniques: CARDS,
+    jobs: [job('running', { jobId: 'job_2', kind: 'direct', key: 'direct:pl_1:1' })],
+  })
+  renderBook(SCREEN)
+  const summary = await screen.findByDisplayValue<HTMLTextAreaElement>('첫 비트')
+  await waitFor(() => {
+    expect(summary.disabled).toBe(true)
+  })
+  expect(
+    screen.getByRole<HTMLButtonElement>('button', { name: strings.direction.confirmScene })
+      .disabled,
+  ).toBe(true)
+  expect(screen.queryByRole('separator', { name: strings.direction.beatHandle(1) })).toBeNull()
+})
+
+test('a beat save refused says why', async () => {
+  mockServer({
+    plans: { c_ep1: [sided(DIRECTED)] },
+    techniques: CARDS,
+    refuseBeats: 'BEATS_INVALID',
+  })
+  renderBook(SCREEN)
+  const summary = await screen.findByDisplayValue('첫 비트')
+  fireEvent.change(summary, { target: { value: '고침' } })
+  fireEvent.blur(summary)
+  expect((await screen.findByRole('alert')).textContent).toContain(
+    strings.direction.errors.BEATS_INVALID,
+  )
 })

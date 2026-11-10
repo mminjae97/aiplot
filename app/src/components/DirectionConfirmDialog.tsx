@@ -4,13 +4,16 @@ import { Overlay } from './Overlay'
 import { useModalKeys } from './useModalKeys'
 
 type Props = {
-  directed: number
+  title: string
+  what: string
+  confirmLabel: string
   onCancel: () => void
   onConfirm: () => void
 }
 
-/** 계획 다시 만들기 (§5): says what goes; the red button is never the default. */
-export function ReplacePlanDialog({ directed, onCancel, onConfirm }: Props) {
+/** Asks before S2 drops what was made (§5): says what goes; the red button is never the
+ * default. */
+export function DirectionConfirmDialog({ title, what, confirmLabel, onCancel, onConfirm }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const cancel = useRef<HTMLButtonElement>(null)
   useModalKeys(box, onCancel, cancel)
@@ -27,20 +30,20 @@ export function ReplacePlanDialog({ directed, onCancel, onConfirm }: Props) {
           className="new-book delete-book"
           role="alertdialog"
           aria-modal="true"
-          aria-labelledby="replace-plan-title"
-          aria-describedby="replace-plan-what"
+          aria-labelledby="direction-confirm-title"
+          aria-describedby="direction-confirm-what"
         >
-          <h2 id="replace-plan-title">{strings.direction.replaceTitle}</h2>
-          <div id="replace-plan-what" className="delete-book-what">
-            <p>{strings.direction.replaceWhat(directed)}</p>
-            <p className="delete-book-warning">{strings.direction.replaceIrreversible}</p>
+          <h2 id="direction-confirm-title">{title}</h2>
+          <div id="direction-confirm-what" className="delete-book-what">
+            <p>{what}</p>
+            <p className="delete-book-warning">{strings.direction.irreversible}</p>
           </div>
           <div className="new-book-actions">
             <button ref={cancel} type="button" className="paper-button" onClick={onCancel}>
               {strings.direction.cancel}
             </button>
             <button type="button" className="paper-button" data-danger onClick={onConfirm}>
-              {strings.direction.replaceConfirm}
+              {confirmLabel}
             </button>
           </div>
         </div>

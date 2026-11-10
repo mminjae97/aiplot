@@ -4,7 +4,7 @@ import { api } from '../api/client'
 import { strings } from '../strings'
 import { DEVICES } from '../strings/devices'
 import type { PlanRecommendation, PlanScene, Technique } from '../types'
-import { isDirectionCandidate, MAX_CHOSEN, pickRefusal, sameCards } from './directionPicks'
+import { isDirectionCandidate, MAX_CHOSEN, pickRefusal } from './directionPicks'
 import { EvidencePanel } from './EvidencePanel'
 
 type Props = {
@@ -13,6 +13,7 @@ type Props = {
   /** Keys 1–5 and Enter answer only while no dialog is over the page. */
   keysActive: boolean
   saving: boolean
+  hasBeats: boolean
   onConfirm: (techniques: string[]) => void
 }
 
@@ -28,7 +29,14 @@ function reasonOf(item: PlanRecommendation): string {
 
 /** The cards to direct a scene with (§9): the recommended five in rank order, others from the
  * catalog; 1–3 picked, a fourth or a conflicting one refused with the reason. */
-export function TechniqueCardPicker({ scene, disabled, keysActive, saving, onConfirm }: Props) {
+export function TechniqueCardPicker({
+  scene,
+  disabled,
+  keysActive,
+  saving,
+  hasBeats,
+  onConfirm,
+}: Props) {
   const [draft, setDraft] = useState<string[]>(scene.chosen)
   const [refusal, setRefusal] = useState<string | null>(null)
   const [inspected, setInspected] = useState<string | null>(null)
@@ -81,8 +89,7 @@ export function TechniqueCardPicker({ scene, disabled, keysActive, saving, onCon
     }
   }
 
-  const unsaved = !sameCards(draft, scene.chosen)
-  const canConfirm = !disabled && !saving && draft.length > 0 && unsaved
+  const canConfirm = !disabled && !saving && draft.length > 0
   const confirm = () => {
     if (canConfirm) onConfirm(draft)
   }
@@ -172,13 +179,9 @@ export function TechniqueCardPicker({ scene, disabled, keysActive, saving, onCon
             onClick={confirm}
           >
             {saving && <span className="spinner" aria-hidden="true" />}
-            {strings.direction.pickConfirm}
+            {hasBeats ? strings.direction.redirect : strings.direction.directScene}
           </button>
-          <small>
-            {!unsaved && draft.length > 0
-              ? strings.direction.pickSaved
-              : strings.direction.pickKeys}
-          </small>
+          <small>{strings.direction.pickKeys}</small>
         </div>
         {!disabled && (
           <div className="pick-search">

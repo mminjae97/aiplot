@@ -3,13 +3,15 @@ import { useEffect, useState } from 'react'
 import { ApiRequestError, api } from '../api/client'
 import { strings } from '../strings'
 import type { EpisodeCard, Job, PlanList, PlanRecord, SceneStatus } from '../types'
-import { confirmedScenes, isJobActive } from './directionEpisodes'
+import { confirmedScenes, directionErrorText as errorText, isJobActive } from './directionEpisodes'
+import { DirectionConfirmDialog } from './DirectionConfirmDialog'
 import { DualTimeline } from './DualTimeline'
 import { narrationOrder } from './dualTimelineLayout'
 import { GenerationProgress } from './GenerationProgress'
-import { ReplacePlanDialog } from './ReplacePlanDialog'
+import { SceneBeats } from './SceneBeats'
 import { SceneDirectionSide } from './SceneDirectionSide'
 import { useJobProgress } from './useJobProgress'
+import { useSceneDirect } from './useSceneDirect'
 
 type Props = {
   workId: string
@@ -27,11 +29,9 @@ type Props = {
   onDismiss: (jobId: string) => void
   /** The newest job of this episode's plan, if any is known. */
   job: Job | null
+  /** All the work's jobs, newest first. */
+  jobs: readonly Job[]
   onBusy: (busy: boolean) => void
-}
-
-function errorText(code: string): string {
-  return strings.direction.errors[code] ?? strings.drawer.errors[code] ?? strings.direction.failed
 }
 
 const STATUS: Record<SceneStatus, string> = strings.direction.sceneStatus
@@ -50,6 +50,7 @@ export function EpisodePlanPanel({
   dismissed,
   onDismiss,
   job,
+  jobs,
   onBusy,
 }: Props) {
   const queryClient = useQueryClient()
@@ -58,12 +59,16 @@ export function EpisodePlanPanel({
   const running = job !== null && isJobActive(job)
   const progress = useJobProgress(running ? job.jobId : null)
 
+  // A dialog of the right column (다시 연출) is open.
+  const [sideBusy, setSideBusy] = useState(false)
+  const dialogOpen = replacing || sideBusy
+
   useEffect(() => {
-    onBusy(replacing)
+    onBusy(dialogOpen)
     return () => {
       onBusy(false)
     }
-  }, [replacing, onBusy])
+  }, [dialogOpen, onBusy])
 
   const start = useMutation({
     mutationFn: (replace: boolean) => api.createPlan(card.id, replace),
@@ -101,6 +106,7 @@ export function EpisodePlanPanel({
   const scenes = record ? narrationOrder(record.plan) : []
   // The picked scene, or the first told (a remade plan may not have the picked one).
   const scene = scenes.find((item) => item.scene === selected) ?? scenes[0]
+  const direct = useSceneDirect(workId, record?.id ?? null, scene?.scene ?? null, jobs)
   const directed = scenes.filter((scene) => scene.status !== 'undirected').length
   const canMake = active && !locked && !running && !loading && !loadFailed
   const step = progress?.step ?? null
@@ -209,7 +215,10 @@ export function EpisodePlanPanel({
               plan={record.plan}
               structure={card.data.structure}
               selected={scene.scene}
-              onSelect={setSelected}
+              onSelect={(number) => {
+                setSelected(number)
+                direct.start.reset()
+              }}
               onLayout={
                 canArrange
                   ? (layout) => {
@@ -243,12 +252,30 @@ export function EpisodePlanPanel({
                 )}
               </dl>
             </section>
+            <SceneBeats
+              key={`${record.id}:${String(scene.scene)}`}
+              episodeId={card.id}
+              record={record}
+              scene={scene}
+              readOnly={!active || locked || running}
+              directJob={direct.job}
+              directRunning={direct.running}
+              progress={direct.progress}
+              startFailure={direct.start.error}
+              dismissed={dismissed}
+              onDismiss={onDismiss}
+              onCancelJob={(jobId) => {
+                cancel.mutate(jobId)
+              }}
+            />
           </>
         )}
 
         {replacing && (
-          <ReplacePlanDialog
-            directed={directed}
+          <DirectionConfirmDialog
+            title={strings.direction.replaceTitle}
+            what={strings.direction.replaceWhat(directed)}
+            confirmLabel={strings.direction.replaceConfirm}
             onCancel={() => {
               setReplacing(false)
             }}
@@ -265,8 +292,12 @@ export function EpisodePlanPanel({
           episodeId={card.id}
           record={record}
           scene={scene}
-          readOnly={!active || locked || running}
-          keysActive={!replacing}
+          readOnly={!active || locked || running || direct.running}
+          keysActive={!dialogOpen}
+          onBusy={setSideBusy}
+          onDirect={() => {
+            direct.start.mutate({ planId: record.id, scene: scene.scene })
+          }}
         />
       )}
     </>

@@ -1,8 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import { ApiRequestError, api } from '../api/client'
 import { strings } from '../strings'
 import type { PlanList, PlanRecord, PlanScene, TechniqueDevice } from '../types'
 import { DeviceChecklist } from './DeviceChecklist'
+import { planSaveScope } from './directionEpisodes'
+import { sameCards } from './directionPicks'
+import { DirectionConfirmDialog } from './DirectionConfirmDialog'
 import { TechniqueCardPicker } from './TechniqueCardPicker'
 
 type Props = {
@@ -11,6 +15,8 @@ type Props = {
   scene: PlanScene
   readOnly: boolean
   keysActive: boolean
+  onBusy: (busy: boolean) => void
+  onDirect: () => void
 }
 
 function refusalText(error: unknown, fallback: string): string {
@@ -38,13 +44,30 @@ function withDevices(list: PlanList, scene: number, devices: TechniqueDevice[]):
 }
 
 /** The right column of S2 (§9): correct the scene's devices, then pick its technique cards. */
-export function SceneDirectionSide({ episodeId, record, scene, readOnly, keysActive }: Props) {
+export function SceneDirectionSide({
+  episodeId,
+  record,
+  scene,
+  readOnly,
+  keysActive,
+  onBusy,
+  onDirect,
+}: Props) {
   const queryClient = useQueryClient()
   const planKey = ['plans', episodeId]
   const devicesKey = ['plan-devices', record.id]
   // One save at a time, in order: each device save sends the whole list, so the last click
   // must win, and each answer is the whole plan.
-  const saveScope = `plan-saves:${record.id}`
+  const saveScope = planSaveScope(record.id)
+  // The cards to direct with, waiting for the answer to "replace the beats?".
+  const [redirecting, setRedirecting] = useState<string[] | null>(null)
+
+  useEffect(() => {
+    onBusy(redirecting !== null)
+    return () => {
+      onBusy(false)
+    }
+  }, [redirecting, onBusy])
 
   const saveDevices = useMutation({
     mutationKey: devicesKey,
@@ -76,6 +99,12 @@ export function SceneDirectionSide({ episodeId, record, scene, readOnly, keysAct
     },
   })
 
+  /** Saves the cards if they changed, then directs the scene with them (§9). */
+  const direct = (techniques: string[]) => {
+    if (sameCards(techniques, scene.chosen)) onDirect()
+    else pick.mutate(techniques, { onSuccess: onDirect })
+  }
+
   const failure = saveDevices.isError
     ? refusalText(saveDevices.error, strings.direction.devicesFailed)
     : pick.isError
@@ -100,13 +129,29 @@ export function SceneDirectionSide({ episodeId, record, scene, readOnly, keysAct
         <TechniqueCardPicker
           scene={scene}
           disabled={readOnly}
-          keysActive={keysActive}
+          keysActive={keysActive && redirecting === null}
           saving={pick.isPending}
+          hasBeats={scene.beats.length > 0}
           onConfirm={(techniques) => {
-            pick.mutate(techniques)
+            if (scene.beats.length > 0) setRedirecting(techniques)
+            else direct(techniques)
           }}
         />
       </div>
+      {redirecting && (
+        <DirectionConfirmDialog
+          title={strings.direction.redirectTitle}
+          what={strings.direction.redirectWhat}
+          confirmLabel={strings.direction.redirect}
+          onCancel={() => {
+            setRedirecting(null)
+          }}
+          onConfirm={() => {
+            direct(redirecting)
+            setRedirecting(null)
+          }}
+        />
+      )}
     </aside>
   )
 }
