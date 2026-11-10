@@ -410,3 +410,151 @@
 .timeline-scene {
   touch-action: none;
 }
+
+/* The right column (§9): the devices over the cards, each scrolling on its own. */
+.direction-columns:has(.direction-side) {
+  grid-template-columns: 200px minmax(0, 1fr) 320px;
+}
+
+.direction-side {
+  display: grid;
+  grid-template-rows: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 14px;
+  min-height: 0;
+}
+
+.direction-devices,
+.direction-side-picks {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-color: var(--ink-faint) transparent;
+  scrollbar-width: thin;
+}
+
+.direction-side h4 {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin: 0 0 6px;
+  font-size: var(--size-body);
+}
+
+.direction-side h4 small {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  font-weight: 400;
+}
+
+.direction-side ul,
+.direction-side ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.direction-devices summary {
+  padding: 4px 0;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.device-row,
+.pick-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 4px 2px;
+}
+
+.device-row input,
+.pick-row input {
+  margin-top: 3px;
+  accent-color: var(--brass);
+}
+
+.device-name,
+.pick-name {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.device-tag {
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  padding: 0 4px;
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+
+.device-question,
+.pick-row small,
+.pick-actions small {
+  display: block;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.pick-rank {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  font-weight: 700;
+}
+
+.pick-refusal {
+  margin: 4px 0;
+  color: var(--warning);
+  font-size: var(--size-small);
+}
+
+.pick-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.pick-actions .paper-button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.pick-search input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pick-search ul {
+  margin-top: 4px;
+}
+
+.pick-search button {
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 3px 2px;
+  text-align: left;
+  transition: background var(--motion);
+}
+
+.pick-search button:hover {
+  background: var(--paper-edge);
+}
+
+.direction-evidence {
+  margin-top: 12px;
+  border-top: 1px solid var(--paper-edge);
+  padding-top: 10px;
+}
+
+.direction-evidence dl,
+.direction-evidence dd {
+  margin: 0;
+}
+
+.direction-evidence dt {
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  font-weight: 700;
+}

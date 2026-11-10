@@ -20,6 +20,9 @@ import type {
   JobList,
   PlanList,
   PlanRecord,
+  Technique,
+  TechniqueDevice,
+  TechniqueList,
   SetupPathsRequest,
   SetupStatus,
   StageAdvancePreview,
@@ -116,6 +119,21 @@ export const api = {
   listWorkJobs: (workId: string) => request<JobList>(`${work(workId)}/jobs`),
   listPlans: (episodeId: string) =>
     request<PlanList>(`/episodes/${encodeURIComponent(episodeId)}/plans`),
+  /** PUT .../devices: the user's checked devices; the plan comes back recommended anew. */
+  setSceneDevices: (planId: string, scene: number, devices: TechniqueDevice[]) =>
+    request<PlanRecord>(`/plans/${encodeURIComponent(planId)}/scenes/${String(scene)}/devices`, {
+      method: 'PUT',
+      body: JSON.stringify({ devices }),
+    }),
+  /** POST .../pick: the 1-3 cards to direct the scene with, in order. */
+  pickTechniques: (planId: string, scene: number, techniques: string[]) =>
+    request<PlanRecord>(`/plans/${encodeURIComponent(planId)}/scenes/${String(scene)}/pick`, {
+      method: 'POST',
+      body: JSON.stringify({ techniques }),
+    }),
+  listTechniques: (q: string) => request<TechniqueList>(`/techniques?q=${encodeURIComponent(q)}`),
+  getTechnique: (techniqueId: string) =>
+    request<Technique>(`/techniques/${encodeURIComponent(techniqueId)}`),
   /** PATCH /plans/{planId}: the told order and cuts; scenes whose place changed go stale. */
   rearrangePlan: (planId: string, chapters: number[][]) =>
     request<PlanRecord>(`/plans/${encodeURIComponent(planId)}`, {

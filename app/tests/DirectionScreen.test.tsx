@@ -4,6 +4,7 @@ import type { ServerState } from '../src/api/bridge'
 import { useServer } from '../src/stores/server'
 import { useNavigation } from '../src/stores/navigation'
 import { strings } from '../src/strings'
+import { DEVICES } from '../src/strings/devices'
 import type { Card, Job, PlanRecord, Work } from '../src/types'
 import { renderBook } from './bookHarness'
 
@@ -58,6 +59,16 @@ const EP1 = episode('c_ep1', 1, '1화 귀환')
 const EP2 = episode('c_ep2', 2, '2화 추격')
 const EP3 = episode('c_ep3', 3, '3화 미완', 'incomplete')
 
+const SIDE = {
+  ai_devices: [],
+  sub_devices: [],
+  devices: [],
+  effects: [],
+  situations: [],
+  recommended: [],
+  chosen: [],
+}
+
 const RECORD = {
   id: 'pl_1',
   episode_id: 'c_ep1',
@@ -75,6 +86,7 @@ const RECORD = {
             source: '전개',
             summary: '문을 연다',
             core: '문 너머',
+            ...SIDE,
             reveal: ['집이 비어 있다'],
             beats: [{ order: 1, tension: 3 }],
             target_chars: 3000,
@@ -85,6 +97,7 @@ const RECORD = {
             source: '발단',
             summary: '돌아온다',
             core: '귀환',
+            ...SIDE,
             reveal: [],
             beats: [],
             target_chars: 2500,
@@ -118,6 +131,10 @@ type World = {
   events?: string
   // The job is over before the list first shows it.
   instant?: boolean
+  techniques?: Record<string, unknown>
+  catalog?: unknown[]
+  afterDevices?: PlanRecord
+  refusePick?: string
   // The answer to PATCH /plans/pl_1.
   patched?: PlanRecord
   // POST /episodes/.../plans and PATCH /plans/pl_1 answer with this error code.
@@ -129,12 +146,16 @@ type Call = { method: string; path: string }
 
 let calls: Call[]
 let patches: string[]
+let deviceSaves: { devices: string[] }[]
+let picks: { techniques: string[] }[]
 let world: World
 
 function mockServer(state: World) {
   world = state
   calls = []
   patches = []
+  deviceSaves = []
+  picks = []
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string, init: RequestInit = {}) => {
@@ -170,6 +191,30 @@ function mockServer(state: World) {
           return json({ jobId: 'job_1' }, 202)
         }
         return json({ plans: world.plans?.[plans[1] ?? ''] ?? [] })
+      }
+      if (path.startsWith('/techniques?q=')) {
+        return json({ techniques: world.catalog ?? [] })
+      }
+      const technique = /^\/techniques\/(.+)$/.exec(path)
+      if (technique) return json(world.techniques?.[technique[1] ?? ''] ?? {})
+      if (method === 'PUT' && path.endsWith('/devices')) {
+        const body = JSON.parse(init.body as string) as { devices: string[] }
+        deviceSaves.push(body)
+        if (world.afterDevices) return json(world.afterDevices)
+        // As the server does: the plan comes back with the devices saved.
+        const saved = JSON.parse(JSON.stringify(world.plans?.c_ep1?.[0])) as PlanRecord
+        saved.plan.chapters[0].scenes.forEach((scene) => {
+          scene.devices = body.devices as PlanRecord['plan']['chapters'][0]['scenes'][0]['devices']
+        })
+        world.plans = { c_ep1: [saved] }
+        return json(saved)
+      }
+      if (method === 'POST' && path.endsWith('/pick')) {
+        picks.push(JSON.parse(init.body as string) as { techniques: string[] })
+        if (world.refusePick) {
+          return json({ code: world.refusePick, message: 'no', hint: null }, 422)
+        }
+        return json(world.plans?.c_ep1?.[0])
       }
       if (method === 'PATCH' && path === '/plans/pl_1') {
         patches.push(init.body as string)
@@ -263,6 +308,7 @@ const THREE = {
           source: '위기',
           summary: `요약 ${String(scene)}`,
           core: '핵심',
+          ...SIDE,
           reveal: [],
           beats: [],
           target_chars: 2750,
@@ -277,6 +323,7 @@ const THREE = {
           source: '위기',
           summary: `요약 ${String(scene)}`,
           core: '핵심',
+          ...SIDE,
           reveal: [],
           beats: [],
           target_chars: 5500,
@@ -522,4 +569,243 @@ test('once direction is over nothing can be made or replaced', async () => {
   fireEvent.click(await row(/2화 추격/))
   await screen.findByText(strings.direction.noPlanLocked)
   expect(screen.queryByRole('button', { name: strings.direction.make })).toBeNull()
+})
+
+function card(id: string, name: string, conflicts: string[] = []) {
+  return {
+    id,
+    name,
+    name_en: `${name} en`,
+    description: `${name} 설명`,
+    example: `${name} 예시`,
+    scope: ['장면'],
+    conflicts_with: conflicts,
+  }
+}
+
+const IDS = ['tech_a', 'tech_b', 'tech_c', 'tech_d', 'tech_e']
+const CARDS: Record<string, unknown> = {
+  tech_a: card('tech_a', '알파'),
+  tech_b: card('tech_b', '베타'),
+  tech_c: card('tech_c', '감마', ['tech_a']),
+  tech_d: card('tech_d', '델타'),
+  tech_e: card('tech_e', '엡실론'),
+  tech_x: card('tech_x', '제타'),
+}
+
+function sided(extra: Record<string, unknown> = {}) {
+  return {
+    id: 'pl_1',
+    episode_id: 'c_ep1',
+    status: 'directing',
+    plan: {
+      episode: 'c_ep1',
+      chapters: [
+        {
+          chapter: 1,
+          target_chars: 5500,
+          scenes: [
+            {
+              ...SIDE,
+              scene: 1,
+              status: 'undirected',
+              source: '위기',
+              summary: '요약',
+              core: '핵심',
+              reveal: [],
+              beats: [],
+              target_chars: 5500,
+              ai_devices: ['overhear'],
+              sub_devices: ['knowledge_gap'],
+              devices: ['overhear'],
+              recommended: IDS.map((technique, at) => ({
+                rank: at + 1,
+                technique,
+                devices: at === 0 ? ['overhear'] : [],
+                effects: at === 0 ? ['긴장'] : [],
+                situations: [],
+              })),
+              ...extra,
+            },
+          ],
+        },
+      ],
+    },
+  } as unknown as PlanRecord
+}
+
+async function pickRow(name: string) {
+  const picks = await screen.findByRole('region', { name: strings.direction.picksTitle })
+  return within(picks).findByRole<HTMLInputElement>('checkbox', { name: new RegExp(name) })
+}
+
+async function deviceRow(name: string) {
+  const devices = await screen.findByRole('region', { name: strings.direction.devicesTitle })
+  return within(devices).findByRole<HTMLInputElement>('checkbox', { name: new RegExp(name) })
+}
+
+function serveSide(state: World = {}) {
+  mockServer({ plans: { c_ep1: [sided()] }, techniques: CARDS, ...state })
+  renderBook(SCREEN)
+}
+
+test('the AI main devices come first and checked, then its sub answers, the rest folded', async () => {
+  serveSide()
+  const side = await screen.findByRole('complementary', { name: strings.direction.sideTitle })
+  const boxes = within(side).getAllByRole('checkbox', { hidden: true })
+  const first = boxes[0] as HTMLInputElement
+  const second = boxes[1] as HTMLInputElement
+  expect(first.closest('label')?.textContent).toContain(DEVICES.overhear.name)
+  expect(first.closest('label')?.textContent).toContain(DEVICES.overhear.question)
+  expect(first.closest('label')?.textContent).toContain(strings.direction.aiTag)
+  expect(first.checked).toBe(true)
+  expect(second.closest('label')?.textContent).toContain(DEVICES.knowledge_gap.name)
+  expect(second.closest('label')?.textContent).toContain(strings.direction.subTag)
+  expect(second.checked).toBe(false)
+  expect(within(side).getByText(strings.direction.otherDevices(39))).toBeTruthy()
+})
+
+test('checking a device saves the list and shows the recommendations that come back', async () => {
+  const after = sided({
+    devices: ['overhear', 'knowledge_gap'],
+    recommended: [{ rank: 1, technique: 'tech_x', devices: [], effects: [], situations: [] }],
+  })
+  serveSide({ afterDevices: after })
+  fireEvent.click(await deviceRow(DEVICES.knowledge_gap.name))
+  await pickRow('제타')
+  expect(deviceSaves).toEqual([{ devices: ['overhear', 'knowledge_gap'] }])
+  expect(screen.queryByRole('checkbox', { name: /알파/ })).toBeNull()
+})
+
+test('each check builds on the one before', async () => {
+  serveSide()
+  const gap = await deviceRow(DEVICES.knowledge_gap.name)
+  const overhear = await deviceRow(DEVICES.overhear.name)
+  fireEvent.click(gap)
+  await waitFor(() => {
+    expect(gap.checked).toBe(true)
+  })
+  fireEvent.click(overhear)
+  await waitFor(() => {
+    expect(deviceSaves).toEqual([
+      { devices: ['overhear', 'knowledge_gap'] },
+      { devices: ['knowledge_gap'] },
+    ])
+  })
+})
+
+test('the five recommendations come in rank order with the reason in words', async () => {
+  serveSide()
+  const first = await pickRow('알파')
+  expect(first.closest('label')?.textContent).toContain(
+    strings.direction.reason([DEVICES.overhear.name], ['긴장'], []),
+  )
+  const names = [...document.querySelectorAll('.direction-picks ol .pick-name')].map(
+    (name) => name.textContent,
+  )
+  expect(names).toEqual(['1알파', '2베타', '3감마', '4델타', '5엡실론'])
+})
+
+test('keys 1-5 toggle cards and Enter sends them in the order picked', async () => {
+  serveSide()
+  await pickRow('엡실론')
+  fireEvent.keyDown(window, { key: '5' })
+  fireEvent.keyDown(window, { key: '1' })
+  fireEvent.keyDown(window, { key: '2' })
+  fireEvent.keyDown(window, { key: '2' })
+  fireEvent.keyDown(window, { key: 'Enter' })
+  await waitFor(() => {
+    expect(picks).toEqual([{ techniques: ['tech_e', 'tech_a'] }])
+  })
+})
+
+test('nothing is picked for the user and an empty pick cannot be sent', async () => {
+  serveSide()
+  await pickRow('알파')
+  expect(
+    screen.getByRole<HTMLButtonElement>('button', { name: strings.direction.pickConfirm }).disabled,
+  ).toBe(true)
+  fireEvent.keyDown(window, { key: 'Enter' })
+  expect(picks).toEqual([])
+})
+
+test('a fourth card is refused with the reason', async () => {
+  serveSide()
+  fireEvent.click(await pickRow('알파'))
+  fireEvent.click(await pickRow('베타'))
+  fireEvent.click(await pickRow('델타'))
+  fireEvent.click(await pickRow('엡실론'))
+  expect((await screen.findByRole('alert')).textContent).toBe(strings.direction.tooManyCards(3))
+  expect((await pickRow('엡실론')).checked).toBe(false)
+})
+
+test('a conflicting card is refused with the reason', async () => {
+  serveSide()
+  await screen.findByText('알파 예시')
+  fireEvent.click(await pickRow('알파'))
+  fireEvent.click(await pickRow('감마'))
+  expect((await screen.findByRole('alert')).textContent).toBe(
+    strings.direction.conflictCard('알파'),
+  )
+  expect((await pickRow('감마')).checked).toBe(false)
+})
+
+test('the catalog offers other scene cards, not serial or sentence-only ones', async () => {
+  serveSide({
+    catalog: [
+      { id: 'tech_x', name: '제타', scope: ['장면'] },
+      { id: 'tech_ser_019', name: '절단', scope: ['회차'] },
+      { id: 'tech_rhe_001', name: '은유', scope: ['문장'] },
+      { id: 'tech_a', name: '알파', scope: ['장면'] },
+    ],
+  })
+  await pickRow('알파')
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: '제타' } })
+  fireEvent.click(await screen.findByRole('button', { name: '제타' }))
+  expect(screen.queryByRole('button', { name: '절단' })).toBeNull()
+  expect(screen.queryByRole('button', { name: '은유' })).toBeNull()
+  // It joins the picks, and can be taken off again.
+  const added = await pickRow('제타')
+  expect(added.checked).toBe(true)
+  expect(added.closest('label')?.textContent).toContain(strings.direction.addedReason)
+  fireEvent.click(added)
+  expect(screen.queryByRole('checkbox', { name: /제타/ })).toBeNull()
+})
+
+test('typing a digit in the search does not pick a card', async () => {
+  serveSide()
+  await pickRow('알파')
+  fireEvent.keyDown(screen.getByRole('searchbox'), { key: '1' })
+  expect((await pickRow('알파')).checked).toBe(false)
+})
+
+test('the evidence shows the reason, the card and its example', async () => {
+  serveSide()
+  const row = await pickRow('알파')
+  fireEvent.mouseEnter(row.closest('label') as HTMLElement)
+  const evidence = await screen.findByRole('region', { name: strings.direction.evidenceTitle })
+  await within(evidence).findByText('알파 예시')
+  expect(within(evidence).getByText('알파 설명')).toBeTruthy()
+  expect(
+    within(evidence).getByText(strings.direction.reason([DEVICES.overhear.name], ['긴장'], [])),
+  ).toBeTruthy()
+})
+
+test('saved cards say so; a refusal on saving says why', async () => {
+  serveSide({ refusePick: 'TECHNIQUES_CONFLICT' })
+  fireEvent.click(await pickRow('알파'))
+  fireEvent.click(screen.getByRole('button', { name: strings.direction.pickConfirm }))
+  expect((await screen.findByRole('alert')).textContent).toBe(
+    strings.direction.errors.TECHNIQUES_CONFLICT,
+  )
+})
+
+test('once locked the devices and cards are read-only, keys included', async () => {
+  serveSide({ work: { ...WORK, stage: 3, locked_stage: 2 } })
+  const first = await pickRow('알파')
+  expect(first.disabled).toBe(true)
+  expect((await deviceRow(DEVICES.overhear.name)).disabled).toBe(true)
+  fireEvent.keyDown(window, { key: '1' })
+  expect(first.checked).toBe(false)
+  expect(screen.queryByRole('searchbox')).toBeNull()
 })
