@@ -96,13 +96,15 @@ export function SceneDirectionSide({
       if (queryClient.isMutating({ mutationKey: devicesKey }) === 0) {
         queryClient.setQueryData<PlanList>(planKey, { plans: [updated] })
       }
+      // Here, not per call: it still runs if the reader has gone to another scene meanwhile.
+      onDirect()
     },
   })
 
   /** Saves the cards if they changed, then directs the scene with them (§9). */
   const direct = (techniques: string[]) => {
     if (sameCards(techniques, scene.chosen)) onDirect()
-    else pick.mutate(techniques, { onSuccess: onDirect })
+    else pick.mutate(techniques)
   }
 
   const failure = saveDevices.isError

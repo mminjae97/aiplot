@@ -1129,3 +1129,36 @@ test('a beat save refused says why', async () => {
     strings.direction.errors.BEATS_INVALID,
   )
 })
+
+test('a stale beat naming a card its place no longer allows is saved without it', async () => {
+  const beats = [{ ...BEATS[0], techniques: ['tech_a', 'tech_old'] }, BEATS[1]]
+  mockServer({
+    plans: { c_ep1: [sided({ ...DIRECTED, status: 'stale', beats })] },
+    techniques: CARDS,
+  })
+  renderBook(SCREEN)
+  const summary = await screen.findByDisplayValue('첫 비트')
+  fireEvent.change(summary, { target: { value: '고침' } })
+  fireEvent.blur(summary)
+  expect((await saveBody())[0]?.techniques).toEqual(['tech_a'])
+})
+
+test('directing again clears an earlier save failure', async () => {
+  mockServer({
+    plans: { c_ep1: [sided(DIRECTED)] },
+    techniques: CARDS,
+    refuseBeats: 'BEATS_INVALID',
+  })
+  renderBook(SCREEN)
+  const summary = await screen.findByDisplayValue('첫 비트')
+  fireEvent.change(summary, { target: { value: '고침' } })
+  fireEvent.blur(summary)
+  await screen.findByRole('alert')
+  fireEvent.click(screen.getByRole('button', { name: strings.direction.redirect }))
+  const dialog = await screen.findByRole('alertdialog')
+  fireEvent.click(within(dialog).getByRole('button', { name: strings.direction.redirect }))
+  await screen.findByText(strings.direction.directing)
+  await waitFor(() => {
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+})

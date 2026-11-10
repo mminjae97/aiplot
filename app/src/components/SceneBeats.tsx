@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { ApiRequestError, api } from '../api/client'
 import { strings } from '../strings'
 import type {
@@ -11,7 +12,7 @@ import type {
   PlanScene,
 } from '../types'
 import { BeatList } from './BeatList'
-import { toEdit } from './beatEdits'
+import { allowedCards, toEdit } from './beatEdits'
 import { directionErrorText, planSaveScope } from './directionEpisodes'
 import { GenerationProgress } from './GenerationProgress'
 
@@ -93,6 +94,16 @@ export function SceneBeats({
     },
   })
 
+  // A new direction replaces the beats those errors were about.
+  const { reset: resetSave } = saveBeats
+  const { reset: resetConfirm } = confirm
+  useEffect(() => {
+    if (directRunning) {
+      resetSave()
+      resetConfirm()
+    }
+  }, [directRunning, resetSave, resetConfirm])
+
   const failedJob =
     directJob?.status === 'failed' && !dismissed.has(directJob.jobId) ? directJob : null
   const failure = saveBeats.isError
@@ -142,7 +153,16 @@ export function SceneBeats({
             scene={scene}
             disabled={!editable}
             onBeats={(beats) => {
-              saveBeats.mutate({ beats, scene: scene.scene })
+              // A stale scene's beats may still name cards its new place or picks no longer
+              // allow; the server refuses those, and the list offers no way to take them off.
+              const allowed = allowedCards(record.plan, scene)
+              saveBeats.mutate({
+                beats: beats.map((beat) => ({
+                  ...beat,
+                  techniques: beat.techniques.filter((id) => allowed.includes(id)),
+                })),
+                scene: scene.scene,
+              })
             }}
           />
           <div className="scene-confirm">
