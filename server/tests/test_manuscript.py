@@ -10,8 +10,11 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 
+from aiplot.db import chapters as chapters_db
+from aiplot.db import snapshots as snapshots_db
 from tests.test_direction_roles import conn  # noqa: F401
 from tests.test_plan_direct_api import advance, confirm, directed
 from tests.test_plan_scenes_api import plan, scenes  # noqa: F401
@@ -197,3 +200,77 @@ def test_deleting_the_work_deletes_its_manuscript(
     assert client.delete("/api/v1/works/w_01", headers=AUTH).status_code == 204
     for table in ("chapter", "beat", "beat_technique", "beat_version"):
         assert count(conn, table) == 0
+
+
+def test_chapters_follow_the_parts_then_the_order_then_creation(
+    client: TestClient, conn: sqlite3.Connection, plan: dict[str, Any]
+) -> None:
+    confirmed(client, conn, plan)
+    # The same order in a part: as the episodes were made (0화 first).
+    conn.execute('UPDATE episode SET "order" = 1')
+    assert advance(client).status_code == 200
+    assert [c["episode_id"] for c in chapters(client)] == ["c_ep0", "c_ep0", "c_ep1", "c_ep1"]
+    assert reopen(client, 2).status_code == 200
+    # 1화 moves to a part of its own told first: the part's order wins over the episode's.
+    part = conn.execute("SELECT part_id FROM episode WHERE card_id = 'c_ep1'").fetchone()[0]
+    conn.execute(
+        "INSERT INTO card (id, work_id, type, name, source_notes, data, evidence, ai_guess, "
+        "pinned_fields, status, schema_version) SELECT 'c_part0', work_id, type, '앞 부', "
+        "source_notes, data, evidence, ai_guess, pinned_fields, status, schema_version "
+        "FROM card WHERE id = ?",
+        (part,),
+    )
+    conn.execute(
+        'INSERT INTO part (card_id, main_id, "order", start, "end") '
+        "SELECT 'c_part0', main_id, 0, start, \"end\" FROM part WHERE card_id = ?",
+        (part,),
+    )
+    conn.execute("UPDATE episode SET part_id = 'c_part0', \"order\" = 9 WHERE card_id = 'c_ep1'")
+    assert advance(client).status_code == 200
+    assert [c["episode_id"] for c in chapters(client)] == ["c_ep1", "c_ep1", "c_ep0", "c_ep0"]
+
+
+def test_a_failed_start_leaves_direction_open(
+    client: TestClient,
+    conn: sqlite3.Connection,
+    plan: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    confirmed(client, conn, plan)
+    made = chapters_db.insert_beat
+    calls = []
+
+    def fail_late(*args: Any) -> None:
+        calls.append(args)
+        if len(calls) > 3:
+            raise sqlite3.IntegrityError("no more beats")
+        made(*args)
+
+    monkeypatch.setattr(chapters_db, "insert_beat", fail_late)
+    with pytest.raises(sqlite3.IntegrityError):
+        advance(client)
+    assert stage_of(conn) == (2, 1)
+    assert count(conn, "chapter") == 0 and count(conn, "beat") == 0
+
+
+def test_text_written_during_the_snapshot_still_needs_the_title(
+    client: TestClient,
+    conn: sqlite3.Connection,
+    plan: dict[str, Any],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    confirmed(client, conn, plan)
+    advance(client)
+    beat_id = chapters(client)[0]["beats"][0]["id"]
+    copy = snapshots_db.copy_database
+
+    def copy_then_write(source: sqlite3.Connection, target: Path) -> None:
+        copy(source, target)
+        write(conn, beat_id, 1, "테오가 항구에 닿았다.")
+
+    monkeypatch.setattr(snapshots_db, "copy_database", copy_then_write)
+    # No title was needed when the reopen began; the first beat arrived before it deleted.
+    assert error(reopen(client, 2)) == (422, "TITLE_MISMATCH")
+    assert stage_of(conn) == (3, 2)
+    assert count(conn, "beat_version") == 1 and snapshots(tmp_path) == []

@@ -102,6 +102,18 @@ def reopen_preview(conn: sqlite3.Connection, work_id: str, stage: int) -> StageR
     )
 
 
+def check_reopen(conn: sqlite3.Connection, work_id: str, stage: int, title: str | None) -> None:
+    """The stage is locked, and the work's title was typed if a manuscript goes (§5, §11)."""
+    if not reopen_preview(conn, work_id, stage).title_required:
+        return
+    try:
+        typed = clean_title(title or "")
+    except (TitleEmptyError, TitleTooLongError):
+        typed = None
+    if typed != require_work(conn, work_id).title:
+        raise TitleMismatchError("the typed title does not match the work's")
+
+
 def snapshot_name(snapshots_dir: Path, work_id: str, stage: int, at: datetime) -> str:
     """{workId}-s{stage}-{YYYYMMDD-HHMMSS}.db, numbered on when that name is taken."""
     base = f"{work_id}-s{stage}-{at.strftime('%Y%m%d-%H%M%S')}"
@@ -117,15 +129,7 @@ def reopen(
 ) -> Work:
     """Copies the database to a snapshot, then deletes what the stage's later stages hold and
     opens it again (§11); cards are kept. A failed copy deletes nothing."""
-    preview = reopen_preview(conn, work_id, stage)
-    if preview.title_required:
-        work = require_work(conn, work_id)
-        try:
-            typed = clean_title(title or "")
-        except (TitleEmptyError, TitleTooLongError):
-            typed = None
-        if typed != work.title:
-            raise TitleMismatchError("the typed title does not match the work's")
+    check_reopen(conn, work_id, stage, title)
     at = datetime.now(UTC)
     try:
         snapshots_dir.mkdir(parents=True, exist_ok=True)
@@ -135,8 +139,9 @@ def reopen(
         raise SnapshotFailedError(f"could not write the snapshot: {exc}") from exc
     try:
         with transaction(conn):
-            # Checked again: another request may have reopened or advanced meanwhile.
-            reopen_preview(conn, work_id, stage)
+            # Checked again: another request may have reopened or advanced meanwhile, or a
+            # first beat been written (the title is needed then).
+            check_reopen(conn, work_id, stage, title)
             chapters_db.delete_for_work(conn, work_id)
             if stage == 1:
                 plans_db.delete_for_work(conn, work_id)
