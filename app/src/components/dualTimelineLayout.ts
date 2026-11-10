@@ -125,3 +125,26 @@ export function moveCut(layout: readonly number[][], cut: number, boundary: numb
   ends[cut] = Math.min(high, Math.max(low, boundary))
   return ends.map((stop, at) => told.slice(ends[at - 1] ?? 0, stop))
 }
+
+// An episode has 1-5 chapters (§9).
+export const MAX_CHAPTERS = 5
+
+/** A new cut at column boundary `boundary` of the told row (between two scenes of a chapter). */
+export function addCut(layout: readonly number[][], boundary: number): number[][] {
+  let start = 0
+  return layout.flatMap((chapter) => {
+    const at = boundary - start
+    start += chapter.length
+    return at > 0 && at < chapter.length
+      ? [chapter.slice(0, at), chapter.slice(at)]
+      : [[...chapter]]
+  })
+}
+
+/** Cut `cut` taken away: chapter `cut` and the one after it become one. */
+export function removeCut(layout: readonly number[][], cut: number): number[][] {
+  return layout.flatMap((chapter, at) => {
+    if (at === cut + 1) return []
+    return at === cut ? [[...chapter, ...(layout[cut + 1] ?? [])]] : [[...chapter]]
+  })
+}

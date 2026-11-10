@@ -276,12 +276,12 @@ test('a plan is laid out in story order over narration, and a scene opens on cli
   renderBook(SCREEN)
   await screen.findByText(strings.direction.confirmedOf(1, 2))
   const timeline = screen.getByRole('group', { name: strings.direction.timeline })
-  const names = within(timeline)
-    .getAllByRole('button')
-    .map((node) => node.querySelector('.timeline-scene-name')?.textContent)
+  const names = [...timeline.querySelectorAll('.timeline-scene-name')].map(
+    (node) => node.textContent,
+  )
   // Story order first (1, 2), then as told (2, 1): the moved scene is marked in both rows.
-  expect(names.filter((name) => name?.includes(strings.direction.reorderedMark))).toHaveLength(2)
-  expect(names.map((name) => name?.replace(/\D/g, ''))).toEqual(['1', '2', '2', '1'])
+  expect(names.filter((name) => name.includes(strings.direction.reorderedMark))).toHaveLength(2)
+  expect(names.map((name) => name.replace(/\D/g, ''))).toEqual(['1', '2', '2', '1'])
   expect(within(timeline).getByText(strings.direction.chapter(1, 5500))).toBeTruthy()
 
   // The first told opens; its core and reveals are shown.
@@ -341,7 +341,7 @@ const THREE = {
 /** The told row of the timeline, 300px wide from x = 0: 100px a column. */
 async function toldRow() {
   const timeline = await screen.findByRole('group', { name: strings.direction.timeline })
-  const nodes = within(timeline).getAllByRole('button')
+  const nodes = [...timeline.querySelectorAll<HTMLElement>('.timeline-scene')]
   const told = nodes.slice(nodes.length / 2)
   const row = told[0]?.parentElement as HTMLElement
   row.getBoundingClientRect = () => ({ left: 0, width: 300 }) as DOMRect
@@ -378,9 +378,9 @@ test('dragging a told scene sends the new order, and the answer is shown', async
     ])
   })
   await waitFor(() => {
-    const names = within(timeline)
-      .getAllByRole('button')
-      .map((node) => node.querySelector('.timeline-scene-name')?.textContent.replace(/\D/g, ''))
+    const names = [...timeline.querySelectorAll('.timeline-scene-name')].map((node) =>
+      node.textContent.replace(/\D/g, ''),
+    )
     expect(names).toEqual(['1', '2', '3', '2', '1', '3'])
   })
   // The click ending the drag does not pick the scene: the first told stays open.
@@ -421,6 +421,55 @@ test('dragging a cut moves it between scenes', async () => {
   })
 })
 
+test('+ between two scenes of a chapter adds a cut', async () => {
+  mockServer({ plans: { c_ep1: [THREE] } })
+  renderBook(SCREEN)
+  await toldRow()
+  // No + where a cut already is.
+  expect(screen.queryByRole('button', { name: strings.direction.addCut(2) })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: strings.direction.addCut(1) }))
+  await waitFor(() => {
+    expect(patches.map((body) => JSON.parse(body) as unknown)).toEqual([
+      { chapters: [[1], [2], [3]] },
+    ])
+  })
+})
+
+test('× on a cut joins its two chapters', async () => {
+  mockServer({ plans: { c_ep1: [THREE] } })
+  renderBook(SCREEN)
+  await toldRow()
+  fireEvent.click(screen.getByRole('button', { name: strings.direction.removeCut(1, 2) }))
+  await waitFor(() => {
+    expect(patches.map((body) => JSON.parse(body) as unknown)).toEqual([{ chapters: [[1, 2, 3]] }])
+  })
+})
+
+test('at five chapters no more can be added', async () => {
+  const chapters = [1, 2, 3, 4, 5].map((chapter) => ({
+    chapter,
+    target_chars: 5500,
+    scenes: [chapter * 10, chapter * 10 + 1].map((scene) => ({
+      ...SIDE,
+      scene,
+      status: 'undirected',
+      source: '위기',
+      summary: `요약 ${String(scene)}`,
+      core: '핵심',
+      reveal: [],
+      beats: [],
+      target_chars: 2750,
+    })),
+  }))
+  mockServer({
+    plans: { c_ep1: [{ ...THREE, plan: { episode: 'c_ep1', chapters } } as unknown as PlanRecord] },
+  })
+  renderBook(SCREEN)
+  await toldRow()
+  expect(screen.queryByRole('button', { name: strings.direction.addCut(10) })).toBeNull()
+  expect(screen.getByRole('button', { name: strings.direction.removeCut(1, 2) })).toBeTruthy()
+})
+
 test('a refused change says why and the plan stays', async () => {
   mockServer({ plans: { c_ep1: [THREE] }, refuse: 'PLAN_LAYOUT_INVALID' })
   renderBook(SCREEN)
@@ -437,6 +486,8 @@ test('once locked nothing drags', async () => {
   dragTo(told[0] as HTMLElement, 50, 180)
   expect(patches).toEqual([])
   expect(screen.queryByRole('separator')).toBeNull()
+  expect(screen.queryByRole('button', { name: strings.direction.addCut(1) })).toBeNull()
+  expect(screen.queryByRole('button', { name: strings.direction.removeCut(1, 2) })).toBeNull()
 })
 
 test('an inactive episode says why and cannot be planned', async () => {

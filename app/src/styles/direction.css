@@ -384,26 +384,57 @@
   position: relative;
 }
 
-.dual-cut {
+.dual-grips {
+  position: relative;
+  grid-column: 2;
+  height: 20px;
+  margin-top: 4px;
+}
+
+.dual-grip,
+.dual-add-cut {
   position: absolute;
-  top: -4px;
-  bottom: -4px;
-  width: 18px;
+  top: 0;
+}
+
+.dual-grip {
+  display: flex;
+  gap: 2px;
   margin-left: -9px;
+}
+
+.dual-cut,
+.dual-add-cut,
+.dual-remove-cut {
+  width: 18px;
+  height: 20px;
+  border: 0;
   border-radius: 3px;
-  background: var(--paper);
+  background: none;
+  padding: 0;
   color: var(--ink-soft);
   font-weight: 700;
-  line-height: 1.6;
+  line-height: 20px;
   text-align: center;
-  touch-action: none;
-  user-select: none;
   transition: background var(--motion);
 }
 
-.dual-cut:hover,
-.dual-cut[data-dragging] {
+.dual-cut {
   background: var(--paper-edge);
+  touch-action: none;
+  user-select: none;
+}
+
+.dual-add-cut {
+  margin-left: -9px;
+  color: var(--ink-faint);
+}
+
+.dual-cut:hover,
+.dual-cut[data-dragging],
+.dual-add-cut:hover,
+.dual-remove-cut:hover {
+  background: var(--control-hover);
   color: var(--ink);
 }
 

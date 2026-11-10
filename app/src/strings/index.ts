@@ -471,8 +471,10 @@ export const strings = {
       tensions.length > 0 ? `서술 순서의 긴장도: ${tensions.join(', ')}` : '긴장도 정보가 없어요.',
     tensionLegend: '● 연출한 비트의 긴장도 · ○ 연출 전 단계의 긴장도 · 점선은 화가 끊기는 자리',
     cutLabel: (chapter: number) => `${String(chapter)}화가 끝나는 자리`,
+    addCut: (scene: number) => `장면 ${String(scene)} 뒤에서 화 나누기`,
+    removeCut: (first: number, second: number) => `${String(first)}화와 ${String(second)}화 합치기`,
     dragHint:
-      '서술 줄의 장면과 ⋮ 표시를 끌어서 순서와 화 나눔을 바꿀 수 있어요. 자리가 바뀐 장면은 다시 연출해야 해요.',
+      '서술 줄의 장면과 ⋮ 표시를 끌어서 옮기고, +로 화를 나누고 ×로 합칠 수 있어요. 자리가 바뀐 장면은 다시 연출해야 해요.',
     rearrangeFailed: '순서를 바꾸지 못했어요. 다시 시도해 주세요.',
     sideTitle: '장면 연출',
     devicesTitle: '이 장면의 장치',
