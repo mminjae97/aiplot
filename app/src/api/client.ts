@@ -17,6 +17,8 @@ import type {
   HealthResponse,
   Job,
   JobAccepted,
+  JobList,
+  PlanList,
   SetupPathsRequest,
   SetupStatus,
   StageAdvancePreview,
@@ -110,6 +112,15 @@ export const api = {
   pauseJob: (jobId: string) => request<Job>(`${job(jobId)}/pause`, { method: 'POST' }),
   resumeJob: (jobId: string) => request<Job>(`${job(jobId)}/resume`, { method: 'POST' }),
   cancelJob: (jobId: string) => request<Job>(`${job(jobId)}/cancel`, { method: 'POST' }),
+  listWorkJobs: (workId: string) => request<JobList>(`${work(workId)}/jobs`),
+  listPlans: (episodeId: string) =>
+    request<PlanList>(`/episodes/${encodeURIComponent(episodeId)}/plans`),
+  /** POST /episodes/{episodeId}/plans (job): replace drops the plan the episode has. */
+  createPlan: (episodeId: string, replace: boolean) =>
+    request<JobAccepted>(
+      `/episodes/${encodeURIComponent(episodeId)}/plans${replace ? '?replace=true' : ''}`,
+      { method: 'POST' },
+    ),
   listCards: (workId: string, filter: { type?: string; q?: string } = {}) => {
     const query = new URLSearchParams()
     if (filter.type) query.set('type', filter.type)

@@ -1,0 +1,199 @@
+/* S2 direction (§9): the episodes on the left, the selected episode beside them. */
+
+.page-wide.direction {
+  overflow: hidden;
+}
+
+.direction-before {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  max-width: 560px;
+}
+
+.direction-before h2 {
+  margin: 0;
+  font-size: var(--size-title);
+}
+
+.direction-before p,
+.direction-note,
+.direction-synopsis {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.direction-columns {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 28px;
+  min-height: 0;
+}
+
+.direction-episodes,
+.direction-panel {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-color: var(--ink-faint) transparent;
+  scrollbar-width: thin;
+}
+
+.direction-episodes h3 {
+  margin: 0 0 6px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  font-weight: 700;
+}
+
+.direction-episodes ul {
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.direction-episode {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  border: 0;
+  border-left: 3px solid transparent;
+  background: none;
+  padding: 6px 8px;
+  text-align: left;
+  transition: background var(--motion);
+}
+
+.direction-episode:hover {
+  background: var(--paper-edge);
+}
+
+.direction-episode[aria-current] {
+  border-left-color: var(--brass);
+  font-weight: 700;
+}
+
+.direction-episode small {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  font-weight: 400;
+}
+
+.direction-episode[data-inactive] {
+  opacity: 0.55;
+}
+
+.direction-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.direction-head {
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+}
+
+.direction-head h3 {
+  margin: 0;
+  font-size: var(--size-title);
+}
+
+.direction-count {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.direction-replace {
+  margin-left: auto;
+}
+
+.direction-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.direction-failure {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: var(--warning);
+}
+
+.direction-failure p {
+  margin: 0;
+}
+
+.generation-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  max-width: 480px;
+}
+
+.generation-progress p {
+  margin: 0;
+}
+
+.generation-step {
+  font-weight: 700;
+}
+
+.generation-note {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.generation-progress progress {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--brass);
+}
+
+.direction-chapters,
+.direction-scenes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.direction-chapters h4 {
+  margin: 0 0 8px;
+  font-size: var(--size-lead);
+}
+
+.direction-chapters > li + li {
+  margin-top: 18px;
+}
+
+.direction-scenes > li {
+  border-top: 1px solid var(--paper-edge);
+  padding: 8px 0;
+}
+
+.direction-scenes p {
+  margin: 0;
+}
+
+.direction-scene-meta {
+  display: flex;
+  gap: 10px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.direction-scene-status {
+  margin-left: auto;
+}
+
+.direction-scenes > li[data-status='stale'] .direction-scene-status {
+  color: var(--warning);
+  font-weight: 700;
+}

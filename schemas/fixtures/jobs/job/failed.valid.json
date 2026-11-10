@@ -1,6 +1,7 @@
 {
  "jobId": "job_a1B2",
  "kind": "download",
+ "key": null,
  "workId": null,
  "status": "failed",
  "createdAt": "2026-10-30T04:00:00Z",
