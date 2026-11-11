@@ -7,8 +7,10 @@ within ±10% of its target; the criterion is >=90% of the chapters. Beats: store
 against the target the call was given (the adjusted one) and against the plan's, and how many
 fall in 500-1000. Calls: beats written again, texts cut at max_tokens, empty texts, beats kept
 with a banned phrase. Repetition: per chapter, the distinct runs of three eojeol (punctuation
-at their edges dropped) that occur twice or more; the criterion is <=3 per chapter. Tokens and
-seconds per call.
+at their edges dropped) that occur twice or more; the criterion is <=3 per chapter. Copying:
+the lines of a chapter's later beats that an earlier beat of the chapter already holds word for
+word (the earlier beats are in the call's context), and the beats that are a whole earlier beat
+again. Tokens and seconds per call.
 """
 
 import argparse
@@ -32,6 +34,25 @@ def repeated_runs(text: str, size: int = 3) -> list[str]:
     return [run for run, count in runs.items() if count > 1]
 
 
+def lines_of(text: str) -> list[str]:
+    return [line.strip() for line in text.splitlines() if line.strip()]
+
+
+def copying(texts: list[str]) -> tuple[int, int, int]:
+    """(lines in the beats after the first, those an earlier beat already holds, beats that
+    are a whole earlier beat again)."""
+    seen: set[str] = set()
+    total = copied = whole = 0
+    for at, text in enumerate(texts):
+        lines = lines_of(text)
+        if at:
+            total += len(lines)
+            copied += sum(1 for line in lines if line in seen)
+            whole += text in texts[:at]
+        seen.update(lines)
+    return total, copied, whole
+
+
 def spread(values: list[float]) -> dict[str, float] | None:
     if not values:
         return None
@@ -52,6 +73,7 @@ def score(results: dict[str, Any]) -> dict[str, Any]:
         text = "\n".join(beat["text"] or "" for beat in beats)
         ratio = chars / chapter["target_chars"]
         repeats = repeated_runs(text)
+        later_lines, copied_lines, beats_again = copying([beat["text"] or "" for beat in beats])
         rows.append(
             {
                 "genre": chapter["genre"],
@@ -66,6 +88,9 @@ def score(results: dict[str, Any]) -> dict[str, Any]:
                 "in_length": chapter["status"] == "done" and abs(ratio - 1) <= TOLERANCE,
                 "repeats": len(repeats),
                 "repeated": repeats[:10],
+                "later_lines": later_lines,
+                "copied_lines": copied_lines,
+                "beats_again": beats_again,
                 "seconds": chapter["seconds"],
             }
         )
@@ -85,6 +110,9 @@ def score(results: dict[str, Any]) -> dict[str, Any]:
         "chapter_ratio": spread([row["ratio"] for row in done]),
         "chapters_within_repeats": sum(1 for row in done if row["repeats"] <= REPEATS_ALLOWED),
         "chapter_repeats": spread([float(row["repeats"]) for row in done]),
+        "later_lines": sum(row["later_lines"] for row in rows),
+        "copied_lines": sum(row["copied_lines"] for row in rows),
+        "beats_copying_a_whole_earlier_beat": sum(row["beats_again"] for row in rows),
         "beats": sum(row["beats"] for row in rows),
         "beats_written": len(written),
         "beats_in_range": sum(
@@ -124,6 +152,7 @@ def main() -> None:
         print(
             f"{mark}{row['episode']} ch{row['number']}: {row['chars']}자 ({row['ratio']:.0%}), "
             f"beats {row['written']}/{row['beats']}, repeats {row['repeats']}, "
+            f"copied lines {row['copied_lines']}/{row['later_lines']}, "
             f"{row['seconds']}s {row['error'] or ''}"
         )
     summary = {key: value for key, value in scored.items() if key != "rows"}
