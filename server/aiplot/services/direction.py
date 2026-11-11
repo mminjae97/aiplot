@@ -36,7 +36,7 @@ from aiplot.generated.technique.technique_situation import TechniqueSituation
 from aiplot.llm.client import LlmError, Message, Usage
 from aiplot.llm.config import Role
 from aiplot.llm.router import OutputMeta, Router
-from aiplot.services import cards
+from aiplot.services import cards, notes
 from aiplot.services import direction_context as context
 from aiplot.services.direction_context import Place, Scene, SceneSpot
 
@@ -442,6 +442,8 @@ class DirectResult:
     meta: OutputMeta
     usage: Usage | None
     generations: int
+    # Summary sentences dropped from the kept generation: another beat already had them.
+    repeated: int = 0
 
 
 class SceneNotReadyError(ValueError):
@@ -495,21 +497,65 @@ def direct_schema(technique_ids: Sequence[str], beats: tuple[int, int]) -> dict[
     return schema
 
 
+def said_elsewhere(plan: DirectionPlan, number: int) -> frozenset[str]:
+    """Every sentence the beats of the plan's other scenes say (spacing evened out)."""
+    return frozenset(
+        " ".join(sentence.split())
+        for chapter in plan.chapters
+        for scene in chapter.scenes
+        if scene.scene != number
+        for beat in scene.beats
+        for sentence in notes.split_sentences(beat.summary)
+    )
+
+
+def new_summaries(output: DirectOutput, said: Collection[str]) -> tuple[list[str], int]:
+    """Each beat's summary without the sentences an earlier beat of the output or another
+    scene's beat (said) already has word for word, and how many were dropped. The write role
+    turns a summary into prose as it stands, so a repeated sentence is written twice (step 7
+    run 1)."""
+    seen = set(said)
+    summaries = []
+    dropped = 0
+    for beat in output.beats:
+        kept = []
+        for sentence in notes.split_sentences(beat.summary):
+            key = " ".join(sentence.split())
+            if key in seen:
+                dropped += 1
+            else:
+                seen.add(key)
+                kept.append(key)
+        summaries.append(" ".join(kept))
+    return summaries, dropped
+
+
 def clean_beats(
-    output: DirectOutput, target_chars: int, allowed: Collection[str]
+    output: DirectOutput,
+    target_chars: int,
+    allowed: Collection[str],
+    said: Collection[str] = (),
 ) -> list[PlanBeat]:
-    """Beats numbered 1..n, targets rescaled to the scene's, summaries stripped, each allowed
-    technique once. Nothing if a summary or pov is blank, or with more beats than characters
-    (the schema's beat count rules that out)."""
+    """Beats numbered 1..n, targets rescaled to the scene's, summaries without the sentences
+    said before (new_summaries), each allowed technique once. A beat with nothing new left to
+    say is dropped (the others share its characters; the scene may then hold fewer beats than
+    its range). Nothing if a summary or pov came blank, if no beat is left, or with more
+    beats than characters (the schema's beat count rules that out)."""
     if len(output.beats) > target_chars:
         return []
     if any(not (beat.summary.strip() and beat.pov.strip()) for beat in output.beats):
         return []
-    targets = rescale([beat.target_chars for beat in output.beats], target_chars)
+    summaries, _ = new_summaries(output, said)
+    kept = [
+        (beat, summary) for beat, summary in zip(output.beats, summaries, strict=True) if summary
+    ]
+    if not kept:
+        return []
+    targets = rescale([beat.target_chars for beat, _ in kept], target_chars)
     return [
         PlanBeat(
             order=order,
-            summary=beat.summary.strip(),
+            summary=summary,
             techniques=list(dict.fromkeys(t for t in beat.techniques if t in allowed)),
             pov=beat.pov.strip(),
             mode=beat.mode,
@@ -518,7 +564,7 @@ def clean_beats(
             tension=beat.tension,
             target_chars=target,
         )
-        for order, (beat, target) in enumerate(zip(output.beats, targets, strict=True), start=1)
+        for order, ((beat, summary), target) in enumerate(zip(kept, targets, strict=True), start=1)
     ]
 
 
@@ -538,12 +584,13 @@ def chosen_cards(conn: sqlite3.Connection, scene: PlanScene) -> list[Technique]:
 @dataclass(frozen=True)
 class DirectCall:
     """What a direct call sends and cleans against: the turns, the narrowed schema, the ids the
-    beats may name and the scene's target."""
+    beats may name, the scene's target and what the other scenes' beats already say."""
 
     turns: list[Message]
     schema: dict[str, Any]
     allowed: list[str]
     target_chars: int
+    said: frozenset[str]
 
 
 def prepare_direct(conn: sqlite3.Connection, plan: DirectionPlan, number: int) -> DirectCall:
@@ -560,6 +607,7 @@ def prepare_direct(conn: sqlite3.Connection, plan: DirectionPlan, number: int) -
         schema=direct_schema(allowed, beats),
         allowed=allowed,
         target_chars=spot.scene.target_chars,
+        said=said_elsewhere(plan, number),
     )
 
 
@@ -569,12 +617,12 @@ async def direct_scene(
     """One scene's beats (§9): the scene in its episode with its place, neighbours, the user's
     1-3 cards and the serial cards for its place."""
     call = prepare_direct(conn, plan, number)
-    kept = await generate_kept(
-        router,
-        "direct",
-        call.turns,
-        DirectOutput,
-        call.schema,
-        lambda output: clean_beats(output, call.target_chars, call.allowed),
-    )
-    return DirectResult(kept.items, kept.meta, kept.usage, kept.generations)
+    dropped = 0
+
+    def clean(output: DirectOutput) -> list[PlanBeat]:
+        nonlocal dropped
+        _, dropped = new_summaries(output, call.said)
+        return clean_beats(output, call.target_chars, call.allowed, call.said)
+
+    kept = await generate_kept(router, "direct", call.turns, DirectOutput, call.schema, clean)
+    return DirectResult(kept.items, kept.meta, kept.usage, kept.generations, dropped)

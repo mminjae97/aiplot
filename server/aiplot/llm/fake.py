@@ -11,6 +11,7 @@ from aiplot.llm.config import SERVER_DIR, Role
 FIXTURES_DIR = SERVER_DIR / "tests" / "fixtures" / "llm"
 # Small pieces so callers see a real stream (sentence splitting, cancellation).
 CHUNK_CHARS = 8
+CALL_MARK = "{call}"
 
 
 @dataclass(frozen=True)
@@ -45,7 +46,10 @@ class FakeClient:
         if request.thinking:
             for piece in chunks(response.reasoning):
                 yield Delta("reasoning", piece)
-        for piece in chunks(response.content):
+        # CALL_MARK in a fixture = the number of this call for the role, so a role asked again
+        # answers in other words (direct: a scene's beats may not repeat another scene's).
+        number = sum(1 for asked in self.requests if asked.role == request.role)
+        for piece in chunks(response.content.replace(CALL_MARK, str(number))):
             yield Delta("content", piece)
         yield Delta("finish", response.finish_reason)
 

@@ -11,12 +11,15 @@ with the first recommended card chosen and `direct`, its beats going back into t
 record also keeps what the scoring page shows beside the plan: the episode as saved (theme,
 synopsis, stages, foreshadowing planted and paid off) and the text of every technique card the
 plan names. `--fake` uses the fixture client (a check of the scripts; its 4-stage episodes fail
-the scene call, the fixture's scenes being 5-stage). `--episodes ID…` runs a subset. Results
-are written after every episode and stay out of git (eval/results/ is gitignored).
+the scene call, the fixture's scenes being 5-stage). `--episodes ID…` runs a subset.
+`--redirect RESULTS` takes an earlier run's scenes and arrangement and runs only `direct`
+again (what a change of the direct role does to the same plans). Results are written after
+every episode and stay out of git (eval/results/ is gitignored).
 """
 
 import argparse
 import asyncio
+import json
 import sys
 import tempfile
 from datetime import UTC, datetime
@@ -30,6 +33,7 @@ sys.path.insert(0, str(HERE.parent / "step3"))
 
 from aiplot.db import cards as cards_db  # noqa: E402
 from aiplot.db import techniques as techniques_db  # noqa: E402
+from aiplot.generated.direction.plan import DirectionPlan  # noqa: E402
 from aiplot.llm.client import LlamaClient  # noqa: E402
 from aiplot.llm.config import load_llm_config  # noqa: E402
 from aiplot.llm.fake import FakeClient  # noqa: E402
@@ -38,7 +42,7 @@ from aiplot.services import cards  # noqa: E402
 from check import GENRES, open_cases  # noqa: E402
 from check_cases import load_genre  # noqa: E402
 from run import write  # noqa: E402
-from run_plan import run_episode  # noqa: E402
+from run_plan import direct_all, run_episode  # noqa: E402
 
 
 def episode_view(conn: Any, episode_id: str) -> dict[str, Any]:
@@ -77,6 +81,21 @@ def named_techniques(conn: Any, plan: dict[str, Any] | None) -> dict[str, dict[s
     return found
 
 
+async def redirected(router: Router, conn: Any, earlier: dict[str, Any]) -> dict[str, Any]:
+    """An earlier run's episode directed again: its scenes and arrangement as they were, every
+    scene's beats dropped first (a scene's beats may not repeat another scene's), then
+    run_plan.direct_all. What a change of the direct role alone does."""
+    for chapter in earlier["plan"]["chapters"]:
+        for scene in chapter["scenes"]:
+            scene.update({"beats": [], "status": "undirected", "chosen": []})
+    record: dict[str, Any] = {
+        key: earlier[key] for key in ("id", "name", "scenes") if key in earlier
+    }
+    plan = await direct_all(router, conn, DirectionPlan.model_validate(earlier["plan"]), record)
+    record["plan"] = plan.model_dump(mode="json")
+    return record
+
+
 async def main() -> None:
     parser = argparse.ArgumentParser()
     source = parser.add_mutually_exclusive_group(required=True)
@@ -84,8 +103,18 @@ async def main() -> None:
     source.add_argument("--fake", action="store_true", help="fixture client, no model")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--episodes", nargs="+", metavar="ID", help="only these episode ids")
+    parser.add_argument(
+        "--redirect",
+        type=Path,
+        metavar="RESULTS",
+        help="an earlier run's results: its scenes and arrangement kept, only direct run again",
+    )
     args = parser.parse_args()
 
+    earlier = {}
+    if args.redirect:
+        plans = json.loads(args.redirect.read_text(encoding="utf-8"))["episodes"]
+        earlier = {record["id"]: record for record in plans if record.get("plan")}
     client = None if args.fake else LlamaClient(args.url)
     router = Router(load_llm_config(), client or FakeClient(), lora_dir=HERE / "no-lora")
     results: dict[str, Any] = {
@@ -104,7 +133,12 @@ async def main() -> None:
             try:
                 for episode in wanted:
                     print(f"episode {episode['id']}", flush=True)
-                    record = await run_episode(router, conn, episode)
+                    if args.redirect:
+                        if episode["id"] not in earlier:
+                            continue
+                        record = await redirected(router, conn, earlier[episode["id"]])
+                    else:
+                        record = await run_episode(router, conn, episode)
                     record["episode"] = episode_view(conn, episode["id"])
                     record["techniques"] = named_techniques(conn, record.get("plan"))
                     results["episodes"].append({"genre": genre, **record})
