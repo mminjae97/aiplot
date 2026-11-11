@@ -64,6 +64,12 @@ def spread(values: list[float]) -> dict[str, float] | None:
     }
 
 
+def given_target(beat: dict[str, Any]) -> int:
+    """The target the beat's stored text was written to: its last call's, else the plan's."""
+    given = beat["calls"][-1]["target"] if beat["calls"] else None
+    return int(given or beat["target_chars"])
+
+
 def score(results: dict[str, Any]) -> dict[str, Any]:
     chapters = results["chapters"]
     rows = []
@@ -99,7 +105,7 @@ def score(results: dict[str, Any]) -> dict[str, Any]:
     used = [call["usage"] for call in calls if call["usage"]]
     by_kind: dict[str, list[float]] = {}
     for beat in written:
-        given = beat["calls"][-1]["target"] if beat["calls"] else beat["target_chars"]
+        given = given_target(beat)
         for key in (f"mode {beat['mode']}", f"focus {beat['focus']}", f"density {beat['density']}"):
             by_kind.setdefault(key, []).append(beat["chars"] / given)
     done = [row for row in rows if row["status"] == "done"]
@@ -119,9 +125,7 @@ def score(results: dict[str, Any]) -> dict[str, Any]:
             1 for beat in written if BEAT_RANGE[0] <= beat["chars"] <= BEAT_RANGE[1]
         ),
         "beat_chars": spread([float(beat["chars"]) for beat in written]),
-        "beat_to_given_target": spread(
-            [beat["chars"] / beat["calls"][-1]["target"] for beat in written if beat["calls"]]
-        ),
+        "beat_to_given_target": spread([beat["chars"] / given_target(beat) for beat in written]),
         "beat_to_plan_target": spread([beat["chars"] / beat["target_chars"] for beat in written]),
         "beat_to_given_by_kind": {key: spread(values) for key, values in sorted(by_kind.items())},
         "calls": len(calls),

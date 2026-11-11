@@ -121,7 +121,9 @@ async def write_chapter(
     by_beat: dict[str, list[dict[str, Any]]] = {}
     for event in job.events:
         if event.type == "beat_start":
-            by_beat.setdefault(event.data["beatId"], []).append(next(calls))
+            # A generation that failed before it reached the client left no call.
+            call = next(calls, None)
+            by_beat.setdefault(event.data["beatId"], []).extend([call] if call else [])
         elif event.type == "done":
             record["result"] = event.data["result"]
         elif event.type == "error":

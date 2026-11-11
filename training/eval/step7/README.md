@@ -21,6 +21,7 @@ beat (target given, user message, text, finish reason, usage, seconds) and the s
 `score_write.py` prints one line per chapter and the totals: chapters within ±10%, beat
 characters against the given and the plan target (also by mode, focus, density), beats within
 500–1000, beats written again, calls cut at max_tokens, repeated three-eojeol runs per chapter,
+lines copied word for word from an earlier beat of the chapter,
 tokens and seconds per call.
 
 Not measured yet: summaries and state are not in the context (they come with their units).
