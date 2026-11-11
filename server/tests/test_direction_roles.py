@@ -17,7 +17,7 @@ from aiplot.generated.roles.direct_output import DirectOutput
 from aiplot.generated.roles.scene_output import DeviceRole, OutputScene, SceneDevices, SceneOutput
 from aiplot.llm.client import ChatRequest, Delta, LlmError, Message, Usage
 from aiplot.llm.config import PROMPTS_DIR, load_llm_config
-from aiplot.llm.fake import FakeClient
+from aiplot.llm.fake import FakeClient, FakeResponse
 from aiplot.llm.router import Router
 from aiplot.services import cards, direction, techniques
 from aiplot.services.direction import EpisodeNotReadyError
@@ -686,7 +686,7 @@ async def test_direct_sees_the_scene_its_place_and_cards(
     assert [b.target_chars for b in result.beats] == [583, 750, 500]
     assert sum(b.target_chars for b in result.beats) == scene.target_chars
     assert [b.techniques for b in result.beats] == [["tech_ser_020"], [CHOSEN], ["tech_ser_019"]]
-    assert (result.meta.role, result.meta.prompt_version) == ("direct", 1)
+    assert (result.meta.role, result.meta.prompt_version) == ("direct", 2)
     assert (result.usage, result.generations) == (None, 1)
 
 
@@ -747,9 +747,69 @@ async def test_direct_regenerates_once_when_a_beat_is_blank(
 
 
 def test_clean_beats_refuses_more_beats_than_characters() -> None:
-    output = DirectOutput.model_validate({"beats": [beat(), beat()]})
+    output = DirectOutput.model_validate({"beats": [beat(), beat(summary="불을 켠다.")]})
     assert direction.clean_beats(output, 1, [CHOSEN]) == []
     assert [b.target_chars for b in direction.clean_beats(output, 2, [CHOSEN])] == [1, 1]
+
+
+def test_a_summary_sentence_another_beat_has_is_dropped() -> None:
+    output = DirectOutput.model_validate(
+        {
+            "beats": [
+                beat(summary="테오가 등대에 오른다. 계단이 젖어 있다."),
+                beat(summary="테오가  등대에 오른다. 불을 켠다.\n미라가 편지를 건넨다."),
+                beat(summary="불빛이 바다에 닿는다. 계단이 젖어 있다."),
+            ]
+        }
+    )
+    said = ["미라가 편지를 건넨다."]
+    assert direction.new_summaries(output, said) == (
+        ["테오가 등대에 오른다. 계단이 젖어 있다.", "불을 켠다.", "불빛이 바다에 닿는다."],
+        3,
+    )
+    cleaned = direction.clean_beats(output, 3000, [CHOSEN], said)
+    assert [b.summary for b in cleaned] == [
+        "테오가 등대에 오른다. 계단이 젖어 있다.",
+        "불을 켠다.",
+        "불빛이 바다에 닿는다.",
+    ]
+    # A beat left with nothing new to say is dropped; the others share the scene's characters.
+    fewer = direction.clean_beats(output, 3000, [CHOSEN], ["불을 켠다.", *said])
+    assert [(b.order, b.summary, b.target_chars) for b in fewer] == [
+        (1, "테오가 등대에 오른다. 계단이 젖어 있다.", 1500),
+        (2, "불빛이 바다에 닿는다.", 1500),
+    ]
+    # No beat left: the output is refused (one more generation).
+    again = DirectOutput.model_validate({"beats": [beat(), beat()]})
+    assert direction.clean_beats(again, 3000, [CHOSEN], ["테오가 등대에 오른다."]) == []
+
+
+async def test_direct_drops_what_another_scenes_beats_say(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    plan = make_plan(conn, [1, 2, 3], [4, 5])
+    plan = with_beats(plan, 1, [PlanBeat(order=1, **beat(summary="미라가 편지를 건넨다."))])
+    client = FakeClient(
+        {
+            "direct": FakeResponse(
+                content=beats_json(
+                    beat(summary="미라가 편지를 건넨다. 테오가 봉투를 뜯는다."),
+                    beat(summary="테오가 등대에 오른다."),
+                    beat(summary="불을 켠다."),
+                )
+            )
+        }
+    )
+    result = await direction.direct_scene(make_router(client, tmp_path), conn, plan, 2)
+    assert [b.summary for b in result.beats][:2] == [
+        "테오가 봉투를 뜯는다.",
+        "테오가 등대에 오른다.",
+    ]
+    assert (result.repeated, result.generations) == (1, 1)
+    # Its own beats do not count against it when it is directed again.
+    plan = with_beats(plan, 2, result.beats)
+    again = await direction.direct_scene(make_router(client, tmp_path), conn, plan, 2)
+    assert again.repeated == 1 and len(again.beats) == 3
 
 
 @pytest.mark.parametrize(

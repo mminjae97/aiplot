@@ -115,6 +115,7 @@ async def direct_all(
                 "usage": usage(result.usage),
                 "total_s": round(time.perf_counter() - started, 1),
                 "beats": len(beats),
+                "repeated": result.repeated,
             }
         )
     return plan
