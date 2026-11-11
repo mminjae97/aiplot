@@ -241,6 +241,10 @@ export type WorkTitle = string
  * Spine and cloth cover colour, lowercase #rrggbb; null = the app's default, stable per work id.
  */
 export type BookColor = string | null
+/**
+ * data of the SSE events a chapter or beat writing job sends between the lifecycle ones (§16); the SSE event name is the type.
+ */
+export type ChapterJobEvent = BeatStartEvent | SentenceEvent | BeatDoneEvent
 
 /**
  * DELETE /cards/{cardId}: what went (the card, and a part's episodes with ?episodes=delete); POST /cards/{cardId}/restore brings all of it back until restore_until (§8).
@@ -1090,7 +1094,7 @@ export interface Job {
    */
   kind: string
   /**
-   * What the job is about (plan:{episodeId}, direct:{planId}:{scene}): a screen finds the running job of what it shows. Null for jobs with no such target.
+   * What the job is about (plan:{episodeId}, direct:{planId}:{scene}, chapter:{chapterId}, beat:{beatId}): a screen finds the running job of what it shows. Null for jobs with no such target.
    */
   key: string | null
   workId: WorkId | null
@@ -1581,6 +1585,30 @@ export interface WorkUpdate {
    * One of this book's covers (404 COVER_NOT_FOUND otherwise); null = cloth cover in the book colour.
    */
   cover_id?: CoverId | null
+}
+/**
+ * event: beat_start. The beat's text starts from nothing; sent again when the beat is written over (a banned phrase).
+ */
+export interface BeatStartEvent {
+  beatId: BeatId
+}
+/**
+ * event: sentence. The next piece of the beat's text, ending after a sentence or a line break; the pieces joined are the text as it arrived.
+ */
+export interface SentenceEvent {
+  beatId: BeatId
+  text: string
+}
+/**
+ * event: beat_done. The beat's text was stored as this version.
+ */
+export interface BeatDoneEvent {
+  beatId: BeatId
+  /**
+   * Characters incl. spaces, counted in code; line breaks are not counted.
+   */
+  chars: number
+  version: number
 }
 /**
  * GET /works/{workId}/chapters: the work's chapters in order; none before writing starts.

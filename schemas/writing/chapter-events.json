@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ChapterJobEvent",
+  "description": "data of the SSE events a chapter or beat writing job sends between the lifecycle ones (§16); the SSE event name is the type.",
+  "oneOf": [
+    { "$ref": "#/$defs/beat_start" },
+    { "$ref": "#/$defs/sentence" },
+    { "$ref": "#/$defs/beat_done" }
+  ],
+  "$defs": {
+    "beat_start": {
+      "title": "BeatStartEvent",
+      "description": "event: beat_start. The beat's text starts from nothing; sent again when the beat is written over (a banned phrase).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["beatId"],
+      "properties": {
+        "beatId": { "$ref": "../common/beat-id.json" }
+      }
+    },
+    "sentence": {
+      "title": "SentenceEvent",
+      "description": "event: sentence. The next piece of the beat's text, ending after a sentence or a line break; the pieces joined are the text as it arrived.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["beatId", "text"],
+      "properties": {
+        "beatId": { "$ref": "../common/beat-id.json" },
+        "text": { "type": "string", "minLength": 1 }
+      }
+    },
+    "beat_done": {
+      "title": "BeatDoneEvent",
+      "description": "event: beat_done. The beat's text was stored as this version.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["beatId", "chars", "version"],
+      "properties": {
+        "beatId": { "$ref": "../common/beat-id.json" },
+        "chars": { "description": "Characters incl. spaces, counted in code; line breaks are not counted.", "type": "integer", "minimum": 0 },
+        "version": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}
