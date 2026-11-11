@@ -201,6 +201,30 @@ def test_an_empty_summary_is_asked_for_once_more(
     assert len(versions(conn, beat["id"])) == 2
 
 
+def test_a_chapter_left_without_its_summaries_gets_them_before_the_next_is_written(
+    client: TestClient, conn: sqlite3.Connection, written: list[dict[str, Any]], llm: Scripted
+) -> None:
+    first, second = written[0], written[1]
+    # Written to its end, but the job stopped before its summaries.
+    for beat in first["beats"]:
+        write(conn, beat["id"], 1, "이미 쓴 비트.")
+    assert stored(conn, first["id"]) == (None, None, None)
+    job, _ = finished(client, generate(client, second["id"]))
+    assert job["status"] == "done"
+    _, long, short = stored(conn, first["id"])
+    assert long == summary(1) and short == summary(2)
+    assert block(asked(llm)[0], "원문").startswith(
+        f"지금까지의 줄거리:\n1화 (바로 앞 화): {long}\n\n"
+    )
+    # One still being written is left as it is.
+    third = written[2]
+    conn.execute("DELETE FROM beat_version WHERE beat_id = ?", (second["beats"][-1]["id"],))
+    conn.execute("UPDATE chapter SET summary_long = NULL WHERE id = ?", (second["id"],))
+    llm.requests.clear()
+    finished(client, generate(client, third["id"]))
+    assert stored(conn, second["id"])[1] is None
+
+
 def test_a_reopen_drops_the_episodes_summaries(
     client: TestClient, conn: sqlite3.Connection, written: list[dict[str, Any]]
 ) -> None:

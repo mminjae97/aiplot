@@ -96,6 +96,22 @@ async def summarize_chapter(router: Router, conn: sqlite3.Connection, chapter_id
         chapters_db.set_episode_summary(conn, chapter.episode_id, summary)
 
 
+async def catch_up(router: Router, conn: sqlite3.Connection, chapter_id: str) -> None:
+    """The chapter before this one summarized, if it was written to its end without it (a job
+    stopped or failed between its last beat and its summaries): the next chapter needs it."""
+    chapter = chapters_db.get_chapter(conn, chapter_id)
+    before = chapters_db.chapter_before(conn, chapter) if chapter else None
+    if before is None:
+        return
+    summarized = any(
+        row.id == before.id and row.long
+        for row in chapters_db.chapters_of_plan(conn, before.plan_id)
+    )
+    texts = chapters_db.current_texts(conn, before.id)
+    if not summarized and all(beat.id in texts for beat in chapters_db.beats_of(conn, before.id)):
+        await summarize_chapter(router, conn, before.id)
+
+
 def story_so_far(conn: sqlite3.Connection, chapter_id: str) -> list[str]:
     """What a beat of the chapter is told of the story before it, oldest first (§10)."""
     chapter = chapters_db.get_chapter(conn, chapter_id)

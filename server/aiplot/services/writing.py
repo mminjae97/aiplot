@@ -310,6 +310,7 @@ def start_chapter(router: Router, jobs: JobQueue, db_path: Path, chapter_id: str
         kept_banned = 0
         conn = connect(db_path)
         try:
+            await summaries.catch_up(router, conn, chapter_id)
             while True:
                 await ctx.checkpoint()
                 chapter = chapters_db.get_chapter(conn, chapter_id)
