@@ -316,6 +316,80 @@ def test_a_model_failure_fails_the_job_and_keeps_what_was_stored(
     assert len([1 for kind, _ in events if kind == "beat_done"]) == len(beats) - 2
 
 
+# pause and cancel --------------------------------------------------------------------------------
+
+
+def test_a_pause_lands_between_beats(
+    client: TestClient, conn: sqlite3.Connection, written: list[dict[str, Any]], llm: Scripted
+) -> None:
+    jobs: JobQueue = client.app.state.jobs  # type: ignore[attr-defined]
+    beats = written[0]["beats"]
+
+    # Asked for while the first beat is being written.
+    def pause_once() -> None:
+        del llm.hooks["write"]
+        assert jobs.pause(jobs.for_work("w_01")[0])
+
+    llm.hooks["write"] = pause_once
+    job_id = generate(client, written[0]["id"]).json()["jobId"]
+    record = jobs.get(job_id)
+    assert record is not None
+    deadline = time.monotonic() + 2
+    while record.status != "paused" and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert record.status == "paused"
+    # The beat it was writing is whole and stored; the next one has not begun.
+    kinds = [event.type for event in record.events]
+    assert kinds[-2:] == ["beat_done", "paused"] and kinds.count("beat_start") == 1
+    assert [len(versions(conn, beat["id"])) for beat in beats[:2]] == [1, 0]
+    assert client.post(f"/api/v1/jobs/{job_id}/resume", headers=AUTH).status_code == 200
+    assert wait(client, job_id)["status"] == "done"
+    assert all(len(versions(conn, beat["id"])) == 1 for beat in beats)
+
+
+def test_a_cancelled_job_does_not_store_the_beat_it_was_writing(
+    client: TestClient,
+    conn: sqlite3.Connection,
+    written: list[dict[str, Any]],
+    llm: Scripted,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    jobs: JobQueue = client.app.state.jobs  # type: ignore[attr-defined]
+    beats = written[0]["beats"]
+    fixture = llm.stream
+    calls = []
+
+    async def cancelled_in_the_second_beat(request: Any) -> Any:
+        """The fixture's deltas, giving the loop a turn after each (as a real stream does);
+        the job is cancelled once the second beat's first words are out."""
+        calls.append(1)
+        sent = 0
+        async for delta in fixture(request):
+            yield delta
+            sent += 1
+            if len(calls) == 2 and sent == 2:
+                assert jobs.cancel(jobs.for_work("w_01")[0])
+            await asyncio.sleep(0)
+
+    monkeypatch.setattr(llm, "stream", cancelled_in_the_second_beat)
+    job, events = finished(client, generate(client, written[0]["id"]))
+    assert job["status"] == "cancelled"
+    assert [kind for kind, _ in events if kind in ("beat_start", "beat_done")] == [
+        "beat_start",
+        "beat_done",
+        "beat_start",
+    ]
+    assert events[-1][0] == "cancelled"
+    assert [len(versions(conn, beat["id"])) for beat in beats[:2]] == [1, 0]
+    # 이어서 생성: the next job starts with the beat that was dropped.
+    monkeypatch.undo()
+    job, events = finished(client, generate(client, written[0]["id"]))
+    assert job["status"] == "done"
+    assert [data["beatId"] for kind, data in events if kind == "beat_done"] == [
+        beat["id"] for beat in beats[1:]
+    ]
+
+
 # one beat again ----------------------------------------------------------------------------------
 
 
