@@ -16,8 +16,10 @@ Per chapter the record keeps the job's outcome and, per beat, every `write` call
 seconds) and the text as stored. A second call for a beat = it was written again (a banned
 phrase or an empty text). Roles keep their configured settings (config/roles.yaml). `--fake`
 uses the fixture client (a check of the runner and scorer, not a measurement). `--episodes ID…`
-runs a subset. Results are written after every chapter and stay out of git (eval/results/ is
-gitignored); score_write.py scores them.
+runs a subset; `--sampling KEY=VALUE…`, `--thinking`, `--max-tokens N` and `--previous-chars N`
+change the write role or its context for the run (experiments before a config change). Results
+are written after every chapter and stay out of git (eval/results/ is gitignored);
+score_write.py scores them.
 """
 
 import argparse
@@ -43,10 +45,10 @@ from aiplot.db import plans as plans_db  # noqa: E402
 from aiplot.generated.direction.plan import DirectionPlan  # noqa: E402
 from aiplot.jobs.queue import TERMINAL, JobQueue  # noqa: E402
 from aiplot.llm.client import ChatRequest, Delta, LlamaClient, LlmClient  # noqa: E402
-from aiplot.llm.config import load_llm_config  # noqa: E402
+from aiplot.llm.config import LlmConfig, SamplingOverride, load_llm_config  # noqa: E402
 from aiplot.llm.fake import FakeClient  # noqa: E402
 from aiplot.llm.router import Router  # noqa: E402
-from aiplot.services import manuscript, works, writing  # noqa: E402
+from aiplot.services import manuscript, works, write_context, writing  # noqa: E402
 from check import GENRES, open_cases  # noqa: E402
 from check_cases import load_genre  # noqa: E402
 from run import write  # noqa: E402
@@ -93,6 +95,31 @@ def confirmed(plan: dict[str, Any]) -> DirectionPlan:
                 raise ValueError(f"{plan['episode']}: scene {scene['scene']} has no beats")
             scene["status"] = "confirmed"
     return DirectionPlan.model_validate(plan)
+
+
+def configured(args: argparse.Namespace) -> tuple[LlmConfig, dict[str, Any]]:
+    """The app's config with the write role changed as the run asks (experiments before a
+    config change; the run records them): sampling KEY=VALUE pairs, thinking on, max_tokens."""
+    config = load_llm_config()
+    role = config.roles["write"]
+    sampling = {key: float(value) for key, value in (p.split("=", 1) for p in args.sampling)}
+    update: dict[str, Any] = {}
+    if sampling:
+        update["sampling"] = SamplingOverride.model_validate(
+            {**role.sampling.model_dump(), **sampling}
+        )
+    if args.thinking:
+        update["thinking"] = True
+    if args.max_tokens:
+        update["max_tokens"] = args.max_tokens
+    changed = role.model_copy(update=update)
+    experiment = {
+        "sampling": sampling,
+        "thinking": changed.thinking,
+        "max_tokens": changed.max_tokens,
+        "previous_chars": args.previous_chars or write_context.PREVIOUS_CHARS,
+    }
+    return config.model_copy(update={"roles": {**config.roles, "write": changed}}), experiment
 
 
 async def write_chapter(
@@ -164,18 +191,35 @@ async def main() -> None:
     parser.add_argument("--plans", type=Path, required=True, help="a step 4 run's results")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--episodes", nargs="+", metavar="ID", help="only these episode ids")
+    parser.add_argument(
+        "--sampling",
+        nargs="+",
+        default=[],
+        metavar="KEY=VALUE",
+        help="the write role's sampling changed for this run, e.g. dry_multiplier=0.8",
+    )
+    parser.add_argument("--thinking", action="store_true", help="the write role thinks first")
+    parser.add_argument("--max-tokens", type=int, help="the write role's max_tokens")
+    parser.add_argument(
+        "--previous-chars", type=int, help="how much of the manuscript before a beat it sees"
+    )
     args = parser.parse_args()
 
     plans = json.loads(args.plans.read_text(encoding="utf-8"))["episodes"]
     llama = None if args.fake else LlamaClient(args.url)
     client = RecordingClient(llama or FakeClient())
-    router = Router(load_llm_config(), client, lora_dir=HERE / "no-lora")
+    config, experiment = configured(args)
+    if args.previous_chars:
+        write_context.PREVIOUS_CHARS = args.previous_chars
+    router = Router(config, client, lora_dir=HERE / "no-lora")
     jobs = JobQueue()
     jobs.start()
     results: dict[str, Any] = {
         "started_at": datetime.now(UTC).isoformat(),
         "fake": args.fake,
         "plans": str(args.plans),
+        "prompt": config.roles["write"].prompt,
+        **experiment,
         "chapters": [],
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)

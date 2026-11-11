@@ -82,8 +82,9 @@ def test_a_beat_gets_its_style_cards_story_and_instruction(
     # Inactive cards and ids never reach the model.
     assert "유령" not in cards and "안개 계약" not in cards and "폐허" not in cards
     assert "c_" not in text and "tech_" not in text
-    assert (
-        block(text, "원문") == "바로 앞 원고:\n안개가 부두를 덮고 있었다.\n\n테오는 밧줄을 쥐었다."
+    assert block(text, "원문") == (
+        "이미 쓴 원고의 끝 (다시 쓰지 않고 이 뒤를 잇는다):\n"
+        "안개가 부두를 덮고 있었다.\n\n테오는 밧줄을 쥐었다."
     )
     lines = block(text, "지시").splitlines()
     assert lines[0] == f"자리: 1화, 비트 2/{len(beats)}"
@@ -107,9 +108,12 @@ def test_the_first_and_last_beats_say_where_they_are(
     first = content(conn, beats[0]["id"])
     assert f"자리: 1화, 비트 1/{len(beats)} (화의 첫 비트)" in first
     # The work's first beat: nothing was written before it.
-    assert block(first, "원문") == "바로 앞 원고:\n(없음: 작품의 첫머리)"
+    assert block(first, "원문") == "이미 쓴 원고:\n(없음: 작품의 첫머리)"
     # A later beat whose earlier ones are not written yet.
-    assert block(content(conn, beats[1]["id"]), "원문") == "바로 앞 원고:\n(아직 없음)"
+    assert (
+        block(content(conn, beats[1]["id"]), "원문")
+        == "이미 쓴 원고의 끝 (다시 쓰지 않고 이 뒤를 잇는다):\n(아직 없음)"
+    )
     last = content(conn, beats[-1]["id"])
     assert f"자리: 1화, 비트 {len(beats)}/{len(beats)} (화의 마지막 비트)" in last
     assert last.endswith("다음 비트: 없음 (이 비트에서 화가 끝난다)\n</지시>")
@@ -145,16 +149,21 @@ def test_a_chapters_first_beat_continues_the_chapter_before(
     # Within a chapter only its own beats count; an unwritten one is skipped.
     write(conn, opening[0]["id"], 1, "2화가 시작됐다.")
     write(conn, opening[2]["id"], 1, "뒤의 비트.")
-    assert block(content(conn, opening[1]["id"]), "원문") == "바로 앞 원고:\n2화가 시작됐다."
+    assert (
+        block(content(conn, opening[1]["id"]), "원문")
+        == "이미 쓴 원고의 끝 (다시 쓰지 않고 이 뒤를 잇는다):\n2화가 시작됐다."
+    )
 
 
 def test_only_the_end_of_the_manuscript_is_given(
     conn: sqlite3.Connection, written: list[dict[str, Any]]
 ) -> None:
     beats = written[0]["beats"]
-    paragraphs = [f"{n}번째 문단이다. " + "가" * 280 + "." for n in range(1, 7)]
+    paragraphs = [f"{n}번째 문단이다. " + "가" * 46 + "." for n in range(1, 7)]
     write(conn, beats[0]["id"], 1, "\n\n".join(paragraphs))
-    text = block(content(conn, beats[1]["id"]), "원문").removeprefix("바로 앞 원고:\n")
+    text = block(content(conn, beats[1]["id"]), "원문").removeprefix(
+        "이미 쓴 원고의 끝 (다시 쓰지 않고 이 뒤를 잇는다):\n"
+    )
     # Whole paragraphs from the end, within the limit.
     assert text == "\n\n".join(paragraphs[-3:])
     assert len(text) <= write_context.PREVIOUS_CHARS
@@ -183,7 +192,7 @@ def test_summaries_and_state_are_given_when_there_are_any(
     assert block(text, "상태") == "테오: 북부 항구에 있다\n테오: 왼팔 부상"
     assert text.index("<참고 카드>") < text.index("<상태>") < text.index("<원문>")
     assert block(text, "원문") == (
-        "지금까지의 줄거리:\n1화 요약.\n2화 요약.\n\n바로 앞 원고:\n(없음: 작품의 첫머리)"
+        "지금까지의 줄거리:\n1화 요약.\n2화 요약.\n\n이미 쓴 원고:\n(없음: 작품의 첫머리)"
     )
     # The adjusted target replaces the plan's.
     assert "분량: 공백 포함 432자 안팎" in text

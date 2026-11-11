@@ -17,6 +17,8 @@ uv run python eval/step7/score_write.py eval/results/step7/run1.json
 starts writing and has the app's chapter job write each chapter; `--episodes ID…` runs a
 subset, `--fake` checks the scripts with the fixture client. It keeps every `write` call per
 beat (target given, user message, text, finish reason, usage, seconds) and the stored text.
+Experiments before a config change: `--sampling KEY=VALUE…` (e.g. `dry_multiplier=0.8`),
+`--thinking`, `--max-tokens N`, `--previous-chars N`; the run records them.
 
 `score_write.py` prints one line per chapter and the totals: chapters within ±10%, beat
 characters against the given and the plan target (also by mode, focus, density), beats within

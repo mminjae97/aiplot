@@ -67,7 +67,7 @@ roles:
   write:
     profile: qwen3-8b-uncensor-q5km
     lora: null
-    prompt: 1
+    prompt: 2
     thinking: false
     style: { id: webnovel-style, version: 3 }
     sampling: { temperature: 0.8, presence_penalty: 1.5 }

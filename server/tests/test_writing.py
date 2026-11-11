@@ -124,6 +124,7 @@ def test_the_next_target_follows_what_the_chapter_has_left() -> None:
 
 def test_a_cut_text_ends_at_its_last_whole_sentence() -> None:
     assert complete("  가나다. 라마바  ", "stop") == "가나다. 라마바"
+    assert complete("가나다.  \n라마바. \t\n\n사아자.  ", "stop") == "가나다.\n라마바.\n\n사아자."
     assert complete('가나다. "라마바." 사아', "length") == '가나다. "라마바."'
     assert complete("가나다\n라마", "length") == "가나다\n라마"
 

@@ -39,6 +39,8 @@ PIECE = re.compile(
 )
 LAST_END = re.compile(r".*[.?!…][.?!…\"'”’」』)]*", re.DOTALL)  # noqa: RUF001
 
+LINE_END_SPACES = re.compile(r"[ \t]+$", re.MULTILINE)
+
 
 class ChapterNotFoundError(LookupError):
     pass
@@ -82,9 +84,10 @@ def next_target(chapter_target: int, written: int, remaining: Sequence[int]) -> 
 
 
 def complete(text: str, finish: str) -> str:
-    """The beat's text as stored: trimmed, and when max_tokens cut it, up to its last whole
-    sentence (all of it when there is none)."""
-    text = text.strip()
+    """The beat's text as stored: trimmed, no spaces left at a line's end (the model's Markdown
+    line breaks), and when max_tokens cut it, up to its last whole sentence (all of it when
+    there is none)."""
+    text = LINE_END_SPACES.sub("", text).strip()
     if finish != "length":
         return text
     whole = LAST_END.match(text)
