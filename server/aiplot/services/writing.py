@@ -21,7 +21,7 @@ from aiplot.jobs.queue import JobContext, JobError, JobQueue
 from aiplot.llm.client import LlmError
 from aiplot.llm.router import Router
 from aiplot.llm.style import Style
-from aiplot.services import works, write_context
+from aiplot.services import summaries, works, write_context
 from aiplot.services.write_context import count_chars
 
 WRITING_STAGE = 3
@@ -184,6 +184,7 @@ async def continued(
     beat_id: str,
     target_chars: int,
     text: str,
+    story: Sequence[str],
 ) -> str:
     """The beat's text, continued while it is short of its target (§10): each call is asked for
     what is still missing and goes on from the text's end. Lines the beat already has are
@@ -194,7 +195,9 @@ async def continued(
         if chars >= target_chars * CONTINUE_BELOW:
             break
         missing = target_chars - chars
-        turns = write_context.write_turns(conn, style, beat_id, target_chars=missing, begun=text)
+        turns = write_context.write_turns(
+            conn, style, beat_id, target_chars=missing, summaries=story, begun=text
+        )
         arrived, finish = await stream_beat(router, ctx, beat_id, turns, continued=True)
         more = complete(arrived, finish)
         kept = "" if finish == "length" else new_lines(more, text)
@@ -219,11 +222,17 @@ async def write_beat(
 ) -> Written:
     """Writes the beat and stores it. A text holding a banned phrase (or none at all) is
     written again up to REGENERATIONS times; the last one is kept, unless it is empty. A clean
-    text that came short is continued."""
+    text that came short is continued. The chapter's summaries are then made again (§10)."""
     style = router.style("write")
     if style is None:
         raise LlmError("ROLE_NOT_CONFIGURED", "the write role has no style framework")
-    turns = write_context.write_turns(conn, style, beat_id, target_chars=target_chars)
+    chapter_id = chapters_db.chapter_of_beat(conn, beat_id)
+    if chapter_id is None:
+        raise write_context.BeatNotFoundError(beat_id)
+    story = summaries.story_so_far(conn, chapter_id)
+    turns = write_context.write_turns(
+        conn, style, beat_id, target_chars=target_chars, summaries=story
+    )
     text = finish = ""
     banned: list[str] = []
     for _ in range(1 + REGENERATIONS):
@@ -235,9 +244,11 @@ async def write_beat(
     if not text:
         raise LlmError("LLM_INVALID_OUTPUT", "write: the beat came back empty")
     if not banned and finish != "length":
-        text = await continued(router, conn, ctx, style, beat_id, target_chars, text)
+        text = await continued(router, conn, ctx, style, beat_id, target_chars, text, story)
     version, chars = store(conn, router, work_id, beat_id, text)
     ctx.emit("beat_done", {"beatId": beat_id, "chars": chars, "version": version})
+    # The beat is stored whatever becomes of its chapter's summaries.
+    await summaries.summarize_chapter(router, conn, chapter_id)
     return Written(version, chars, tuple(banned))
 
 
