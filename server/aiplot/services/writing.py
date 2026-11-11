@@ -20,7 +20,9 @@ from aiplot.db.connection import connect, transaction
 from aiplot.jobs.queue import JobContext, JobError, JobQueue
 from aiplot.llm.client import LlmError
 from aiplot.llm.router import Router
+from aiplot.llm.style import Style
 from aiplot.services import works, write_context
+from aiplot.services.write_context import count_chars
 
 WRITING_STAGE = 3
 # §10: a beat holding a banned phrase is written again up to this many times, then kept.
@@ -40,6 +42,14 @@ PIECE = re.compile(
 LAST_END = re.compile(r".*[.?!…][.?!…\"'”’」』)]*", re.DOTALL)  # noqa: RUF001
 
 LINE_END_SPACES = re.compile(r"[ \t]+$", re.MULTILINE)
+BLANK_LINES = re.compile(r"\n{3,}")
+
+# §10: a beat that came short of this much of its target is continued, up to this many times
+# (drafts: step 7 runs 1-6, the model ends a call at ~400 chars whatever the target).
+CONTINUE_BELOW = 0.9
+CONTINUATIONS = 3
+# What joins a continuation to the beat's text: a new paragraph.
+JOIN = "\n\n"
 
 
 class ChapterNotFoundError(LookupError):
@@ -70,9 +80,12 @@ class SentenceBuffer:
         return held
 
 
-def count_chars(text: str) -> int:
-    """Characters incl. spaces (§6: counted in code); line breaks are not counted."""
-    return len(text) - text.count("\n") - text.count("\r")
+def new_lines(more: str, text: str) -> str:
+    """more without the lines text already holds word for word: a continuation that starts the
+    beat over leaves nothing (a short line said twice on purpose goes with them)."""
+    held = {line.strip() for line in text.splitlines()}
+    kept = [line for line in more.splitlines() if not line.strip() or line.strip() not in held]
+    return BLANK_LINES.sub("\n\n", "\n".join(kept)).strip()
 
 
 def next_target(chapter_target: int, written: int, remaining: Sequence[int]) -> int:
@@ -102,13 +115,26 @@ class Written:
     banned: tuple[str, ...]
 
 
-async def stream_beat(
-    router: Router, ctx: JobContext, beat_id: str, turns: list[Any]
-) -> tuple[str, str]:
-    """One generation of the beat: its pieces as `sentence` events, then (text, finish
-    reason). `beat_start` tells the screen to start the beat's text from nothing."""
+def show(ctx: JobContext, beat_id: str, text: str) -> None:
+    """The beat's text on the screen again from nothing: what was streamed is not what is kept."""
     ctx.emit("beat_start", {"beatId": beat_id})
     buffer = SentenceBuffer()
+    for piece in [*buffer.feed(text), buffer.flush()]:
+        if piece:
+            ctx.emit("sentence", {"beatId": beat_id, "text": piece})
+
+
+async def stream_beat(
+    router: Router, ctx: JobContext, beat_id: str, turns: list[Any], *, continued: bool = False
+) -> tuple[str, str]:
+    """One generation of the beat: its pieces as `sentence` events, then (text, finish
+    reason). `beat_start` tells the screen to start the beat's text from nothing; a
+    continuation goes on in a new paragraph after what the screen has."""
+    buffer = SentenceBuffer()
+    if continued:
+        buffer.feed(JOIN)
+    else:
+        ctx.emit("beat_start", {"beatId": beat_id})
     parts: list[str] = []
     finish = "stop"
     async with aclosing(router.stream("write", turns)) as deltas:
@@ -150,6 +176,39 @@ def store(
     return version, chars
 
 
+async def continued(
+    router: Router,
+    conn: sqlite3.Connection,
+    ctx: JobContext,
+    style: Style,
+    beat_id: str,
+    target_chars: int,
+    text: str,
+) -> str:
+    """The beat's text, continued while it is short of its target (§10): each call is asked for
+    what is still missing and goes on from the text's end. Lines the beat already has are
+    dropped from what it adds; a continuation that adds nothing, holds a banned phrase or was
+    cut at max_tokens (a loop) is not kept and ends it."""
+    for _ in range(CONTINUATIONS):
+        chars = count_chars(text)
+        if chars >= target_chars * CONTINUE_BELOW:
+            break
+        missing = target_chars - chars
+        turns = write_context.write_turns(conn, style, beat_id, target_chars=missing, begun=text)
+        arrived, finish = await stream_beat(router, ctx, beat_id, turns, continued=True)
+        more = complete(arrived, finish)
+        kept = "" if finish == "length" else new_lines(more, text)
+        if style.banned_in(kept):
+            kept = ""
+        if kept:
+            text = f"{text}{JOIN}{kept}"
+        if kept != more or not kept:
+            show(ctx, beat_id, text)
+        if not kept:
+            break
+    return text
+
+
 async def write_beat(
     router: Router,
     conn: sqlite3.Connection,
@@ -159,20 +218,24 @@ async def write_beat(
     target_chars: int,
 ) -> Written:
     """Writes the beat and stores it. A text holding a banned phrase (or none at all) is
-    written again up to REGENERATIONS times; the last one is kept, unless it is empty."""
+    written again up to REGENERATIONS times; the last one is kept, unless it is empty. A clean
+    text that came short is continued."""
     style = router.style("write")
     if style is None:
         raise LlmError("ROLE_NOT_CONFIGURED", "the write role has no style framework")
     turns = write_context.write_turns(conn, style, beat_id, target_chars=target_chars)
-    text = ""
+    text = finish = ""
     banned: list[str] = []
     for _ in range(1 + REGENERATIONS):
-        text = complete(*await stream_beat(router, ctx, beat_id, turns))
+        arrived, finish = await stream_beat(router, ctx, beat_id, turns)
+        text = complete(arrived, finish)
         banned = style.banned_in(text)
         if text and not banned:
             break
     if not text:
         raise LlmError("LLM_INVALID_OUTPUT", "write: the beat came back empty")
+    if not banned and finish != "length":
+        text = await continued(router, conn, ctx, style, beat_id, target_chars, text)
     version, chars = store(conn, router, work_id, beat_id, text)
     ctx.emit("beat_done", {"beatId": beat_id, "chars": chars, "version": version})
     return Written(version, chars, tuple(banned))

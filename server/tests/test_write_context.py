@@ -155,6 +155,33 @@ def test_a_chapters_first_beat_continues_the_chapter_before(
     )
 
 
+def test_a_beat_that_came_short_is_continued_from_its_own_text(
+    conn: sqlite3.Connection, written: list[dict[str, Any]]
+) -> None:
+    beats = written[0]["beats"]
+    write(conn, beats[0]["id"], 1, "첫 비트.")
+    begun = "테오는 배에서 내렸다.\n\n안개가 짙었다."
+    text = content(conn, beats[1]["id"], target_chars=480, begun=begun)
+    # The manuscript ends with what the beat has so far.
+    assert block(text, "원문") == (
+        f"이미 쓴 원고의 끝 (다시 쓰지 않고 이 뒤를 잇는다):\n첫 비트.\n\n{begun}"
+    )
+    lines = block(text, "지시").splitlines()
+    # What is still to write, and what it has (line breaks not counted).
+    assert lines[7:10] == [
+        "분량: 공백 포함 480자 안팎",
+        "이어 쓰기: 이 비트는 이미 20자를 썼다. 이미 쓴 원고의 끝에서 이어 쓴다.",
+        f"내용: {beats[1]['summary']}",
+    ]
+    assert "이어 쓰기" not in content(conn, beats[1]["id"])
+    # A chapter's first beat goes on from itself, not from the chapter before.
+    write(conn, written[0]["beats"][-1]["id"], 1, "앞 화의 마지막 줄.")
+    opening = content(conn, written[1]["beats"][0]["id"], begun=begun)
+    assert block(opening, "원문") == (
+        f"이미 쓴 원고의 끝 (다시 쓰지 않고 이 뒤를 잇는다):\n{begun}"
+    )
+
+
 def test_only_the_end_of_the_manuscript_is_given(
     conn: sqlite3.Connection, written: list[dict[str, Any]]
 ) -> None:

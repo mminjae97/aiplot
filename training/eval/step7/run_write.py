@@ -13,8 +13,10 @@ chapter's first beat sees the end of the one before.
 
 Per chapter the record keeps the job's outcome and, per beat, every `write` call made for it
 (the target it was given, the user message, the text as it arrived, finish reason, token usage,
-seconds) and the text as stored. A second call for a beat = it was written again (a banned
-phrase or an empty text). Roles keep their configured settings (config/roles.yaml). `--fake`
+seconds; matched to the beat by the place its user message names) and the text as stored. A
+further call for a beat = it was written again (a banned phrase or an empty text) or, marked
+`continued`, it came short and was continued (§10). Roles keep their configured settings
+(config/roles.yaml). `--fake`
 uses the fixture client (a check of the runner and scorer, not a measurement). `--episodes ID…`
 runs a subset; `--sampling KEY=VALUE…`, `--thinking`, `--max-tokens N` and `--previous-chars N`
 change the write role or its context for the run (experiments before a config change). Results
@@ -54,6 +56,9 @@ from check_cases import load_genre  # noqa: E402
 from run import write  # noqa: E402
 
 TARGET = re.compile(r"^분량: 공백 포함 (\d+)자 안팎$", re.MULTILINE)
+# The beat a call is for (its order in the chapter), and the mark of a call continuing one.
+ORDER = re.compile(r"^자리: \d+화, 비트 (\d+)/\d+", re.MULTILINE)
+CONTINUED = "\n이어 쓰기: "
 
 
 class RecordingClient:
@@ -67,7 +72,10 @@ class RecordingClient:
         started = time.perf_counter()
         user = request.messages[-1]["content"]
         target = TARGET.search(user)
+        order = ORDER.search(user)
         call: dict[str, Any] = {
+            "order": int(order.group(1)) if order else None,
+            "continued": CONTINUED in user,
             "target": int(target.group(1)) if target else None,
             "user": user,
             "text": "",
@@ -144,14 +152,11 @@ async def write_chapter(
         "status": job.status,
         "seconds": round(time.perf_counter() - started, 1),
     }
-    calls = iter(list(client.calls))
-    by_beat: dict[str, list[dict[str, Any]]] = {}
+    by_order: dict[int, list[dict[str, Any]]] = {}
+    for call in client.calls:
+        by_order.setdefault(call["order"], []).append(call)
     for event in job.events:
-        if event.type == "beat_start":
-            # A generation that failed before it reached the client left no call.
-            call = next(calls, None)
-            by_beat.setdefault(event.data["beatId"], []).extend([call] if call else [])
-        elif event.type == "done":
+        if event.type == "done":
             record["result"] = event.data["result"]
         elif event.type == "error":
             record["error"] = event.data
@@ -174,9 +179,11 @@ async def write_chapter(
                     "target_chars",
                 )
             },
-            "calls": by_beat.get(beat["id"], []),
+            "calls": by_order.get(beat["order"], []),
             "text": texts.get(beat["id"]),
-            "chars": writing.count_chars(texts[beat["id"]]) if beat["id"] in texts else None,
+            "chars": (
+                write_context.count_chars(texts[beat["id"]]) if beat["id"] in texts else None
+            ),
         }
         for beat in chapter["beats"]
     ]

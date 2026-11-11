@@ -40,6 +40,11 @@ class BeatNotFoundError(LookupError):
     pass
 
 
+def count_chars(text: str) -> int:
+    """Characters incl. spaces (§6: counted in code); line breaks are not counted."""
+    return len(text) - text.count("\n") - text.count("\r")
+
+
 @dataclass(frozen=True)
 class BeatSpot:
     """A beat in its chapter: the beats before it, and the one after it (None at the cut)."""
@@ -76,12 +81,15 @@ def tail(text: str, limit: int) -> str:
     return cut[end.end() :] if end else cut
 
 
-def previous_text(conn: sqlite3.Connection, spot: BeatSpot) -> str:
+def previous_text(conn: sqlite3.Connection, spot: BeatSpot, begun: str = "") -> str:
     """The manuscript just before the beat (§10): the chapter's written beats before it, or the
-    end of the chapter before when the beat opens its chapter."""
+    end of the chapter before when the beat opens its chapter. A beat that is being continued
+    ends it with what it has so far (begun)."""
     texts = chapters_db.current_texts(conn, spot.chapter.id)
     written = [texts[beat.id] for beat in spot.before if beat.id in texts]
-    if not spot.before:
+    if begun:
+        written.append(begun)
+    elif not spot.before:
         earlier = chapters_db.chapter_before(conn, spot.chapter)
         if earlier is not None:
             texts = chapters_db.current_texts(conn, earlier.id)
@@ -200,7 +208,9 @@ def scene_summary(conn: sqlite3.Connection, spot: BeatSpot) -> str | None:
     return next((scene.summary for scene in scenes if scene.scene == spot.beat.scene), None)
 
 
-def instruction(conn: sqlite3.Connection, spot: BeatSpot, target_chars: int) -> str:
+def instruction(conn: sqlite3.Connection, spot: BeatSpot, target_chars: int, begun: int = 0) -> str:
+    """The beat to write. begun = the chars the beat already has when it is being continued:
+    target_chars is then what is still to write."""
     beat = spot.beat
     place = f"{spot.chapter.number}화, 비트 {beat.order}/{spot.count}"
     if not spot.before:
@@ -218,6 +228,10 @@ def instruction(conn: sqlite3.Connection, spot: BeatSpot, target_chars: int) -> 
         f"분량: 공백 포함 {target_chars}자 안팎",
         f"내용: {beat.summary}",
     ]
+    if begun:
+        lines.insert(
+            -1, f"이어 쓰기: 이 비트는 이미 {begun}자를 썼다. 이미 쓴 원고의 끝에서 이어 쓴다."
+        )
     hints = [
         card.prompt_hint
         for card in (techniques_db.get(conn, technique_id) for technique_id in beat.techniques)
@@ -240,19 +254,22 @@ def write_turns(
     target_chars: int | None = None,
     summaries: Sequence[str] = (),
     state: Sequence[str] = (),
+    begun: str = "",
 ) -> list[Message]:
     """§10: the beat's matching style sections, the cards, the latest state, the story so far
     (summaries, oldest first, and the manuscript just before the beat), then the beat.
-    target_chars replaces the plan's target (adjusted from what the chapter has left)."""
+    target_chars replaces the plan's target (adjusted from what the chapter has left). begun =
+    the text a beat that came short has so far: the call continues it (the manuscript ends
+    with it, target_chars is what is still to write)."""
     spot = beat_spot(conn, beat_id)
     beat = spot.beat
     matched = style.for_beat(
         mode=beat.mode, focus=beat.focus, density=beat.density, pov=beat.pov, tension=beat.tension
     )
     story = newest_within(summaries, SUMMARY_CHARS)
-    before = previous_text(conn, spot)
+    before = previous_text(conn, spot, begun)
     # A chapter's first beat follows the chapter before: it opens anew, it does not run on.
-    if spot.before:
+    if spot.before or begun:
         label, nothing = "이미 쓴 원고의 끝 (다시 쓰지 않고 이 뒤를 잇는다):", "(아직 없음)"
     elif before:
         label, nothing = "앞 화의 끝 (이 비트는 새 화의 첫머리다):", ""
@@ -268,6 +285,14 @@ def write_turns(
         block("참고 카드", card_block(conn, spot.chapter.episode_id, f"{beat.summary} {beat.pov}")),
         block("상태", "\n".join(state)) if state else "",
         block("원문", "\n".join(source)),
-        block("지시", instruction(conn, spot, target_chars or beat.target_chars)),
+        block(
+            "지시",
+            instruction(
+                conn,
+                spot,
+                target_chars or beat.target_chars,
+                count_chars(begun),
+            ),
+        ),
     ]
     return [{"role": "user", "content": "\n\n".join(part for part in parts if part)}]

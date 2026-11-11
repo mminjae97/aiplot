@@ -10,7 +10,7 @@
   "$defs": {
     "beat_start": {
       "title": "BeatStartEvent",
-      "description": "event: beat_start. The beat's text starts from nothing; sent again when the beat is written over (a banned phrase).",
+      "description": "event: beat_start. The beat's text starts from nothing; sent again when the beat is written over (a banned phrase) or shown again as it is kept (a continuation of a short beat that was not kept as it was streamed).",
       "type": "object",
       "additionalProperties": false,
       "required": ["beatId"],
