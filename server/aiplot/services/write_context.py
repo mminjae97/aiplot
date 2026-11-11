@@ -23,9 +23,11 @@ from aiplot.llm.style import Style
 from aiplot.services.direction_context import about, active_cards, labelled
 from aiplot.services.draft_context import CATEGORY, block
 
-# §10: summaries ≤2000 chars; the previous ~1000 chars of the manuscript.
+# §10: summaries ≤2000 chars; the last ~200 chars of the manuscript: enough to go on from, too
+# little to copy (step 7 runs 2 and 4: with 1000 chars 296/457 lines of the later beats were
+# copied from it, with 200 chars 45/237).
 SUMMARY_CHARS = 2000
-PREVIOUS_CHARS = 1000
+PREVIOUS_CHARS = 200
 # Appearing characters with their speech (~1000 tokens) and the world cards (~400 tokens).
 CHARACTER_CHARS = 1500
 WORLD_CHARS = 600
@@ -251,11 +253,11 @@ def write_turns(
     before = previous_text(conn, spot)
     # A chapter's first beat follows the chapter before: it opens anew, it does not run on.
     if spot.before:
-        label, nothing = "바로 앞 원고:", "(아직 없음)"
+        label, nothing = "이미 쓴 원고의 끝 (다시 쓰지 않고 이 뒤를 잇는다):", "(아직 없음)"
     elif before:
         label, nothing = "앞 화의 끝 (이 비트는 새 화의 첫머리다):", ""
     else:
-        label, nothing = "바로 앞 원고:", "(없음: 작품의 첫머리)"
+        label, nothing = "이미 쓴 원고:", "(없음: 작품의 첫머리)"
     source = [
         *(["지금까지의 줄거리:", *story, ""] if story else []),
         label,
