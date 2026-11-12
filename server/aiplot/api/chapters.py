@@ -1,9 +1,9 @@
 """The manuscript (§16 writing): the chapters, the jobs writing their beats and the warnings
 on them."""
 
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Path, Request
 
 from aiplot.api.deps import Db
 from aiplot.api.errors import AppError
@@ -127,9 +127,9 @@ def list_versions(db: Db, beatId: str) -> BeatVersionList:
 
 
 def saved(request: Request, beat_id: str, found: tuple[Any, str, bool]) -> BeatSaved:
-    """The stored version with the job that checks it again (none when nothing was stored)."""
-    version, work_id, new = found
-    if not new:
+    """The beat's current version with the job that checks it (none when it is checked)."""
+    version, work_id, owed = found
+    if not owed:
         return BeatSaved(version=version, jobId=None)
     runtime: LlmRuntime = request.app.state.llm
     job_id = revisions.start_recheck(
@@ -155,7 +155,9 @@ async def save_text(request: Request, db: Db, beatId: str, body: BeatTextUpdate)
 
 
 @router.post("/beats/{beatId}/versions/{version}/restore")
-async def restore_version(request: Request, db: Db, beatId: str, version: int) -> BeatSaved:
+async def restore_version(
+    request: Request, db: Db, beatId: str, version: Annotated[int, Path(ge=1, le=2**31 - 1)]
+) -> BeatSaved:
     """An earlier version's text as the beat's next version."""
     try:
         found = revisions.restore(db, request.app.state.jobs, beatId, version)

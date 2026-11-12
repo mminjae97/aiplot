@@ -28,6 +28,19 @@ def version_id(conn: sqlite3.Connection, beat_id: str, version: int) -> int | No
     return int(row[0]) if row else None
 
 
+def finish_check(conn: sqlite3.Connection, beat_id: str, version: int) -> int | None:
+    """Marks the beat's version checked and gives its row id; None, and nothing marked, unless
+    it is the beat's current version."""
+    row = conn.execute(
+        "SELECT id, version FROM beat_version WHERE beat_id = ? ORDER BY version DESC LIMIT 1",
+        (beat_id,),
+    ).fetchone()
+    if row is None or row["version"] != version:
+        return None
+    conn.execute("UPDATE beat_version SET checked = 1 WHERE id = ?", (row["id"],))
+    return int(row["id"])
+
+
 def replace_state(conn: sqlite3.Connection, beat_id: str, records: Sequence[StateRow]) -> None:
     """The beat's state records: those of the text it had before are gone."""
     conn.execute("DELETE FROM state_record WHERE beat_id = ?", (beat_id,))

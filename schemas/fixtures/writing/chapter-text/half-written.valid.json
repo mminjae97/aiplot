@@ -8,6 +8,7 @@
       "version": 2,
       "chars": 12,
       "origin": "edited",
+      "checked": true,
       "text": "테오는 배에서 내렸다."
     },
     {
@@ -16,6 +17,7 @@
       "version": null,
       "chars": null,
       "origin": null,
+      "checked": null,
       "text": null
     }
   ]

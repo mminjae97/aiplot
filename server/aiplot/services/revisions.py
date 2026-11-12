@@ -46,10 +46,12 @@ def versions(conn: sqlite3.Connection, beat_id: str) -> list[BeatVersion]:
 def save(
     conn: sqlite3.Connection, jobs: JobQueue, beat_id: str, text: str
 ) -> tuple[BeatVersion, str, bool]:
-    """Stores the text as the beat's next version (the version, its work, whether it is new):
-    the same text as the current version stores nothing. Refused while writing is not the
-    current stage, while a job writes the beat or its chapter, and for a blank text. The state
-    records of the beat's text before go with it (§7)."""
+    """Stores the text as the beat's next version (the version, its work, whether a check is
+    owed): the same text as the current version stores nothing, and owes a check only if that
+    version was never checked (its job failed or was stopped). A beat without text yet may be
+    written by hand so. Refused while writing is not the current stage, while a job writes the
+    beat or its chapter, and for a blank text. The state records of the beat's text before go
+    with it (§7)."""
     chapter = writing.beat_to_write(conn, beat_id)
     writing_it = (f"chapter:{chapter.id}", f"beat:{beat_id}")
     if any(
@@ -58,14 +60,14 @@ def save(
     ):
         raise BeatBusyError(f"{beat_id} is being written")
     # As a generated text is stored: trimmed, no spaces left at a line's end.
-    text = writing.complete(text, "stop")
+    text = writing.complete(text.replace("\r\n", "\n").replace("\r", "\n"), "stop")
     if not text:
         raise TextEmptyError("a beat's text may not be blank")
     with transaction(conn):
         works.require_current(conn, chapter.work_id, writing.WRITING_STAGE)
         current = chapters_db.current_version(conn, beat_id)
         if current is not None and current.text == text:
-            return current, chapter.work_id, False
+            return current, chapter.work_id, not current.checked
         number = chapters_db.insert_version(
             conn, beat_id, text, count_chars(text), "edited", None, None, None, works.now()
         )
@@ -92,8 +94,8 @@ def start_recheck(
 ) -> str:
     """Submits the job that follows a saved version (§10): the beat checked again (state and
     warnings) and its chapter's summaries redone. A job whose version is no longer the current
-    one when it starts does nothing: the newer version's job does it. Ends with {warnings,
-    elapsedSec}."""
+    one when it starts does nothing: the newer version's job does it; one overtaken while it
+    runs stores nothing of its check or summaries. Ends with {warnings, elapsedSec}."""
 
     async def run(ctx: JobContext) -> dict[str, Any]:
         started = monotonic()

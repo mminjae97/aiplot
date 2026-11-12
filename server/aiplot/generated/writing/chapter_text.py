@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 
 from ..common import beat_id, chapter_id
 from . import version_origin
@@ -19,6 +19,10 @@ class BeatText(BaseModel):
     version: Annotated[StrictInt | None, Field(ge=1)]
     chars: Annotated[StrictInt | None, Field(ge=0)]
     origin: version_origin.VersionOrigin | None
+    checked: Annotated[
+        StrictBool | None,
+        Field(description="Whether the current version's check is over."),
+    ]
     text: StrictStr | None
 
 

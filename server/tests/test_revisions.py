@@ -6,6 +6,7 @@ the chapter's manuscript is read in one call."""
 # test parameters by name; that is how pytest passes them.
 # ruff: noqa: F811
 
+import asyncio
 import sqlite3
 import time
 from typing import Any
@@ -73,9 +74,10 @@ def test_a_chapters_manuscript_is_read_in_one_call(
         "version": 2,
         "chars": len(CLEAN),
         "origin": "generated",
+        "checked": False,
         "text": CLEAN,
     }
-    unwritten = {"version": None, "chars": None, "origin": None, "text": None}
+    unwritten = {"version": None, "chars": None, "origin": None, "checked": None, "text": None}
     assert all({**beat, **unwritten} == beat for beat in found["beats"][1:])
     missing = client.get("/api/v1/chapters/ch_none", headers=AUTH)
     assert error(missing) == (404, "CHAPTER_NOT_FOUND")
@@ -95,7 +97,8 @@ def test_a_saved_text_is_a_new_version_checked_again(
     llm.say("check", output([ENVELOPE], [HAIR]))
     before = summaries_asked(llm)
     # Stored as generated texts are: trimmed, no spaces at a line's end.
-    saved = put(client, beat, f"  {EDITED.replace(chr(10) * 2, '  ' + chr(10) * 2)} \n")
+    # (Line breaks may come as CRLF.)
+    saved = put(client, beat, f"  {EDITED.replace(chr(10) * 2, '  ' + chr(13) + chr(10) * 2)} \r\n")
     assert saved.status_code == 200, saved.json()
     body = saved.json()
     assert body["version"] == {
@@ -103,6 +106,7 @@ def test_a_saved_text_is_a_new_version_checked_again(
         "text": EDITED,
         "chars": count_chars(EDITED),
         "origin": "edited",
+        "checked": False,
         "created_at": body["version"]["created_at"],
     }
     job = wait(client, body["jobId"])
@@ -113,7 +117,8 @@ def test_a_saved_text_is_a_new_version_checked_again(
         (1, "generated"),
         (2, "edited"),
     ]
-    assert text_of(client, chapter["id"])["beats"][0]["text"] == EDITED
+    shown = text_of(client, chapter["id"])["beats"][0]
+    assert (shown["text"], shown["checked"]) == (EDITED, True)
     # The check read the new text: its state replaces the old text's, its warning is on v2.
     events = events_of(client, body["jobId"])
     kinds = [kind for kind, _ in events if kind != "progress"]
@@ -128,7 +133,7 @@ def test_a_saved_text_is_a_new_version_checked_again(
     assert "테오는 배에서 내리지 않았다." in asked
     # The same text again stores nothing and starts nothing.
     again = put(client, beat, EDITED + "\n")
-    assert again.json() == {"version": body["version"], "jobId": None}
+    assert again.json() == {"version": {**body["version"], "checked": True}, "jobId": None}
     assert len(listed(client, beat)) == 2
 
 
@@ -183,10 +188,11 @@ def test_an_earlier_version_is_put_back_as_the_next_one(
     )
     assert wait(client, body["jobId"])["status"] == "done"
     assert [v["text"] for v in listed(client, beat)] == ["옛 글.", CLEAN, "옛 글."]
-    # The current text put back again: nothing to do.
+    # The current text put back again, checked by now: nothing to do.
     assert restore(client, beat, 3).json()["jobId"] is None
     assert restore(client, beat, 1).json()["jobId"] is None
     assert error(restore(client, beat, 9)) == (404, "VERSION_NOT_FOUND")
+    assert error(restore(client, beat, 10**20)) == (422, "VALIDATION_ERROR")
     assert error(restore(client, "b_none", 1)) == (404, "BEAT_NOT_FOUND")
 
 
@@ -207,3 +213,101 @@ def test_a_job_for_a_version_no_longer_current_does_nothing(
     assert wait(client, job_id)["status"] == "done"
     assert not [1 for request in llm.requests if request.role in ("check", "summary")]
     assert events_of(client, job_id)[-1][1]["result"]["warnings"] == 0
+
+
+def test_a_beat_without_text_may_be_written_by_hand(
+    client: TestClient, conn: sqlite3.Connection, written: list[dict[str, Any]], llm: Scripted
+) -> None:
+    chapter = written[0]
+    beat = chapter["beats"][1]["id"]
+    body = put(client, beat, CLEAN).json()
+    assert (body["version"]["version"], body["version"]["origin"]) == (1, "edited")
+    assert wait(client, body["jobId"])["status"] == "done"
+    # The chapter job then writes only the beats still without text.
+    job = wait(client, generate(client, chapter["id"]).json()["jobId"])
+    assert job["status"] == "done"
+    assert [v["origin"] for v in listed(client, beat)] == ["edited"]
+
+
+def test_a_beat_being_written_again_may_not_be_saved(
+    client: TestClient, conn: sqlite3.Connection, written: list[dict[str, Any]], llm: Scripted
+) -> None:
+    beat = written[0]["beats"][0]["id"]
+    write(conn, beat, 1, CLEAN)
+    jobs: JobQueue = client.app.state.jobs  # type: ignore[attr-defined]
+
+    async def waits(ctx: Any) -> None:
+        await asyncio.sleep(30)
+
+    def submit() -> JobRecord:
+        return jobs.submit("beat", waits, work_id="w_01", key=f"beat:{beat}")
+
+    portal = client.portal
+    assert portal is not None  # the client runs the app's loop
+    job = portal.call(submit)
+    assert error(put(client, beat, EDITED)) == (409, "BEAT_BUSY")
+    # Another beat of the chapter is free.
+    other = written[0]["beats"][1]["id"]
+    assert put(client, other, EDITED).status_code == 200
+    portal.call(jobs.cancel, job)
+
+
+def test_a_check_overtaken_by_a_newer_save_stores_nothing(
+    client: TestClient, conn: sqlite3.Connection, written: list[dict[str, Any]], llm: Scripted
+) -> None:
+    chapter = written[0]
+    beat = chapter["beats"][0]["id"]
+    write(conn, beat, 1, CLEAN)
+    state = client.app.state  # type: ignore[attr-defined]
+    llm.say("check", output([ENVELOPE], [HAIR]))
+    later: dict[str, str] = {}
+
+    # While the check of version 2 runs the user saves version 3, whose own job never runs.
+    def save_meanwhile() -> None:
+        del llm.hooks["check"]
+        version, work_id, owed = revisions.save(conn, state.jobs, beat, "전혀 다른 글.")
+        assert owed and version.version == 3
+        later["job"] = revisions.start_recheck(
+            state.llm.router, state.jobs, state.db_path, work_id, beat, 3
+        )
+        assert state.jobs.cancel(state.jobs.get(later["job"]))
+
+    llm.hooks["check"] = save_meanwhile
+    body = put(client, beat, EDITED).json()
+    assert wait(client, body["jobId"])["status"] == "done"
+    assert wait(client, later["job"])["status"] == "cancelled"
+    # Nothing of version 2's check was stored or shown as the beat's.
+    assert state_rows(conn) == []
+    assert warnings_of(client, chapter["id"]) == []
+    kinds = [kind for kind, _ in events_of(client, body["jobId"]) if kind != "progress"]
+    assert kinds == ["done"]
+    # Its summary came after the save: made from the text that is current.
+    asked = [r.messages[1]["content"] for r in llm.requests if r.role == "summary"][-1]
+    assert "전혀 다른 글." in asked and "내리지 않았다" not in asked
+    current = listed(client, beat)[-1]
+    assert (current["version"], current["checked"]) == (3, False)
+    # The same text saved again is checked now: its job was owed.
+    again = put(client, beat, "전혀 다른 글.").json()
+    assert again["version"]["version"] == 3 and again["jobId"] is not None
+    assert wait(client, again["jobId"])["status"] == "done"
+    assert listed(client, beat)[-1]["checked"] is True
+    assert state_rows(conn) == [(beat, "c_teo", "item", ENVELOPE_VALUE)]
+    assert put(client, beat, "전혀 다른 글.").json()["jobId"] is None
+
+
+def test_a_summary_overtaken_by_a_newer_text_is_not_stored(
+    client: TestClient, conn: sqlite3.Connection, written: list[dict[str, Any]], llm: Scripted
+) -> None:
+    beat = written[0]["beats"][0]["id"]
+    write(conn, beat, 1, CLEAN)
+
+    # The chapter's text changes while the summary role reads it.
+    def newer_text() -> None:
+        del llm.hooks["summary"]
+        write(conn, beat, 3, "more")
+
+    llm.hooks["summary"] = newer_text
+    body = put(client, beat, EDITED).json()
+    assert wait(client, body["jobId"])["status"] == "done"
+    stored = conn.execute("SELECT progress_summary FROM chapter WHERE id = ?", (written[0]["id"],))
+    assert stored.fetchone()[0] is None

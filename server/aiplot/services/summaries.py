@@ -73,10 +73,18 @@ async def summarize_chapter(router: Router, conn: sqlite3.Connection, chapter_id
     written = "\n\n".join(texts[beat.id] for beat in beats if beat.id in texts)
     if not written:
         return
+
+    def stale() -> bool:
+        """The chapter's text changed while the role read it (the user saved another): what
+        was summarized is no longer the chapter, and the new text's job summarizes it."""
+        return chapters_db.current_texts(conn, chapter_id) != texts
+
     if any(beat.id not in texts for beat in beats):
         progress = await summarize(router, "progress", written)
         with transaction(conn):
             works.require_current(conn, chapter.work_id, WRITING_STAGE)
+            if stale():
+                return
             chapters_db.set_progress(conn, chapter_id, progress)
             chapters_db.set_episode_summary(conn, chapter.episode_id, None)
         return
@@ -84,6 +92,8 @@ async def summarize_chapter(router: Router, conn: sqlite3.Connection, chapter_id
     short = await summarize(router, "short", written)
     with transaction(conn):
         works.require_current(conn, chapter.work_id, WRITING_STAGE)
+        if stale():
+            return
         chapters_db.set_end_summaries(conn, chapter_id, long, short)
     # The episode's, once each of its chapters is written to its end.
     of_episode = chapters_db.chapters_of_plan(conn, chapter.plan_id)

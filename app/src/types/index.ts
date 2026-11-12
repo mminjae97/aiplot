@@ -1700,7 +1700,7 @@ export interface WorkUpdate {
   cover_id?: CoverId | null
 }
 /**
- * PUT /beats/{beatId}/text and POST /beats/{beatId}/versions/{version}/restore: the beat's current version, and the job that checks it again and redoes its chapter's summaries (null when the text is the current version's: nothing was stored).
+ * PUT /beats/{beatId}/text and POST /beats/{beatId}/versions/{version}/restore: the beat's current version, and the job that checks it and redoes its chapter's summaries (null when the text is the current version's and that version is checked: nothing to do).
  */
 export interface BeatSaved {
   version: BeatVersion
@@ -1717,6 +1717,10 @@ export interface BeatVersion {
    */
   chars: number
   origin: VersionOrigin
+  /**
+   * Whether its check is over (§10); false for a version whose check job failed or was stopped.
+   */
+  checked: boolean
   /**
    * ISO 8601 UTC.
    */
@@ -1917,6 +1921,10 @@ export interface BeatText {
   version: number | null
   chars: number | null
   origin: VersionOrigin1 | null
+  /**
+   * Whether the current version's check is over.
+   */
+  checked: boolean | null
   text: string | null
 }
 /**
