@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ChapterText",
+  "description": "GET /chapters/{chapterId}: the chapter's manuscript, each beat with its current version's text (null while unwritten).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "number",
+    "beats"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common/chapter-id.json"
+    },
+    "number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "beats": {
+      "description": "In narration order.",
+      "type": "array",
+      "items": {
+        "title": "BeatText",
+        "description": "A beat's current text.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "order",
+          "version",
+          "chars",
+          "origin",
+          "text"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "../common/beat-id.json"
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "version": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "chars": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "./version-origin.json"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "ch_01",
+  "number": 1,
+  "beats": [
+    {
+      "id": "b_01",
+      "order": 1,
+      "version": 2,
+      "chars": 12,
+      "origin": "edited",
+      "text": "테오는 배에서 내렸다."
+    },
+    {
+      "id": "b_02",
+      "order": 2,
+      "version": null,
+      "chars": null,
+      "origin": null,
+      "text": null
+    }
+  ]
+}

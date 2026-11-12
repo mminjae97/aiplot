@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BeatSaved",
+  "description": "PUT /beats/{beatId}/text and POST /beats/{beatId}/versions/{version}/restore: the beat's current version, and the job that checks it again and redoes its chapter's summaries (null when the text is the current version's: nothing was stored).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "jobId"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "./beat-version.json"
+    },
+    "jobId": {
+      "anyOf": [
+        {
+          "$ref": "../common/job-id.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

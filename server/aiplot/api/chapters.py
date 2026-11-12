@@ -1,18 +1,24 @@
 """The manuscript (§16 writing): the chapters, the jobs writing their beats and the warnings
 on them."""
 
+from typing import Any
+
 from fastapi import APIRouter, Request
 
 from aiplot.api.deps import Db
 from aiplot.api.errors import AppError
 from aiplot.generated.jobs.job_accepted import JobAccepted
+from aiplot.generated.writing.beat_saved import BeatSaved
+from aiplot.generated.writing.beat_text_update import BeatTextUpdate
+from aiplot.generated.writing.beat_version_list import BeatVersionList
 from aiplot.generated.writing.chapter_list import ChapterList
+from aiplot.generated.writing.chapter_text import ChapterText
 from aiplot.generated.writing.warning import Warning
 from aiplot.generated.writing.warning_list import WarningList
 from aiplot.generated.writing.warning_update import WarningUpdate
 from aiplot.jobs.queue import JobQueue
 from aiplot.llm.runtime import LlmRuntime
-from aiplot.services import checks, manuscript, works, write_context, writing
+from aiplot.services import checks, manuscript, revisions, works, write_context, writing
 
 router = APIRouter()
 
@@ -30,6 +36,12 @@ def refusal(exc: Exception) -> AppError:
         return AppError(404, "CHAPTER_NOT_FOUND", f"no chapter {exc}")
     if isinstance(exc, write_context.BeatNotFoundError):
         return AppError(404, "BEAT_NOT_FOUND", f"no beat {exc}")
+    if isinstance(exc, revisions.VersionNotFoundError):
+        return AppError(404, "VERSION_NOT_FOUND", str(exc))
+    if isinstance(exc, revisions.TextEmptyError):
+        return AppError(422, "TEXT_EMPTY", str(exc))
+    if isinstance(exc, revisions.BeatBusyError):
+        return AppError(409, "BEAT_BUSY", str(exc), "wait for the job writing it, or stop it")
     if isinstance(exc, writing.ChapterWrittenError):
         return AppError(409, "CHAPTER_WRITTEN", str(exc), "regenerate a beat to write it again")
     if isinstance(exc, works.StageLockedError):
@@ -46,6 +58,9 @@ REFUSED = (
     works.WorkNotFoundError,
     works.StageLockedError,
     works.StageNotStartedError,
+    revisions.VersionNotFoundError,
+    revisions.TextEmptyError,
+    revisions.BeatBusyError,
 )
 
 
@@ -92,3 +107,58 @@ def update_warning(db: Db, warningId: str, body: WarningUpdate) -> Warning:
         raise AppError(404, "WARNING_NOT_FOUND", f"no warning {exc}") from exc
     except (works.StageLockedError, works.StageNotStartedError, works.WorkNotFoundError) as exc:
         raise refusal(exc) from exc
+
+
+@router.get("/chapters/{chapterId}")
+def chapter_text(db: Db, chapterId: str) -> ChapterText:
+    """The chapter's manuscript: each beat's current text."""
+    try:
+        return revisions.chapter_text(db, chapterId)
+    except REFUSED as exc:
+        raise refusal(exc) from exc
+
+
+@router.get("/beats/{beatId}/versions")
+def list_versions(db: Db, beatId: str) -> BeatVersionList:
+    try:
+        return BeatVersionList(versions=revisions.versions(db, beatId))
+    except REFUSED as exc:
+        raise refusal(exc) from exc
+
+
+def saved(request: Request, beat_id: str, found: tuple[Any, str, bool]) -> BeatSaved:
+    """The stored version with the job that checks it again (none when nothing was stored)."""
+    version, work_id, new = found
+    if not new:
+        return BeatSaved(version=version, jobId=None)
+    runtime: LlmRuntime = request.app.state.llm
+    job_id = revisions.start_recheck(
+        runtime.router,
+        request.app.state.jobs,
+        request.app.state.db_path,
+        work_id,
+        beat_id,
+        version.version,
+    )
+    return BeatSaved(version=version, jobId=job_id)
+
+
+@router.put("/beats/{beatId}/text")
+async def save_text(request: Request, db: Db, beatId: str, body: BeatTextUpdate) -> BeatSaved:
+    """The user's text as the beat's next version; a job then checks it again and redoes the
+    chapter's summaries (async: the job queue lives on the event loop)."""
+    try:
+        found = revisions.save(db, request.app.state.jobs, beatId, body.text)
+    except REFUSED as exc:
+        raise refusal(exc) from exc
+    return saved(request, beatId, found)
+
+
+@router.post("/beats/{beatId}/versions/{version}/restore")
+async def restore_version(request: Request, db: Db, beatId: str, version: int) -> BeatSaved:
+    """An earlier version's text as the beat's next version."""
+    try:
+        found = revisions.restore(db, request.app.state.jobs, beatId, version)
+    except REFUSED as exc:
+        raise refusal(exc) from exc
+    return saved(request, beatId, found)

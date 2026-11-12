@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BeatVersionList",
+  "description": "GET /beats/{beatId}/versions: the beat's versions, oldest first; the last one is the current one.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "versions"
+  ],
+  "properties": {
+    "versions": {
+      "type": "array",
+      "items": {
+        "$ref": "./beat-version.json"
+      }
+    }
+  }
+}
