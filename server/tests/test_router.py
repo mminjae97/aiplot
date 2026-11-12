@@ -137,7 +137,7 @@ async def test_complete_json_gives_up_after_two_invalid(prompts: Path) -> None:
 
 async def test_role_not_configured(prompts: Path) -> None:
     with pytest.raises(LlmError) as exc_info:
-        router(prompts, FakeClient()).request("check", TURNS)
+        router(prompts, FakeClient()).request("image_prompt", TURNS)
     assert exc_info.value.code == "ROLE_NOT_CONFIGURED"
 
 

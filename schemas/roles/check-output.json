@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CheckOutput",
+  "description": "`check` role output (§10, §13): what one written beat changed in its characters' state, and where it contradicts the cards or the state before it. Cards are given by name, never by id; the server maps names to cards (unknown ones dropped), sets since_chapter, drops changes the latest state already holds and sentence numbers out of range.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "state",
+    "warnings"
+  ],
+  "properties": {
+    "state": {
+      "type": "array",
+      "items": {
+        "title": "StateChange",
+        "type": "object",
+        "oneOf": [
+          {
+            "$ref": "#/$defs/location"
+          },
+          {
+            "$ref": "#/$defs/injury"
+          },
+          {
+            "$ref": "#/$defs/item"
+          },
+          {
+            "$ref": "#/$defs/knows_secret"
+          },
+          {
+            "$ref": "#/$defs/relation_change"
+          },
+          {
+            "$ref": "#/$defs/appearance_change"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "key"
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "title": "CheckWarning",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "sentence",
+          "card",
+          "reason"
+        ],
+        "properties": {
+          "kind": {
+            "title": "CheckKind",
+            "type": "string",
+            "enum": [
+              "character",
+              "appearance",
+              "travel",
+              "state",
+              "world_rule"
+            ]
+          },
+          "sentence": {
+            "description": "The [n] number of the beat sentence it is about.",
+            "type": "integer",
+            "minimum": 1
+          },
+          "card": {
+            "description": "The name of the card it is judged against (narrowed per call to the cards shown), null when none.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "description": "What contradicts what, one sentence.",
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "location": {
+      "title": "LocationChange",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "card",
+        "region"
+      ],
+      "properties": {
+        "key": {
+          "const": "location"
+        },
+        "card": {
+          "description": "The character's name as in <참고 카드> (narrowed per call to the episode's characters).",
+          "type": "string",
+          "minLength": 1
+        },
+        "region": {
+          "description": "The region's name (narrowed per call to the work's regions).",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "injury": {
+      "title": "InjuryChange",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "card",
+        "part",
+        "severity",
+        "healed"
+      ],
+      "properties": {
+        "key": {
+          "const": "injury"
+        },
+        "card": {
+          "description": "The character's name as in <참고 카드> (narrowed per call to the episode's characters).",
+          "type": "string",
+          "minLength": 1
+        },
+        "part": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "$ref": "../writing/injury-severity.json"
+        },
+        "healed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "item": {
+      "title": "ItemChange",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "card",
+        "name",
+        "action"
+      ],
+      "properties": {
+        "key": {
+          "const": "item"
+        },
+        "card": {
+          "description": "The character's name as in <참고 카드> (narrowed per call to the episode's characters).",
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "$ref": "../writing/item-action.json"
+        }
+      }
+    },
+    "knows_secret": {
+      "title": "SecretChange",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "card",
+        "secret"
+      ],
+      "properties": {
+        "key": {
+          "const": "knows_secret"
+        },
+        "card": {
+          "description": "The character's name as in <참고 카드> (narrowed per call to the episode's characters).",
+          "type": "string",
+          "minLength": 1
+        },
+        "secret": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "relation_change": {
+      "title": "RelationChange",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "card",
+        "target",
+        "change"
+      ],
+      "properties": {
+        "key": {
+          "const": "relation_change"
+        },
+        "card": {
+          "description": "The character's name as in <참고 카드> (narrowed per call to the episode's characters).",
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "description": "The other character's name (narrowed per call).",
+          "type": "string",
+          "minLength": 1
+        },
+        "change": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "appearance_change": {
+      "title": "AppearanceChange",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "card",
+        "text"
+      ],
+      "properties": {
+        "key": {
+          "const": "appearance_change"
+        },
+        "card": {
+          "description": "The character's name as in <참고 카드> (narrowed per call to the episode's characters).",
+          "type": "string",
+          "minLength": 1
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

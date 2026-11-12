@@ -1,6 +1,7 @@
 """Writing beats (§10): the write role streams a beat's text by sentence, the server counts its
-characters, writes it over when it holds a banned phrase, stores it as the beat's next version
-and sets the next beat's target from what the chapter has left.
+characters, writes it over when it holds a banned phrase, stores it as the beat's next version,
+has it checked (state records and warnings) and sets the next beat's target from what the
+chapter has left.
 
 A chapter job writes the chapter's unwritten beats in order, so one that was stopped goes on
 from the last stored beat; a beat job writes one beat again.
@@ -21,7 +22,7 @@ from aiplot.jobs.queue import JobContext, JobError, JobQueue
 from aiplot.llm.client import LlmError
 from aiplot.llm.router import Router
 from aiplot.llm.style import Style
-from aiplot.services import summaries, works, write_context
+from aiplot.services import checks, summaries, works, write_context
 from aiplot.services.write_context import count_chars
 
 WRITING_STAGE = 3
@@ -111,8 +112,9 @@ def complete(text: str, finish: str) -> str:
 class Written:
     version: int
     chars: int
-    # Banned phrases still in the stored text after the regenerations.
-    banned: tuple[str, ...]
+    # The warnings on the stored version: the check's, and one per banned phrase still in the
+    # text after the regenerations.
+    warnings: int
 
 
 def show(ctx: JobContext, beat_id: str, text: str) -> None:
@@ -152,10 +154,17 @@ async def stream_beat(
 
 
 def store(
-    conn: sqlite3.Connection, router: Router, work_id: str, beat_id: str, text: str
-) -> tuple[int, int]:
-    """The text as the beat's next version (version, chars), checked again: the stage may have
-    been reopened while the role wrote."""
+    conn: sqlite3.Connection,
+    router: Router,
+    work_id: str,
+    beat_id: str,
+    text: str,
+    banned: Sequence[str] = (),
+) -> tuple[int, int, list[str]]:
+    """The text as the beat's next version (version, chars, the ids of its banned-phrase
+    warnings), checked again: the stage may have been reopened while the role wrote. With it
+    the state records of the beat's text before go, and each banned phrase kept in the text
+    becomes a warning, whatever becomes of the check."""
     meta = router.meta("write")
     chars = count_chars(text)
     with transaction(conn):
@@ -173,7 +182,8 @@ def store(
             meta.style_version,
             works.now(),
         )
-    return version, chars
+        warned = checks.begin(conn, beat_id, version, banned)
+    return version, chars, warned
 
 
 async def continued(
@@ -185,6 +195,7 @@ async def continued(
     target_chars: int,
     text: str,
     story: Sequence[str],
+    state: Sequence[str],
 ) -> str:
     """The beat's text, continued while it is short of its target (§10): each call is asked for
     what is still missing and goes on from the text's end. Lines the beat already has are
@@ -196,7 +207,7 @@ async def continued(
             break
         missing = target_chars - chars
         turns = write_context.write_turns(
-            conn, style, beat_id, target_chars=missing, summaries=story, begun=text
+            conn, style, beat_id, target_chars=missing, summaries=story, state=state, begun=text
         )
         arrived, finish = await stream_beat(router, ctx, beat_id, turns, continued=True)
         more = complete(arrived, finish)
@@ -222,7 +233,8 @@ async def write_beat(
 ) -> Written:
     """Writes the beat and stores it. A text holding a banned phrase (or none at all) is
     written again up to REGENERATIONS times; the last one is kept, unless it is empty. A clean
-    text that came short is continued. The chapter's summaries are then made again (§10)."""
+    text that came short is continued. The stored text is then checked (state and warnings) and
+    the chapter's summaries are made again (§10)."""
     style = router.style("write")
     if style is None:
         raise LlmError("ROLE_NOT_CONFIGURED", "the write role has no style framework")
@@ -230,8 +242,9 @@ async def write_beat(
     if chapter_id is None:
         raise write_context.BeatNotFoundError(beat_id)
     story = summaries.story_so_far(conn, chapter_id)
+    state = checks.state_for_beat(conn, beat_id)
     turns = write_context.write_turns(
-        conn, style, beat_id, target_chars=target_chars, summaries=story
+        conn, style, beat_id, target_chars=target_chars, summaries=story, state=state
     )
     text = finish = ""
     banned: list[str] = []
@@ -244,12 +257,17 @@ async def write_beat(
     if not text:
         raise LlmError("LLM_INVALID_OUTPUT", "write: the beat came back empty")
     if not banned and finish != "length":
-        text = await continued(router, conn, ctx, style, beat_id, target_chars, text, story)
-    version, chars = store(conn, router, work_id, beat_id, text)
+        text = await continued(router, conn, ctx, style, beat_id, target_chars, text, story, state)
+    version, chars, warned = store(conn, router, work_id, beat_id, text, banned)
     ctx.emit("beat_done", {"beatId": beat_id, "chars": chars, "version": version})
-    # The beat is stored whatever becomes of its chapter's summaries.
+    for warning_id in warned:
+        ctx.emit("warning", {"warningId": warning_id, "beatId": beat_id, "kind": "banned_phrase"})
+    # The beat is stored whatever becomes of its check and its chapter's summaries.
+    warnings = await checks.check_beat(
+        router, conn, ctx, work_id, beat_id, version, text, len(warned)
+    )
     await summaries.summarize_chapter(router, conn, chapter_id)
-    return Written(version, chars, tuple(banned))
+    return Written(version, chars, warnings)
 
 
 # Job error codes for what a writing job can meet after it was accepted (§16).
@@ -307,7 +325,7 @@ def start_chapter(router: Router, jobs: JobQueue, db_path: Path, chapter_id: str
 
     async def run(ctx: JobContext) -> dict[str, Any]:
         started = monotonic()
-        kept_banned = 0
+        warnings = 0
         conn = connect(db_path)
         try:
             await summaries.catch_up(router, conn, chapter_id)
@@ -327,10 +345,10 @@ def start_chapter(router: Router, jobs: JobQueue, db_path: Path, chapter_id: str
                     chapter.target_chars, chars, [beat.target_chars for beat in todo]
                 )
                 done = await write_beat(router, conn, ctx, work_id, todo[0].id, target)
-                kept_banned += bool(done.banned)
+                warnings += done.warnings
             return {
                 "chars": chars,
-                "warnings": kept_banned,
+                "warnings": warnings,
                 "elapsedSec": round(monotonic() - started, 1),
             }
         except FAILURES as exc:
@@ -363,7 +381,7 @@ def start_beat(router: Router, jobs: JobQueue, db_path: Path, beat_id: str) -> s
             ctx.progress(1, 1, "write")
             return {
                 "chars": done.chars,
-                "warnings": int(bool(done.banned)),
+                "warnings": done.warnings,
                 "elapsedSec": round(monotonic() - started, 1),
             }
         except FAILURES as exc:

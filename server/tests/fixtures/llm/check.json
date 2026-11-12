@@ -1,0 +1,7 @@
+{
+ "reasoning": "테오가 봉투를 받았다. 어긋나는 곳은 없다.",
+ "content": {
+  "state": [{ "key": "item", "card": "테오", "name": "누렇게 바랜 봉투", "action": "gain" }],
+  "warnings": []
+ }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WarningKind",
+  "description": "What a warning is about (§10): the check role's five kinds (out-of-character action, appearance mismatch, impossible travel, state contradiction, world-rule violation), a banned phrase kept in the beat after its regenerations, and a beat whose check failed.",
+  "type": "string",
+  "enum": [
+    "character",
+    "appearance",
+    "travel",
+    "state",
+    "world_rule",
+    "banned_phrase",
+    "check_failed"
+  ]
+}

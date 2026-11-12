@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Warning",
+  "description": "A warning on a beat's version (§10, §14 warning).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "beat_id",
+    "version",
+    "kind",
+    "sentence",
+    "card_id",
+    "status",
+    "reason",
+    "ignore_reason"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common/warning-id.json"
+    },
+    "beat_id": {
+      "$ref": "../common/beat-id.json"
+    },
+    "version": {
+      "description": "The beat version it was made on.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "kind": {
+      "$ref": "./warning-kind.json"
+    },
+    "sentence": {
+      "description": "The 1-based number of the sentence it is about, in the server's split of the version's text (§15 Sentences); null when it is about no one sentence.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "card_id": {
+      "description": "The evidence card, if any.",
+      "oneOf": [
+        {
+          "$ref": "../common/card-id.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "status": {
+      "$ref": "./warning-status.json"
+    },
+    "reason": {
+      "description": "Why it was raised (a banned phrase: the phrase).",
+      "type": "string"
+    },
+    "ignore_reason": {
+      "description": "The user's reason for ignoring it; later checks are told it.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

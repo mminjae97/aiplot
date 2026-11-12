@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StateKey",
+  "description": "The fixed state keys (§7).",
+  "type": "string",
+  "enum": [
+    "location",
+    "injury",
+    "item",
+    "knows_secret",
+    "relation_change",
+    "appearance_change"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "wr_01",
+  "beat_id": "b_01",
+  "version": 2,
+  "kind": "check_failed",
+  "sentence": null,
+  "card_id": null,
+  "status": "open",
+  "reason": "카드에는 검은 머리인데 금발로 적혔다.",
+  "ignore_reason": null
+}

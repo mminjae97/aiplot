@@ -38,6 +38,7 @@ def test_shipped_config_loads() -> None:
         "arrange",
         "direct",
         "write",
+        "check",
         "summary",
     }
     assert set(config.profiles) == {Q4, Q5}

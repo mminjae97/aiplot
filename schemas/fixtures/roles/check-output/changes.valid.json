@@ -1,0 +1,30 @@
+{
+  "state": [
+    {
+      "key": "location",
+      "card": "테오",
+      "region": "안개 부두"
+    },
+    {
+      "key": "item",
+      "card": "테오",
+      "name": "누런 봉투",
+      "action": "gain"
+    },
+    {
+      "key": "injury",
+      "card": "미라",
+      "part": "왼손",
+      "severity": "가벼움",
+      "healed": false
+    }
+  ],
+  "warnings": [
+    {
+      "kind": "travel",
+      "sentence": 2,
+      "card": "안개 부두",
+      "reason": "하루 거리의 등대에 한 시간 만에 닿았다."
+    }
+  ]
+}

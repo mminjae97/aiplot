@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WarningUpdate",
+  "description": "PATCH /warnings/{warningId}: ignore a warning with a reason (무시), or open it again (the reason is dropped).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status"
+  ],
+  "properties": {
+    "status": {
+      "$ref": "./warning-status.json"
+    },
+    "reason": {
+      "description": "With status ignored: why; blank = none.",
+      "type": "string",
+      "maxLength": 500
+    }
+  }
+}
