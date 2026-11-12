@@ -102,12 +102,13 @@ def set_warning_status(
 
 
 def ignored_reasons(conn: sqlite3.Connection, work_id: str, limit: int) -> list[tuple[str, str]]:
-    """(the warning's reason, why the user ignored it) for the work's warnings ignored with a
-    reason, newest first."""
+    """(the warning's reason, why the user ignored it) for the work's warnings of the check
+    role ignored with a reason, newest first."""
     rows = conn.execute(
         f"SELECT w.reason, w.ignore_reason {WARNING_FROM} JOIN beat ON beat.id = v.beat_id "
         "JOIN chapter ON chapter.id = beat.chapter_id "
         "WHERE chapter.work_id = ? AND w.status = 'ignored' AND w.ignore_reason IS NOT NULL "
+        "AND w.kind NOT IN ('banned_phrase', 'check_failed') "
         "ORDER BY w.rowid DESC LIMIT ?",
         (work_id, limit),
     ).fetchall()

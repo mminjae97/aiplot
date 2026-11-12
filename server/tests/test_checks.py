@@ -17,6 +17,7 @@ from aiplot.db.checks import StateRow
 from aiplot.generated.roles.check_output import CheckOutput
 from aiplot.generated.writing.chapter_events import ChapterJobEvent
 from aiplot.llm.client import LlmError
+from aiplot.llm.fake import FakeResponse
 from aiplot.services.checks import (
     Cast,
     check_schema,
@@ -213,7 +214,13 @@ def test_the_schema_is_narrowed_to_the_names_shown() -> None:
     kept = [ref["$ref"].rsplit("/", 1)[1] for ref in alone["$defs"]["StateChange"]["anyOf"]]
     assert kept == ["InjuryChange", "ItemChange", "SecretChange", "AppearanceChange"]
     assert alone["$defs"]["CheckWarning"]["properties"]["card"] == {"type": "null"}
-    assert check_schema(Cast(), 1)["properties"]["state"] == {"type": "array", "maxItems": 0}
+    nobody = check_schema(Cast(), 1)
+    assert nobody["properties"]["state"] == {
+        "type": "array",
+        "items": {"type": "null"},
+        "maxItems": 0,
+    }
+    assert "StateChange" not in nobody["$defs"]
 
 
 # the job ---------------------------------------------------------------------------------------
@@ -325,6 +332,14 @@ def test_a_banned_phrase_kept_in_the_beat_is_a_warning(
     ]
     assert found[0]["reason"] and found[0]["reason"] in BANNED
     assert events[-1][1]["result"]["warnings"] == 2
+    kinds = [data["kind"] for kind, data in events if kind == "warning"]
+    assert kinds == ["banned_phrase", "appearance"]
+    assert next(data for kind, data in events if kind == "beat_checked")["warnings"] == 2
+    # Ignoring it is no reason a later check is told: it is not the check's warning.
+    assert patch(client, found[0]["id"], status="ignored", reason="일부러").status_code == 200
+    llm.say("write", CLEAN)
+    assert finished(client, regenerate(client, chapter["beats"][1]["id"]))[0]["status"] == "done"
+    assert "무시한" not in block(checks_asked(llm)[-1], "지시")
 
 
 def test_a_beat_written_again_replaces_its_state_and_shows_its_new_warnings(
@@ -344,6 +359,57 @@ def test_a_beat_written_again_replaces_its_state_and_shows_its_new_warnings(
     assert warnings_of(client, chapter["id"]) == []
     assert count(conn, "warning") == 1
     assert patch(client, old["id"], status="ignored").status_code == 200
+
+
+def test_a_check_cut_at_max_tokens_twice_leaves_a_warning_too(
+    client: TestClient, conn: sqlite3.Connection, written: list[dict[str, Any]], llm: Scripted
+) -> None:
+    chapter = written[0]
+    llm.say("write", CLEAN)
+    llm.script["check"] = [FakeResponse(content=output([ENVELOPE]), finish_reason="length")]
+    job, _ = finished(client, regenerate(client, chapter["beats"][0]["id"]))
+    assert job["status"] == "done"
+    [warning] = warnings_of(client, chapter["id"])
+    assert (warning["kind"], warning["reason"]) == ("check_failed", "LLM_OUTPUT_TRUNCATED")
+    assert state_rows(conn) == []
+
+
+def test_a_beat_whose_check_never_ends_keeps_its_banned_warning_and_no_old_state(
+    client: TestClient, conn: sqlite3.Connection, written: list[dict[str, Any]], llm: Scripted
+) -> None:
+    chapter = written[0]
+    beat = chapter["beats"][0]["id"]
+    llm.say("write", CLEAN)
+    assert finished(client, regenerate(client, beat))[0]["status"] == "done"
+    assert len(state_rows(conn, beat)) == 1
+    # Written again with a banned phrase kept; the model goes away during the check.
+    llm.say("write", BANNED)
+    llm.failures["check"] = LlmError("LLM_REQUEST_FAILED", "the model went away")
+    job, events = finished(client, regenerate(client, beat))
+    assert (job["status"], job["error"]["code"]) == ("failed", "LLM_REQUEST_FAILED")
+    # The state of the text before is gone with it (§7); the phrase is flagged all the same.
+    assert state_rows(conn) == []
+    [warning] = warnings_of(client, chapter["id"])
+    assert (warning["version"], warning["kind"]) == (2, "banned_phrase")
+    assert [data["kind"] for kind, data in events if kind == "warning"] == ["banned_phrase"]
+    assert not [1 for kind, _ in events if kind == "beat_checked"]
+
+
+def test_a_check_that_ends_after_a_reopen_stores_nothing(
+    client: TestClient, conn: sqlite3.Connection, written: list[dict[str, Any]], llm: Scripted
+) -> None:
+    chapter = written[0]
+    llm.say("write", CLEAN)
+    llm.say("check", output([ENVELOPE], [HAIR]))
+
+    # The stage goes back while the role reads (as if the cancel had not landed yet).
+    def back_to_direction() -> None:
+        conn.execute("UPDATE work SET stage = 2, locked_stage = 1 WHERE id = 'w_01'")
+
+    llm.hooks["check"] = back_to_direction
+    job, _ = finished(client, regenerate(client, chapter["beats"][0]["id"]))
+    assert (job["status"], job["error"]["code"]) == ("failed", "STAGE_NOT_STARTED")
+    assert (count(conn, "state_record"), count(conn, "warning")) == (0, 0)
 
 
 # warnings (§16) --------------------------------------------------------------------------------

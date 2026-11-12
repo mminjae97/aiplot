@@ -44,6 +44,8 @@ from aiplot.services.write_context import BeatNotFoundError, BeatSpot, beat_spot
 WRITING_STAGE = 3
 # §10: the latest state is ~200 tokens of a beat's context (a draft, in chars).
 STATE_CHARS = 500
+# What a check is told of it: more, as contradictions are judged against it (a draft).
+CHECK_STATE_CHARS = 2000
 # Ignored warnings a later check is told of, newest first.
 IGNORED = 8
 # A check that failed for one of these leaves a warning; anything else fails the job.
@@ -128,9 +130,12 @@ def state_before(conn: sqlite3.Connection, spot: BeatSpot) -> list[StateRow]:
     )
 
 
-def state_line(key: str, value: dict[str, Any], name: str, names: dict[str, str]) -> str | None:
+def state_line(
+    key: str, value: dict[str, Any], name: str, names: dict[str, str], places: dict[str, str]
+) -> str | None:
+    """names: the characters by id; places: the regions by id."""
     if key == "location":
-        place = names.get(value["region_id"])
+        place = places.get(value["region_id"])
         return f"{name}: 지금 있는 곳은 {place}" if place else None
     if key == "injury":
         return f"{name}: {value['part']} 부상 ({value['severity']}, {value['since_chapter']}화부터)"
@@ -147,12 +152,14 @@ def state_line(key: str, value: dict[str, Any], name: str, names: dict[str, str]
 def state_lines(conn: sqlite3.Connection, spot: BeatSpot, cast: Cast) -> list[str]:
     """The latest state before the beat as lines, in the order it was last set; only of the
     cards the beat's episode shows (§11: inactive ones are left out)."""
-    names = {card_id: name for name, card_id in cast.evidence.items()}
+    places = {card_id: name for name, card_id in cast.regions.items()}
     characters = {card_id: name for name, card_id in cast.characters.items()}
     lines = []
     for (card_id, key, _), value in latest(state_before(conn, spot)).items():
         name = characters.get(card_id)
-        line = state_line(key, value, name, names) if name and held(key, value) else None
+        if name is None or not held(key, value):
+            continue
+        line = state_line(key, value, name, characters, places)
         if line:
             lines.append(line)
     return lines
@@ -218,7 +225,7 @@ def check_turns(
 ) -> list[Message]:
     """§10: the cards, the state before the beat, the beat's text as numbered sentences, then
     where the beat is and what the user chose to ignore."""
-    state = state_lines(conn, spot, cast)
+    state = write_context.newest_within(state_lines(conn, spot, cast), CHECK_STATE_CHARS)
     text = "\n".join(f"[{number}] {sentence}" for number, sentence in enumerate(sentences, 1))
     order = [f"자리: {spot.chapter.number}화, 비트 {spot.beat.order}/{spot.count}"]
     ignored = checks_db.ignored_reasons(conn, spot.chapter.work_id, IGNORED)
@@ -257,7 +264,14 @@ def check_schema(cast: Cast, sentences: int) -> dict[str, Any]:
         defs["RelationChange"]["properties"]["target"] = {"type": "string", "enum": characters}
     defs["StateChange"] = {"anyOf": [{"$ref": f"#/$defs/{name}"} for name in kept]}
     if not kept:
-        schema["properties"]["state"] = {"type": "array", "maxItems": 0}
+        # Nobody whose state could change: an empty list (items: llama.cpp needs them to
+        # bound an array).
+        del defs["StateChange"]
+        schema["properties"]["state"] = {
+            "type": "array",
+            "items": {"type": "null"},
+            "maxItems": 0,
+        }
     warning = defs["CheckWarning"]["properties"]
     warning["sentence"] = {"type": "integer", "minimum": 1, "maximum": max(sentences, 1)}
     warning["card"] = {"anyOf": [{"type": "string", "enum": list(cast.evidence)}, {"type": "null"}]}
@@ -359,6 +373,21 @@ def clean_warnings(output: CheckOutput, cast: Cast, sentences: int) -> list[Foun
 # the check --------------------------------------------------------------------------------------
 
 
+def begin(conn: sqlite3.Connection, beat_id: str, version: int, banned: Sequence[str]) -> list[str]:
+    """Inside the transaction that stored the beat's new version: the state records of its
+    text before are gone (§7), and each banned phrase kept in the text is a warning on the
+    version (their ids), so both hold even if the check never ends."""
+    row = checks_db.version_id(conn, beat_id, version)
+    assert row is not None
+    checks_db.replace_state(conn, beat_id, [])
+    ids = [f"wr_{secrets.token_hex(8)}" for _ in banned]
+    for warning_id, phrase in zip(ids, banned, strict=True):
+        # A pattern is only checked, never shown (§10): its warning has no reason.
+        reason = "" if phrase.startswith("/") else phrase
+        checks_db.insert_warning(conn, warning_id, row, None, "banned_phrase", None, reason)
+    return ids
+
+
 def store(
     conn: sqlite3.Connection,
     work_id: str,
@@ -397,20 +426,16 @@ async def check_beat(
     beat_id: str,
     version: int,
     text: str,
-    banned: Sequence[str] = (),
+    warned: int = 0,
 ) -> int:
-    """Checks the beat's stored version (§10) and gives the number of warnings on it: its state
-    records replace the beat's, the check's warnings and one per banned phrase kept in the text
-    are stored on the version. A check that came back invalid or cut off twice leaves a
-    check_failed warning in their place, and no state."""
+    """Checks the beat's stored version (§10) and gives the number of warnings on it (warned =
+    those it already has: its banned phrases): its state records become the beat's, the check's
+    warnings are stored on the version. A check that came back invalid or cut off twice leaves
+    a check_failed warning in their place, and no state."""
     spot = beat_spot(conn, beat_id)
     cast = cast_of(conn, spot)
     sentences = split_sentences(text)
-    # A pattern is only checked, never shown (§10): its warning has no reason.
-    found = [
-        Found("banned_phrase", None, None, "" if phrase.startswith("/") else phrase)
-        for phrase in banned
-    ]
+    found: list[Found] = []
     state: list[StateRow] = []
     try:
         result = await router.complete_json(
@@ -433,8 +458,8 @@ async def check_beat(
         )
     for warning_id, warning in zip(ids, found, strict=True):
         ctx.emit("warning", {"warningId": warning_id, "beatId": beat_id, "kind": warning.kind})
-    ctx.emit("beat_checked", {"beatId": beat_id, "warnings": len(found)})
-    return len(found)
+    ctx.emit("beat_checked", {"beatId": beat_id, "warnings": warned + len(found)})
+    return warned + len(found)
 
 
 # warnings (§16) ---------------------------------------------------------------------------------

@@ -7,12 +7,14 @@ within ±10% of its target; the criterion is >=90% of the chapters. Beats: store
 against the target the call was given (the adjusted one) and against the plan's, and how many
 fall in 500-1000. Calls: beats written again, beats continued (the calls that continued them,
 those adding no new line, the beats reaching 90% of their target), texts cut at max_tokens,
-empty texts, beats kept with a banned phrase.
+empty texts, the warnings the chapter jobs made (up to run 7 one per beat kept with a banned
+phrase; since the checks, every warning row: the check's, banned phrases, failed checks).
 Repetition: per chapter, the distinct runs of three eojeol (punctuation
 at their edges dropped) that occur twice or more; the criterion is <=3 per chapter. Copying:
 the lines of a chapter's later beats that an earlier beat of the chapter already holds word for
 word (the earlier beats are in the call's context), and the beats that are a whole earlier beat
-again. Tokens and seconds per call.
+again. Tokens and seconds per call; a chapter's seconds include its summary calls and, since
+the checks, its check calls (not comparable with runs 1-6).
 """
 
 import argparse
@@ -161,9 +163,7 @@ def score(results: dict[str, Any]) -> dict[str, Any]:
         ),
         "calls_cut_at_max_tokens": sum(1 for call in calls if call["finish"] == "length"),
         "calls_empty": sum(1 for call in calls if not call["text"].strip()),
-        "beats_kept_with_banned": sum(
-            (chapter.get("result") or {}).get("warnings", 0) for chapter in chapters
-        ),
+        "warnings": sum((chapter.get("result") or {}).get("warnings", 0) for chapter in chapters),
         "prompt_tokens": spread([float(u["prompt_tokens"]) for u in used]),
         "cached_tokens": spread([float(u["cached_tokens"]) for u in used]),
         "completion_tokens": spread([float(u["completion_tokens"]) for u in used]),

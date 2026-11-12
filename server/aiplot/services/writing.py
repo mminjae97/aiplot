@@ -154,10 +154,17 @@ async def stream_beat(
 
 
 def store(
-    conn: sqlite3.Connection, router: Router, work_id: str, beat_id: str, text: str
-) -> tuple[int, int]:
-    """The text as the beat's next version (version, chars), checked again: the stage may have
-    been reopened while the role wrote."""
+    conn: sqlite3.Connection,
+    router: Router,
+    work_id: str,
+    beat_id: str,
+    text: str,
+    banned: Sequence[str] = (),
+) -> tuple[int, int, list[str]]:
+    """The text as the beat's next version (version, chars, the ids of its banned-phrase
+    warnings), checked again: the stage may have been reopened while the role wrote. With it
+    the state records of the beat's text before go, and each banned phrase kept in the text
+    becomes a warning, whatever becomes of the check."""
     meta = router.meta("write")
     chars = count_chars(text)
     with transaction(conn):
@@ -175,7 +182,8 @@ def store(
             meta.style_version,
             works.now(),
         )
-    return version, chars
+        warned = checks.begin(conn, beat_id, version, banned)
+    return version, chars, warned
 
 
 async def continued(
@@ -250,10 +258,14 @@ async def write_beat(
         raise LlmError("LLM_INVALID_OUTPUT", "write: the beat came back empty")
     if not banned and finish != "length":
         text = await continued(router, conn, ctx, style, beat_id, target_chars, text, story, state)
-    version, chars = store(conn, router, work_id, beat_id, text)
+    version, chars, warned = store(conn, router, work_id, beat_id, text, banned)
     ctx.emit("beat_done", {"beatId": beat_id, "chars": chars, "version": version})
+    for warning_id in warned:
+        ctx.emit("warning", {"warningId": warning_id, "beatId": beat_id, "kind": "banned_phrase"})
     # The beat is stored whatever becomes of its check and its chapter's summaries.
-    warnings = await checks.check_beat(router, conn, ctx, work_id, beat_id, version, text, banned)
+    warnings = await checks.check_beat(
+        router, conn, ctx, work_id, beat_id, version, text, len(warned)
+    )
     await summaries.summarize_chapter(router, conn, chapter_id)
     return Written(version, chars, warnings)
 
