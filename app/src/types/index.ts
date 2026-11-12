@@ -1587,7 +1587,7 @@ export interface WorkUpdate {
   cover_id?: CoverId | null
 }
 /**
- * event: beat_start. The beat's text starts from nothing; sent again when the beat is written over (a banned phrase).
+ * event: beat_start. The beat's text starts from nothing; sent again when the beat is written over (a banned phrase) or shown again as it is kept (a continuation of a short beat that was not kept as it was streamed).
  */
 export interface BeatStartEvent {
   beatId: BeatId

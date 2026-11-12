@@ -5,8 +5,10 @@
 Length: a chapter passes when its stored characters (incl. spaces, line breaks not counted) are
 within ±10% of its target; the criterion is >=90% of the chapters. Beats: stored characters
 against the target the call was given (the adjusted one) and against the plan's, and how many
-fall in 500-1000. Calls: beats written again, texts cut at max_tokens, empty texts, beats kept
-with a banned phrase. Repetition: per chapter, the distinct runs of three eojeol (punctuation
+fall in 500-1000. Calls: beats written again, beats continued (the calls that continued them,
+those adding no new line, the beats reaching 90% of their target), texts cut at max_tokens,
+empty texts, beats kept with a banned phrase.
+Repetition: per chapter, the distinct runs of three eojeol (punctuation
 at their edges dropped) that occur twice or more; the criterion is <=3 per chapter. Copying:
 the lines of a chapter's later beats that an earlier beat of the chapter already holds word for
 word (the earlier beats are in the call's context), and the beats that are a whole earlier beat
@@ -24,6 +26,8 @@ from typing import Any
 TOLERANCE = 0.1
 BEAT_RANGE = (500, 1000)
 REPEATS_ALLOWED = 3
+# A beat short of this much of its target is continued (services/writing.py CONTINUE_BELOW).
+REACHED = 0.9
 EDGES = re.compile(r"^\W+|\W+$")
 
 
@@ -65,9 +69,23 @@ def spread(values: list[float]) -> dict[str, float] | None:
 
 
 def given_target(beat: dict[str, Any]) -> int:
-    """The target the beat's stored text was written to: its last call's, else the plan's."""
-    given = beat["calls"][-1]["target"] if beat["calls"] else None
-    return int(given or beat["target_chars"])
+    """The target the beat's stored text was written to: its last call's that began it (a
+    continuation is asked for what is still missing), else the plan's."""
+    began = [call["target"] for call in beat["calls"] if not call.get("continued")]
+    return int((began[-1] if began else None) or beat["target_chars"])
+
+
+def continuations(beat: dict[str, Any]) -> tuple[int, int]:
+    """(calls continuing the beat, those with no line an earlier call for the beat lacked)."""
+    seen: set[str] = set()
+    made = nothing = 0
+    for call in beat["calls"]:
+        lines = lines_of(call["text"])
+        if call.get("continued"):
+            made += 1
+            nothing += all(line in seen for line in lines)
+        seen.update(lines)
+    return made, nothing
 
 
 def score(results: dict[str, Any]) -> dict[str, Any]:
@@ -109,6 +127,7 @@ def score(results: dict[str, Any]) -> dict[str, Any]:
         for key in (f"mode {beat['mode']}", f"focus {beat['focus']}", f"density {beat['density']}"):
             by_kind.setdefault(key, []).append(beat["chars"] / given)
     done = [row for row in rows if row["status"] == "done"]
+    continued = [continuations(beat) for beat in written]
     return {
         "chapters": len(rows),
         "chapters_done": len(done),
@@ -129,7 +148,17 @@ def score(results: dict[str, Any]) -> dict[str, Any]:
         "beat_to_plan_target": spread([beat["chars"] / beat["target_chars"] for beat in written]),
         "beat_to_given_by_kind": {key: spread(values) for key, values in sorted(by_kind.items())},
         "calls": len(calls),
-        "beats_written_again": sum(1 for beat in written if len(beat["calls"]) > 1),
+        "beats_written_again": sum(
+            1 for beat in written if len([c for c in beat["calls"] if not c.get("continued")]) > 1
+        ),
+        "beats_continued": sum(
+            1 for beat in written if any(c.get("continued") for c in beat["calls"])
+        ),
+        "calls_continuing": sum(made for made, _ in continued),
+        "continuations_adding_nothing": sum(nothing for _, nothing in continued),
+        "beats_reaching_their_target": sum(
+            1 for beat in written if beat["chars"] >= given_target(beat) * REACHED
+        ),
         "calls_cut_at_max_tokens": sum(1 for call in calls if call["finish"] == "length"),
         "calls_empty": sum(1 for call in calls if not call["text"].strip()),
         "beats_kept_with_banned": sum(

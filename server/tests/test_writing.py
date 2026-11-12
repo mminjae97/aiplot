@@ -18,7 +18,14 @@ from aiplot.jobs.queue import JobContext, JobQueue, JobRecord
 from aiplot.llm.client import LlmError
 from aiplot.llm.config import load_llm_config
 from aiplot.llm.fake import FakeResponse, load_fixtures
-from aiplot.services.writing import SentenceBuffer, complete, count_chars, next_target
+from aiplot.services.write_context import count_chars
+from aiplot.services.writing import (
+    CONTINUATIONS,
+    SentenceBuffer,
+    complete,
+    new_lines,
+    next_target,
+)
 from tests.test_direction_roles import block, conn  # noqa: F401
 from tests.test_draft_messages import Scripted
 from tests.test_manuscript import chapters, confirmed, write
@@ -71,18 +78,38 @@ def versions(conn: sqlite3.Connection, beat_id: str) -> list[tuple[Any, ...]]:
     ]
 
 
-def targets(llm: Scripted) -> list[int]:
-    """The target each write call was given, in order."""
+def asked(llm: Scripted, *, continued: bool = False) -> list[str]:
+    """The user message of each write call that began a beat (or continued one), in order."""
+    messages = [r.messages[1]["content"] for r in llm.requests if r.role == "write"]
+    return [text for text in messages if ("이어 쓰기: " in block(text, "지시")) == continued]
+
+
+def targets(llm: Scripted, *, continued: bool = False) -> list[int]:
+    """The target each of those calls was given."""
     found = []
-    for request in llm.requests:
-        if request.role == "write":
-            line = next(
-                line
-                for line in block(request.messages[1]["content"], "지시").splitlines()
-                if line.startswith("분량: ")
-            )
-            found.append(int(line.removeprefix("분량: 공백 포함 ").removesuffix("자 안팎")))
+    for text in asked(llm, continued=continued):
+        line = next(line for line in block(text, "지시").splitlines() if line.startswith("분량: "))
+        found.append(int(line.removeprefix("분량: 공백 포함 ").removesuffix("자 안팎")))
     return found
+
+
+def shown(events: list[tuple[str, dict[str, Any]]], beat_id: str) -> str:
+    """The beat's text as the screen has it: its sentences since its last beat_start."""
+    text = ""
+    for kind, data in events:
+        if data.get("beatId") == beat_id and kind == "beat_start":
+            text = ""
+        elif data.get("beatId") == beat_id and kind == "sentence":
+            text += data["text"]
+    return text
+
+
+def prose(chars: int) -> str:
+    """Distinct sentences, one per line, of at least this many chars together."""
+    lines: list[str] = []
+    while count_chars("".join(lines)) < chars:
+        lines.append(f"{len(lines) + 1}번째 파도가 말뚝을 때리고 물러갔다.")
+    return "\n".join(lines)
 
 
 # pieces ----------------------------------------------------------------------------------------
@@ -129,6 +156,15 @@ def test_a_cut_text_ends_at_its_last_whole_sentence() -> None:
     assert complete("가나다\n라마", "length") == "가나다\n라마"
 
 
+def test_lines_the_beat_already_has_are_dropped_from_what_is_added() -> None:
+    text = '테오는 배에서 내렸다.\n\n"네."\n\n안개가 부두를 덮고 있었다.'
+    more = '안개가 부두를 덮고 있었다.\n\n"네."\n\n테오는 배에서 내렸다.\n\n\n미라가 다가왔다.'
+    # The breaks left by dropped lines close up.
+    assert new_lines(more, text) == "미라가 다가왔다."
+    assert new_lines(text, text) == ""
+    assert new_lines("새 줄이 하나 붙었다.", text) == "새 줄이 하나 붙었다."
+
+
 # the chapter job -------------------------------------------------------------------------------
 
 
@@ -145,7 +181,9 @@ def test_a_chapter_is_written_beat_by_beat(
     )
     # §16: per beat progress, beat_start, sentences, beat_done; then done.
     kinds = [kind for kind, _ in events]
-    per_beat = ["progress", "beat_start", "sentence", "beat_done"]
+    # The fixture is short of every target and says the same again: each beat is continued
+    # once, nothing is added, and the beat's text is shown again as it is kept.
+    per_beat = ["progress", "beat_start", "sentence", "beat_start", "sentence", "beat_done"]
     collapsed = [kind for at, kind in enumerate(kinds) if at == 0 or kind != kinds[at - 1]]
     assert collapsed == per_beat * len(beats) + ["progress", "done"]
     assert [data["beatId"] for kind, data in events if kind == "beat_done"] == [
@@ -154,12 +192,8 @@ def test_a_chapter_is_written_beat_by_beat(
     progress = [(data["done"], data["total"]) for kind, data in events if kind == "progress"]
     assert progress == [(done, len(beats)) for done in range(len(beats) + 1)]
     # A beat's sentences joined are the text as it arrived.
-    first = "".join(
-        data["text"]
-        for kind, data in events
-        if kind == "sentence" and data["beatId"] == beats[0]["id"]
-    )
-    assert first == PROSE and len([1 for kind, _ in events if kind == "sentence"]) > len(beats)
+    assert shown(events, beats[0]["id"]) == PROSE
+    assert len([1 for kind, _ in events if kind == "sentence"]) > len(beats)
     # Stored with what made it; chars counted in code, line breaks left out.
     chars = count_chars(PROSE)
     config = load_llm_config().roles["write"]
@@ -175,17 +209,20 @@ def test_a_chapter_is_written_beat_by_beat(
     assert listed["chars"] == chars * len(beats)
     assert all((b["version"], b["chars"]) == (1, chars) for b in listed["beats"])
     # The fixture runs short of every target, so each next beat is asked for more.
-    asked = targets(llm)
-    assert asked[0] == beats[0]["target_chars"]
+    asked_for = targets(llm)
+    assert asked_for[0] == beats[0]["target_chars"]
     assert all(
-        given > beat["target_chars"] for given, beat in zip(asked[1:], beats[1:], strict=True)
+        given > beat["target_chars"] for given, beat in zip(asked_for[1:], beats[1:], strict=True)
     )
     assert all(
-        given <= round(beat["target_chars"] * 1.5) for given, beat in zip(asked, beats, strict=True)
+        given <= round(beat["target_chars"] * 1.5)
+        for given, beat in zip(asked_for, beats, strict=True)
     )
     # The second beat goes on from the first one's text.
-    second = llm.requests[-len(beats) + 1].messages[1]["content"]
-    assert block(second, "원문").endswith(PROSE[-40:])
+    assert block(asked(llm)[1], "원문").endswith(PROSE[-40:])
+    # Each continuation was asked for what its beat still missed, from the beat's own end.
+    assert targets(llm, continued=True) == [given - chars for given in asked_for]
+    assert all(block(text, "원문").endswith(PROSE[-40:]) for text in asked(llm, continued=True))
 
 
 def test_a_written_chapter_has_nothing_to_generate(
@@ -248,13 +285,16 @@ def test_a_beat_with_a_banned_phrase_is_written_again(
     job, events = finished(client, regenerate(client, beat["id"]))
     assert job["status"] == "done"
     # Each generation starts the beat's text over on the screen.
+    # (The fourth: the clean text shown again after a continuation that added nothing.)
     assert [kind for kind, _ in events if kind in ("beat_start", "beat_done")] == [
+        "beat_start",
         "beat_start",
         "beat_start",
         "beat_start",
         "beat_done",
     ]
     assert [row[1] for row in versions(conn, beat["id"])] == [CLEAN]
+    assert shown(events, beat["id"]) == CLEAN
     assert events[-1][1]["result"]["warnings"] == 0
 
 
@@ -301,15 +341,17 @@ def test_a_model_failure_fails_the_job_and_keeps_what_was_stored(
     beats = written[0]["beats"]
     calls = []
 
-    def fail_on_the_third() -> None:
+    def fail_on_the_third_beat() -> None:
+        """Each beat before it took two calls: the beat, and a continuation adding nothing."""
         calls.append(1)
-        if len(calls) == 3:
+        if len(calls) == 5:
             llm.failures["write"] = LlmError("LLM_UNAVAILABLE", "the model is not running")
 
-    llm.hooks["write"] = fail_on_the_third
+    llm.hooks["write"] = fail_on_the_third_beat
     job, _ = finished(client, generate(client, written[0]["id"]))
     assert (job["status"], job["error"]["code"]) == ("failed", "LLM_UNAVAILABLE")
     assert [len(versions(conn, beat["id"])) for beat in beats[:3]] == [1, 1, 0]
+    assert len(calls) == 5
     # 이어서 생성: the rest is written by the next job.
     del llm.failures["write"], llm.hooks["write"]
     job, events = finished(client, generate(client, written[0]["id"]))
@@ -341,7 +383,9 @@ def test_a_pause_lands_between_beats(
     assert record.status == "paused"
     # The beat it was writing is whole and stored; the next one has not begun.
     kinds = [event.type for event in record.events]
-    assert kinds[-2:] == ["beat_done", "paused"] and kinds.count("beat_start") == 1
+    # (Two beat_starts: the beat, and its text shown again after the continuation.)
+    assert kinds[-2:] == ["beat_done", "paused"] and kinds.count("beat_done") == 1
+    assert kinds.count("beat_start") == 2
     assert [len(versions(conn, beat["id"])) for beat in beats[:2]] == [1, 0]
     assert client.post(f"/api/v1/jobs/{job_id}/resume", headers=AUTH).status_code == 200
     assert wait(client, job_id)["status"] == "done"
@@ -362,13 +406,14 @@ def test_a_cancelled_job_does_not_store_the_beat_it_was_writing(
 
     async def cancelled_in_the_second_beat(request: Any) -> Any:
         """The fixture's deltas, giving the loop a turn after each (as a real stream does);
-        the job is cancelled once the second beat's first words are out."""
+        the job is cancelled once the second beat's first words are out (the third call:
+        the first beat was continued once)."""
         calls.append(1)
         sent = 0
         async for delta in fixture(request):
             yield delta
             sent += 1
-            if len(calls) == 2 and sent == 2:
+            if len(calls) == 3 and sent == 2:
                 assert jobs.cancel(jobs.for_work("w_01")[0])
             await asyncio.sleep(0)
 
@@ -376,6 +421,7 @@ def test_a_cancelled_job_does_not_store_the_beat_it_was_writing(
     job, events = finished(client, generate(client, written[0]["id"]))
     assert job["status"] == "cancelled"
     assert [kind for kind, _ in events if kind in ("beat_start", "beat_done")] == [
+        "beat_start",
         "beat_start",
         "beat_done",
         "beat_start",
@@ -391,6 +437,95 @@ def test_a_cancelled_job_does_not_store_the_beat_it_was_writing(
     ]
 
 
+# continuing a short beat -------------------------------------------------------------------------
+
+
+def test_a_beat_that_came_short_is_continued(
+    client: TestClient, conn: sqlite3.Connection, written: list[dict[str, Any]], llm: Scripted
+) -> None:
+    beat = written[0]["beats"][0]
+    target = beat["target_chars"]
+    more = prose(target)
+    llm.say("write", CLEAN, more)
+    job, events = finished(client, regenerate(client, beat["id"]))
+    assert job["status"] == "done"
+    # One version: the beat, then what the second call added, as a new paragraph.
+    text = f"{CLEAN}\n\n{more}"
+    assert [row[1:3] for row in versions(conn, beat["id"])] == [(text, count_chars(text))]
+    # The screen went on from what it had: no second beat_start.
+    assert [kind for kind, _ in events if kind == "beat_start"] == ["beat_start"]
+    assert shown(events, beat["id"]) == text
+    [again] = asked(llm, continued=True)
+    assert f"이어 쓰기: 이 비트는 이미 {count_chars(CLEAN)}자를 썼다." in block(again, "지시")
+    assert targets(llm, continued=True) == [target - count_chars(CLEAN)]
+    assert block(again, "원문").endswith(CLEAN)
+    assert events[-1][1]["result"]["chars"] == count_chars(text)
+
+
+def test_a_beat_is_continued_only_so_many_times(
+    client: TestClient, conn: sqlite3.Connection, written: list[dict[str, Any]], llm: Scripted
+) -> None:
+    beat = written[0]["beats"][0]
+    parts = [f"{n}번째로 쓴 짧은 대목이다." for n in range(1, CONTINUATIONS + 4)]
+    llm.say("write", *parts)
+    job, events = finished(client, regenerate(client, beat["id"]))
+    assert job["status"] == "done"
+    kept = "\n\n".join(parts[: 1 + CONTINUATIONS])
+    assert [row[1] for row in versions(conn, beat["id"])] == [kept]
+    assert shown(events, beat["id"]) == kept
+    # Each call was asked for what was still missing by then.
+    missing = [
+        beat["target_chars"] - count_chars("\n\n".join(parts[:at]))
+        for at in range(1, 1 + CONTINUATIONS)
+    ]
+    assert targets(llm, continued=True) == missing
+
+
+def test_a_continuation_keeps_only_its_new_lines(
+    client: TestClient, conn: sqlite3.Connection, written: list[dict[str, Any]], llm: Scripted
+) -> None:
+    beat = written[0]["beats"][0]
+    # The second call starts the beat over before it goes on; the third only repeats.
+    llm.say("write", CLEAN, f"{CLEAN}\n\n미라가 봉투를 내밀었다.", CLEAN)
+    job, events = finished(client, regenerate(client, beat["id"]))
+    assert job["status"] == "done"
+    kept = f"{CLEAN}\n\n미라가 봉투를 내밀었다."
+    assert [row[1] for row in versions(conn, beat["id"])] == [kept]
+    # The screen had the copied line: the beat is shown again as it is kept, both times.
+    assert len([1 for kind, _ in events if kind == "beat_start"]) == 3
+    assert shown(events, beat["id"]) == kept
+    assert len(asked(llm, continued=True)) == 2
+
+
+def test_a_continuation_with_a_banned_phrase_or_cut_short_is_not_kept(
+    client: TestClient, conn: sqlite3.Connection, written: list[dict[str, Any]], llm: Scripted
+) -> None:
+    beat = written[0]["beats"][0]
+    llm.say("write", CLEAN, "미라가 다가왔다. 그는 슬펐다.", "다시는 불리지 않는다.")
+    job, events = finished(client, regenerate(client, beat["id"]))
+    assert job["status"] == "done"
+    assert [row[1] for row in versions(conn, beat["id"])] == [CLEAN]
+    assert shown(events, beat["id"]) == CLEAN
+    assert events[-1][1]["result"]["warnings"] == 0
+    assert len(asked(llm, continued=True)) == 1
+    # A continuation that ran to max_tokens looped: none of it is kept.
+    llm.script["write"] = [
+        FakeResponse(content=CLEAN),
+        FakeResponse(content="미라가 다가왔다. 미라가 다가", finish_reason="length"),
+    ]
+    job, events = finished(client, regenerate(client, beat["id"]))
+    assert job["status"] == "done"
+    assert versions(conn, beat["id"])[-1][1] == CLEAN
+    assert shown(events, beat["id"]) == CLEAN
+    # Neither is a text kept with a banned phrase or one cut at max_tokens continued.
+    llm.requests.clear()
+    llm.say("write", BANNED)
+    finished(client, regenerate(client, beat["id"]))
+    llm.script["write"] = [FakeResponse(content="테오는 내렸다. 안개가 짙", finish_reason="length")]
+    finished(client, regenerate(client, beat["id"]))
+    assert asked(llm, continued=True) == []
+
+
 # one beat again ----------------------------------------------------------------------------------
 
 
@@ -402,16 +537,19 @@ def test_a_beat_is_written_again_as_a_new_version(
     llm.say("write", CLEAN)
     job, events = finished(client, regenerate(client, beat["id"]))
     assert (job["status"], job["kind"], job["key"]) == ("done", "beat", f"beat:{beat['id']}")
-    assert [kind for kind, _ in events] == [
+    kinds = [kind for kind, _ in events]
+    assert [kind for at, kind in enumerate(kinds) if at == 0 or kind != kinds[at - 1]] == [
         "progress",
         "beat_start",
         "sentence",
+        "beat_start",
         "sentence",
         "beat_done",
         "progress",
         "done",
     ]
-    assert events[4][1] == {"beatId": beat["id"], "chars": count_chars(CLEAN), "version": 2}
+    done = next(data for kind, data in events if kind == "beat_done")
+    assert done == {"beatId": beat["id"], "chars": count_chars(CLEAN), "version": 2}
     assert [row[:2] for row in versions(conn, beat["id"])] == [(1, "옛 글."), (2, CLEAN)]
     # At its plan target, whatever the chapter has left.
     assert targets(llm) == [beat["target_chars"]]

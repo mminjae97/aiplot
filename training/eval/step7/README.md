@@ -22,7 +22,8 @@ Experiments before a config change: `--sampling KEY=VALUE…` (e.g. `dry_multipl
 
 `score_write.py` prints one line per chapter and the totals: chapters within ±10%, beat
 characters against the given and the plan target (also by mode, focus, density), beats within
-500–1000, beats written again, calls cut at max_tokens, repeated three-eojeol runs per chapter,
+500–1000, beats written again, beats continued (§10: calls continuing a short beat, those
+adding no new line, beats reaching 90% of their target), calls cut at max_tokens, repeated three-eojeol runs per chapter,
 lines copied word for word from an earlier beat of the chapter,
 tokens and seconds per call.
 
