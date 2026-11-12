@@ -406,14 +406,14 @@ def test_a_cancelled_job_does_not_store_the_beat_it_was_writing(
 
     async def cancelled_in_the_second_beat(request: Any) -> Any:
         """The fixture's deltas, giving the loop a turn after each (as a real stream does);
-        the job is cancelled once the second beat's first words are out (the third call:
+        the job is cancelled once the second beat's first words are out (the third write call:
         the first beat was continued once)."""
-        calls.append(1)
+        calls.extend([1] if request.role == "write" else [])
         sent = 0
         async for delta in fixture(request):
             yield delta
             sent += 1
-            if len(calls) == 3 and sent == 2:
+            if request.role == "write" and len(calls) == 3 and sent == 2:
                 assert jobs.cancel(jobs.for_work("w_01")[0])
             await asyncio.sleep(0)
 

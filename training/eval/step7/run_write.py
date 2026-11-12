@@ -62,13 +62,18 @@ CONTINUED = "\n이어 쓰기: "
 
 
 class RecordingClient:
-    """The client, keeping every call: what was asked and what came back."""
+    """The client, keeping every write call: what was asked and what came back (the summary
+    role's calls pass through unrecorded)."""
 
     def __init__(self, client: LlmClient) -> None:
         self.client = client
         self.calls: list[dict[str, Any]] = []
 
     async def stream(self, request: ChatRequest) -> AsyncGenerator[Delta, None]:
+        if request.role != "write":
+            async for delta in self.client.stream(request):
+                yield delta
+            return
         started = time.perf_counter()
         user = request.messages[-1]["content"]
         target = TARGET.search(user)

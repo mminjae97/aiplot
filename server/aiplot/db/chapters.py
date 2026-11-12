@@ -118,8 +118,78 @@ def written_count(conn: sqlite3.Connection, work_id: str) -> int:
 
 
 def delete_for_work(conn: sqlite3.Connection, work_id: str) -> None:
-    # Their beats, the beats' cards and versions go with them (ON DELETE CASCADE).
+    # Their beats, the beats' cards and versions go with them (ON DELETE CASCADE); the
+    # episodes' summaries were made from them.
     conn.execute("DELETE FROM chapter WHERE work_id = ?", (work_id,))
+    conn.execute(
+        "UPDATE episode SET summary = NULL "
+        "WHERE card_id IN (SELECT id FROM card WHERE work_id = ?)",
+        (work_id,),
+    )
+
+
+@dataclass(frozen=True)
+class ChapterSummary:
+    """A chapter with what was summarized of it (§10) and its episode's name and summary."""
+
+    id: str
+    episode_id: str
+    number: int
+    progress: str | None
+    long: str | None
+    short: str | None
+    episode_name: str
+    episode_summary: str | None
+
+
+def summaries_up_to(conn: sqlite3.Connection, work_id: str, number: int) -> list[ChapterSummary]:
+    """The work's chapters up to this number, in order."""
+    rows = conn.execute(
+        "SELECT chapter.id, d.episode_id, chapter.number, chapter.progress_summary AS progress, "
+        "chapter.summary_long AS long, chapter.summary_short AS short, c.name AS episode_name, "
+        "ep.summary AS episode_summary FROM chapter "
+        "JOIN direction_plan AS d ON d.id = chapter.plan_id "
+        "JOIN card AS c ON c.id = d.episode_id JOIN episode AS ep ON ep.card_id = d.episode_id "
+        "WHERE chapter.work_id = ? AND chapter.number <= ? ORDER BY chapter.number, chapter.rowid",
+        (work_id, number),
+    ).fetchall()
+    return [ChapterSummary(**dict(row)) for row in rows]
+
+
+def chapters_of_plan(conn: sqlite3.Connection, plan_id: str) -> list[ChapterSummary]:
+    """The episode's chapters in order."""
+    rows = conn.execute(
+        "SELECT chapter.id, d.episode_id, chapter.number, chapter.progress_summary AS progress, "
+        "chapter.summary_long AS long, chapter.summary_short AS short, c.name AS episode_name, "
+        "ep.summary AS episode_summary FROM chapter "
+        "JOIN direction_plan AS d ON d.id = chapter.plan_id "
+        "JOIN card AS c ON c.id = d.episode_id JOIN episode AS ep ON ep.card_id = d.episode_id "
+        "WHERE chapter.plan_id = ? ORDER BY chapter.number, chapter.rowid",
+        (plan_id,),
+    ).fetchall()
+    return [ChapterSummary(**dict(row)) for row in rows]
+
+
+def set_progress(conn: sqlite3.Connection, chapter_id: str, progress: str | None) -> None:
+    """The summary of a chapter still being written; its end summaries are no longer true."""
+    conn.execute(
+        "UPDATE chapter SET progress_summary = ?, summary_long = NULL, summary_short = NULL "
+        "WHERE id = ?",
+        (progress, chapter_id),
+    )
+
+
+def set_end_summaries(conn: sqlite3.Connection, chapter_id: str, long: str, short: str) -> None:
+    """The summaries of a chapter written to its end; the one of its progress is done with."""
+    conn.execute(
+        "UPDATE chapter SET progress_summary = NULL, summary_long = ?, summary_short = ? "
+        "WHERE id = ?",
+        (long, short, chapter_id),
+    )
+
+
+def set_episode_summary(conn: sqlite3.Connection, episode_id: str, summary: str | None) -> None:
+    conn.execute("UPDATE episode SET summary = ? WHERE card_id = ?", (summary, episode_id))
 
 
 @dataclass(frozen=True)
