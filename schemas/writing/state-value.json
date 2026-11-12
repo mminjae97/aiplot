@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StateValue",
+  "description": "A state record's value (§7), by its key: one character's state as a beat left it. A later beat's context holds the latest per character, key and subject (the item's name, the secret, the injured part, the other character; one location and one appearance change per character), without items lost and injuries healed.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/location"
+    },
+    {
+      "$ref": "#/$defs/injury"
+    },
+    {
+      "$ref": "#/$defs/item"
+    },
+    {
+      "$ref": "#/$defs/knows_secret"
+    },
+    {
+      "$ref": "#/$defs/relation_change"
+    },
+    {
+      "$ref": "#/$defs/appearance_change"
+    }
+  ],
+  "$defs": {
+    "location": {
+      "title": "LocationState",
+      "description": "key location: the region the character is in.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "region_id"
+      ],
+      "properties": {
+        "region_id": {
+          "$ref": "../common/card-id.json"
+        }
+      }
+    },
+    "injury": {
+      "title": "InjuryState",
+      "description": "key injury.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "part",
+        "severity",
+        "since_chapter",
+        "healed"
+      ],
+      "properties": {
+        "part": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "$ref": "./injury-severity.json"
+        },
+        "since_chapter": {
+          "description": "The chapter number it dates from (set by the server).",
+          "type": "integer",
+          "minimum": 1
+        },
+        "healed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "item": {
+      "title": "ItemState",
+      "description": "key item: gained or lost.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "action"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "$ref": "./item-action.json"
+        }
+      }
+    },
+    "knows_secret": {
+      "title": "SecretState",
+      "description": "key knows_secret.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "secret",
+        "since_chapter"
+      ],
+      "properties": {
+        "secret": {
+          "type": "string",
+          "minLength": 1
+        },
+        "since_chapter": {
+          "description": "The chapter number the character learned it in (set by the server).",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "relation_change": {
+      "title": "RelationState",
+      "description": "key relation_change: how the character now stands to another.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_id",
+        "change"
+      ],
+      "properties": {
+        "target_id": {
+          "$ref": "../common/card-id.json"
+        },
+        "change": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "appearance_change": {
+      "title": "AppearanceState",
+      "description": "key appearance_change: how the character now looks, against the card.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

@@ -1,4 +1,5 @@
-"""The manuscript (§16 writing): the chapters and the jobs writing their beats."""
+"""The manuscript (§16 writing): the chapters, the jobs writing their beats and the warnings
+on them."""
 
 from fastapi import APIRouter, Request
 
@@ -6,9 +7,12 @@ from aiplot.api.deps import Db
 from aiplot.api.errors import AppError
 from aiplot.generated.jobs.job_accepted import JobAccepted
 from aiplot.generated.writing.chapter_list import ChapterList
+from aiplot.generated.writing.warning import Warning
+from aiplot.generated.writing.warning_list import WarningList
+from aiplot.generated.writing.warning_update import WarningUpdate
 from aiplot.jobs.queue import JobQueue
 from aiplot.llm.runtime import LlmRuntime
-from aiplot.services import manuscript, works, write_context, writing
+from aiplot.services import checks, manuscript, works, write_context, writing
 
 router = APIRouter()
 
@@ -68,3 +72,23 @@ async def regenerate_beat(request: Request, beatId: str) -> JobAccepted:
     except REFUSED as exc:
         raise refusal(exc) from exc
     return JobAccepted(jobId=job_id)
+
+
+@router.get("/chapters/{chapterId}/warnings")
+def list_warnings(db: Db, chapterId: str) -> WarningList:
+    """The warnings on the current versions of the chapter's beats."""
+    try:
+        return WarningList(warnings=checks.chapter_warnings(db, chapterId))
+    except checks.ChapterNotFoundError as exc:
+        raise AppError(404, "CHAPTER_NOT_FOUND", f"no chapter {exc}") from exc
+
+
+@router.patch("/warnings/{warningId}")
+def update_warning(db: Db, warningId: str, body: WarningUpdate) -> Warning:
+    """무시 with a reason, or the warning opened again."""
+    try:
+        return checks.update_warning(db, warningId, body.status, body.reason)
+    except checks.WarningNotFoundError as exc:
+        raise AppError(404, "WARNING_NOT_FOUND", f"no warning {exc}") from exc
+    except (works.StageLockedError, works.StageNotStartedError, works.WorkNotFoundError) as exc:
+        raise refusal(exc) from exc

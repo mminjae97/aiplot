@@ -1,0 +1,11 @@
+{
+  "id": "wr_01",
+  "beat_id": "b_01",
+  "version": 2,
+  "kind": "appearance",
+  "sentence": 3,
+  "card_id": "c_01",
+  "status": "ignored",
+  "reason": "카드에는 검은 머리인데 금발로 적혔다.",
+  "ignore_reason": "염색한 장면이다"
+}

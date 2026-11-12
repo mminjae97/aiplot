@@ -1,0 +1,11 @@
+{
+  "state": [],
+  "warnings": [
+    {
+      "kind": "banned_phrase",
+      "sentence": 1,
+      "card": null,
+      "reason": "x"
+    }
+  ]
+}

@@ -35,6 +35,7 @@ export type DraftId = string
 export type JobId = string
 export type PlanId = string
 export type TechniqueId = string
+export type WarningId = string
 /**
  * How much detail a beat gives (§9), independent of its focus.
  */
@@ -220,6 +221,11 @@ export type JobLifecycleEvent =
   | JobDoneEvent
   | JobErrorEvent
   | JobCancelledEvent
+export type StateChange =
+  LocationChange | InjuryChange | ItemChange | SecretChange | RelationChange | AppearanceChange
+export type InjurySeverity = '가벼움' | '보통' | '심함'
+export type ItemAction = 'gain' | 'lose'
+export type CheckKind = 'character' | 'appearance' | 'travel' | 'state' | 'world_rule'
 /**
  * How a scene device figures in the scene (scene v5): main = it carries the scene's core (the recommendation uses these), sub = present but incidental, none = absent, merely possible or another scene's.
  */
@@ -244,7 +250,29 @@ export type BookColor = string | null
 /**
  * data of the SSE events a chapter or beat writing job sends between the lifecycle ones (§16); the SSE event name is the type.
  */
-export type ChapterJobEvent = BeatStartEvent | SentenceEvent | BeatDoneEvent
+export type ChapterJobEvent =
+  | BeatStartEvent
+  | SentenceEvent
+  | BeatDoneEvent
+  | StateUpdateEvent
+  | WarningEvent
+  | BeatCheckedEvent
+/**
+ * The fixed state keys (§7).
+ */
+export type StateKey =
+  'location' | 'injury' | 'item' | 'knows_secret' | 'relation_change' | 'appearance_change'
+/**
+ * A state record's value (§7), by its key: one character's state as a beat left it. A later beat's context holds the latest per character, key and subject (the item's name, the secret, the injured part, the other character; one location and one appearance change per character), without items lost and injuries healed.
+ */
+export type StateValue =
+  LocationState | InjuryState | ItemState | SecretState | RelationState | AppearanceState
+/**
+ * What a warning is about (§10): the check role's five kinds (out-of-character action, appearance mismatch, impossible travel, state contradiction, world-rule violation), a banned phrase kept in the beat after its regenerations, and a beat whose check failed.
+ */
+export type WarningKind =
+  'character' | 'appearance' | 'travel' | 'state' | 'world_rule' | 'banned_phrase' | 'check_failed'
+export type WarningStatus = 'open' | 'ignored'
 
 /**
  * DELETE /cards/{cardId}: what went (the card, and a part's episodes with ?episodes=delete); POST /cards/{cardId}/restore brings all of it back until restore_until (§8).
@@ -1159,6 +1187,86 @@ export interface ArrangeScene {
   reveal: string[]
 }
 /**
+ * `check` role output (§10, §13): what one written beat changed in its characters' state, and where it contradicts the cards or the state before it. Cards are given by name, never by id; the server maps names to cards (unknown ones dropped), sets since_chapter, drops changes the latest state already holds and sentence numbers out of range.
+ */
+export interface CheckOutput {
+  state: StateChange[]
+  warnings: CheckWarning[]
+}
+export interface LocationChange {
+  key: 'location'
+  /**
+   * The character's name as in <참고 카드> (narrowed per call to the episode's characters).
+   */
+  card: string
+  /**
+   * The region's name (narrowed per call to the work's regions).
+   */
+  region: string
+}
+export interface InjuryChange {
+  key: 'injury'
+  /**
+   * The character's name as in <참고 카드> (narrowed per call to the episode's characters).
+   */
+  card: string
+  part: string
+  severity: InjurySeverity
+  healed: boolean
+}
+export interface ItemChange {
+  key: 'item'
+  /**
+   * The character's name as in <참고 카드> (narrowed per call to the episode's characters).
+   */
+  card: string
+  name: string
+  action: ItemAction
+}
+export interface SecretChange {
+  key: 'knows_secret'
+  /**
+   * The character's name as in <참고 카드> (narrowed per call to the episode's characters).
+   */
+  card: string
+  secret: string
+}
+export interface RelationChange {
+  key: 'relation_change'
+  /**
+   * The character's name as in <참고 카드> (narrowed per call to the episode's characters).
+   */
+  card: string
+  /**
+   * The other character's name (narrowed per call).
+   */
+  target: string
+  change: string
+}
+export interface AppearanceChange {
+  key: 'appearance_change'
+  /**
+   * The character's name as in <참고 카드> (narrowed per call to the episode's characters).
+   */
+  card: string
+  text: string
+}
+export interface CheckWarning {
+  kind: CheckKind
+  /**
+   * The [n] number of the beat sentence it is about.
+   */
+  sentence: number
+  /**
+   * The name of the card it is judged against (narrowed per call to the cards shown), null when none.
+   */
+  card: string | null
+  /**
+   * What contradicts what, one sentence.
+   */
+  reason: string
+}
+/**
  * `direct` role output (§9, §13): one scene's beats in narration order. The server numbers them 1..n and rescales their target_chars to sum to the scene's, keeping the model's proportions.
  */
 export interface DirectOutput {
@@ -1611,6 +1719,77 @@ export interface BeatDoneEvent {
   version: number
 }
 /**
+ * event: state_update. A state record the beat's check stored (§7).
+ */
+export interface StateUpdateEvent {
+  cardId: CardId
+  key: StateKey
+  value: StateValue
+}
+/**
+ * key location: the region the character is in.
+ */
+export interface LocationState {
+  region_id: CardId
+}
+/**
+ * key injury.
+ */
+export interface InjuryState {
+  part: string
+  severity: InjurySeverity
+  /**
+   * The chapter number it dates from (set by the server).
+   */
+  since_chapter: number
+  healed: boolean
+}
+/**
+ * key item: gained or lost.
+ */
+export interface ItemState {
+  name: string
+  action: ItemAction
+}
+/**
+ * key knows_secret.
+ */
+export interface SecretState {
+  secret: string
+  /**
+   * The chapter number the character learned it in (set by the server).
+   */
+  since_chapter: number
+}
+/**
+ * key relation_change: how the character now stands to another.
+ */
+export interface RelationState {
+  target_id: CardId
+  change: string
+}
+/**
+ * key appearance_change: how the character now looks, against the card.
+ */
+export interface AppearanceState {
+  text: string
+}
+/**
+ * event: warning. A warning stored on the beat's new version.
+ */
+export interface WarningEvent {
+  warningId: WarningId
+  beatId: BeatId
+  kind: WarningKind
+}
+/**
+ * event: beat_checked. The beat's check is over (also when it failed: a check_failed warning came before it); warnings = the warnings on the beat's new version.
+ */
+export interface BeatCheckedEvent {
+  beatId: BeatId
+  warnings: number
+}
+/**
  * GET /works/{workId}/chapters: the work's chapters in order; none before writing starts.
  */
 export interface ChapterList {
@@ -1677,4 +1856,49 @@ export interface ChapterBeat {
    * The current version's characters incl. spaces; null until written.
    */
   chars: number | null
+}
+/**
+ * GET /chapters/{chapterId}/warnings: the warnings on the current versions of the chapter's beats, in beat order.
+ */
+export interface WarningList {
+  warnings: Warning[]
+}
+/**
+ * A warning on a beat's version (§10, §14 warning).
+ */
+export interface Warning {
+  id: WarningId
+  beat_id: BeatId
+  /**
+   * The beat version it was made on.
+   */
+  version: number
+  kind: WarningKind
+  /**
+   * The 1-based number of the sentence it is about, in the server's split of the version's text (§15 Sentences); null when it is about no one sentence.
+   */
+  sentence: number | null
+  /**
+   * The evidence card, if any.
+   */
+  card_id: CardId | null
+  status: WarningStatus
+  /**
+   * Why it was raised (a banned phrase: the phrase).
+   */
+  reason: string
+  /**
+   * The user's reason for ignoring it; later checks are told it.
+   */
+  ignore_reason: string | null
+}
+/**
+ * PATCH /warnings/{warningId}: ignore a warning with a reason (무시), or open it again (the reason is dropped).
+ */
+export interface WarningUpdate {
+  status: WarningStatus
+  /**
+   * With status ignored: why; blank = none.
+   */
+  reason?: string
 }

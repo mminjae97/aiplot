@@ -5,7 +5,10 @@
   "oneOf": [
     { "$ref": "#/$defs/beat_start" },
     { "$ref": "#/$defs/sentence" },
-    { "$ref": "#/$defs/beat_done" }
+    { "$ref": "#/$defs/beat_done" },
+    { "$ref": "#/$defs/state_update" },
+    { "$ref": "#/$defs/warning" },
+    { "$ref": "#/$defs/beat_checked" }
   ],
   "$defs": {
     "beat_start": {
@@ -39,6 +42,41 @@
         "beatId": { "$ref": "../common/beat-id.json" },
         "chars": { "description": "Characters incl. spaces, counted in code; line breaks are not counted.", "type": "integer", "minimum": 0 },
         "version": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "state_update": {
+      "title": "StateUpdateEvent",
+      "description": "event: state_update. A state record the beat's check stored (§7).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cardId", "key", "value"],
+      "properties": {
+        "cardId": { "$ref": "../common/card-id.json" },
+        "key": { "$ref": "./state-key.json" },
+        "value": { "$ref": "./state-value.json" }
+      }
+    },
+    "warning": {
+      "title": "WarningEvent",
+      "description": "event: warning. A warning stored on the beat's new version.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["warningId", "beatId", "kind"],
+      "properties": {
+        "warningId": { "$ref": "../common/warning-id.json" },
+        "beatId": { "$ref": "../common/beat-id.json" },
+        "kind": { "$ref": "./warning-kind.json" }
+      }
+    },
+    "beat_checked": {
+      "title": "BeatCheckedEvent",
+      "description": "event: beat_checked. The beat's check is over (also when it failed: a check_failed warning came before it); warnings = the warnings on the beat's new version.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["beatId", "warnings"],
+      "properties": {
+        "beatId": { "$ref": "../common/beat-id.json" },
+        "warnings": { "type": "integer", "minimum": 0 }
       }
     }
   }

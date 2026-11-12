@@ -179,13 +179,16 @@ def test_a_chapter_is_written_beat_by_beat(
         "chapter",
         f"chapter:{chapter['id']}",
     )
-    # §16: per beat progress, beat_start, sentences, beat_done; then done.
+    # §16: per beat progress, beat_start, sentences, beat_done, then its check; then done.
     kinds = [kind for kind, _ in events]
     # The fixture is short of every target and says the same again: each beat is continued
-    # once, nothing is added, and the beat's text is shown again as it is kept.
-    per_beat = ["progress", "beat_start", "sentence", "beat_start", "sentence", "beat_done"]
+    # once, nothing is added, and the beat's text is shown again as it is kept. Its check
+    # finds the same change every time: only the first beat's is new.
+    written_beat = ["progress", "beat_start", "sentence", "beat_start", "sentence", "beat_done"]
+    first = [*written_beat, "state_update", "beat_checked"]
+    later = [*written_beat, "beat_checked"]
     collapsed = [kind for at, kind in enumerate(kinds) if at == 0 or kind != kinds[at - 1]]
-    assert collapsed == per_beat * len(beats) + ["progress", "done"]
+    assert collapsed == first + later * (len(beats) - 1) + ["progress", "done"]
     assert [data["beatId"] for kind, data in events if kind == "beat_done"] == [
         beat["id"] for beat in beats
     ]
@@ -384,7 +387,8 @@ def test_a_pause_lands_between_beats(
     # The beat it was writing is whole and stored; the next one has not begun.
     kinds = [event.type for event in record.events]
     # (Two beat_starts: the beat, and its text shown again after the continuation.)
-    assert kinds[-2:] == ["beat_done", "paused"] and kinds.count("beat_done") == 1
+    assert kinds[-4:] == ["beat_done", "state_update", "beat_checked", "paused"]
+    assert kinds.count("beat_done") == 1
     assert kinds.count("beat_start") == 2
     assert [len(versions(conn, beat["id"])) for beat in beats[:2]] == [1, 0]
     assert client.post(f"/api/v1/jobs/{job_id}/resume", headers=AUTH).status_code == 200
@@ -545,6 +549,8 @@ def test_a_beat_is_written_again_as_a_new_version(
         "beat_start",
         "sentence",
         "beat_done",
+        "state_update",
+        "beat_checked",
         "progress",
         "done",
     ]

@@ -81,3 +81,12 @@ roles:
     thinking: false
     sampling: { temperature: 0.3 }
     max_tokens: 1200
+  # Step 7 (§10): a written beat against the cards and the state before it. Low temperature as
+  # the JSON roles; unmeasured on the model (prompt: cards + state + a beat of ≤1500 tokens).
+  check:
+    profile: qwen3-8b-uncensor-q5km
+    lora: null
+    prompt: 1
+    thinking: true
+    sampling: { temperature: 0.3 }
+    max_tokens: 4096
