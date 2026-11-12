@@ -395,15 +395,19 @@ def store(
     version: int,
     state: Sequence[StateRow],
     warnings: Sequence[Found],
-) -> list[str]:
+) -> list[str] | None:
     """The beat's state records and the warnings on its version, in one transaction (the
-    warnings' ids); the stage may have been reopened while the role read."""
+    warnings' ids), and the version marked checked; the stage may have been reopened while the
+    role read. None, and nothing stored, when the version is no longer the beat's current one:
+    the user saved another text meanwhile, whose own check follows."""
     ids = [f"wr_{secrets.token_hex(8)}" for _ in warnings]
     with transaction(conn):
         works.require_current(conn, work_id, WRITING_STAGE)
-        row = checks_db.version_id(conn, beat_id, version)
-        if row is None:
+        if checks_db.version_id(conn, beat_id, version) is None:
             raise BeatNotFoundError(beat_id)
+        row = checks_db.finish_check(conn, beat_id, version)
+        if row is None:
+            return None
         checks_db.replace_state(conn, beat_id, state)
         for warning_id, warning in zip(ids, warnings, strict=True):
             checks_db.insert_warning(
@@ -452,6 +456,8 @@ async def check_beat(
         state = clean_state(result.value, cast, spot.chapter.number, state_before(conn, spot))
         found += clean_warnings(result.value, cast, len(sentences))
     ids = store(conn, work_id, beat_id, version, state, found)
+    if ids is None:
+        return warned
     for record in state:
         ctx.emit(
             "state_update", {"cardId": record.card_id, "key": record.key, "value": record.value}
