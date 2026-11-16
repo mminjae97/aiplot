@@ -358,7 +358,8 @@ def current_version(conn: sqlite3.Connection, beat_id: str) -> BeatVersion | Non
 
 
 def chapter_text(conn: sqlite3.Connection, chapter_id: str) -> ChapterText | None:
-    """The chapter with each beat's current version (nulls while unwritten)."""
+    """The chapter with each beat's current version (nulls while unwritten); sentences are
+    left to the service."""
     chapter = conn.execute("SELECT id, number FROM chapter WHERE id = ?", (chapter_id,)).fetchone()
     if chapter is None:
         return None
@@ -370,7 +371,11 @@ def chapter_text(conn: sqlite3.Connection, chapter_id: str) -> ChapterText | Non
         (chapter_id,),
     ).fetchall()
     found = [
-        {**dict(row), "checked": None if row["checked"] is None else bool(row["checked"])}
+        {
+            **dict(row),
+            "checked": None if row["checked"] is None else bool(row["checked"]),
+            "sentences": None,
+        }
         for row in beats
     ]
     return ChapterText.model_validate({**dict(chapter), "beats": found})

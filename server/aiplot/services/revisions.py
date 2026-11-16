@@ -11,10 +11,11 @@ from typing import Any
 from aiplot.db import chapters as chapters_db
 from aiplot.db.connection import connect, transaction
 from aiplot.generated.writing.beat_version import BeatVersion
-from aiplot.generated.writing.chapter_text import ChapterText
+from aiplot.generated.writing.chapter_text import ChapterText, SentenceSpan
 from aiplot.jobs.queue import TERMINAL, JobContext, JobQueue
 from aiplot.llm.router import Router
 from aiplot.services import checks, summaries, works, writing
+from aiplot.services.notes import split_spans
 from aiplot.services.write_context import BeatNotFoundError, count_chars
 
 
@@ -31,9 +32,13 @@ class VersionNotFoundError(LookupError):
 
 
 def chapter_text(conn: sqlite3.Connection, chapter_id: str) -> ChapterText:
+    """The chapter's current text, each beat with its sentences as checks number them."""
     found = chapters_db.chapter_text(conn, chapter_id)
     if found is None:
         raise writing.ChapterNotFoundError(chapter_id)
+    for beat in found.beats:
+        if beat.text is not None:
+            beat.sentences = [SentenceSpan(start=a, end=b) for a, b in split_spans(beat.text)]
     return found
 
 
