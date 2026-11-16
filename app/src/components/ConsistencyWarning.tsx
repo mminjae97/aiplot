@@ -94,7 +94,10 @@ export function ConsistencyWarning({
         </button>
         {quote && (
           <blockquote>
-            {quote.length > QUOTE_MAX ? `${quote.slice(0, QUOTE_MAX)}…` : quote}
+            {/* Cut by code points: never half an emoji. */}
+            {Array.from(quote).length > QUOTE_MAX
+              ? `${Array.from(quote).slice(0, QUOTE_MAX).join('')}…`
+              : quote}
           </blockquote>
         )}
         <p>{reasonOf(warning)}</p>

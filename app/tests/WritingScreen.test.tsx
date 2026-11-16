@@ -151,6 +151,8 @@ type World = {
   // The chapters once POST .../generate has run (the job is over at once).
   writtenChapters?: Chapter[]
   written?: boolean
+  // POST /jobs/.../pause answers with this error code.
+  refusePause?: string
   jobs?: Job[]
   events?: string
   warnings?: Warning[]
@@ -210,8 +212,11 @@ function mockServer(state: World) {
       if (path.startsWith('/jobs/job_2/events')) return Promise.resolve(new Response(''))
       const control = /^\/jobs\/(job_\d)\/(pause|resume|cancel)$/.exec(path)
       if (method === 'POST' && control) {
-        const status =
-          control[2] === 'cancel' ? 'cancelled' : control[2] === 'pause' ? 'running' : 'running'
+        if (control[2] === 'pause' && world.refusePause) {
+          return json({ code: world.refusePause, message: 'no', hint: null }, 409)
+        }
+        // As the server: a pause asked is kept running until the next beat.
+        const status = control[2] === 'cancel' ? 'cancelled' : 'running'
         if (status === 'cancelled') world.jobs = [job('cancelled')]
         return json(job(status))
       }
@@ -238,6 +243,8 @@ afterEach(() => {
 })
 
 const SCREEN = { name: 'writing', workId: 'w_1' } as const
+const pick = (order: number) =>
+  screen.getByRole('button', { name: new RegExp(`^${strings.writing.selectBeat(order)}`) })
 
 test('before the writing stage the page says how to start it and leads to direction', async () => {
   mockServer({ work: { ...WORK, stage: 2, locked_stage: 1 } })
@@ -260,10 +267,11 @@ test('chapters are listed under their episode; the first unfinished one shows it
   )
   await screen.findByText(FIRST)
   expect(screen.getByText(strings.writing.counter(24, 5500))).toBeTruthy()
-  // Beat 2 is not checked yet: dimmed, and the margin says so.
+  // Beat 2 was left unchecked (no job checks it): dimmed, and the margin says so in words.
   const second = screen.getByRole('region', { name: strings.writing.beat(2) })
   expect(second.hasAttribute('data-unchecked')).toBe(true)
-  expect(within(second).getByText(strings.writing.unchecked)).toBeTruthy()
+  expect(within(second).getByText(strings.writing.notChecked)).toBeTruthy()
+  expect(pick(2).textContent).toContain(strings.writing.notChecked)
   expect(screen.getByText('3번 비트 요약')).toBeTruthy()
   // Partly written: the button carries on from the last stored beat.
   fireEvent.click(screen.getByRole('button', { name: strings.writing.resume }))
@@ -286,18 +294,30 @@ test('a running chapter streams its beat in and can be paused and stopped', asyn
   })
   renderBook(SCREEN)
   await screen.findByText('문이 열렸다. 바람이 불었다.')
+  // Being written: dimmed and said to be checked.
+  expect(
+    within(screen.getByRole('region', { name: strings.writing.beat(3) })).getByText(
+      strings.writing.unchecked,
+    ),
+  ).toBeTruthy()
   const status = screen.getByRole('status')
   expect(status.textContent).toContain(strings.writing.progress(3, 3))
   expect(status.textContent).toContain('1분 15초')
   // No new chapter job while one runs; the beat can't be written again meanwhile.
   expect(screen.queryByRole('button', { name: strings.writing.resume })).toBeNull()
-  fireEvent.click(screen.getByRole('button', { name: strings.writing.selectBeat(1) }))
+  fireEvent.click(pick(1))
   expect(
     screen.getByRole<HTMLButtonElement>('button', { name: strings.writing.regenerate }).disabled,
   ).toBe(true)
   fireEvent.click(screen.getByRole('button', { name: strings.writing.pause }))
   await screen.findByText(strings.writing.pausing)
   expect(calls.some((c) => c.method === 'POST' && c.path === '/jobs/job_1/pause')).toBe(true)
+  // Still running until the beat ends: 계속 takes the pause back.
+  fireEvent.click(await screen.findByRole('button', { name: strings.writing.resumeJob }))
+  await waitFor(() => {
+    expect(calls.some((c) => c.method === 'POST' && c.path === '/jobs/job_1/resume')).toBe(true)
+  })
+  await screen.findByRole('button', { name: strings.writing.pause })
   fireEvent.click(screen.getByRole('button', { name: strings.writing.stop }))
   await waitFor(() => {
     expect(calls.some((c) => c.method === 'POST' && c.path === '/jobs/job_1/cancel')).toBe(true)
@@ -326,12 +346,8 @@ test('a warning underlines its sentence and 무시 keeps a reason', async () => 
   const manuscript = screen.getByLabelText(strings.writing.manuscript, { selector: 'div' })
   const underlined = manuscript.querySelector('.ms-warned')
   expect(underlined?.textContent).toBe('미라가 웃었다.')
-  expect(
-    within(screen.getByRole('region', { name: strings.writing.beat(1) })).getByText('1', {
-      exact: false,
-      selector: '.ms-warn-mark',
-    }),
-  ).toBeTruthy()
+  // The margin mark, named in words too.
+  expect(pick(1).textContent).toContain(strings.writing.beatWarnings(1))
 
   fireEvent.click(within(panel).getByRole('button', { name: strings.writing.ignore }))
   fireEvent.change(within(panel).getByLabelText(strings.writing.ignoreReason), {
@@ -358,7 +374,7 @@ test('Ctrl+Shift+R writes the picked beat again', async () => {
   mockServer({})
   renderBook(SCREEN)
   await screen.findByText(FIRST)
-  fireEvent.click(screen.getByRole('button', { name: strings.writing.selectBeat(2) }))
+  fireEvent.click(pick(2))
   fireEvent.keyDown(window, { key: 'R', code: 'KeyR', ctrlKey: true, shiftKey: true })
   await waitFor(() => {
     expect(calls.some((c) => c.method === 'POST' && c.path === '/beats/b_2/regenerate')).toBe(true)
@@ -389,4 +405,79 @@ test('a chapter written to its end stays open; the next unfinished one waits to 
   })
   expect(first.getAttribute('aria-current')).toBe('true')
   expect(screen.getByRole('heading', { level: 3, name: /^1화/ })).toBeTruthy()
+})
+
+test('a pause the server refuses is not left waiting', async () => {
+  mockServer({ jobs: [job('running')], refusePause: 'JOB_NOT_RUNNING' })
+  renderBook(SCREEN)
+  fireEvent.click(await screen.findByRole('button', { name: strings.writing.pause }))
+  await screen.findByText(strings.writing.errors.JOB_NOT_RUNNING ?? '')
+  expect(screen.queryByText(strings.writing.pausing)).toBeNull()
+  expect(screen.getByRole('button', { name: strings.writing.pause })).toBeTruthy()
+})
+
+test('a beat written again cannot be paused, only stopped', async () => {
+  mockServer({ jobs: [job('running', { jobId: 'job_2', kind: 'beat', key: 'beat:b_1' })] })
+  renderBook(SCREEN)
+  await screen.findByText(strings.writing.beatProgress)
+  expect(
+    screen.getByRole<HTMLButtonElement>('button', { name: strings.writing.pause }).disabled,
+  ).toBe(true)
+  expect(
+    screen.getByRole<HTMLButtonElement>('button', { name: strings.writing.stop }).disabled,
+  ).toBe(false)
+})
+
+test('a closed failure stays closed when its chapter is opened again', async () => {
+  mockServer({
+    jobs: [job('failed', { error: { code: 'LLM_INVALID_OUTPUT', message: 'no' } })],
+  })
+  renderBook(SCREEN)
+  const failure = strings.writing.errors.LLM_INVALID_OUTPUT ?? ''
+  await screen.findByText(failure)
+  fireEvent.click(
+    within(screen.getByRole('alert')).getByRole('button', { name: strings.writing.dismiss }),
+  )
+  const list = screen.getByRole('navigation', { name: strings.writing.chapters })
+  fireEvent.click(within(list).getByRole('button', { name: /2화/ }))
+  await screen.findByRole('button', { name: strings.writing.write })
+  fireEvent.click(within(list).getByRole('button', { name: /1화/ }))
+  await screen.findByText(FIRST)
+  expect(screen.queryByText(failure)).toBeNull()
+})
+
+test('shortcuts stay out of a field being typed in', async () => {
+  mockServer({ warnings: [WARNING] })
+  renderBook(SCREEN)
+  const panel = await screen.findByRole('complementary', { name: strings.writing.warningsTitle })
+  await within(panel).findByText(WARNING.reason)
+  fireEvent.click(pick(1))
+  fireEvent.click(within(panel).getByRole('button', { name: strings.writing.ignore }))
+  const field = within(panel).getByLabelText(strings.writing.ignoreReason)
+  fireEvent.keyDown(field, { key: 'R', code: 'KeyR', ctrlKey: true, shiftKey: true })
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  expect(calls.some((c) => c.path.endsWith('/regenerate'))).toBe(false)
+})
+
+test('the chapter being written opens first, even when the jobs answer last', async () => {
+  mockServer({ jobs: [job('running', { jobId: 'job_9', key: 'chapter:ch_2' })] })
+  const answer = globalThis.fetch
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, init?: RequestInit) =>
+      url.endsWith('/works/w_1/jobs')
+        ? new Promise<Response>((resolve) => {
+            setTimeout(() => {
+              resolve(answer(url, init))
+            }, 100)
+          })
+        : answer(url, init),
+    ),
+  )
+  renderBook(SCREEN)
+  const list = await screen.findByRole('navigation', { name: strings.writing.chapters })
+  const second = within(list).getByRole('button', { name: /2화/ })
+  await waitFor(() => {
+    expect(second.getAttribute('aria-current')).toBe('true')
+  })
 })

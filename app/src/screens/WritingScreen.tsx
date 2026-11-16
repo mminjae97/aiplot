@@ -25,6 +25,8 @@ export function WritingScreen({
   const { workId } = screen
   const queryClient = useQueryClient()
   const [chosen, setChosen] = useState<string | null>(null)
+  // Failed jobs the reader closed; here so that going to another chapter keeps them closed.
+  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set())
 
   const work = useQuery({ queryKey: ['works', workId], queryFn: () => api.getWork(workId) })
   const started = (work.data?.stage ?? 1) >= 3
@@ -53,7 +55,9 @@ export function WritingScreen({
   const jobList = jobs.data?.jobs ?? []
 
   // A writing job that ended changed the manuscript, also one this page never streamed (another
-  // chapter's): read it again. By job, not by watching it leave the running list.
+  // chapter's): read it again. By job, not by watching it leave the running list. Jobs already
+  // over when the page opens are read again too: a cheap local call against a manuscript read
+  // just before the job's end.
   const handled = useRef(new Set<string>())
   useEffect(() => {
     let changed = false
@@ -76,8 +80,9 @@ export function WritingScreen({
     list.find((chapter) => chapter.beats.some((beat) => beat.version === null)) ??
     list[0]
   // The chapter first shown stays until the reader picks another: one written to its end
-  // must not give way to the next unfinished one under the reader's eyes.
-  if (chosen === null && selected) setChosen(selected.id)
+  // must not give way to the next unfinished one under the reader's eyes. Not before the jobs
+  // are known: the chapter being written comes first.
+  if (chosen === null && selected && !jobs.isPending) setChosen(selected.id)
   const names = new Map((cards.data?.cards ?? []).map((card) => [card.id, card.name ?? '']))
   const episodeName = selected
     ? (groups.find((group) => group.chapters.includes(selected))?.episode?.name ?? null)
@@ -86,6 +91,20 @@ export function WritingScreen({
   return (
     <article className="spread spread-wide" aria-label={strings.book.notes.writing}>
       <section className="page page-wide writing">
+        {work.isError && (
+          <div className="writing-failure" role="alert">
+            <p>{strings.writing.workLoadFailed}</p>
+            <button
+              type="button"
+              className="paper-button"
+              onClick={() => {
+                void work.refetch()
+              }}
+            >
+              {strings.writing.retry}
+            </button>
+          </div>
+        )}
         {work.isSuccess && !started && (
           <div className="direction-before">
             <h2>{strings.writing.beforeTitle}</h2>
@@ -154,6 +173,10 @@ export function WritingScreen({
                 episodeName={episodeName}
                 jobs={jobList}
                 names={names}
+                dismissed={dismissed}
+                onDismiss={(jobId) => {
+                  setDismissed((old) => new Set(old).add(jobId))
+                }}
               />
             )}
           </div>

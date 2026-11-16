@@ -16,6 +16,17 @@ type Props = {
   /** All the work's jobs, newest first. */
   jobs: readonly Job[]
   names: ReadonlyMap<string, string>
+  /** Failed jobs the reader closed; kept above the panel so they stay closed on return. */
+  dismissed: ReadonlySet<string>
+  onDismiss: (jobId: string) => void
+}
+
+/** Typing in a field: the page's shortcuts stay out of it. */
+function typing(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+  )
 }
 
 function errorText(code: string | undefined, fallback: string): string {
@@ -28,12 +39,19 @@ const failureOf = (error: unknown, fallback: string) =>
 /** The selected chapter (§10 S3-1): its manuscript with the controls that write it, and its
  * warnings beside it. Writing runs as a job on the server, so it carries on while the reader is
  * elsewhere and streams in again on return. */
-export function ChapterPanel({ workId, chapter, episodeName, jobs, names }: Props) {
+export function ChapterPanel({
+  workId,
+  chapter,
+  episodeName,
+  jobs,
+  names,
+  dismissed,
+  onDismiss,
+}: Props) {
   const queryClient = useQueryClient()
   const [selectedBeat, setSelectedBeat] = useState<string | null>(null)
   const [focused, setFocused] = useState<Warning | null>(null)
   const [pauseAsked, setPauseAsked] = useState<string | null>(null)
-  const [dismissed, setDismissed] = useState<string | null>(null)
 
   const text = useQuery({
     queryKey: ['chapter', chapter.id],
@@ -46,13 +64,11 @@ export function ChapterPanel({ workId, chapter, episodeName, jobs, names }: Prop
 
   const job = activeJob(chapter, jobs)
   const refresh = useCallback(
-    (type: string) => {
+    (jobChanged: boolean) => {
       void queryClient.invalidateQueries({ queryKey: ['chapter', chapter.id] })
       void queryClient.invalidateQueries({ queryKey: ['warnings', chapter.id] })
       void queryClient.invalidateQueries({ queryKey: ['chapters', workId] })
-      if (type !== 'beat_done' && type !== 'beat_checked') {
-        void queryClient.invalidateQueries({ queryKey: ['jobs', workId] })
-      }
+      if (jobChanged) void queryClient.invalidateQueries({ queryKey: ['jobs', workId] })
     },
     [chapter.id, queryClient, workId],
   )
@@ -72,6 +88,10 @@ export function ChapterPanel({ workId, chapter, episodeName, jobs, names }: Prop
     onMutate: (jobId) => {
       setPauseAsked(jobId)
     },
+    // Not asked after all (the job ended meanwhile: JOB_NOT_RUNNING).
+    onError: () => {
+      setPauseAsked(null)
+    },
     onSettled: started,
   })
   const resume = useMutation({
@@ -84,7 +104,7 @@ export function ChapterPanel({ workId, chapter, episodeName, jobs, names }: Prop
   const stop = useMutation({
     mutationFn: (jobId: string) => api.cancelJob(jobId),
     onSettled: () => {
-      refresh('cancelled')
+      refresh(true)
     },
   })
 
@@ -93,16 +113,20 @@ export function ChapterPanel({ workId, chapter, episodeName, jobs, names }: Prop
   )
   const complete = chapter.beats.every((beat) => beat.version !== null)
   const anyWritten = chapter.beats.some((beat) => beat.version !== null)
-  const paused = job !== null && (job.status === 'paused' || streamed.paused)
+  const paused = job?.status === 'paused'
   const running = job !== null && job.status !== 'queued'
+  // Only a chapter's job stops between beats; a beat written again has no place to stop.
+  const pausable = running && job.kind === 'chapter'
+  // Paused, or asked to stop at the next beat: either way 계속 takes it back (§16).
+  const held = job !== null && (paused || pauseAsked === job.jobId)
   const canRegenerate =
     job === null && selectedBeat !== null && written.has(selectedBeat) && !regenerate.isPending
 
   const togglePause = useCallback(() => {
-    if (!job || job.status === 'queued') return
-    if (paused) resume.mutate(job.jobId)
-    else if (pauseAsked !== job.jobId) pause.mutate(job.jobId)
-  }, [job, paused, pauseAsked, pause, resume])
+    if (!job || !pausable || pause.isPending || resume.isPending) return
+    if (held) resume.mutate(job.jobId)
+    else pause.mutate(job.jobId)
+  }, [job, pausable, held, pause, resume])
 
   const rewrite = useCallback(
     (beatId: string) => {
@@ -118,6 +142,7 @@ export function ChapterPanel({ workId, chapter, episodeName, jobs, names }: Prop
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (!event.ctrlKey || event.altKey || event.metaKey || event.repeat) return
+      if (typing(event.target)) return
       if (event.key === '.' && !event.shiftKey) {
         event.preventDefault()
         togglePause()
@@ -134,7 +159,7 @@ export function ChapterPanel({ workId, chapter, episodeName, jobs, names }: Prop
 
   const latest = latestJobOf(chapter, jobs)
   const jobFailure =
-    latest?.status === 'failed' && dismissed !== latest.jobId
+    latest?.status === 'failed' && !dismissed.has(latest.jobId)
       ? errorText(latest.error?.code, strings.writing.failed)
       : null
   const actionError =
@@ -185,11 +210,11 @@ export function ChapterPanel({ workId, chapter, episodeName, jobs, names }: Prop
           <button
             type="button"
             className="paper-button"
-            disabled={!running || pause.isPending || resume.isPending}
+            disabled={!pausable || pause.isPending || resume.isPending}
             aria-keyshortcuts="Control+."
             onClick={togglePause}
           >
-            {paused ? strings.writing.resumeJob : strings.writing.pause}
+            {held ? strings.writing.resumeJob : strings.writing.pause}
           </button>
           <button
             type="button"
@@ -243,7 +268,7 @@ export function ChapterPanel({ workId, chapter, episodeName, jobs, names }: Prop
                 pause.reset()
                 resume.reset()
                 stop.reset()
-                if (latest) setDismissed(latest.jobId)
+                if (latest) onDismiss(latest.jobId)
               }}
             >
               {strings.writing.dismiss}

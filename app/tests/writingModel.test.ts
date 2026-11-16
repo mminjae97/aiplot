@@ -131,14 +131,15 @@ test('streamed text builds per beat, starts over on beat_start and ends at the s
     ['beat_done', { beatId: 'b_1', chars: 9, version: 2 }],
     ['beat_start', { beatId: 'b_2' }],
     ['sentence', { beatId: 'b_2', text: '반쯤' }],
-    ['paused', { reason: 'user' }],
   ]
   const state = events.reduce<Streamed>(
     (old, [type, data]) => streamed(old, type, data),
     NOTHING_STREAMED,
   )
   expect(state.current).toBe('b_2')
-  expect(state.paused).toBe(true)
+  // b_1 is stored and waits for its check.
+  expect(state.checking).toEqual(['b_1'])
+  expect(streamed(state, 'beat_checked', { beatId: 'b_1', warnings: 0 }).checking).toEqual([])
   // The streamed text until the stored one is the version beat_done named.
   expect(liveText(state, 'b_1', 1)).toBe('다시. 이어서.')
   expect(liveText(state, 'b_1', 2)).toBeNull()
@@ -147,5 +148,5 @@ test('streamed text builds per beat, starts over on beat_start and ends at the s
   const stopped = streamed(state, 'cancelled', {})
   expect(liveText(stopped, 'b_2', null)).toBeNull()
   expect(liveText(stopped, 'b_1', 1)).toBe('다시. 이어서.')
-  expect(stopped.paused).toBe(false)
+  expect(stopped.checking).toEqual([])
 })

@@ -42,13 +42,16 @@ export function ManuscriptEditor({
   }, [focused])
 
   return (
-    <div ref={root} className="manuscript" aria-label={strings.writing.manuscript}>
+    <div ref={root} className="manuscript" role="region" aria-label={strings.writing.manuscript}>
       {chapter.beats.map((beat) => {
         const saved = stored.get(beat.id)
         const live = liveText(streamed, beat.id, saved?.version ?? null)
         const shown = live ?? saved?.text ?? null
         const own = warnings.filter((w) => w.beat_id === beat.id && w.status === 'open')
-        const unchecked = live !== null || saved?.checked === false
+        // Checked by the job now, or left unchecked by one that stopped (§10: until the beat
+        // is written again).
+        const checking = live !== null || streamed.checking.includes(beat.id)
+        const unchecked = checking || saved?.checked === false
         const selected = selectedBeat === beat.id
         return (
           <section
@@ -67,20 +70,29 @@ export function ManuscriptEditor({
               type="button"
               className="ms-mark"
               aria-pressed={selected}
-              aria-label={strings.writing.selectBeat(beat.order)}
               onClick={(event) => {
                 event.stopPropagation()
                 onSelectBeat(beat.id)
               }}
             >
-              <span>{beat.order}</span>
+              {/* Named by its content: the number, its warnings and its check (§5: never by
+                  colour alone). */}
+              <span className="visually-hidden">{strings.writing.selectBeat(beat.order)}</span>
+              <span aria-hidden="true">{beat.order}</span>
               {own.length > 0 && (
-                <span className="ms-warn-mark" title={strings.writing.beatWarnings(own.length)}>
-                  <span aria-hidden="true">⚠</span>
-                  {own.length}
+                <span className="ms-warn-mark">
+                  <span aria-hidden="true">⚠{own.length}</span>
+                  <span className="visually-hidden">
+                    , {strings.writing.beatWarnings(own.length)}
+                  </span>
                 </span>
               )}
-              {unchecked && shown !== null && <small>{strings.writing.unchecked}</small>}
+              {unchecked && shown !== null && (
+                <small title={checking ? undefined : strings.writing.notCheckedHint}>
+                  <span className="visually-hidden">, </span>
+                  {checking ? strings.writing.unchecked : strings.writing.notChecked}
+                </small>
+              )}
             </button>
             {shown === null ? (
               <p className="ms-unwritten">

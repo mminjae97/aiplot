@@ -130,11 +130,13 @@ export type Streamed = {
   beats: Record<string, { text: string; version: number | null }>
   /** The beat being written now. */
   current: string | null
-  paused: boolean
+  /** Beats stored whose check has not ended yet (beat_done, then beat_checked). */
+  checking: readonly string[]
 }
 
-export const NOTHING_STREAMED: Streamed = { beats: {}, current: null, paused: false }
+export const NOTHING_STREAMED: Streamed = { beats: {}, current: null, checking: [] }
 
+/** The state after one event of the job's stream. */
 export function streamed(state: Streamed, type: string, data: unknown): Streamed {
   const beatId =
     typeof data === 'object' && data !== null && 'beatId' in data && typeof data.beatId === 'string'
@@ -171,23 +173,23 @@ export function streamed(state: Streamed, type: string, data: unknown): Streamed
         ...state,
         current: state.current === beatId ? null : state.current,
         beats: { ...state.beats, [beatId]: { ...before, version } },
+        checking: [...state.checking.filter((id) => id !== beatId), beatId],
       }
     }
+    case 'beat_checked':
+      if (beatId === null) return state
+      return { ...state, checking: state.checking.filter((id) => id !== beatId) }
     case 'done':
     case 'error':
     case 'cancelled':
       // A beat stopped before it was stored was never written (§16: cancel stops at once).
       return {
         current: null,
-        paused: false,
+        checking: [],
         beats: Object.fromEntries(
           Object.entries(state.beats).filter(([, beat]) => beat.version !== null),
         ),
       }
-    case 'paused':
-      return { ...state, paused: true }
-    case 'resumed':
-      return { ...state, paused: false }
     default:
       return state
   }
