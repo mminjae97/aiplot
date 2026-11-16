@@ -148,7 +148,7 @@ async def reopen_stage(db: Db, request: Request, workId: str, body: StageReopen)
         # Their plans or chapters are gone or about to be stale against the reopened stage.
         # Nothing ran between the reopen and here (no await), so none of them stored
         # anything after the snapshot.
-        if job.kind in ("plan", "direct", "chapter", "beat"):
+        if job.kind in ("plan", "direct", "chapter", "beat", "recheck"):
             jobs.cancel(job)
     return work
 

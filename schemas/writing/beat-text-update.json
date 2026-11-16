@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BeatTextUpdate",
+  "description": "PUT /beats/{beatId}/text: the beat's text as the user edited it, stored as a new version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "text"
+  ],
+  "properties": {
+    "text": {
+      "type": "string",
+      "maxLength": 20000
+    }
+  }
+}

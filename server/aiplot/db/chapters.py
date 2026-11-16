@@ -5,7 +5,9 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from aiplot.generated.direction.plan import PlanBeat
+from aiplot.generated.writing.beat_version import BeatVersion
 from aiplot.generated.writing.chapter import Chapter
+from aiplot.generated.writing.chapter_text import ChapterText
 
 # A beat's current version: the latest one (§14).
 CURRENT_VERSION = (
@@ -320,3 +322,55 @@ def insert_version(
         ),
     )
     return version
+
+
+VERSION_COLUMNS = "version, text, chars, origin, checked, created_at"
+
+
+def to_version(row: sqlite3.Row) -> BeatVersion:
+    return BeatVersion.model_validate({**dict(row), "checked": bool(row["checked"])})
+
+
+def versions_of(conn: sqlite3.Connection, beat_id: str) -> list[BeatVersion]:
+    """The beat's versions, oldest first: the last one is the current one."""
+    rows = conn.execute(
+        f"SELECT {VERSION_COLUMNS} FROM beat_version WHERE beat_id = ? ORDER BY version",
+        (beat_id,),
+    ).fetchall()
+    return [to_version(row) for row in rows]
+
+
+def get_version(conn: sqlite3.Connection, beat_id: str, version: int) -> BeatVersion | None:
+    row = conn.execute(
+        f"SELECT {VERSION_COLUMNS} FROM beat_version WHERE beat_id = ? AND version = ?",
+        (beat_id, version),
+    ).fetchone()
+    return to_version(row) if row else None
+
+
+def current_version(conn: sqlite3.Connection, beat_id: str) -> BeatVersion | None:
+    row = conn.execute(
+        f"SELECT {VERSION_COLUMNS} FROM beat_version WHERE beat_id = ? "
+        "ORDER BY version DESC LIMIT 1",
+        (beat_id,),
+    ).fetchone()
+    return to_version(row) if row else None
+
+
+def chapter_text(conn: sqlite3.Connection, chapter_id: str) -> ChapterText | None:
+    """The chapter with each beat's current version (nulls while unwritten)."""
+    chapter = conn.execute("SELECT id, number FROM chapter WHERE id = ?", (chapter_id,)).fetchone()
+    if chapter is None:
+        return None
+    beats = conn.execute(
+        'SELECT beat.id, beat."order", v.version, v.chars, v.origin, v.checked, v.text FROM beat '
+        "LEFT JOIN beat_version AS v ON v.beat_id = beat.id AND v.version = "
+        "(SELECT max(version) FROM beat_version WHERE beat_id = beat.id) "
+        'WHERE beat.chapter_id = ? ORDER BY beat."order"',
+        (chapter_id,),
+    ).fetchall()
+    found = [
+        {**dict(row), "checked": None if row["checked"] is None else bool(row["checked"])}
+        for row in beats
+    ]
+    return ChapterText.model_validate({**dict(chapter), "beats": found})
