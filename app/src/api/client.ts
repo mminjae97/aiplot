@@ -3,6 +3,8 @@ import type {
   ApiError,
   BeatEdit,
   Card,
+  ChapterList,
+  ChapterText,
   CardList,
   CardDeleted,
   CardReferences,
@@ -23,6 +25,9 @@ import type {
   PlanRecord,
   Technique,
   TechniqueDevice,
+  Warning,
+  WarningList,
+  WarningUpdate,
   TechniqueList,
   SetupPathsRequest,
   SetupStatus,
@@ -162,6 +167,27 @@ export const api = {
       `/episodes/${encodeURIComponent(episodeId)}/plans${replace ? '?replace=true' : ''}`,
       { method: 'POST' },
     ),
+  /** The work's chapters in order, with their beats (no text); none before writing. */
+  listChapters: (workId: string) => request<ChapterList>(`${work(workId)}/chapters`),
+  /** A chapter's manuscript: each beat's current text and its sentences. */
+  getChapter: (chapterId: string) =>
+    request<ChapterText>(`/chapters/${encodeURIComponent(chapterId)}`),
+  /** POST .../generate (job): the chapter's beats without text, written in order. */
+  generateChapter: (chapterId: string) =>
+    request<JobAccepted>(`/chapters/${encodeURIComponent(chapterId)}/generate`, {
+      method: 'POST',
+    }),
+  /** POST .../regenerate (job): the beat written again as a new version. */
+  regenerateBeat: (beatId: string) =>
+    request<JobAccepted>(`/beats/${encodeURIComponent(beatId)}/regenerate`, { method: 'POST' }),
+  chapterWarnings: (chapterId: string) =>
+    request<WarningList>(`/chapters/${encodeURIComponent(chapterId)}/warnings`),
+  /** 무시 with a reason, or the warning opened again. */
+  updateWarning: (warningId: string, body: WarningUpdate) =>
+    request<Warning>(`/warnings/${encodeURIComponent(warningId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
   listCards: (workId: string, filter: { type?: string; q?: string } = {}) => {
     const query = new URLSearchParams()
     if (filter.type) query.set('type', filter.type)

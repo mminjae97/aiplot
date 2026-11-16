@@ -1,0 +1,350 @@
+/* S3-1 writing (§10): chapters | manuscript | warnings; the warnings go under the chapters
+   when the page is narrow (§12: 3 columns collapsing to 2). */
+
+.page-wide.writing {
+  overflow: hidden;
+}
+
+.writing-columns {
+  display: grid;
+  flex: 1;
+  grid-template-areas: 'chapters center warnings';
+  grid-template-columns: 180px minmax(0, 1fr) 260px;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 24px;
+  min-height: 0;
+}
+
+@media (width < 1400px) {
+  .writing-columns {
+    grid-template-areas:
+      'chapters center'
+      'warnings center';
+    grid-template-columns: 200px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 2fr) minmax(0, 3fr);
+  }
+}
+
+.writing-chapters,
+.writing-center,
+.warnings {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-color: var(--ink-faint) transparent;
+  scrollbar-width: thin;
+}
+
+.writing-chapters {
+  grid-area: chapters;
+}
+
+.writing-center {
+  display: flex;
+  grid-area: center;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 12px;
+}
+
+.warnings {
+  display: flex;
+  grid-area: warnings;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.writing-chapters h3 {
+  margin: 0 0 6px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  font-weight: 700;
+}
+
+.writing-chapters ul,
+.warnings ul {
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.writing-chapter {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: baseline;
+  width: 100%;
+  border: 0;
+  border-left: 3px solid transparent;
+  background: none;
+  padding: 6px 8px;
+  text-align: left;
+  transition: background var(--motion);
+}
+
+.writing-chapter:hover {
+  background: var(--paper-edge);
+}
+
+.writing-chapter[aria-current] {
+  border-left-color: var(--brass);
+  font-weight: 700;
+}
+
+.writing-chapter small {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  font-weight: 400;
+}
+
+.writing-chapter[data-status='writing'] small,
+.writing-chapter[data-status='queued'] small {
+  color: var(--brass);
+}
+
+.writing-head {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.writing-head h3 {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin: 0;
+  font-size: var(--size-title);
+}
+
+.writing-head h3 small {
+  color: var(--ink-soft);
+  font-size: var(--size-body);
+  font-weight: 400;
+}
+
+.writing-counter {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.writing-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.writing-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.writing-progress p {
+  margin: 0;
+}
+
+.writing-progress progress {
+  width: 100%;
+  accent-color: var(--brass);
+}
+
+.writing-progress small,
+.writing-note {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.writing-failure {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 0;
+  color: var(--warning);
+}
+
+.writing-failure p {
+  margin: 0;
+}
+
+/* The manuscript: 17px, line-height 1.7 (§5). */
+.manuscript {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: var(--size-lead);
+  line-height: 1.7;
+}
+
+.ms-beat {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 10px;
+  border-left: 2px solid transparent;
+  transition:
+    opacity var(--motion),
+    border-color var(--motion);
+}
+
+.ms-beat[data-selected] {
+  border-left-color: var(--brass);
+}
+
+/* Not checked yet (§10: dim until beat_checked); the margin says so in words too. */
+.ms-beat[data-unchecked] .ms-text {
+  opacity: 0.6;
+}
+
+.ms-mark {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  align-self: start;
+  border: 0;
+  background: none;
+  padding: 2px 0;
+  color: var(--ink-faint);
+  font-size: var(--size-small);
+  line-height: 1.3;
+}
+
+.ms-mark[aria-pressed='true'] {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.ms-mark small {
+  font-size: 11px;
+}
+
+.ms-warn-mark {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.ms-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ms-unwritten {
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: var(--size-body);
+}
+
+.ms-unwritten span {
+  margin-right: 6px;
+  font-weight: 700;
+}
+
+/* A warned sentence: wavy underline (not colour alone) plus the margin mark. */
+.ms-warned {
+  text-decoration: underline wavy var(--warning);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.ms-warned[data-focus] {
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+}
+
+.warnings h3,
+.warning-group h4 {
+  margin: 0;
+}
+
+.warnings h3 {
+  font-size: var(--size-lead);
+}
+
+.warning-group h4 {
+  margin-bottom: 6px;
+  color: var(--warning);
+  font-size: var(--size-body);
+}
+
+.warnings h3 small,
+.warning-group h4 small {
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+
+.warning-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-left: 3px solid var(--warning);
+  margin-bottom: 10px;
+  padding: 4px 0 4px 10px;
+}
+
+.warning-item[data-focus] {
+  background: var(--paper-edge);
+}
+
+.warning-item p,
+.warning-item blockquote {
+  margin: 0;
+}
+
+.warning-item blockquote {
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.warning-item small {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.warning-where {
+  align-self: flex-start;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+  text-decoration: underline dotted;
+}
+
+.warning-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.warning-ignore {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.warning-ignore label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--size-small);
+}
+
+.warning-ignore textarea {
+  resize: vertical;
+  font: inherit;
+}
+
+.warning-ignored summary {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.warning-ignored .warning-item {
+  border-left-color: var(--ink-faint);
+  opacity: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-beat {
+    transition: none;
+  }
+}

@@ -11,7 +11,7 @@ type Props = {
   onCancel: (() => void) | null
 }
 
-function remaining(seconds: number): string {
+export function remaining(seconds: number): string {
   const whole = Math.max(1, Math.round(seconds))
   return whole < 60
     ? strings.generation.etaSeconds(whole)

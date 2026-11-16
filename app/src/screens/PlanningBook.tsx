@@ -21,6 +21,7 @@ import {
 import { pageOf, pagesOf, samePage, SECTIONS, screenOf, useStorySteps } from './planningPages'
 import { RegionMapScreen } from './RegionMapScreen'
 import { StoryScreen } from './StoryScreen'
+import { WritingScreen } from './WritingScreen'
 import { WorldBookScreen } from './WorldBookScreen'
 
 /** What every page of the book gets: the screen it shows, a way to turn to another page, and
@@ -202,9 +203,8 @@ export function PlanningBook({ screen }: Props) {
           )}
           {screen.name === 'story' && <StoryScreen screen={screen} {...pageProps} />}
           {screen.name === 'direction' && <DirectionScreen screen={screen} {...pageProps} />}
-          {(screen.name === 'writing' || screen.name === 'reading') && (
-            <BlankPage screen={screen} />
-          )}
+          {screen.name === 'writing' && <WritingScreen screen={screen} {...pageProps} />}
+          {screen.name === 'reading' && <BlankPage screen={screen} />}
           <span className="book-bottom" aria-hidden="true" />
           {(['left', 'right'] as const).flatMap((side) =>
             SECTIONS.map((section, at) => (
