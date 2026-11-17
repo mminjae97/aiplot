@@ -13,8 +13,10 @@ from aiplot.generated.writing.beat_saved import BeatSaved
 from aiplot.generated.writing.beat_text_update import BeatTextUpdate
 from aiplot.generated.writing.beat_version import BeatVersion
 from aiplot.generated.writing.beat_version_list import BeatVersionList
+from aiplot.generated.writing.chapter import Chapter
 from aiplot.generated.writing.chapter_list import ChapterList
 from aiplot.generated.writing.chapter_text import ChapterText
+from aiplot.generated.writing.chapter_update import ChapterUpdate
 from aiplot.generated.writing.warning import Warning
 from aiplot.generated.writing.warning_list import WarningList
 from aiplot.generated.writing.warning_update import WarningUpdate
@@ -109,6 +111,15 @@ def update_warning(db: Db, warningId: str, body: WarningUpdate) -> Warning:
         raise AppError(404, "WARNING_NOT_FOUND", f"no warning {exc}") from exc
     except (works.StageLockedError, works.StageNotStartedError, works.WorkNotFoundError) as exc:
         raise refusal(exc) from exc
+
+
+@router.patch("/chapters/{chapterId}")
+def mark_chapter(db: Db, chapterId: str, body: ChapterUpdate) -> Chapter:
+    """읽음 and where reading stopped (S3-2, S3-3)."""
+    try:
+        return manuscript.mark(db, chapterId, body.read, body.position)
+    except manuscript.ChapterNotFoundError as exc:
+        raise AppError(404, "CHAPTER_NOT_FOUND", f"no chapter {exc}") from exc
 
 
 @router.get("/chapters/{chapterId}")

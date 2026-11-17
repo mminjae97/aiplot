@@ -14,7 +14,6 @@ import { TopBar } from '../components/TopBar'
 import { type PlanningScreen, useNavigation } from '../stores/navigation'
 import { strings } from '../strings'
 import { CharacterDexScreen } from './CharacterDexScreen'
-import { BlankPage } from './BlankPage'
 import { ContentsPage } from './ContentsPage'
 import { DirectionScreen } from './DirectionScreen'
 import {
@@ -26,6 +25,7 @@ import {
   type TurnDirection,
 } from './pageTurn'
 import { pageOf, pagesOf, samePage, SECTIONS, screenOf, useStorySteps } from './planningPages'
+import { ReadingScreen } from './ReadingScreen'
 import { RegionMapScreen } from './RegionMapScreen'
 import { StoryScreen } from './StoryScreen'
 import { WritingScreen } from './WritingScreen'
@@ -238,7 +238,7 @@ export function PlanningBook({ screen }: Props) {
           {screen.name === 'story' && <StoryScreen screen={screen} {...pageProps} />}
           {screen.name === 'direction' && <DirectionScreen screen={screen} {...pageProps} />}
           {screen.name === 'writing' && <WritingScreen screen={screen} {...pageProps} />}
-          {screen.name === 'reading' && <BlankPage screen={screen} />}
+          {screen.name === 'reading' && <ReadingScreen screen={screen} {...pageProps} />}
           <span className="book-bottom" aria-hidden="true" />
           {(['left', 'right'] as const).flatMap((side) =>
             SECTIONS.map((section, at) => (

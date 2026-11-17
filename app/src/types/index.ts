@@ -1882,6 +1882,10 @@ export interface Chapter {
   target_chars: number
   read: boolean
   /**
+   * Where the reader stopped in the chapter (S3-3): the share of its text scrolled past, 0 = its start.
+   */
+  position: number
+  /**
    * Characters incl. spaces written so far (the beats' current versions).
    */
   chars: number
@@ -1960,6 +1964,19 @@ export interface BeatText {
 export interface SentenceSpan {
   start: number
   end: number
+}
+/**
+ * PATCH /chapters/{chapterId}: the reader's marks on a chapter (S3-2, S3-3); only the keys sent change.
+ */
+export interface ChapterUpdate {
+  /**
+   * 읽음: set at the chapter's end, or toggled in the list.
+   */
+  read?: boolean
+  /**
+   * Where the reader stopped: the share of the text scrolled past, 0 = its start.
+   */
+  position?: number
 }
 /**
  * GET /chapters/{chapterId}/warnings: the warnings on the current versions of the chapter's beats, in beat order.

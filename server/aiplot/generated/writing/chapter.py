@@ -4,7 +4,15 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+)
 
 from ..common import beat_id, card_id, chapter_id, technique_id
 from ..common import plan_id as plan_id_1
@@ -82,6 +90,14 @@ class Chapter(BaseModel):
         ),
     ]
     read: StrictBool
+    position: Annotated[
+        StrictFloat,
+        Field(
+            description="Where the reader stopped in the chapter (S3-3): the share of its text scrolled past, 0 = its start.",
+            ge=0.0,
+            le=1.0,
+        ),
+    ]
     chars: Annotated[
         StrictInt,
         Field(

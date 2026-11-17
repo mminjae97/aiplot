@@ -91,7 +91,8 @@ def list_for_work(conn: sqlite3.Connection, work_id: str) -> list[Chapter]:
         chars[chapter_id] += row["chars"] or 0
     chapters = conn.execute(
         "SELECT chapter.id, chapter.plan_id, d.episode_id, chapter.number, chapter.target_chars, "
-        "chapter.read FROM chapter JOIN direction_plan AS d ON d.id = chapter.plan_id "
+        "chapter.read, chapter.position "
+        "FROM chapter JOIN direction_plan AS d ON d.id = chapter.plan_id "
         "WHERE chapter.work_id = ? ORDER BY chapter.number",
         (work_id,),
     ).fetchall()
@@ -106,6 +107,16 @@ def list_for_work(conn: sqlite3.Connection, work_id: str) -> list[Chapter]:
         )
         for row in chapters
     ]
+
+
+def set_reading(
+    conn: sqlite3.Connection, chapter_id: str, read: bool | None, position: float | None
+) -> None:
+    """The reader's marks on the chapter: only those given change."""
+    if read is not None:
+        conn.execute("UPDATE chapter SET read = ? WHERE id = ?", (int(read), chapter_id))
+    if position is not None:
+        conn.execute("UPDATE chapter SET position = ? WHERE id = ?", (position, chapter_id))
 
 
 def written_count(conn: sqlite3.Connection, work_id: str) -> int:

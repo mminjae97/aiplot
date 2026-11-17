@@ -530,3 +530,151 @@
     transition: none;
   }
 }
+
+/* 소설 읽기 (§12 S3-2, S3-3): the chapters on the left page, the chapter read on the right. */
+.spread.reading {
+  /* a definite height for the pages, so the chapter scrolls inside rather than growing them */
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.reading-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reading-list .contents-heading {
+  margin-bottom: 0;
+}
+
+.reading-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.reading-tools select {
+  font: inherit;
+}
+
+.reading-chapters {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reading-chapters li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.reading-chapter {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: baseline;
+  border: 0;
+  border-left: 3px solid transparent;
+  background: none;
+  padding: 6px 8px;
+  text-align: left;
+  transition: background var(--motion);
+}
+
+.reading-chapter:hover:not(:disabled) {
+  background: var(--paper-edge);
+}
+
+.reading-chapter:disabled {
+  color: var(--ink-faint);
+}
+
+.reading-chapter[aria-current] {
+  border-left-color: var(--brass);
+}
+
+/* Read chapters bold (§12 S3-2); the row says 읽음 in words too. */
+.reading-chapters li[data-read] .reading-chapter span {
+  font-weight: 700;
+}
+
+.reading-chapter small {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.reading-page {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.reader {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.reader-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.reader-head h3 {
+  margin: 0;
+  font-size: var(--size-title);
+}
+
+.reader-type {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.reader-text {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 8px;
+  scrollbar-color: var(--ink-faint) transparent;
+  scrollbar-width: thin;
+  overflow-wrap: anywhere;
+}
+
+.reader-text p {
+  margin: 0;
+}
+
+.reader-text .reader-gap {
+  height: 1em;
+}
+
+.reader-end {
+  margin-top: 2em !important;
+  color: var(--ink-faint);
+  font-size: var(--size-small);
+  text-align: center;
+}
+
+.reader-turns {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.reader-turns small {
+  color: var(--ink-faint);
+  font-size: var(--size-small);
+}

@@ -139,6 +139,38 @@ def test_the_list_shows_what_is_written(
     assert [c["chars"] for c in made] == [26, 0, 0, 0]
 
 
+def mark(client: TestClient, chapter_id: str, **body: Any) -> Any:
+    return client.patch(f"/api/v1/chapters/{chapter_id}", headers=AUTH, json=body)
+
+
+def test_the_reader_marks_a_chapter_read_and_where_reading_stopped(
+    client: TestClient, conn: sqlite3.Connection, plan: dict[str, Any]
+) -> None:
+    confirmed(client, conn, plan)
+    advance(client)
+    made = chapters(client)
+    assert all(c["position"] == 0 for c in made)
+    first = made[0]["id"]
+    stopped = mark(client, first, position=0.42)
+    assert stopped.status_code == 200, stopped.json()
+    assert {**stopped.json(), "position": 0} == made[0]
+    assert stopped.json()["position"] == 0.42
+    # Only the keys sent change.
+    body = mark(client, first, read=True).json()
+    assert (body["read"], body["position"]) == (True, 0.42)
+    assert mark(client, first, read=False, position=1).json()["read"] is False
+    assert [(c["read"], c["position"]) for c in chapters(client)] == [
+        (False, 1),
+        (False, 0),
+        (False, 0),
+        (False, 0),
+    ]
+    assert error(mark(client, first, position=1.5)) == (422, "VALIDATION_ERROR")
+    assert error(mark(client, first, position=-0.1)) == (422, "VALIDATION_ERROR")
+    assert error(mark(client, first, title="1화")) == (422, "VALIDATION_ERROR")
+    assert error(mark(client, "ch_none", read=True)) == (404, "CHAPTER_NOT_FOUND")
+
+
 def test_reopening_direction_deletes_the_manuscript(
     client: TestClient, conn: sqlite3.Connection, plan: dict[str, Any], tmp_path: Path
 ) -> None:
