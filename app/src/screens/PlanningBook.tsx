@@ -14,7 +14,6 @@ import { TopBar } from '../components/TopBar'
 import { type PlanningScreen, useNavigation } from '../stores/navigation'
 import { strings } from '../strings'
 import { CharacterDexScreen } from './CharacterDexScreen'
-import { BlankPage } from './BlankPage'
 import { ContentsPage } from './ContentsPage'
 import { DirectionScreen } from './DirectionScreen'
 import {
@@ -26,6 +25,7 @@ import {
   type TurnDirection,
 } from './pageTurn'
 import { pageOf, pagesOf, samePage, SECTIONS, screenOf, useStorySteps } from './planningPages'
+import { ReadingScreen } from './ReadingScreen'
 import { RegionMapScreen } from './RegionMapScreen'
 import { StoryScreen } from './StoryScreen'
 import { WritingScreen } from './WritingScreen'
@@ -154,6 +154,8 @@ export function PlanningBook({ screen }: Props) {
         target instanceof HTMLElement &&
         (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
       if (busy || event.repeat || event.ctrlKey || event.altKey || event.metaKey || typing) return
+      // A box that scrolls by these keys itself (the reader's text) keeps them.
+      if (target instanceof Element && target.closest('[data-page-keys]')) return
       if (event.key === 'PageDown' && after) {
         event.preventDefault()
         turnPage(screenOf(after, workId))
@@ -238,7 +240,7 @@ export function PlanningBook({ screen }: Props) {
           {screen.name === 'story' && <StoryScreen screen={screen} {...pageProps} />}
           {screen.name === 'direction' && <DirectionScreen screen={screen} {...pageProps} />}
           {screen.name === 'writing' && <WritingScreen screen={screen} {...pageProps} />}
-          {screen.name === 'reading' && <BlankPage screen={screen} />}
+          {screen.name === 'reading' && <ReadingScreen screen={screen} {...pageProps} />}
           <span className="book-bottom" aria-hidden="true" />
           {(['left', 'right'] as const).flatMap((side) =>
             SECTIONS.map((section, at) => (

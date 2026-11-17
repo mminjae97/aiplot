@@ -75,6 +75,7 @@ const CH1: Chapter = {
   number: 1,
   target_chars: 5500,
   read: false,
+  position: 0,
   chars: 24,
   beats: [beat('b_1', 1, 1), beat('b_2', 2, 1), beat('b_3', 3, null)],
 }

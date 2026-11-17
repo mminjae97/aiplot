@@ -24,6 +24,7 @@ function chapter(id: string, episode: string, versions: (number | null)[]): Chap
     number: 1,
     target_chars: 5500,
     read: false,
+    position: 0,
     chars: 0,
     beats: versions.map((version, at) => ({
       id: `${id}_b${String(at + 1)}`,

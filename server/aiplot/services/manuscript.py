@@ -6,6 +6,7 @@ import sqlite3
 
 from aiplot.db import chapters as chapters_db
 from aiplot.db import plans as plans_db
+from aiplot.db.connection import transaction
 from aiplot.generated.writing.chapter import Chapter
 
 
@@ -39,3 +40,20 @@ def create(conn: sqlite3.Connection, work_id: str) -> None:
 def chapters(conn: sqlite3.Connection, work_id: str) -> list[Chapter]:
     """The work's chapters in order; none before writing starts."""
     return chapters_db.list_for_work(conn, work_id)
+
+
+class ChapterNotFoundError(LookupError):
+    pass
+
+
+def mark(
+    conn: sqlite3.Connection, chapter_id: str, read: bool | None, position: float | None
+) -> Chapter:
+    """The reader's marks (S3-2, S3-3): 읽음 and where reading stopped. Not stage-locked: the
+    manuscript exists only at the last stage, and reading changes none of it."""
+    with transaction(conn):
+        found = chapters_db.get_chapter(conn, chapter_id)
+        if found is None:
+            raise ChapterNotFoundError(chapter_id)
+        chapters_db.set_reading(conn, chapter_id, read, position)
+    return next(c for c in chapters_db.list_for_work(conn, found.work_id) if c.id == chapter_id)

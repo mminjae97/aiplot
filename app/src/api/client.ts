@@ -7,8 +7,10 @@ import type {
   BeatVersion,
   BeatVersionList,
   Card,
+  Chapter,
   ChapterList,
   ChapterText,
+  ChapterUpdate,
   CardList,
   CardDeleted,
   CardReferences,
@@ -176,6 +178,12 @@ export const api = {
   /** A chapter's manuscript: each beat's current text and its sentences. */
   getChapter: (chapterId: string) =>
     request<ChapterText>(`/chapters/${encodeURIComponent(chapterId)}`),
+  /** The reader's marks on a chapter: 읽음 and where reading stopped; only the keys sent. */
+  markChapter: (chapterId: string, body: ChapterUpdate) =>
+    request<Chapter>(`/chapters/${encodeURIComponent(chapterId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
   /** POST .../generate (job): the chapter's beats without text, written in order. */
   generateChapter: (chapterId: string) =>
     request<JobAccepted>(`/chapters/${encodeURIComponent(chapterId)}/generate`, {

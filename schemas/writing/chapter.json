@@ -4,7 +4,17 @@
   "description": "A chapter of the manuscript (§14 chapter): made from a confirmed direction plan's chapter when writing starts, with its beats in narration order.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "plan_id", "episode_id", "number", "target_chars", "read", "chars", "beats"],
+  "required": [
+    "id",
+    "plan_id",
+    "episode_id",
+    "number",
+    "target_chars",
+    "read",
+    "position",
+    "chars",
+    "beats"
+  ],
   "properties": {
     "id": { "$ref": "../common/chapter-id.json" },
     "plan_id": { "$ref": "../common/plan-id.json" },
@@ -20,6 +30,12 @@
       "minimum": 1
     },
     "read": { "type": "boolean" },
+    "position": {
+      "description": "Where the reader stopped in the chapter (S3-3): the share of its text scrolled past, 0 = its start.",
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
     "chars": {
       "description": "Characters incl. spaces written so far (the beats' current versions).",
       "type": "integer",

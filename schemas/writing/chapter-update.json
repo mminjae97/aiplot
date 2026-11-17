@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ChapterUpdate",
+  "description": "PATCH /chapters/{chapterId}: the reader's marks on a chapter (S3-2, S3-3); only the keys sent change.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "read": {
+      "description": "읽음: set at the chapter's end, or toggled in the list.",
+      "type": "boolean"
+    },
+    "position": {
+      "description": "Where the reader stopped: the share of the text scrolled past, 0 = its start.",
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    }
+  }
+}

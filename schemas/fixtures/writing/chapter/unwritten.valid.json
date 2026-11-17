@@ -5,6 +5,7 @@
   "number": 1,
   "target_chars": 5500,
   "read": false,
+  "position": 0,
   "chars": 0,
   "beats": [
     {
@@ -13,7 +14,9 @@
       "scene": 2,
       "source_stage": "위기",
       "summary": "테오가 편지를 읽는다.",
-      "techniques": ["tech_inf_001"],
+      "techniques": [
+        "tech_inf_001"
+      ],
       "pov": "테오 1인칭",
       "mode": "장면화",
       "focus": "감정",
