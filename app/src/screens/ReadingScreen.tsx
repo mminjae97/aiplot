@@ -54,8 +54,10 @@ export function ReadingScreen({
   useManuscriptJobs(workId, started)
 
   // A mark stored: only the keys it sent are taken from the answer (another mark may be on its
-  // way), and a list read before it was stored must not put the old value back.
+  // way), and a list read before it was stored must not put the old value back. A list being
+  // read (a writing job ended) is read again after the mark, not dropped.
   const stored = (chapter: Chapter, body: ChapterUpdate) => {
+    const reading = queryClient.isFetching({ queryKey: ['chapters', workId] }) > 0
     void queryClient.cancelQueries({ queryKey: ['chapters', workId] })
     const sent = {
       ...(body.read === undefined ? {} : { read: chapter.read }),
@@ -66,6 +68,7 @@ export function ReadingScreen({
         ? { chapters: old.chapters.map((c) => (c.id === chapter.id ? { ...c, ...sent } : c)) }
         : old,
     )
+    if (reading) void queryClient.invalidateQueries({ queryKey: ['chapters', workId] })
   }
   const mark = useMutation({
     mutationFn: ({ id, body }: { id: string; body: ChapterUpdate }) => api.markChapter(id, body),

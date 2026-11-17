@@ -77,7 +77,14 @@ function text(number: number, body: string): ChapterText {
   }
 }
 
-type World = { work?: Work; chapters: Chapter[]; refuseMark?: boolean; jobs?: Job[] }
+type World = {
+  work?: Work
+  chapters: Chapter[]
+  refuseMark?: boolean
+  jobs?: Job[]
+  // GET .../chapters answers this much later.
+  listDelay?: number
+}
 type Call = { method: string; path: string; body?: string }
 
 let calls: Call[]
@@ -95,7 +102,14 @@ function mockServer(state: World) {
       const json = (data: unknown, status = 200) =>
         Promise.resolve(new Response(JSON.stringify(data), { status }))
       if (path === '/works/w_1') return json(world.work ?? WORK)
-      if (path === '/works/w_1/chapters') return json({ chapters: world.chapters })
+      if (path === '/works/w_1/chapters') {
+        const answer = { chapters: world.chapters }
+        return new Promise<Response>((done) =>
+          setTimeout(() => {
+            done(new Response(JSON.stringify(answer), { status: 200 }))
+          }, world.listDelay ?? 0),
+        )
+      }
       if (path === '/works/w_1/jobs') return json({ jobs: world.jobs ?? [] })
       const found = /^\/chapters\/ch_(\d)$/.exec(path)
       if (found && method === 'GET') {
@@ -382,4 +396,58 @@ test('a chapter written in the background is offered once its job ends', async (
     },
     { timeout: 5000 },
   )
+})
+
+test('a mark answered while the list is read after a writing job does not drop that list', async () => {
+  mockServer({ chapters: CHAPTERS(), jobs: [writingJob('running')] })
+  renderBook(SCREEN)
+  await list()
+  const lists = () => calls.filter((c) => c.path === '/works/w_1/chapters').length
+  const before = lists()
+  world.chapters = world.chapters.map((c) => (c.number === 3 ? chapter(3, true) : c))
+  world.jobs = [writingJob('done')]
+  world.listDelay = 600
+  await waitFor(
+    () => {
+      expect(lists()).toBe(before + 1)
+    },
+    { timeout: 5000 },
+  )
+  // The list is on its way: a mark comes back first.
+  fireEvent.click(screen.getByRole('checkbox', { name: strings.reading.readMark(1) }))
+  await waitFor(() => {
+    expect(patches()).toHaveLength(1)
+  })
+  await waitFor(
+    () => {
+      expect((open(3) as HTMLButtonElement).disabled).toBe(false)
+    },
+    { timeout: 5000 },
+  )
+})
+
+test('the open chapter marked unread is marked read again at its end', async () => {
+  mockServer({ chapters: CHAPTERS() })
+  renderBook(SCREEN)
+  await list()
+  fireEvent.click(open(4))
+  const reader = await screen.findByRole('document', { name: strings.reading.chapterName(4) })
+  // It shows whole: read at once.
+  const box = screen.getByRole<HTMLInputElement>('checkbox', { name: strings.reading.readMark(4) })
+  await waitFor(() => {
+    expect(box.checked).toBe(true)
+  })
+  fireEvent.click(box)
+  await waitFor(() => {
+    expect(box.checked).toBe(false)
+  })
+  fireEvent.scroll(reader)
+  await waitFor(() => {
+    expect(box.checked).toBe(true)
+  })
+  expect(patches().map((p) => p.body)).toEqual([
+    { read: true },
+    { read: false, position: 0 },
+    { read: true },
+  ])
 })
