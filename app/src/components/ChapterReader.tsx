@@ -52,14 +52,18 @@ export function ChapterReader({
   const box = useRef<HTMLDivElement>(null)
   const placed = useRef(false)
   const ended = useRef(false)
-  // Marked unread meanwhile (in the list): reading to the end marks it again.
-  useEffect(() => {
-    if (!chapter.read) ended.current = false
-  }, [chapter.read])
   // The scroll the opening itself made (a scroll event follows it): not the reader's.
   const restored = useRef<number | null>(null)
   const pending = useRef<number | null>(null)
   const timer = useRef<number | undefined>(undefined)
+  // Marked unread meanwhile (in the list): it starts over (a place not saved yet is dropped),
+  // and reading to the end marks it again.
+  useEffect(() => {
+    if (chapter.read) return
+    ended.current = false
+    pending.current = null
+    window.clearTimeout(timer.current)
+  }, [chapter.read])
   // The latest callbacks, for the timer and the leaving flush.
   const callbacks = useRef({ onPosition, onEnd })
   useEffect(() => {

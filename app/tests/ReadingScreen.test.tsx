@@ -451,3 +451,21 @@ test('the open chapter marked unread is marked read again at its end', async () 
     { read: true },
   ])
 })
+
+test('a place not saved yet is dropped when the open chapter is marked unread', async () => {
+  tallText()
+  mockServer({ chapters: CHAPTERS() })
+  renderBook(SCREEN)
+  await list()
+  fireEvent.click(open(1))
+  const reader = await screen.findByRole('document', { name: strings.reading.chapterName(1) })
+  await within(reader).findByText('1화 첫 줄.')
+  reader.scrollTop = 480
+  fireEvent.scroll(reader)
+  fireEvent.click(screen.getByRole('checkbox', { name: strings.reading.readMark(1) }))
+  await waitFor(() => {
+    expect(patches()).toEqual([{ path: '/chapters/ch_1', body: { read: false, position: 0 } }])
+  })
+  await new Promise((done) => setTimeout(done, 1000))
+  expect(patches()).toHaveLength(1)
+})
