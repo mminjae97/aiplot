@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { ChapterPanel } from '../components/ChapterPanel'
+import { LeaveEditDialog } from '../components/LeaveEditDialog'
 import { isJobActive } from '../components/directionEpisodes'
 import { activeJob, chapterGroups, chapterStatus, statusText } from '../components/writingModel'
 import type { PlanningScreen } from '../stores/navigation'
@@ -21,15 +22,40 @@ const WRITING_KEYS = ['chapter:', 'beat:', 'recheck:']
 export function WritingScreen({
   screen,
   turn,
+  onBusy,
+  guardLeaving,
 }: PageProps<Extract<PlanningScreen, { name: 'writing' }>>) {
   const { workId } = screen
   const queryClient = useQueryClient()
   const [chosen, setChosen] = useState<string | null>(null)
   // Failed jobs the reader closed; here so that going to another chapter keeps them closed.
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set())
-  // A beat holds edits not saved yet: the reader stays on its chapter until they are saved or
-  // dropped (the edits live only in the editor, §6).
+  // A beat holds edits not saved yet (they live only in the editor, §6): leaving it for
+  // another chapter or page asks first; `leaving` is the way out the reader asked for.
   const [dirty, setDirty] = useState(false)
+  const [leaving, setLeaving] = useState<(() => void) | null>(null)
+  // A dialog of the chapter panel is open (the completion summary).
+  const [panelBusy, setPanelBusy] = useState(false)
+  const ask = useCallback((go: () => void) => {
+    setLeaving(() => go)
+  }, [])
+  useEffect(() => {
+    guardLeaving(dirty ? ask : null)
+    return () => {
+      guardLeaving(null)
+    }
+  }, [ask, dirty, guardLeaving])
+  // The book takes no input while a dialog of this page is open.
+  const busy = leaving !== null || panelBusy
+  useEffect(() => {
+    onBusy(busy)
+  }, [busy, onBusy])
+  useEffect(
+    () => () => {
+      onBusy(false)
+    },
+    [onBusy],
+  )
 
   const work = useQuery({ queryKey: ['works', workId], queryFn: () => api.getWork(workId) })
   const started = (work.data?.stage ?? 1) >= 3
@@ -95,7 +121,7 @@ export function WritingScreen({
   return (
     <article className="spread spread-wide" aria-label={strings.book.notes.writing}>
       <section className="page page-wide writing">
-        {work.isError && (
+        {work.isError && !work.data && (
           <div className="writing-failure" role="alert">
             <p>{strings.writing.workLoadFailed}</p>
             <button
@@ -124,7 +150,7 @@ export function WritingScreen({
             </button>
           </div>
         )}
-        {started && chapters.isError && (
+        {started && chapters.isError && !chapters.data && (
           <div className="writing-failure" role="alert">
             <p>{strings.writing.loadFailed}</p>
             <button
@@ -138,15 +164,10 @@ export function WritingScreen({
             </button>
           </div>
         )}
-        {started && chapters.isSuccess && (
+        {started && chapters.data && (
           <div className="writing-columns">
             <nav className="writing-chapters" aria-label={strings.writing.chapters}>
               {list.length === 0 && <p className="writing-note">{strings.writing.noChapters}</p>}
-              {dirty && (
-                <p className="writing-note" role="status">
-                  {strings.writing.editingElsewhere}
-                </p>
-              )}
               {groups.map((group, at) => (
                 <section key={`${group.episode?.id ?? 'none'}-${String(at)}`}>
                   <h3>{group.episode?.name ?? strings.writing.noEpisode}</h3>
@@ -160,9 +181,13 @@ export function WritingScreen({
                             className="writing-chapter"
                             data-status={status}
                             aria-current={selected?.id === chapter.id ? 'true' : undefined}
-                            disabled={dirty && selected?.id !== chapter.id}
                             onClick={() => {
-                              setChosen(chapter.id)
+                              if (selected?.id === chapter.id) return
+                              const go = () => {
+                                setChosen(chapter.id)
+                              }
+                              if (dirty) ask(go)
+                              else go()
                             }}
                           >
                             <span>{strings.writing.chapterName(chapter.number)}</span>
@@ -188,11 +213,26 @@ export function WritingScreen({
                   setDismissed((old) => new Set(old).add(jobId))
                 }}
                 onDirty={setDirty}
+                onBusy={setPanelBusy}
               />
             )}
           </div>
         )}
       </section>
+      {leaving && (
+        <LeaveEditDialog
+          onStay={() => {
+            setLeaving(null)
+          }}
+          onLeave={() => {
+            setLeaving(null)
+            setDirty(false)
+            // The page's own guard is gone with the edits: the way out goes through.
+            guardLeaving(null)
+            leaving()
+          }}
+        />
+      )}
     </article>
   )
 }

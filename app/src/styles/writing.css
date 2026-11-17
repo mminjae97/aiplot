@@ -38,10 +38,6 @@
   grid-area: chapters;
 }
 
-.writing-chapter:disabled {
-  opacity: 0.5;
-}
-
 /* Warnings, then the picked beat's versions (§10: right warnings + versions). */
 .writing-side {
   display: flex;
@@ -202,7 +198,7 @@
 }
 
 /* Not checked yet (§10: dim until beat_checked); the margin says so in words too. */
-.ms-beat[data-unchecked] .ms-text {
+.ms-beat[data-unchecked] .ms-text:not(.ms-editing) {
   opacity: 0.6;
 }
 

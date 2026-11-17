@@ -72,7 +72,8 @@ export function BeatEditor({ order, text, saving, error, onSave, onCancel, onDir
 
   const chars = countChars(current)
   const blank = current.trim() === ''
-  const tooLong = chars > MAX_BEAT_CHARS
+  // The server's limit counts every character, line breaks too (the count shown leaves them out).
+  const tooLong = Array.from(current).length > MAX_BEAT_CHARS
   const dirty = current !== text
   const savable = !blank && !tooLong
   // Said once there is something to say: a beat not written yet opens blank.
@@ -93,6 +94,8 @@ export function BeatEditor({ order, text, saving, error, onSave, onCancel, onDir
     <div
       className="beat-editor"
       onKeyDown={(event) => {
+        // A Hangul syllable being composed keeps its keys.
+        if (event.nativeEvent.isComposing) return
         if (event.ctrlKey && !event.altKey && !event.shiftKey && event.code === 'KeyS') {
           event.preventDefault()
           save()
@@ -107,9 +110,7 @@ export function BeatEditor({ order, text, saving, error, onSave, onCancel, onDir
     >
       <EditorContent editor={editor} />
       <div className="beat-editor-bar">
-        <small className="beat-editor-count" aria-live="polite">
-          {strings.writing.editChars(chars)}
-        </small>
+        <small className="beat-editor-count">{strings.writing.editChars(chars)}</small>
         <small>{strings.writing.editKeys}</small>
       </div>
       {(problem !== null || error !== null) && (

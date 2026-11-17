@@ -28,14 +28,25 @@ export function recheckedBeats(chapter: Chapter, jobs: readonly Job[]): Readonly
   const ids = new Set(chapter.beats.map((beat) => beat.id))
   const found = new Set<string>()
   for (const job of jobs) {
-    const beatId = /^recheck:([^:]+):/.exec(job.key ?? '')?.[1]
-    if (beatId !== undefined && ids.has(beatId) && isJobActive(job)) found.add(beatId)
+    const beatId = recheckBeatOf(job)
+    if (beatId !== null && ids.has(beatId) && isJobActive(job)) found.add(beatId)
   }
   return found
 }
 
 /** The most a beat's text may hold (§16 PUT /beats/{beatId}/text). */
 export const MAX_BEAT_CHARS = 20000
+
+/** The beat a `recheck` job checks (§16 recheck:{beatId}:{version}), null for other jobs. */
+export function recheckBeatOf(job: Job): string | null {
+  return /^recheck:([^:]+):/.exec(job.key ?? '')?.[1] ?? null
+}
+
+/** The newest job that checked one of the chapter's beats again, whatever came of it. */
+export function latestRecheckOf(chapter: Chapter, jobs: readonly Job[]): Job | null {
+  const ids = new Set(chapter.beats.map((beat) => beat.id))
+  return jobs.find((job) => ids.has(recheckBeatOf(job) ?? '')) ?? null
+}
 
 /** Characters incl. spaces, as the server counts them (§6, §16): line breaks not counted. */
 export function countChars(text: string): number {

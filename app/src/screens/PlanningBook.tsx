@@ -1,5 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  type CSSProperties,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { api } from '../api/client'
 import { bookStyle } from '../components/BookFront'
 import { colorOf } from '../components/bookColor'
@@ -30,6 +37,9 @@ export type PageProps<S extends PlanningScreen> = {
   screen: S
   turn: (screen: PlanningScreen) => void
   onBusy: (busy: boolean) => void
+  /** A page holding work not saved yet asks before the book leaves it: `guard(go)` is called
+   * in place of leaving and calls `go` if the reader lets it go. Null when nothing is held. */
+  guardLeaving: (guard: ((go: () => void) => void) | null) => void
 }
 
 type Props = { screen: PlanningScreen }
@@ -57,7 +67,21 @@ export function PlanningBook({ screen }: Props) {
     before: Picture
     notes: CarriedNotes
   } | null>(null)
+  // Every way out of the page (turns, links, the library) asks the page's guard first.
+  const guard = useRef<((go: () => void) => void) | null>(null)
+  const guardLeaving = useCallback((next: ((go: () => void) => void) | null) => {
+    guard.current = next
+  }, [])
+  const leave = (go: () => void) => {
+    if (guard.current) guard.current(go)
+    else go()
+  }
   const turnPage = (target: PlanningScreen) => {
+    leave(() => {
+      turnNow(target)
+    })
+  }
+  const turnNow = (target: PlanningScreen) => {
     const to = pages.findIndex((item) => samePage(item, pageOf(target, steps)))
     const book = bookRef.current
     const spread = book?.querySelector<HTMLElement>(':scope > .spread')
@@ -144,14 +168,24 @@ export function PlanningBook({ screen }: Props) {
     }
   })
 
-  const pageProps = { turn: open, onBusy: setBusy }
+  const pageProps = {
+    turn: (target: PlanningScreen) => {
+      leave(() => {
+        open(target)
+      })
+    },
+    onBusy: setBusy,
+    guardLeaving,
+  }
   const openSection = SECTIONS.indexOf(screen.name)
 
   return (
     <>
       <TopBar
         onBack={() => {
-          open({ name: 'library' })
+          leave(() => {
+            open({ name: 'library' })
+          })
         }}
         backDisabled={busy}
         title={work.data?.title}
