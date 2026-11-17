@@ -2,12 +2,24 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
 import { ApiRequestError, api } from '../api/client'
 import { strings } from '../strings'
-import type { Chapter, Job, Warning } from '../types'
+import type { BeatSaved, Chapter, Job, Warning } from '../types'
+import { BeatEditor } from './BeatEditor'
+import { CompletionSummary } from './CompletionSummary'
 import { ConsistencyWarning } from './ConsistencyWarning'
 import { remaining } from './GenerationProgress'
 import { ManuscriptEditor } from './ManuscriptEditor'
+import { focusWhenFree } from './useModalKeys'
 import { useWritingStream } from './useWritingStream'
-import { activeJob, latestJobOf } from './writingModel'
+import { VersionHistory } from './VersionHistory'
+import {
+  activeJob,
+  latestJobOf,
+  recheckBeatOf,
+  owedRecheck,
+  recheckedBeats,
+  type WritingResult,
+  writingResult,
+} from './writingModel'
 
 type Props = {
   workId: string
@@ -19,6 +31,10 @@ type Props = {
   /** Failed jobs the reader closed; kept above the panel so they stay closed on return. */
   dismissed: ReadonlySet<string>
   onDismiss: (jobId: string) => void
+  /** Whether a beat holds edits not saved yet (the page asks before leaving them). */
+  onDirty: (dirty: boolean) => void
+  /** Whether a dialog of the panel is open (the book then takes no input). */
+  onBusy: (busy: boolean) => void
 }
 
 /** Typing in a field: the page's shortcuts stay out of it. */
@@ -47,11 +63,26 @@ export function ChapterPanel({
   names,
   dismissed,
   onDismiss,
+  onDirty,
+  onBusy,
 }: Props) {
   const queryClient = useQueryClient()
   const [selectedBeat, setSelectedBeat] = useState<string | null>(null)
   const [focused, setFocused] = useState<Warning | null>(null)
   const [pauseAsked, setPauseAsked] = useState<string | null>(null)
+  const [editing, setEditing] = useState<string | null>(null)
+  const [summary, setSummary] = useState<WritingResult | null>(null)
+  useEffect(() => {
+    onBusy(summary !== null)
+  }, [onBusy, summary])
+  // Gone (another chapter, or the list could not be read): neither busy nor holding edits.
+  useEffect(
+    () => () => {
+      onBusy(false)
+      onDirty(false)
+    },
+    [onBusy, onDirty],
+  )
 
   const text = useQuery({
     queryKey: ['chapter', chapter.id],
@@ -68,20 +99,40 @@ export function ChapterPanel({
       void queryClient.invalidateQueries({ queryKey: ['chapter', chapter.id] })
       void queryClient.invalidateQueries({ queryKey: ['warnings', chapter.id] })
       void queryClient.invalidateQueries({ queryKey: ['chapters', workId] })
+      void queryClient.invalidateQueries({ queryKey: ['versions'] })
       if (jobChanged) void queryClient.invalidateQueries({ queryKey: ['jobs', workId] })
     },
     [chapter.id, queryClient, workId],
   )
-  const { streamed, progress } = useWritingStream(job?.jobId ?? null, refresh)
+  // The job this panel just started: streamed at once, also when it ends before the job list
+  // ever shows it running (a short job, or a chapter with one beat left).
+  const [launched, setLaunched] = useState<{ jobId: string; kind: string } | null>(null)
+  const { streamed, progress } = useWritingStream(
+    job?.jobId ?? launched?.jobId ?? null,
+    refresh,
+    (jobId, data) => {
+      // The chapter's own job, seen to its end here (a beat written again ends quietly).
+      const kind =
+        jobs.find((found) => found.jobId === jobId)?.kind ??
+        (launched?.jobId === jobId ? launched.kind : null)
+      if (kind !== 'chapter') return
+      const result = writingResult(data)
+      if (result) setSummary(result)
+    },
+  )
+  const rechecking = recheckedBeats(chapter, jobs)
 
-  const started = () => queryClient.invalidateQueries({ queryKey: ['jobs', workId] })
+  const started = (kind: string) => (accepted: { jobId: string }) => {
+    setLaunched({ jobId: accepted.jobId, kind })
+    return queryClient.invalidateQueries({ queryKey: ['jobs', workId] })
+  }
   const generate = useMutation({
     mutationFn: () => api.generateChapter(chapter.id),
-    onSuccess: started,
+    onSuccess: started('chapter'),
   })
   const regenerate = useMutation({
     mutationFn: (beatId: string) => api.regenerateBeat(beatId),
-    onSuccess: started,
+    onSuccess: started('beat'),
   })
   const pause = useMutation({
     mutationFn: (jobId: string) => api.pauseJob(jobId),
@@ -92,19 +143,53 @@ export function ChapterPanel({
     onError: () => {
       setPauseAsked(null)
     },
-    onSettled: started,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['jobs', workId] }),
   })
   const resume = useMutation({
     mutationFn: (jobId: string) => api.resumeJob(jobId),
     onMutate: () => {
       setPauseAsked(null)
     },
-    onSettled: started,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['jobs', workId] }),
   })
   const stop = useMutation({
     mutationFn: (jobId: string) => api.cancelJob(jobId),
     onSettled: () => {
       refresh(true)
+    },
+  })
+
+  // The focus goes back to the beat's margin button once the editor is gone.
+  const stopEditing = useCallback(() => {
+    const beatId = editing
+    setEditing(null)
+    onDirty(false)
+    if (beatId === null) return
+    focusWhenFree(() =>
+      document.querySelector(`.ms-beat[data-beat='${CSS.escape(beatId)}'] .ms-mark`),
+    )
+  }, [editing, onDirty])
+  // A new version: its text and warnings again, and the recheck job that checks it (§16).
+  const stored = useCallback(
+    (_beatId: string, saved: BeatSaved) => {
+      refresh(saved.jobId !== null)
+    },
+    [refresh],
+  )
+  const save = useMutation({
+    mutationFn: ({ beatId, text: edited }: { beatId: string; text: string }) =>
+      api.saveBeatText(beatId, edited),
+    onSuccess: (saved, { beatId }) => {
+      stopEditing()
+      stored(beatId, saved)
+    },
+  })
+  // The current text saved again: unchecked, it gets a new recheck job (§16).
+  const recheckAgain = useMutation({
+    mutationFn: ({ beatId, text: same }: { beatId: string; text: string }) =>
+      api.saveBeatText(beatId, same),
+    onSuccess: (saved, { beatId }) => {
+      stored(beatId, saved)
     },
   })
 
@@ -120,7 +205,31 @@ export function ChapterPanel({
   // Paused, or asked to stop at the next beat: either way 계속 takes it back (§16).
   const held = job !== null && (paused || pauseAsked === job.jobId)
   const canRegenerate =
-    job === null && selectedBeat !== null && written.has(selectedBeat) && !regenerate.isPending
+    job === null &&
+    editing === null &&
+    selectedBeat !== null &&
+    written.has(selectedBeat) &&
+    !regenerate.isPending
+  // Any beat, written or not (§16: a beat without text may be written by hand), while no job
+  // writes the chapter (else 409 BEAT_BUSY), and from its current text: not while that is still
+  // read (after a save or a restore the editor would open on the version before).
+  const canEdit =
+    job === null &&
+    editing === null &&
+    !regenerate.isPending &&
+    !generate.isPending &&
+    text.isSuccess &&
+    !text.isFetching
+
+  const edit = useCallback(
+    (beatId: string) => {
+      if (!canEdit) return
+      save.reset()
+      setSelectedBeat(beatId)
+      setEditing(beatId)
+    },
+    [canEdit, save],
+  )
 
   const togglePause = useCallback(() => {
     if (!job || !pausable || pause.isPending || resume.isPending) return
@@ -130,19 +239,20 @@ export function ChapterPanel({
 
   const rewrite = useCallback(
     (beatId: string) => {
-      if (job !== null || regenerate.isPending) return
+      if (job !== null || editing !== null || regenerate.isPending) return
       generate.reset()
       setSelectedBeat(beatId)
       regenerate.mutate(beatId)
     },
-    [generate, job, regenerate],
+    [editing, generate, job, regenerate],
   )
 
   // Ctrl+. pauses or resumes, Ctrl+Shift+R writes the picked beat again (§12 shortcuts).
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (!event.ctrlKey || event.altKey || event.metaKey || event.repeat) return
-      if (typing(event.target)) return
+      // Not under a dialog, nor while typing.
+      if (summary !== null || typing(event.target)) return
       if (event.key === '.' && !event.shiftKey) {
         event.preventDefault()
         togglePause()
@@ -155,15 +265,28 @@ export function ChapterPanel({
     return () => {
       window.removeEventListener('keydown', onKey)
     }
-  }, [canRegenerate, rewrite, selectedBeat, togglePause])
+  }, [canRegenerate, rewrite, selectedBeat, summary, togglePause])
 
+  // The newest job that failed and was not closed: one writing the chapter, or one checking a
+  // saved beat again (that beat stays unchecked: a save of its text checks it again, §16).
   const latest = latestJobOf(chapter, jobs)
-  const jobFailure =
-    latest?.status === 'failed' && !dismissed.has(latest.jobId)
-      ? errorText(latest.error?.code, strings.writing.failed)
-      : null
+  const failedJob =
+    (latest?.status === 'failed' && !dismissed.has(latest.jobId) ? latest : null) ??
+    owedRecheck(jobs, text.data?.beats, dismissed)
+  const failedBeat = failedJob?.kind === 'recheck' ? recheckBeatOf(failedJob) : null
+  const failedText = text.data?.beats.find((beat) => beat.id === failedBeat)?.text ?? null
+  const jobFailure = !failedJob
+    ? null
+    : failedJob.kind === 'recheck'
+      ? `${strings.writing.recheckFailed} ${errorText(failedJob.error?.code, '')}`.trim()
+      : errorText(failedJob.error?.code, strings.writing.failed)
   const actionError =
-    generate.error ?? regenerate.error ?? pause.error ?? resume.error ?? stop.error
+    generate.error ??
+    regenerate.error ??
+    pause.error ??
+    resume.error ??
+    stop.error ??
+    recheckAgain.error
   const notice = actionError ? failureOf(actionError, strings.writing.failed) : jobFailure
 
   const status = (() => {
@@ -198,7 +321,7 @@ export function ChapterPanel({
               type="button"
               className="paper-button"
               data-primary=""
-              disabled={generate.isPending}
+              disabled={generate.isPending || editing !== null}
               onClick={() => {
                 regenerate.reset()
                 generate.mutate()
@@ -238,6 +361,17 @@ export function ChapterPanel({
           >
             {strings.writing.regenerate}
           </button>
+          <button
+            type="button"
+            className="paper-button"
+            disabled={!canEdit || selectedBeat === null}
+            title={selectedBeat === null ? strings.writing.editHint : undefined}
+            onClick={() => {
+              if (selectedBeat !== null) edit(selectedBeat)
+            }}
+          >
+            {strings.writing.edit}
+          </button>
         </div>
         {job && (
           <div className="writing-progress" role="status">
@@ -259,6 +393,18 @@ export function ChapterPanel({
         {notice && (
           <div className="writing-failure" role="alert">
             <p>{notice}</p>
+            {!actionError && failedBeat !== null && failedText !== null && (
+              <button
+                type="button"
+                className="paper-button"
+                disabled={recheckAgain.isPending || job !== null}
+                onClick={() => {
+                  recheckAgain.mutate({ beatId: failedBeat, text: failedText })
+                }}
+              >
+                {strings.writing.recheckAgain}
+              </button>
+            )}
             <button
               type="button"
               className="paper-button"
@@ -268,14 +414,15 @@ export function ChapterPanel({
                 pause.reset()
                 resume.reset()
                 stop.reset()
-                if (latest) onDismiss(latest.jobId)
+                recheckAgain.reset()
+                if (failedJob) onDismiss(failedJob.jobId)
               }}
             >
               {strings.writing.dismiss}
             </button>
           </div>
         )}
-        {text.isError ? (
+        {text.isError && !text.data ? (
           <div className="writing-failure" role="alert">
             <p>{strings.writing.loadFailed}</p>
             <button
@@ -297,36 +444,74 @@ export function ChapterPanel({
             selectedBeat={selectedBeat}
             onSelectBeat={setSelectedBeat}
             focused={focused}
+            rechecking={rechecking}
+            editing={editing}
+            editor={
+              editing !== null && (
+                <BeatEditor
+                  key={editing}
+                  order={chapter.beats.find((beat) => beat.id === editing)?.order ?? 0}
+                  text={text.data?.beats.find((beat) => beat.id === editing)?.text ?? ''}
+                  saving={save.isPending}
+                  error={save.error ? failureOf(save.error, strings.writing.saveFailed) : null}
+                  onSave={(edited) => {
+                    save.mutate({ beatId: editing, text: edited })
+                  }}
+                  onCancel={stopEditing}
+                  onDirty={onDirty}
+                />
+              )
+            }
+            onEditBeat={canEdit ? edit : null}
           />
         )}
         <p className="writing-note">{strings.writing.shortcuts}</p>
       </div>
-      {warnings.isError ? (
-        <aside className="warnings" aria-label={strings.writing.warningsTitle}>
-          <p className="writing-failure">{strings.writing.warningsLoadFailed}</p>
-          <button
-            type="button"
-            className="paper-button"
-            onClick={() => {
-              void warnings.refetch()
+      <div className="writing-side">
+        {warnings.isError ? (
+          <aside className="warnings" aria-label={strings.writing.warningsTitle}>
+            <p className="writing-failure">{strings.writing.warningsLoadFailed}</p>
+            <button
+              type="button"
+              className="paper-button"
+              onClick={() => {
+                void warnings.refetch()
+              }}
+            >
+              {strings.writing.retry}
+            </button>
+          </aside>
+        ) : (
+          <ConsistencyWarning
+            chapter={chapter}
+            text={text.data}
+            warnings={warnings.data?.warnings ?? []}
+            names={names}
+            busy={job !== null || editing !== null || regenerate.isPending}
+            focused={focused}
+            onFocus={(warning) => {
+              setFocused(warning)
+              setSelectedBeat(warning.beat_id)
             }}
-          >
-            {strings.writing.retry}
-          </button>
-        </aside>
-      ) : (
-        <ConsistencyWarning
-          chapter={chapter}
-          text={text.data}
-          warnings={warnings.data?.warnings ?? []}
-          names={names}
-          busy={job !== null || regenerate.isPending}
-          focused={focused}
-          onFocus={(warning) => {
-            setFocused(warning)
-            setSelectedBeat(warning.beat_id)
+            onSuggest={rewrite}
+          />
+        )}
+        <VersionHistory
+          key={selectedBeat ?? ''}
+          beat={chapter.beats.find((beat) => beat.id === selectedBeat) ?? null}
+          busy={job !== null || editing !== null}
+          onRestored={stored}
+        />
+      </div>
+      {summary && (
+        <CompletionSummary
+          chapterNumber={chapter.number}
+          result={summary}
+          chars={chapter.chars}
+          target={chapter.target_chars}
+          onClose={() => {
+            setSummary(null)
           }}
-          onSuggest={rewrite}
         />
       )}
     </>

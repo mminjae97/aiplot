@@ -12,6 +12,14 @@ afterEach(() => {
 // jsdom has no layout: scrolling into view is a no-op there (node tests have no DOM).
 if (typeof Element !== 'undefined') Element.prototype.scrollIntoView = () => undefined
 
+// ProseMirror (TipTap) measures ranges to scroll the selection into view; jsdom's have no
+// layout methods.
+if (typeof Range !== 'undefined') {
+  const empty = () => new DOMRect()
+  Range.prototype.getBoundingClientRect = empty
+  Range.prototype.getClientRects = () => Object.assign([], { item: () => null })
+}
+
 // React Flow measures its pane and nodes; jsdom has no ResizeObserver or DOMMatrix.
 if (typeof window !== 'undefined') {
   ;(window as { ResizeObserver?: unknown }).ResizeObserver ??= class {

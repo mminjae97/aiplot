@@ -1,7 +1,7 @@
 // The S3-1 writing page's state in plain functions (§10, §16): which job writes what, how a
 // chapter stands, a beat's text cut at its warned sentences, and the text a job streams.
 import { strings } from '../strings'
-import type { Chapter, EpisodeCard, Job, SentenceSpan, Warning } from '../types'
+import type { BeatText, Chapter, EpisodeCard, Job, SentenceSpan, Warning } from '../types'
 import { isJobActive } from './directionEpisodes'
 
 /** The job key of a chapter's writing job (§16, the server's writing.start_chapter). */
@@ -20,6 +20,73 @@ export function jobsOf(chapter: Chapter, jobs: readonly Job[]): Job[] {
 export function activeJob(chapter: Chapter, jobs: readonly Job[]): Job | null {
   const active = jobsOf(chapter, jobs).filter(isJobActive)
   return active.find((job) => job.status !== 'queued') ?? active[0] ?? null
+}
+
+/** The chapter's beats a `recheck` job checks now or will (§16: recheck:{beatId}:{version},
+ * after a save or a restore). */
+export function recheckedBeats(chapter: Chapter, jobs: readonly Job[]): ReadonlySet<string> {
+  const ids = new Set(chapter.beats.map((beat) => beat.id))
+  const found = new Set<string>()
+  for (const job of jobs) {
+    const beatId = recheckBeatOf(job)
+    if (beatId !== null && ids.has(beatId) && isJobActive(job)) found.add(beatId)
+  }
+  return found
+}
+
+/** The most a beat's text may hold (§16 PUT /beats/{beatId}/text). */
+export const MAX_BEAT_CHARS = 20000
+
+/** The beat a `recheck` job checks (§16 recheck:{beatId}:{version}), null for other jobs. */
+export function recheckBeatOf(job: Job): string | null {
+  return /^recheck:([^:]+):/.exec(job.key ?? '')?.[1] ?? null
+}
+
+/** The version a `recheck` job checks, null for other jobs. */
+export function recheckVersionOf(job: Job): number | null {
+  const version = /^recheck:[^:]+:(\d+)$/.exec(job.key ?? '')?.[1]
+  return version === undefined ? null : Number(version)
+}
+
+/** The newest failed recheck job (not closed) that is still owed: the version it failed on is
+ * its beat's current one, unchecked. A later save, rewrite or a check stored before the
+ * summaries failed settles it. Only the newest job of each key counts: a retry (the same text
+ * saved again) running or failed in its turn stands for the attempts before it. `jobs` newest
+ * first; `beats` = the chapter's text, so other chapters' jobs drop out. */
+export function owedRecheck(
+  jobs: readonly Job[],
+  beats: readonly BeatText[] | undefined,
+  closed: ReadonlySet<string>,
+): Job | null {
+  const current = new Map((beats ?? []).map((beat) => [beat.id, beat]))
+  const seen = new Set<string>()
+  return (
+    jobs.find((job) => {
+      if (job.key === null || recheckBeatOf(job) === null || seen.has(job.key)) return false
+      seen.add(job.key)
+      if (job.status !== 'failed' || closed.has(job.jobId)) return false
+      const beat = current.get(recheckBeatOf(job) ?? '')
+      return beat !== undefined && beat.version === recheckVersionOf(job) && beat.checked === false
+    }) ?? null
+  )
+}
+
+/** Characters incl. spaces, as the server counts them (§6, §16): line breaks not counted. */
+export function countChars(text: string): number {
+  return Array.from(text.replace(/\r|\n/g, '')).length
+}
+
+/** What a writing job ended with (§16: {chars, warnings, elapsedSec}). */
+export type WritingResult = { chars: number; warnings: number; elapsedSec: number }
+
+export function writingResult(data: unknown): WritingResult | null {
+  if (typeof data !== 'object' || data === null || !('result' in data)) return null
+  const result = data.result
+  if (typeof result !== 'object' || result === null) return null
+  const { chars, warnings, elapsedSec } = result as Record<string, unknown>
+  return typeof chars === 'number' && typeof warnings === 'number' && typeof elapsedSec === 'number'
+    ? { chars, warnings, elapsedSec }
+    : null
 }
 
 /** The newest job that wrote into the chapter, whatever came of it. */

@@ -14,10 +14,12 @@ const STORES = new Set(['beat_done', 'beat_checked', 'paused', 'resumed'])
 /** A writing job's events (§16), replayed from its start when the page comes back to it: the
  * text streamed so far, its progress, and a call when events changed stored data (a beat
  * stored or checked; `jobChanged` when the job paused, resumed or ended) so the page reads it
- * again. The events of one read (a replay brings many at once) make one call. */
+ * again. The events of one read (a replay brings many at once) make one call. `onDone` gets
+ * the job's result when the stream ends with `done`. */
 export function useWritingStream(
   jobId: string | null,
   onStored: (jobChanged: boolean) => void,
+  onDone?: (jobId: string, data: unknown) => void,
 ): { streamed: Streamed; progress: JobProgressEvent | null } {
   const [state, setState] = useState<{
     jobId: string
@@ -25,8 +27,10 @@ export function useWritingStream(
     progress: JobProgressEvent | null
   } | null>(null)
   const stored = useRef(onStored)
+  const done = useRef(onDone)
   useEffect(() => {
     stored.current = onStored
+    done.current = onDone
   })
 
   useEffect(() => {
@@ -73,6 +77,7 @@ export function useWritingStream(
                 }
               })
               const ends = FINAL_EVENTS.has(event.type)
+              if (event.type === 'done') done.current?.(jobId, event.data)
               if (STORES.has(event.type) || ends) {
                 const jobChanged = ends || event.type === 'paused' || event.type === 'resumed'
                 if (owed === null) setTimeout(flush, 0)

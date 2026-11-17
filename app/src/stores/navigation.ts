@@ -39,12 +39,15 @@ interface NavigationStore {
   setupPending: boolean
   // A card drawer is open: leaving its page would drop the draft unasked (§8).
   drawerOpen: boolean
+  // A beat on the writing page holds edits not saved yet: likewise (§6, §10 S3-1).
+  editHeld: boolean
   open: (screen: Screen) => void
   /** /health just entered a setup state (llama/model missing, llama error). */
   setupFailed: () => void
   /** llama left the setup state: nothing waits for the library any more. */
   setupRecovered: () => void
   setDrawerOpen: (open: boolean) => void
+  setEditHeld: (held: boolean) => void
 }
 
 const SETUP: Screen = { name: 'setup' }
@@ -54,6 +57,7 @@ export const useNavigation = create<NavigationStore>((set, get) => ({
   highlight: null,
   setupPending: false,
   drawerOpen: false,
+  editHeld: false,
   open: (target) => {
     set((store) => {
       const screen = target.name === 'library' && store.setupPending ? SETUP : target
@@ -80,5 +84,8 @@ export const useNavigation = create<NavigationStore>((set, get) => ({
   },
   setDrawerOpen: (drawerOpen) => {
     set({ drawerOpen })
+  },
+  setEditHeld: (editHeld) => {
+    set({ editHeld })
   },
 }))

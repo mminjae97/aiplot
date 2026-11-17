@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { type ReactNode, useEffect, useRef } from 'react'
 import { strings } from '../strings'
 import type { Chapter, ChapterText, Warning } from '../types'
 import { liveText, segments, type Streamed } from './writingModel'
@@ -13,12 +13,19 @@ type Props = {
   onSelectBeat: (beatId: string) => void
   /** A warning the reader picked in the list: its sentence is brought into view. */
   focused: Warning | null
+  /** Beats a recheck job checks again (after a save or a restore). */
+  rechecking: ReadonlySet<string>
+  /** The beat being edited, shown as `editor` in place of its text. */
+  editing: string | null
+  editor: ReactNode
+  /** A double click on a beat edits it, when it may be edited now. */
+  onEditBeat: ((beatId: string) => void) | null
 }
 
-/** The chapter's manuscript (§10 S3-1), read-only until editing comes: each beat's text in
- * order, the beat a job writes streaming in, unchecked beats dimmed until their check is over,
- * warned sentences underlined with a mark in the margin. A beat is picked by its margin number
- * or a click on its text. */
+/** The chapter's manuscript (§10 S3-1): each beat's text in order, the beat a job writes
+ * streaming in, unchecked beats dimmed until their check is over, warned sentences underlined
+ * with a mark in the margin. A beat is picked by its margin number or a click on its text, and
+ * edited one at a time in TipTap (a double click, or the toolbar). */
 export function ManuscriptEditor({
   chapter,
   text,
@@ -27,6 +34,10 @@ export function ManuscriptEditor({
   selectedBeat,
   onSelectBeat,
   focused,
+  rechecking,
+  editing,
+  editor,
+  onEditBeat,
 }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const stored = new Map((text?.beats ?? []).map((beat) => [beat.id, beat]))
@@ -50,7 +61,8 @@ export function ManuscriptEditor({
         const own = warnings.filter((w) => w.beat_id === beat.id && w.status === 'open')
         // Checked by the job now, or left unchecked by one that stopped (§10: until the beat
         // is written again).
-        const checking = live !== null || streamed.checking.includes(beat.id)
+        const checking =
+          live !== null || streamed.checking.includes(beat.id) || rechecking.has(beat.id)
         const unchecked = checking || saved?.checked === false
         const selected = selectedBeat === beat.id
         return (
@@ -64,6 +76,9 @@ export function ManuscriptEditor({
             aria-label={strings.writing.beat(beat.order)}
             onClick={() => {
               onSelectBeat(beat.id)
+            }}
+            onDoubleClick={() => {
+              if (onEditBeat && beat.id !== editing && live === null) onEditBeat(beat.id)
             }}
           >
             <button
@@ -94,7 +109,9 @@ export function ManuscriptEditor({
                 </small>
               )}
             </button>
-            {shown === null ? (
+            {beat.id === editing ? (
+              editor
+            ) : shown === null ? (
               <p className="ms-unwritten">
                 <span>{strings.writing.unwritten}</span> {beat.summary}
               </p>
