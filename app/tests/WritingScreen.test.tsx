@@ -146,6 +146,23 @@ function job(status: Job['status'], extra: Partial<Job> = {}): Job {
   }
 }
 
+// The text beat 1 had before its current one (version 1 of 2).
+const OLDER = '테오는 배에서 뛰어내렸다. 미라가 웃었다.'
+
+function version(n: number, text: string, origin: 'generated' | 'edited', checked = true) {
+  return {
+    version: n,
+    text,
+    chars: text.length,
+    origin,
+    checked,
+    created_at: '2026-11-17T05:00:00Z',
+  }
+}
+
+// The job a save or a restore of beat 1 starts (§16 recheck:{beatId}:{version}).
+const RECHECK = job('running', { jobId: 'job_3', kind: 'recheck', key: 'recheck:b_1:2' })
+
 type World = {
   work?: Work
   // The chapters once POST .../generate has run (the job is over at once).
@@ -198,6 +215,18 @@ function mockServer(state: World) {
       if (method === 'POST' && path.startsWith('/beats/') && path.endsWith('/regenerate')) {
         world.jobs = [job('running', { jobId: 'job_2', kind: 'beat', key: 'beat:b_1' })]
         return json({ jobId: 'job_2' }, 202)
+      }
+      if (method === 'PUT' && path === '/beats/b_1/text') {
+        const { text } = JSON.parse(init.body as string) as { text: string }
+        world.jobs = [RECHECK]
+        return json({ version: version(2, text, 'edited', false), jobId: RECHECK.jobId })
+      }
+      if (path === '/beats/b_1/versions') {
+        return json({ versions: [version(1, OLDER, 'generated'), version(2, FIRST, 'edited')] })
+      }
+      if (method === 'POST' && path === '/beats/b_1/versions/1/restore') {
+        world.jobs = [RECHECK]
+        return json({ version: version(3, OLDER, 'edited', false), jobId: RECHECK.jobId })
       }
       if (method === 'PATCH' && path === '/warnings/wr_1') {
         const body = JSON.parse(init.body as string) as {
@@ -480,4 +509,150 @@ test('the chapter being written opens first, even when the jobs answer last', as
   await waitFor(() => {
     expect(second.getAttribute('aria-current')).toBe('true')
   })
+})
+
+/** Types into the TipTap box as a person would reach ProseMirror: its first paragraph's text
+ * changed in the DOM, which the editor reads back. */
+async function retype(box: HTMLElement, text: string) {
+  const paragraph = box.querySelector('p')
+  if (!paragraph) throw new Error('no paragraph')
+  paragraph.textContent = text
+  await waitFor(() => {
+    expect(screen.getByText(strings.writing.editChars(text.length))).toBeTruthy()
+  })
+}
+
+test('a beat is edited in TipTap and saved as its next version, then checked again', async () => {
+  mockServer({ warnings: [WARNING] })
+  renderBook(SCREEN)
+  await screen.findByText(/테오는 배에서 내렸다/)
+  const edit = screen.getByRole('button', { name: strings.writing.edit })
+  // A beat must be picked first.
+  expect((edit as HTMLButtonElement).disabled).toBe(true)
+  fireEvent.click(pick(1))
+  fireEvent.click(edit)
+  const box = await screen.findByRole('textbox', { name: strings.writing.editLabel(1) })
+  expect(box.textContent).toBe(FIRST)
+  // While a beat is edited nothing writes over it, and the reader stays on its chapter.
+  expect(
+    screen.getByRole<HTMLButtonElement>('button', { name: strings.writing.regenerate }).disabled,
+  ).toBe(true)
+  await retype(box, '테오는 배에서 천천히 내렸다.')
+  const list = screen.getByRole('navigation', { name: strings.writing.chapters })
+  expect(within(list).getByRole<HTMLButtonElement>('button', { name: /2화/ }).disabled).toBe(true)
+  expect(screen.getByText(strings.writing.editingElsewhere)).toBeTruthy()
+  fireEvent.keyDown(box, { key: 's', code: 'KeyS', ctrlKey: true })
+  await waitFor(() => {
+    expect(screen.queryByRole('textbox', { name: strings.writing.editLabel(1) })).toBeNull()
+  })
+  const put = calls.find((c) => c.method === 'PUT' && c.path === '/beats/b_1/text')
+  expect(JSON.parse(put?.body ?? '{}')).toEqual({ text: '테오는 배에서 천천히 내렸다.' })
+  // The recheck job the save started: the beat says it is being checked.
+  await waitFor(() => {
+    expect(pick(1).textContent).toContain(strings.writing.unchecked)
+  })
+  expect(within(list).getByRole<HTMLButtonElement>('button', { name: /2화/ }).disabled).toBe(false)
+})
+
+test('Esc leaves an unchanged beat at once and asks before dropping edits', async () => {
+  mockServer({})
+  renderBook(SCREEN)
+  await screen.findByText(/테오는 배에서 내렸다/)
+  fireEvent.doubleClick(screen.getByText(/테오는 배에서 내렸다/))
+  let box = await screen.findByRole('textbox', { name: strings.writing.editLabel(1) })
+  fireEvent.keyDown(box, { key: 'Escape' })
+  await waitFor(() => {
+    expect(screen.queryByRole('textbox')).toBeNull()
+  })
+  fireEvent.doubleClick(screen.getByText(/테오는 배에서 내렸다/))
+  box = await screen.findByRole('textbox', { name: strings.writing.editLabel(1) })
+  await retype(box, '')
+  // Blank: not to be saved.
+  expect(screen.getByText(strings.writing.editEmpty)).toBeTruthy()
+  expect(
+    screen.getByRole<HTMLButtonElement>('button', { name: strings.writing.save }).disabled,
+  ).toBe(true)
+  fireEvent.keyDown(box, { key: 'Escape' })
+  fireEvent.click(await screen.findByRole('button', { name: strings.writing.keepEditing }))
+  expect(screen.getByRole('textbox', { name: strings.writing.editLabel(1) })).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: strings.writing.cancel }))
+  fireEvent.click(await screen.findByRole('button', { name: strings.writing.discard }))
+  await screen.findByText(/테오는 배에서 내렸다/)
+  expect(calls.some((c) => c.method === 'PUT')).toBe(false)
+})
+
+test('a picked beat lists its versions; an earlier one is compared and put back', async () => {
+  mockServer({})
+  renderBook(SCREEN)
+  const versions = await screen.findByRole('region', { name: strings.writing.versions })
+  expect(within(versions).getByText(strings.writing.versionsPick)).toBeTruthy()
+  await screen.findByText(/테오는 배에서 내렸다/)
+  fireEvent.click(pick(1))
+  await within(versions).findByText(strings.writing.versionName(2))
+  expect(within(versions).getByText(strings.writing.current)).toBeTruthy()
+  expect(within(versions).getByText(strings.writing.origins.edited ?? '')).toBeTruthy()
+  // The current version is neither compared nor put back.
+  expect(
+    within(versions).queryByRole('button', { name: `${strings.writing.versionName(2)} 비교` }),
+  ).toBeNull()
+  fireEvent.click(
+    within(versions).getByRole('button', {
+      name: `${strings.writing.versionName(1)} ${strings.writing.compare}`,
+    }),
+  )
+  const diff = within(versions).getByRole('figure')
+  expect(diff.querySelector('.version-diff-text del')?.textContent).toBe('뛰어내렸다.')
+  expect(diff.querySelector('.version-diff-text ins')?.textContent).toBe('내렸다.')
+  fireEvent.click(
+    within(versions).getByRole('button', {
+      name: `${strings.writing.versionName(1)} ${strings.writing.restore}`,
+    }),
+  )
+  await waitFor(() => {
+    expect(
+      calls.some((c) => c.method === 'POST' && c.path === '/beats/b_1/versions/1/restore'),
+    ).toBe(true)
+  })
+  await waitFor(() => {
+    expect(pick(1).textContent).toContain(strings.writing.unchecked)
+  })
+})
+
+test('a chapter written to its end while watched ends with a summary the reader closes', async () => {
+  mockServer({
+    jobs: [job('running')],
+    events: sse([
+      ['beat_start', { beatId: 'b_3' }],
+      ['sentence', { beatId: 'b_3', text: '문이 열렸다.' }],
+      ['beat_done', { beatId: 'b_3', chars: 6, version: 1 }],
+      ['beat_checked', { beatId: 'b_3', warnings: 2 }],
+      ['done', { result: { chars: 1800, warnings: 2, elapsedSec: 125 } }],
+    ]),
+  })
+  renderBook(SCREEN)
+  const dialog = await screen.findByRole('dialog', { name: strings.writing.summaryTitle(1) })
+  expect(within(dialog).getByText('2분 5초')).toBeTruthy()
+  expect(within(dialog).getByText(strings.writing.editChars(1800))).toBeTruthy()
+  expect(within(dialog).getByText(strings.writing.beatWarnings(2))).toBeTruthy()
+  fireEvent.click(within(dialog).getByRole('button', { name: strings.writing.dismiss }))
+  await waitFor(() => {
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+})
+
+test('a chapter job over before the job list shows it running still ends with its summary', async () => {
+  const done = { ...CH1, beats: CH1.beats.map((b) => ({ ...b, version: 1, chars: 12 })) }
+  mockServer({
+    writtenChapters: [done, CH2],
+    events: sse([
+      ['beat_start', { beatId: 'b_3' }],
+      ['beat_done', { beatId: 'b_3', chars: 6, version: 1 }],
+      ['beat_checked', { beatId: 'b_3', warnings: 0 }],
+      ['done', { result: { chars: 6, warnings: 0, elapsedSec: 4 } }],
+    ]),
+  })
+  renderBook(SCREEN)
+  fireEvent.click(await screen.findByRole('button', { name: strings.writing.resume }))
+  const dialog = await screen.findByRole('dialog', { name: strings.writing.summaryTitle(1) })
+  expect(within(dialog).getByText(strings.writing.summaryNoWarnings)).toBeTruthy()
 })

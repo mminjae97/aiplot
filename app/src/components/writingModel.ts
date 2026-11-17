@@ -22,6 +22,39 @@ export function activeJob(chapter: Chapter, jobs: readonly Job[]): Job | null {
   return active.find((job) => job.status !== 'queued') ?? active[0] ?? null
 }
 
+/** The chapter's beats a `recheck` job checks now or will (§16: recheck:{beatId}:{version},
+ * after a save or a restore). */
+export function recheckedBeats(chapter: Chapter, jobs: readonly Job[]): ReadonlySet<string> {
+  const ids = new Set(chapter.beats.map((beat) => beat.id))
+  const found = new Set<string>()
+  for (const job of jobs) {
+    const beatId = /^recheck:([^:]+):/.exec(job.key ?? '')?.[1]
+    if (beatId !== undefined && ids.has(beatId) && isJobActive(job)) found.add(beatId)
+  }
+  return found
+}
+
+/** The most a beat's text may hold (§16 PUT /beats/{beatId}/text). */
+export const MAX_BEAT_CHARS = 20000
+
+/** Characters incl. spaces, as the server counts them (§6, §16): line breaks not counted. */
+export function countChars(text: string): number {
+  return Array.from(text.replace(/\r|\n/g, '')).length
+}
+
+/** What a writing job ended with (§16: {chars, warnings, elapsedSec}). */
+export type WritingResult = { chars: number; warnings: number; elapsedSec: number }
+
+export function writingResult(data: unknown): WritingResult | null {
+  if (typeof data !== 'object' || data === null || !('result' in data)) return null
+  const result = data.result
+  if (typeof result !== 'object' || result === null) return null
+  const { chars, warnings, elapsedSec } = result as Record<string, unknown>
+  return typeof chars === 'number' && typeof warnings === 'number' && typeof elapsedSec === 'number'
+    ? { chars, warnings, elapsedSec }
+    : null
+}
+
 /** The newest job that wrote into the chapter, whatever came of it. */
 export function latestJobOf(chapter: Chapter, jobs: readonly Job[]): Job | null {
   return jobsOf(chapter, jobs)[0] ?? null

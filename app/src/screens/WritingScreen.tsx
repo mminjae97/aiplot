@@ -27,6 +27,9 @@ export function WritingScreen({
   const [chosen, setChosen] = useState<string | null>(null)
   // Failed jobs the reader closed; here so that going to another chapter keeps them closed.
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set())
+  // A beat holds edits not saved yet: the reader stays on its chapter until they are saved or
+  // dropped (the edits live only in the editor, §6).
+  const [dirty, setDirty] = useState(false)
 
   const work = useQuery({ queryKey: ['works', workId], queryFn: () => api.getWork(workId) })
   const started = (work.data?.stage ?? 1) >= 3
@@ -70,6 +73,7 @@ export function WritingScreen({
     void queryClient.invalidateQueries({ queryKey: ['chapters', workId] })
     void queryClient.invalidateQueries({ queryKey: ['chapter'] })
     void queryClient.invalidateQueries({ queryKey: ['warnings'] })
+    void queryClient.invalidateQueries({ queryKey: ['versions'] })
   }, [jobs.data, queryClient, workId])
 
   const list = chapters.data?.chapters ?? []
@@ -138,6 +142,11 @@ export function WritingScreen({
           <div className="writing-columns">
             <nav className="writing-chapters" aria-label={strings.writing.chapters}>
               {list.length === 0 && <p className="writing-note">{strings.writing.noChapters}</p>}
+              {dirty && (
+                <p className="writing-note" role="status">
+                  {strings.writing.editingElsewhere}
+                </p>
+              )}
               {groups.map((group, at) => (
                 <section key={`${group.episode?.id ?? 'none'}-${String(at)}`}>
                   <h3>{group.episode?.name ?? strings.writing.noEpisode}</h3>
@@ -151,6 +160,7 @@ export function WritingScreen({
                             className="writing-chapter"
                             data-status={status}
                             aria-current={selected?.id === chapter.id ? 'true' : undefined}
+                            disabled={dirty && selected?.id !== chapter.id}
                             onClick={() => {
                               setChosen(chapter.id)
                             }}
@@ -177,6 +187,7 @@ export function WritingScreen({
                 onDismiss={(jobId) => {
                   setDismissed((old) => new Set(old).add(jobId))
                 }}
+                onDirty={setDirty}
               />
             )}
           </div>

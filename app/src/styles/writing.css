@@ -27,7 +27,7 @@
 
 .writing-chapters,
 .writing-center,
-.warnings {
+.writing-side {
   min-height: 0;
   overflow: auto;
   scrollbar-color: var(--ink-faint) transparent;
@@ -36,6 +36,18 @@
 
 .writing-chapters {
   grid-area: chapters;
+}
+
+.writing-chapter:disabled {
+  opacity: 0.5;
+}
+
+/* Warnings, then the picked beat's versions (§10: right warnings + versions). */
+.writing-side {
+  display: flex;
+  grid-area: warnings;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .writing-center {
@@ -48,7 +60,6 @@
 
 .warnings {
   display: flex;
-  grid-area: warnings;
   flex-direction: column;
   gap: 12px;
 }
@@ -341,6 +352,165 @@
 .warning-ignored .warning-item {
   border-left-color: var(--ink-faint);
   opacity: 0.8;
+}
+
+/* A beat in TipTap: the manuscript's type on a sheet a shade lighter, one beat at a time. */
+.beat-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ms-editing {
+  border: 1px solid var(--ink-faint);
+  border-radius: 2px;
+  background: var(--paper);
+  padding: 6px 10px;
+  cursor: text;
+}
+
+.ms-editing:focus {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+}
+
+.ms-editing p {
+  margin: 0;
+  min-height: 1.7em;
+}
+
+.beat-editor-bar {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.beat-editor-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.beat-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: var(--size-body);
+}
+
+.beat-editor-actions p {
+  margin: 0;
+}
+
+.versions h3 {
+  margin: 0 0 6px;
+  font-size: var(--size-lead);
+}
+
+.versions h3 small {
+  color: var(--ink-soft);
+  font-size: var(--size-body);
+  font-weight: 400;
+}
+
+.version-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.version {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-left: 3px solid var(--ink-faint);
+  margin-bottom: 10px;
+  padding: 4px 0 4px 10px;
+}
+
+.version[data-current] {
+  border-left-color: var(--brass);
+}
+
+.version p {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  margin: 0;
+}
+
+.version small {
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.version-current {
+  border: 1px solid var(--brass);
+  border-radius: 2px;
+  padding: 0 4px;
+  font-size: var(--size-small);
+}
+
+.version-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.version-diff {
+  margin: 4px 0 0;
+}
+
+.version-diff figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-bottom: 4px;
+  color: var(--ink-soft);
+  font-size: var(--size-small);
+}
+
+.version-legend {
+  display: flex;
+  gap: 8px;
+}
+
+.version-diff-text {
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+
+/* Dropped words struck through, added ones underlined: the marks carry the meaning, the
+   tints only help (§5). */
+.version-diff del {
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  text-decoration: line-through;
+}
+
+.version-diff ins {
+  background: color-mix(in srgb, var(--brass) 18%, transparent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.completion-summary dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0 0 12px;
+}
+
+.completion-summary dt {
+  color: var(--ink-soft);
+}
+
+.completion-summary dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -2,6 +2,8 @@ import { useServer } from '../stores/server'
 import type {
   ApiError,
   BeatEdit,
+  BeatSaved,
+  BeatVersionList,
   Card,
   ChapterList,
   ChapterText,
@@ -180,6 +182,20 @@ export const api = {
   /** POST .../regenerate (job): the beat written again as a new version. */
   regenerateBeat: (beatId: string) =>
     request<JobAccepted>(`/beats/${encodeURIComponent(beatId)}/regenerate`, { method: 'POST' }),
+  /** PUT .../text: the user's text as the beat's next version; jobId = its recheck job. */
+  saveBeatText: (beatId: string, text: string) =>
+    request<BeatSaved>(`/beats/${encodeURIComponent(beatId)}/text`, {
+      method: 'PUT',
+      body: JSON.stringify({ text }),
+    }),
+  /** The beat's versions, oldest first; the last is the current one. */
+  beatVersions: (beatId: string) =>
+    request<BeatVersionList>(`/beats/${encodeURIComponent(beatId)}/versions`),
+  /** An earlier version's text as the beat's next version, as a save. */
+  restoreVersion: (beatId: string, version: number) =>
+    request<BeatSaved>(`/beats/${encodeURIComponent(beatId)}/versions/${String(version)}/restore`, {
+      method: 'POST',
+    }),
   chapterWarnings: (chapterId: string) =>
     request<WarningList>(`/chapters/${encodeURIComponent(chapterId)}/warnings`),
   /** 무시 with a reason, or the warning opened again. */

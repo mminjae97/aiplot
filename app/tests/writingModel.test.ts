@@ -3,12 +3,15 @@ import {
   activeJob,
   chapterGroups,
   chapterStatus,
+  countChars,
   liveText,
   NOTHING_STREAMED,
+  recheckedBeats,
   segments,
   sentenceText,
   streamed,
   type Streamed,
+  writingResult,
 } from '../src/components/writingModel'
 import type { Chapter, EpisodeCard, Job, Warning } from '../src/types'
 
@@ -149,4 +152,30 @@ test('streamed text builds per beat, starts over on beat_start and ends at the s
   expect(liveText(stopped, 'b_2', null)).toBeNull()
   expect(liveText(stopped, 'b_1', 1)).toBe('다시. 이어서.')
   expect(stopped.checking).toEqual([])
+})
+
+test('a beat being checked again is found by its recheck job while it runs', () => {
+  const ch = chapter('ch_1', 'c_ep1', [2, 1])
+  const recheck = (beatId: string, status: Job['status']) =>
+    job(`recheck:${beatId}:2`, status, `job_${beatId}`)
+  const found = recheckedBeats(ch, [
+    recheck('ch_1_b1', 'running'),
+    recheck('ch_1_b2', 'done'),
+    recheck('ch_9_b1', 'queued'),
+  ])
+  expect([...found]).toEqual(['ch_1_b1'])
+})
+
+test('characters are counted with spaces and without line breaks, emoji as one', () => {
+  expect(countChars('가 나\n\n😀다\r\n')).toBe(5)
+})
+
+test('a writing job ends with its chars, warnings and time; anything else is no result', () => {
+  expect(writingResult({ result: { chars: 10, warnings: 1, elapsedSec: 3.5 } })).toEqual({
+    chars: 10,
+    warnings: 1,
+    elapsedSec: 3.5,
+  })
+  expect(writingResult({ result: { chars: 10 } })).toBeNull()
+  expect(writingResult(null)).toBeNull()
 })
