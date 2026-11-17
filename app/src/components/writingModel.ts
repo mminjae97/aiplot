@@ -42,6 +42,12 @@ export function recheckBeatOf(job: Job): string | null {
   return /^recheck:([^:]+):/.exec(job.key ?? '')?.[1] ?? null
 }
 
+/** The version a `recheck` job checks, null for other jobs. */
+export function recheckVersionOf(job: Job): number | null {
+  const version = /^recheck:[^:]+:(\d+)$/.exec(job.key ?? '')?.[1]
+  return version === undefined ? null : Number(version)
+}
+
 /** The newest job that checked one of the chapter's beats again, whatever came of it. */
 export function latestRecheckOf(chapter: Chapter, jobs: readonly Job[]): Job | null {
   const ids = new Set(chapter.beats.map((beat) => beat.id))

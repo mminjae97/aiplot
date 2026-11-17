@@ -273,7 +273,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
-  useNavigation.setState({ screen: { name: 'library' } })
+  useNavigation.setState({ screen: { name: 'library' }, setupPending: false, editHeld: false })
 })
 
 const SCREEN = { name: 'writing', workId: 'w_1' } as const
@@ -729,25 +729,47 @@ test('no beat is edited while a job writes the chapter', async () => {
   expect(screen.queryByRole('textbox')).toBeNull()
 })
 
-test('a recheck that failed says so and checks the beat again on asking', async () => {
-  mockServer({
-    jobs: [
-      job('failed', {
-        jobId: 'job_3',
-        kind: 'recheck',
-        key: 'recheck:b_1:1',
-        error: { code: 'LLM_UNAVAILABLE', message: 'no' },
-      }),
-    ],
+const failedRecheck = (key: string) =>
+  job('failed', {
+    jobId: 'job_3',
+    kind: 'recheck',
+    key,
+    error: { code: 'LLM_UNAVAILABLE', message: 'no' },
   })
+
+test('a recheck that failed says so and checks the beat again on asking', async () => {
+  // Beat 2's current version 1 is unchecked: the failed check is still owed.
+  mockServer({ jobs: [failedRecheck('recheck:b_2:1')] })
   renderBook(SCREEN)
   const alert = await screen.findByText(new RegExp(strings.writing.recheckFailed))
   expect(alert.textContent).toContain(strings.writing.errors.LLM_UNAVAILABLE)
   fireEvent.click(screen.getByRole('button', { name: strings.writing.recheckAgain }))
   await waitFor(() => {
-    const put = calls.find((c) => c.method === 'PUT' && c.path === '/beats/b_1/text')
-    expect(JSON.parse(put?.body ?? '{}')).toEqual({ text: FIRST })
+    const put = calls.find((c) => c.method === 'PUT' && c.path === '/beats/b_2/text')
+    expect(JSON.parse(put?.body ?? '{}')).toEqual({ text: '안개가 짙다.' })
   })
+})
+
+test('a failed recheck settled since (its version checked or replaced) says nothing', async () => {
+  // Beat 1's version 1 is checked; beat 2 has no version 3.
+  mockServer({ jobs: [failedRecheck('recheck:b_1:1'), failedRecheck('recheck:b_2:3')] })
+  renderBook(SCREEN)
+  await screen.findByText(/테오는 배에서 내렸다/)
+  expect(screen.queryByText(new RegExp(strings.writing.recheckFailed))).toBeNull()
+  expect(screen.queryByRole('button', { name: strings.writing.recheckAgain })).toBeNull()
+})
+
+test('the setup chip waits while a beat holds edits', async () => {
+  mockServer({})
+  useNavigation.setState({ setupPending: true })
+  renderBook(SCREEN)
+  await screen.findByText(/테오는 배에서 내렸다/)
+  fireEvent.doubleClick(screen.getByText(/테오는 배에서 내렸다/))
+  const box = await screen.findByRole('textbox', { name: strings.writing.editLabel(1) })
+  await retype(box, '고친 문장.')
+  fireEvent.click(screen.getByRole('button', { name: strings.setup.chipLlamaFailed }))
+  await screen.findByText(strings.setup.chipAfterEdit)
+  expect(useNavigation.getState().screen).toMatchObject({ name: 'writing' })
 })
 
 test('the summary holds the book: no page turn or shortcut behind it', async () => {

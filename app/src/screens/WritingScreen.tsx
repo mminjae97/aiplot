@@ -5,7 +5,7 @@ import { ChapterPanel } from '../components/ChapterPanel'
 import { LeaveEditDialog } from '../components/LeaveEditDialog'
 import { isJobActive } from '../components/directionEpisodes'
 import { activeJob, chapterGroups, chapterStatus, statusText } from '../components/writingModel'
-import type { PlanningScreen } from '../stores/navigation'
+import { type PlanningScreen, useNavigation } from '../stores/navigation'
 import { strings } from '../strings'
 import type { Card, EpisodeCard } from '../types'
 import type { PageProps } from './PlanningBook'
@@ -39,12 +39,16 @@ export function WritingScreen({
   const ask = useCallback((go: () => void) => {
     setLeaving(() => go)
   }, [])
+  // The top bar's setup chip waits too (it leaves the book, not through the page's guard).
+  const setEditHeld = useNavigation((store) => store.setEditHeld)
   useEffect(() => {
     guardLeaving(dirty ? ask : null)
+    setEditHeld(dirty)
     return () => {
       guardLeaving(null)
+      setEditHeld(false)
     }
-  }, [ask, dirty, guardLeaving])
+  }, [ask, dirty, guardLeaving, setEditHeld])
   // The book takes no input while a dialog of this page is open.
   const busy = leaving !== null || panelBusy
   useEffect(() => {

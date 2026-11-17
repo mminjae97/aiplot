@@ -224,6 +224,7 @@ export const strings = {
     chipFailed: '모델 준비가 멈췄어요',
     chipLlamaFailed: 'AI 모델에 문제가 생겼어요',
     chipAfterDrawer: '서랍을 닫은 뒤 열 수 있어요',
+    chipAfterEdit: '고치는 비트를 저장하거나 버린 뒤 열 수 있어요',
   },
   drawer: {
     kind: {

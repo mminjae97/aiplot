@@ -14,13 +14,16 @@ export function SetupChip() {
   const open = useNavigation((store) => store.open)
   const pending = useNavigation((store) => store.setupPending)
   const drawerOpen = useNavigation((store) => store.drawerOpen)
+  const editHeld = useNavigation((store) => store.editHeld)
+  const held = drawerOpen || editHeld
   const [explained, setExplained] = useState(false)
-  // The words go with the drawer they were about.
-  if (explained && !drawerOpen) setExplained(false)
+  // The words go with the drawer or edit they were about.
+  if (explained && !held) setExplained(false)
   if (screen.name === 'setup') return null
-  // Leaving the book now would drop the drawer's draft (§8): either chip says why it waits.
+  // Leaving the book now would drop the drawer's draft (§8) or a beat's edits (§10): either
+  // chip says why it waits.
   const go = () => {
-    if (drawerOpen) setExplained(true)
+    if (held) setExplained(true)
     else open({ name: 'setup' })
   }
   const chip = (text: string, failed: boolean) => (
@@ -29,13 +32,17 @@ export function SetupChip() {
         type="button"
         className="setup-chip"
         data-failed={failed || undefined}
-        aria-disabled={drawerOpen || undefined}
+        aria-disabled={held || undefined}
         onClick={go}
       >
         {text}
       </button>
       <span className="setup-chip-note" role="status">
-        {explained && drawerOpen ? strings.setup.chipAfterDrawer : ''}
+        {explained && held
+          ? drawerOpen
+            ? strings.setup.chipAfterDrawer
+            : strings.setup.chipAfterEdit
+          : ''}
       </span>
     </>
   )

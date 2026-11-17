@@ -16,6 +16,7 @@ import {
   latestJobOf,
   latestRecheckOf,
   recheckBeatOf,
+  recheckVersionOf,
   recheckedBeats,
   type WritingResult,
   writingResult,
@@ -271,7 +272,15 @@ export function ChapterPanel({
   // saved beat again (that beat stays unchecked: a save of its text checks it again, §16).
   const latest = latestJobOf(chapter, jobs)
   const recheck = latestRecheckOf(chapter, jobs)
-  const failedJob = [latest, recheck].find(
+  // Only while it is still owed: the version it failed on is the beat's current one and is
+  // unchecked (a later save, rewrite or a check stored before the summaries failed settles it).
+  const checked = text.data?.beats.find((beat) => beat.id === (recheck && recheckBeatOf(recheck)))
+  const owed =
+    recheck !== null &&
+    checked !== undefined &&
+    checked.version === recheckVersionOf(recheck) &&
+    checked.checked === false
+  const failedJob = [latest, owed ? recheck : null].find(
     (found) => found?.status === 'failed' && !dismissed.has(found.jobId),
   )
   const failedBeat = failedJob?.kind === 'recheck' ? recheckBeatOf(failedJob) : null
