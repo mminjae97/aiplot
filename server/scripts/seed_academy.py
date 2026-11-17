@@ -376,7 +376,7 @@ CHARACTERS: list[dict[str, Any]] = [
         notes=[
             "에른은 하이델 백작가의 후계자였다.",
             "아버지에게 받은 아다만타이트 검을 남 앞에서 꺼내지 않는다.",
-            "1학년 말 첫 비극에서 목숨을 다 써 가며 강림을 막고 죽는다.",
+            "1학년 말 아카데미 습격에서 목숨을 다 써 가며 강림을 막고 죽는다.",
         ],
     ),
     dict(
@@ -1143,7 +1143,7 @@ def world_data(w: dict[str, Any], with_rel: bool) -> dict[str, Any]:
 # Main story and parts -------------------------------------------------------------------------
 
 MILESTONES: list[tuple[str, str]] = [
-    ("ms_tragedy", "첫 비극에서 에른이 목숨을 걸고 강림을 막고, 율리안이 각성한다."),
+    ("ms_tragedy", "아카데미 습격에서 에른이 목숨을 걸고 강림을 막고, 율리안이 각성한다."),
     ("ms_plague", "전염병의 배후를 쫓아 막시밀리안이 몰락한다."),
     ("ms_doll", "테오와 제나가 기사 인형으로 서로의 진실을 알게 된다."),
     ("ms_crow", "에드먼드의 배신으로 디트리히가 수감된다."),
@@ -1168,8 +1168,8 @@ MAIN_DATA: dict[str, Any] = {
 PARTS: list[tuple[str, str, str, list[str], str, str]] = [
     (
         "p1",
-        "입학과 첫 비극",
-        "1학년, 가장 밝은 시간과 첫 비극",
+        "입학과 아카데미 습격",
+        "1학년, 가장 밝은 시간과 아카데미 습격",
         ["ms_tragedy"],
         "테오가 아르카디아에 입학하고 제나와 엇갈려 재회한다.",
         "합동 장례식이 끝나고, 세실리아가 노트에 이름을 적기 시작한다.",
@@ -1363,7 +1363,7 @@ EPISODES: list[dict[str, Any]] = [
         key="e108",
         part="p1",
         order=7,
-        name="첫 비극",
+        name="아카데미 습격",
         theme="영웅이 된 2등",
         chars=["ern", "seraphina", "noel", "julian", "teo", "maximilian"],
         main="arcadia",
@@ -1419,7 +1419,7 @@ EPISODES: list[dict[str, Any]] = [
         ],
         main="arcadia",
         world=["w_eleos"],
-        synopsis="첫 비극의 희생자 40명을 위한 합동 장례식. 에른의 관 옆에 평범한 학생들의 관이 놓이고, 장례식이 끝난 밤 세실리아가 처음으로 노트에 이름들을 적는다.",
+        synopsis="아카데미 습격의 희생자 40명을 위한 합동 장례식. 에른의 관 옆에 평범한 학생들의 관이 놓이고, 장례식이 끝난 밤 세실리아가 처음으로 노트에 이름들을 적는다.",
         structure=four(
             ("엘레오스 교단이 장례를 맡는다.", 2),
             ("막시밀리안이 추도사를 읽는다.", 3),
