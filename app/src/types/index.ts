@@ -1926,6 +1926,14 @@ export interface BeatText {
    */
   checked: boolean | null
   text: string | null
+  /**
+   * The text's sentences as the server splits them (§15 Sentences; a warning's sentence n is the n-th): start and end offsets in Unicode code points, end exclusive. Null while unwritten.
+   */
+  sentences: SentenceSpan[] | null
+}
+export interface SentenceSpan {
+  start: number
+  end: number
 }
 /**
  * GET /chapters/{chapterId}/warnings: the warnings on the current versions of the chapter's beats, in beat order.

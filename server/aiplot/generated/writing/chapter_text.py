@@ -10,6 +10,14 @@ from ..common import beat_id, chapter_id
 from . import version_origin
 
 
+class SentenceSpan(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    start: Annotated[StrictInt, Field(ge=0)]
+    end: Annotated[StrictInt, Field(ge=1)]
+
+
 class BeatText(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -24,6 +32,12 @@ class BeatText(BaseModel):
         Field(description="Whether the current version's check is over."),
     ]
     text: StrictStr | None
+    sentences: Annotated[
+        list[SentenceSpan] | None,
+        Field(
+            description="The text's sentences as the server splits them (§15 Sentences; a warning's sentence n is the n-th): start and end offsets in Unicode code points, end exclusive. Null while unwritten."
+        ),
+    ]
 
 
 class ChapterText(BaseModel):

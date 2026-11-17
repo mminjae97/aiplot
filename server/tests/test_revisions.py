@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 
 from aiplot.jobs.queue import JobQueue, JobRecord
 from aiplot.services import revisions
+from aiplot.services.notes import split_spans
 from aiplot.services.write_context import count_chars
 from tests.test_checks import ENVELOPE, ENVELOPE_VALUE, HAIR, output, state_rows, warnings_of
 from tests.test_direction_roles import conn  # noqa: F401
@@ -76,11 +77,35 @@ def test_a_chapters_manuscript_is_read_in_one_call(
         "origin": "generated",
         "checked": False,
         "text": CLEAN,
+        "sentences": [{"start": a, "end": b} for a, b in split_spans(CLEAN)],
     }
-    unwritten = {"version": None, "chars": None, "origin": None, "checked": None, "text": None}
+    unwritten = {
+        "version": None,
+        "chars": None,
+        "origin": None,
+        "checked": None,
+        "text": None,
+        "sentences": None,
+    }
     assert all({**beat, **unwritten} == beat for beat in found["beats"][1:])
     missing = client.get("/api/v1/chapters/ch_none", headers=AUTH)
     assert error(missing) == (404, "CHAPTER_NOT_FOUND")
+
+
+def test_sentences_are_numbered_as_checks_number_them(
+    client: TestClient, conn: sqlite3.Connection, written: list[dict[str, Any]]
+) -> None:
+    """Offsets in code points (an emoji is one), quotes kept whole, a line break ends one."""
+    chapter = written[0]
+    beat = chapter["beats"][0]["id"]
+    text = "“가자. 어서.” 그가 말했다. 😀 웃었다!\n\n둘째 줄"
+    write(conn, beat, 1, text)
+    spans = text_of(client, chapter["id"])["beats"][0]["sentences"]
+    assert [text[span["start"] : span["end"]] for span in spans] == [
+        "“가자. 어서.” 그가 말했다.",
+        "😀 웃었다!",
+        "둘째 줄",
+    ]
 
 
 def test_a_saved_text_is_a_new_version_checked_again(

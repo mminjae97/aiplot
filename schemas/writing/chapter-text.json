@@ -32,7 +32,8 @@
           "chars",
           "origin",
           "checked",
-          "text"
+          "text",
+          "sentences"
         ],
         "properties": {
           "id": {
@@ -78,6 +79,32 @@
               "string",
               "null"
             ]
+          },
+          "sentences": {
+            "description": "The text's sentences as the server splits them (§15 Sentences; a warning's sentence n is the n-th): start and end offsets in Unicode code points, end exclusive. Null while unwritten.",
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "title": "SentenceSpan",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "start",
+                "end"
+              ],
+              "properties": {
+                "start": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "end": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
           }
         }
       }
