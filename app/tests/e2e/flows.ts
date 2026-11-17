@@ -79,7 +79,7 @@ export async function directAnEpisode(app: ElectronApplication): Promise<void> {
   await notes.getByRole('button', { name: strings.book.notes.direction }).click()
 
   const episodes = win.getByRole('navigation', { name: strings.direction.episodes })
-  const episode = episodes.getByRole('button', { name: /첫 비극/ })
+  const episode = episodes.getByRole('button', { name: /아카데미 습격/ })
   await episode.click()
   await win.getByRole('button', { name: strings.direction.make }).click()
   const timeline = win.getByRole('group', { name: strings.direction.timeline })
