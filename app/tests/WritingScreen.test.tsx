@@ -729,9 +729,9 @@ test('no beat is edited while a job writes the chapter', async () => {
   expect(screen.queryByRole('textbox')).toBeNull()
 })
 
-const failedRecheck = (key: string) =>
+const failedRecheck = (key: string, jobId = 'job_3') =>
   job('failed', {
-    jobId: 'job_3',
+    jobId,
     kind: 'recheck',
     key,
     error: { code: 'LLM_UNAVAILABLE', message: 'no' },
@@ -750,13 +750,29 @@ test('a recheck that failed says so and checks the beat again on asking', async 
   })
 })
 
-test('a failed recheck settled since (its version checked or replaced) says nothing', async () => {
-  // Beat 1's version 1 is checked; beat 2 has no version 3.
-  mockServer({ jobs: [failedRecheck('recheck:b_1:1'), failedRecheck('recheck:b_2:3')] })
+test.each([
+  // Beat 1's version 1 has been checked since.
+  ['checked', 'recheck:b_1:1'],
+  // Beat 2's version 3 is not its current one.
+  ['replaced', 'recheck:b_2:3'],
+])('a failed recheck settled since (its version %s) says nothing', async (_, key) => {
+  mockServer({ jobs: [failedRecheck(key)] })
   renderBook(SCREEN)
   await screen.findByText(/테오는 배에서 내렸다/)
   expect(screen.queryByText(new RegExp(strings.writing.recheckFailed))).toBeNull()
   expect(screen.queryByRole('button', { name: strings.writing.recheckAgain })).toBeNull()
+})
+
+test('a newer recheck of another beat does not hide one still owed', async () => {
+  mockServer({
+    jobs: [
+      job('done', { jobId: 'job_4', kind: 'recheck', key: 'recheck:b_1:1' }),
+      failedRecheck('recheck:b_2:1'),
+    ],
+  })
+  renderBook(SCREEN)
+  await screen.findByText(new RegExp(strings.writing.recheckFailed))
+  expect(screen.getByRole('button', { name: strings.writing.recheckAgain })).toBeTruthy()
 })
 
 test('the setup chip waits while a beat holds edits', async () => {

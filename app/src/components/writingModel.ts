@@ -1,7 +1,7 @@
 // The S3-1 writing page's state in plain functions (§10, §16): which job writes what, how a
 // chapter stands, a beat's text cut at its warned sentences, and the text a job streams.
 import { strings } from '../strings'
-import type { Chapter, EpisodeCard, Job, SentenceSpan, Warning } from '../types'
+import type { BeatText, Chapter, EpisodeCard, Job, SentenceSpan, Warning } from '../types'
 import { isJobActive } from './directionEpisodes'
 
 /** The job key of a chapter's writing job (§16, the server's writing.start_chapter). */
@@ -48,10 +48,22 @@ export function recheckVersionOf(job: Job): number | null {
   return version === undefined ? null : Number(version)
 }
 
-/** The newest job that checked one of the chapter's beats again, whatever came of it. */
-export function latestRecheckOf(chapter: Chapter, jobs: readonly Job[]): Job | null {
-  const ids = new Set(chapter.beats.map((beat) => beat.id))
-  return jobs.find((job) => ids.has(recheckBeatOf(job) ?? '')) ?? null
+/** The newest failed recheck job (not closed) that is still owed: the version it failed on is
+ * its beat's current one, unchecked. A later save, rewrite or a check stored before the
+ * summaries failed settles it. `beats` = the chapter's text, so other chapters' jobs drop out. */
+export function owedRecheck(
+  jobs: readonly Job[],
+  beats: readonly BeatText[] | undefined,
+  closed: ReadonlySet<string>,
+): Job | null {
+  const current = new Map((beats ?? []).map((beat) => [beat.id, beat]))
+  return (
+    jobs.find((job) => {
+      if (job.status !== 'failed' || closed.has(job.jobId)) return false
+      const beat = current.get(recheckBeatOf(job) ?? '')
+      return beat !== undefined && beat.version === recheckVersionOf(job) && beat.checked === false
+    }) ?? null
+  )
 }
 
 /** Characters incl. spaces, as the server counts them (§6, §16): line breaks not counted. */
