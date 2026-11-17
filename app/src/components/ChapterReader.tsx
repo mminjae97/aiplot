@@ -52,6 +52,8 @@ export function ChapterReader({
   const box = useRef<HTMLDivElement>(null)
   const placed = useRef(false)
   const ended = useRef(false)
+  // The scroll the opening itself made (a scroll event follows it): not the reader's.
+  const restored = useRef<number | null>(null)
   const pending = useRef<number | null>(null)
   const timer = useRef<number | undefined>(undefined)
   // The latest callbacks, for the timer and the leaving flush.
@@ -73,6 +75,7 @@ export function ChapterReader({
     placed.current = true
     const room = element.scrollHeight - element.clientHeight
     element.scrollTop = Math.max(0, room) * startAt
+    if (element.scrollTop > 0) restored.current = element.scrollTop
     if (room <= 0) reachEnd()
   })
 
@@ -89,6 +92,9 @@ export function ChapterReader({
     const element = box.current
     if (!element || !placed.current) return
     const { scrollTop, scrollHeight, clientHeight } = element
+    const opening = restored.current === scrollTop
+    restored.current = null
+    if (opening) return
     pending.current = scrolledShare(scrollTop, scrollHeight, clientHeight)
     if (atEnd(scrollTop, scrollHeight, clientHeight)) reachEnd()
     window.clearTimeout(timer.current)
@@ -162,8 +168,9 @@ export function ChapterReader({
         className="reader-text"
         role="document"
         aria-labelledby="reader-title"
-        // focusable, so the keyboard scrolls it
+        // focusable, so the keyboard scrolls it (PageUp/PageDown too: the book leaves them to it)
         tabIndex={0}
+        data-page-keys
         style={{ fontSize: `${String(type.size)}px`, lineHeight: type.line }}
         onScroll={onScroll}
       >

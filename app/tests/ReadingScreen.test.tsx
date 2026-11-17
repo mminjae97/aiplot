@@ -4,7 +4,7 @@ import type { ServerState } from '../src/api/bridge'
 import { useNavigation } from '../src/stores/navigation'
 import { useServer } from '../src/stores/server'
 import { strings } from '../src/strings'
-import type { Chapter, ChapterBeat, ChapterText, ChapterUpdate, Work } from '../src/types'
+import type { Chapter, ChapterBeat, ChapterText, ChapterUpdate, Job, Work } from '../src/types'
 import { renderBook } from './bookHarness'
 
 const READY: ServerState = {
@@ -77,7 +77,7 @@ function text(number: number, body: string): ChapterText {
   }
 }
 
-type World = { work?: Work; chapters: Chapter[]; refuseMark?: boolean }
+type World = { work?: Work; chapters: Chapter[]; refuseMark?: boolean; jobs?: Job[] }
 type Call = { method: string; path: string; body?: string }
 
 let calls: Call[]
@@ -96,6 +96,7 @@ function mockServer(state: World) {
         Promise.resolve(new Response(JSON.stringify(data), { status }))
       if (path === '/works/w_1') return json(world.work ?? WORK)
       if (path === '/works/w_1/chapters') return json({ chapters: world.chapters })
+      if (path === '/works/w_1/jobs') return json({ jobs: world.jobs ?? [] })
       const found = /^\/chapters\/ch_(\d)$/.exec(path)
       if (found && method === 'GET') {
         const number = Number(found[1])
@@ -283,7 +284,8 @@ test('읽음 is toggled in the list; a mark not stored says so', async () => {
   await waitFor(() => {
     expect(box.checked).toBe(false)
   })
-  expect(patches()).toEqual([{ path: '/chapters/ch_1', body: { read: false } }])
+  // Unread again: 이어 읽기 then starts it over.
+  expect(patches()).toEqual([{ path: '/chapters/ch_1', body: { read: false, position: 0 } }])
   world.refuseMark = true
   fireEvent.click(box)
   expect((await screen.findByRole('alert')).textContent).toBe(strings.reading.markFailed)
@@ -314,4 +316,70 @@ test('the type is made larger and looser and remembered', async () => {
   expect(
     screen.getByRole<HTMLButtonElement>('button', { name: strings.reading.smaller }).disabled,
   ).toBe(true)
+})
+
+function writingJob(status: Job['status']): Job {
+  return {
+    jobId: 'job_1',
+    kind: 'chapter',
+    key: 'chapter:ch_3',
+    workId: 'w_1',
+    status,
+    createdAt: '2026-11-17T00:00:00Z',
+    startedAt: null,
+    finishedAt: null,
+    lastEventId: 0,
+    error: null,
+  }
+}
+
+test('opening at the end is not reading to it: the opening scroll marks nothing', async () => {
+  tallText()
+  mockServer({ chapters: [chapter(1, true, false, 1)] })
+  renderBook(SCREEN)
+  fireEvent.click(await screen.findByRole('button', { name: strings.reading.continue }))
+  const reader = await screen.findByRole('document', { name: strings.reading.chapterName(1) })
+  await within(reader).findByText('1화 끝 줄.')
+  expect(reader.scrollTop).toBe(800)
+  // Chromium follows the opening's own scroll with a scroll event.
+  fireEvent.scroll(reader)
+  await new Promise((done) => setTimeout(done, 50))
+  expect(patches()).toEqual([])
+  // The reader's own scrolling to the end does.
+  reader.scrollTop = 500
+  fireEvent.scroll(reader)
+  reader.scrollTop = 800
+  fireEvent.scroll(reader)
+  await waitFor(() => {
+    expect(patches()).toContainEqual({ path: '/chapters/ch_1', body: { read: true } })
+  })
+})
+
+test('PageUp and PageDown scroll the reader; elsewhere they turn the book', async () => {
+  mockServer({ chapters: CHAPTERS() })
+  renderBook(SCREEN)
+  await list()
+  fireEvent.click(open(1))
+  const reader = await screen.findByRole('document', { name: strings.reading.chapterName(1) })
+  fireEvent.keyDown(reader, { key: 'PageUp' })
+  expect(useNavigation.getState().screen).toEqual(SCREEN)
+  fireEvent.keyDown(document.body, { key: 'PageUp' })
+  await waitFor(() => {
+    expect(useNavigation.getState().screen).toEqual({ name: 'writing', workId: 'w_1' })
+  })
+})
+
+test('a chapter written in the background is offered once its job ends', async () => {
+  mockServer({ chapters: CHAPTERS(), jobs: [writingJob('running')] })
+  renderBook(SCREEN)
+  await list()
+  expect((open(3) as HTMLButtonElement).disabled).toBe(true)
+  world.chapters = world.chapters.map((c) => (c.number === 3 ? chapter(3, true) : c))
+  world.jobs = [writingJob('done')]
+  await waitFor(
+    () => {
+      expect((open(3) as HTMLButtonElement).disabled).toBe(false)
+    },
+    { timeout: 5000 },
+  )
 })

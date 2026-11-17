@@ -154,6 +154,8 @@ export function PlanningBook({ screen }: Props) {
         target instanceof HTMLElement &&
         (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
       if (busy || event.repeat || event.ctrlKey || event.altKey || event.metaKey || typing) return
+      // A box that scrolls by these keys itself (the reader's text) keeps them.
+      if (target instanceof Element && target.closest('[data-page-keys]')) return
       if (event.key === 'PageDown' && after) {
         event.preventDefault()
         turnPage(screenOf(after, workId))

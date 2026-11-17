@@ -1,9 +1,9 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { ChapterPanel } from '../components/ChapterPanel'
 import { LeaveEditDialog } from '../components/LeaveEditDialog'
-import { isJobActive } from '../components/directionEpisodes'
+import { useManuscriptJobs } from '../components/useManuscriptJobs'
 import { activeJob, chapterGroups, chapterStatus, statusText } from '../components/writingModel'
 import { type PlanningScreen, useNavigation } from '../stores/navigation'
 import { strings } from '../strings'
@@ -11,11 +11,6 @@ import type { Card, EpisodeCard } from '../types'
 import type { PageProps } from './PlanningBook'
 
 const isEpisode = (card: Card): card is EpisodeCard => card.type === 'episode'
-
-// As on the direction page: a beat takes about a minute; the list is small and local.
-const JOB_POLL_MS = 2000
-
-const WRITING_KEYS = ['chapter:', 'beat:', 'recheck:']
 
 /** S3-1 writing (§10): the chapters on the left, the selected chapter's manuscript in the
  * middle and its warnings on the right. */
@@ -26,7 +21,6 @@ export function WritingScreen({
   guardLeaving,
 }: PageProps<Extract<PlanningScreen, { name: 'writing' }>>) {
   const { workId } = screen
-  const queryClient = useQueryClient()
   const [chosen, setChosen] = useState<string | null>(null)
   // Failed jobs the reader closed; here so that going to another chapter keeps them closed.
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set())
@@ -78,33 +72,9 @@ export function WritingScreen({
     queryFn: () => api.listCards(workId),
     enabled: started,
   })
-  const jobs = useQuery({
-    queryKey: ['jobs', workId],
-    queryFn: () => api.listWorkJobs(workId),
-    enabled: started,
-    refetchInterval: (query) =>
-      query.state.data?.jobs.some(isJobActive) === true ? JOB_POLL_MS : false,
-  })
+  // Another chapter's job (one this page never streamed) changes the manuscript too.
+  const jobs = useManuscriptJobs(workId, started)
   const jobList = jobs.data?.jobs ?? []
-
-  // A writing job that ended changed the manuscript, also one this page never streamed (another
-  // chapter's): read it again. By job, not by watching it leave the running list. Jobs already
-  // over when the page opens are read again too: a cheap local call against a manuscript read
-  // just before the job's end.
-  const handled = useRef(new Set<string>())
-  useEffect(() => {
-    let changed = false
-    for (const job of jobs.data?.jobs ?? []) {
-      if (isJobActive(job) || handled.current.has(job.jobId)) continue
-      handled.current.add(job.jobId)
-      if (WRITING_KEYS.some((key) => job.key?.startsWith(key))) changed = true
-    }
-    if (!changed) return
-    void queryClient.invalidateQueries({ queryKey: ['chapters', workId] })
-    void queryClient.invalidateQueries({ queryKey: ['chapter'] })
-    void queryClient.invalidateQueries({ queryKey: ['warnings'] })
-    void queryClient.invalidateQueries({ queryKey: ['versions'] })
-  }, [jobs.data, queryClient, workId])
 
   const list = chapters.data?.chapters ?? []
   const groups = chapterGroups(list, (episodes.data?.cards ?? []).filter(isEpisode))

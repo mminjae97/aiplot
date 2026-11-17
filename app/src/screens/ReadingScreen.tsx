@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { ChapterReader } from '../components/ChapterReader'
+import { useManuscriptJobs } from '../components/useManuscriptJobs'
 import {
   continueAt,
   isFinished,
@@ -49,18 +50,37 @@ export function ReadingScreen({
   })
   const list = chapters.data?.chapters ?? []
 
-  const stored = (chapter: Chapter) => {
+  // A writing job in the background (§10) adds chapters to read and changes their text.
+  useManuscriptJobs(workId, started)
+
+  // A mark stored: only the keys it sent are taken from the answer (another mark may be on its
+  // way), and a list read before it was stored must not put the old value back.
+  const stored = (chapter: Chapter, body: ChapterUpdate) => {
+    void queryClient.cancelQueries({ queryKey: ['chapters', workId] })
+    const sent = {
+      ...(body.read === undefined ? {} : { read: chapter.read }),
+      ...(body.position === undefined ? {} : { position: chapter.position }),
+    }
     queryClient.setQueryData<ChapterList>(['chapters', workId], (old) =>
-      old ? { chapters: old.chapters.map((c) => (c.id === chapter.id ? chapter : c)) } : old,
+      old
+        ? { chapters: old.chapters.map((c) => (c.id === chapter.id ? { ...c, ...sent } : c)) }
+        : old,
     )
   }
   const mark = useMutation({
     mutationFn: ({ id, body }: { id: string; body: ChapterUpdate }) => api.markChapter(id, body),
-    onSuccess: stored,
+    onSuccess: (chapter, { body }) => {
+      stored(chapter, body)
+    },
   })
   // Where reading stopped is saved quietly: one lost only opens 이어 읽기 a little earlier.
   const keepPosition = (id: string, position: number) => {
-    api.markChapter(id, { position }).then(stored, () => undefined)
+    api.markChapter(id, { position }).then(
+      (chapter) => {
+        stored(chapter, { position })
+      },
+      () => undefined,
+    )
   }
 
   const current = list.find((chapter) => chapter.id === open?.id && isFinished(chapter)) ?? null
@@ -210,7 +230,12 @@ export function ReadingScreen({
                       checked={finished && chapter.read}
                       disabled={!finished || mark.isPending}
                       onChange={(event) => {
-                        mark.mutate({ id: chapter.id, body: { read: event.target.checked } })
+                        // Unread again: 이어 읽기 then opens it from its start.
+                        const read = event.target.checked
+                        mark.mutate({
+                          id: chapter.id,
+                          body: read ? { read } : { read, position: 0 },
+                        })
                       }}
                     />
                   </li>
