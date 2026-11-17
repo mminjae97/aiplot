@@ -4,7 +4,16 @@ import type { ServerState } from '../src/api/bridge'
 import { useNavigation } from '../src/stores/navigation'
 import { useServer } from '../src/stores/server'
 import { strings } from '../src/strings'
-import type { Card, Chapter, ChapterText, Job, Warning, Work } from '../src/types'
+import type {
+  BeatFeedback,
+  BeatVersion,
+  Card,
+  Chapter,
+  ChapterText,
+  Job,
+  Warning,
+  Work,
+} from '../src/types'
 import { renderBook } from './bookHarness'
 
 const READY: ServerState = {
@@ -149,7 +158,14 @@ function job(status: Job['status'], extra: Partial<Job> = {}): Job {
 // The text beat 1 had before its current one (version 1 of 2).
 const OLDER = '테오는 배에서 뛰어내렸다. 미라가 웃었다.'
 
-function version(n: number, text: string, origin: 'generated' | 'edited', checked = true) {
+function version(
+  n: number,
+  text: string,
+  origin: 'generated' | 'edited',
+  checked = true,
+  feedback: BeatVersion['feedback'] = null,
+  note: string | null = null,
+): BeatVersion {
   return {
     version: n,
     text,
@@ -157,6 +173,8 @@ function version(n: number, text: string, origin: 'generated' | 'edited', checke
     origin,
     checked,
     created_at: '2026-11-17T05:00:00Z',
+    feedback,
+    feedback_note: note,
   }
 }
 
@@ -172,6 +190,10 @@ type World = {
   refusePause?: string
   // PUT /beats/b_1/text answers with this error code.
   refuseSave?: string
+  // POST /beats/b_1/feedback fails.
+  refuseFeedback?: boolean
+  // Beat 1's current version (2) as rated so far.
+  rated?: BeatVersion
   jobs?: Job[]
   events?: string
   warnings?: Warning[]
@@ -227,7 +249,19 @@ function mockServer(state: World) {
         return json({ version: version(2, text, 'edited', false), jobId: RECHECK.jobId })
       }
       if (path === '/beats/b_1/versions') {
-        return json({ versions: [version(1, OLDER, 'generated'), version(2, FIRST, 'edited')] })
+        return json({
+          versions: [
+            version(1, OLDER, 'generated', true, 'bad', '너무 서두른다.'),
+            world.rated ?? version(2, FIRST, 'edited'),
+          ],
+        })
+      }
+      if (method === 'POST' && path === '/beats/b_1/feedback') {
+        if (world.refuseFeedback) return json({ code: 'INTERNAL_ERROR', message: 'no' }, 500)
+        const body = JSON.parse(init.body as string) as BeatFeedback
+        const note = body.rating === null ? null : body.note?.trim() || null
+        world.rated = version(2, FIRST, 'edited', true, body.rating, note)
+        return json(world.rated)
       }
       if (method === 'POST' && path === '/beats/b_1/versions/1/restore') {
         world.jobs = [RECHECK]
@@ -642,6 +676,81 @@ test('a picked beat lists its versions; an earlier one is compared and put back'
   await waitFor(() => {
     expect(pick(1).textContent).toContain(strings.writing.unchecked)
   })
+})
+
+function feedbackCalls() {
+  return calls
+    .filter((c) => c.method === 'POST' && c.path === '/beats/b_1/feedback')
+    .map((c) => JSON.parse(c.body ?? '{}') as BeatFeedback)
+}
+
+async function feedbackOfBeat1() {
+  await screen.findByText(/테오는 배에서 내렸다/)
+  fireEvent.click(pick(1))
+  return screen.findByRole('group', { name: strings.writing.feedback(2) })
+}
+
+test('the current version is rated 좋음/별로 with a note; pressing it again takes it back', async () => {
+  mockServer({})
+  renderBook(SCREEN)
+  const rating = await feedbackOfBeat1()
+  const versions = screen.getByRole('region', { name: new RegExp(`^${strings.writing.versions}`) })
+  // An earlier version shows what it was given; only the current one is rated here.
+  expect(within(versions).getByText(/별로/, { selector: 'small' })).toBeTruthy()
+  expect(within(versions).getByText('너무 서두른다.')).toBeTruthy()
+  expect(screen.queryAllByRole('group', { name: strings.writing.feedback(1) })).toHaveLength(0)
+  const good = within(rating).getByRole('button', { name: strings.writing.ratings.good })
+  expect(good.getAttribute('aria-pressed')).toBe('false')
+  // No note field before a rating.
+  expect(within(rating).queryByRole('textbox')).toBeNull()
+  fireEvent.click(good)
+  await waitFor(() => {
+    expect(good.getAttribute('aria-pressed')).toBe('true')
+  })
+  expect(feedbackCalls()).toEqual([{ version: 2, rating: 'good', note: '' }])
+  const note = within(rating).getByRole('textbox', { name: strings.writing.feedbackNote })
+  const save = within(rating).getByRole<HTMLButtonElement>('button', {
+    name: strings.writing.feedbackNoteSave,
+  })
+  expect(save.disabled).toBe(true)
+  fireEvent.change(note, { target: { value: ' 대사가 살아 있다. ' } })
+  expect(save.disabled).toBe(false)
+  fireEvent.click(save)
+  await waitFor(() => {
+    expect(feedbackCalls()).toHaveLength(2)
+  })
+  expect(feedbackCalls()[1]).toEqual({ version: 2, rating: 'good', note: '대사가 살아 있다.' })
+  await waitFor(() => {
+    expect(save.disabled).toBe(true)
+  })
+  // 별로 keeps the note; the pressed one again takes both back.
+  fireEvent.click(within(rating).getByRole('button', { name: strings.writing.ratings.bad }))
+  await waitFor(() => {
+    expect(feedbackCalls()).toHaveLength(3)
+  })
+  expect(feedbackCalls()[2]).toEqual({ version: 2, rating: 'bad', note: '대사가 살아 있다.' })
+  const bad = within(rating).getByRole('button', { name: strings.writing.ratings.bad })
+  await waitFor(() => {
+    expect(bad.getAttribute('aria-pressed')).toBe('true')
+  })
+  fireEvent.click(bad)
+  await waitFor(() => {
+    expect(bad.getAttribute('aria-pressed')).toBe('false')
+  })
+  expect(feedbackCalls()[3]?.rating).toBeNull()
+  expect(within(rating).queryByRole('textbox')).toBeNull()
+})
+
+test('a rating not stored says so and changes nothing', async () => {
+  mockServer({ refuseFeedback: true })
+  renderBook(SCREEN)
+  const rating = await feedbackOfBeat1()
+  const good = within(rating).getByRole('button', { name: strings.writing.ratings.good })
+  fireEvent.click(good)
+  expect((await within(rating).findByRole('alert')).textContent).toBe(
+    strings.writing.feedbackFailed,
+  )
+  expect(good.getAttribute('aria-pressed')).toBe('false')
 })
 
 test('a chapter written to its end while watched ends with a summary the reader closes', async () => {

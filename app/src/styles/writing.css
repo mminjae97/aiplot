@@ -454,6 +454,22 @@
   gap: 6px;
 }
 
+.version-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.version-feedback [aria-pressed='true'] {
+  border-color: var(--brass);
+  font-weight: 700;
+}
+
+.version-note {
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
 .version-diff {
   margin: 4px 0 0;
 }

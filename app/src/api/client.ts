@@ -2,7 +2,9 @@ import { useServer } from '../stores/server'
 import type {
   ApiError,
   BeatEdit,
+  BeatFeedback,
   BeatSaved,
+  BeatVersion,
   BeatVersionList,
   Card,
   ChapterList,
@@ -195,6 +197,12 @@ export const api = {
   restoreVersion: (beatId: string, version: number) =>
     request<BeatSaved>(`/beats/${encodeURIComponent(beatId)}/versions/${String(version)}/restore`, {
       method: 'POST',
+    }),
+  /** 좋음/별로 with a note on one of the beat's versions; a null rating takes it back. */
+  giveFeedback: (beatId: string, body: BeatFeedback) =>
+    request<BeatVersion>(`/beats/${encodeURIComponent(beatId)}/feedback`, {
+      method: 'POST',
+      body: JSON.stringify(body),
     }),
   chapterWarnings: (chapterId: string) =>
     request<WarningList>(`/chapters/${encodeURIComponent(chapterId)}/warnings`),
