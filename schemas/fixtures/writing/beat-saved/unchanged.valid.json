@@ -5,7 +5,9 @@
     "chars": 12,
     "origin": "edited",
     "checked": true,
-    "created_at": "2026-11-12T03:00:00Z"
+    "created_at": "2026-11-12T03:00:00Z",
+    "feedback": null,
+    "feedback_note": null
   },
   "jobId": null
 }

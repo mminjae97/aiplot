@@ -324,7 +324,7 @@ def insert_version(
     return version
 
 
-VERSION_COLUMNS = "version, text, chars, origin, checked, created_at"
+VERSION_COLUMNS = "version, text, chars, origin, checked, created_at, feedback, feedback_note"
 
 
 def to_version(row: sqlite3.Row) -> BeatVersion:
@@ -355,6 +355,18 @@ def current_version(conn: sqlite3.Connection, beat_id: str) -> BeatVersion | Non
         (beat_id,),
     ).fetchone()
     return to_version(row) if row else None
+
+
+def set_feedback(
+    conn: sqlite3.Connection, beat_id: str, version: int, rating: str | None, note: str | None
+) -> bool:
+    """The version's 좋음/별로 and note (both null = taken back); False if there is no such
+    version."""
+    cur = conn.execute(
+        "UPDATE beat_version SET feedback = ?, feedback_note = ? WHERE beat_id = ? AND version = ?",
+        (rating, note, beat_id, version),
+    )
+    return cur.rowcount > 0
 
 
 def chapter_text(conn: sqlite3.Connection, chapter_id: str) -> ChapterText | None:

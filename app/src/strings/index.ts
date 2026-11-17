@@ -699,6 +699,13 @@ export const strings = {
     restore: '되돌리기',
     restoreHint: '이 버전의 글을 새 버전으로 저장하고 다시 검사해요.',
     versionsLoadFailed: '버전을 불러오지 못했어요.',
+    feedback: (version: number) => `버전 ${String(version)} 평가`,
+    feedbackHint:
+      '좋음·별로는 나중에 글쓰기 모델을 다듬는 데 쓰여요. 누른 버튼을 다시 누르면 지워져요.',
+    ratings: { good: '좋음', bad: '별로' } as Record<string, string>,
+    feedbackNote: '메모 (선택)',
+    feedbackNoteSave: '메모 저장',
+    feedbackFailed: '평가를 저장하지 못했어요. 다시 시도해 주세요.',
     restoreFailed: '되돌리지 못했어요. 다시 시도해 주세요.',
     summaryTitle: (number: number) => `${String(number)}화 쓰기를 마쳤어요`,
     summaryElapsed: '걸린 시간',

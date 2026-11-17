@@ -125,3 +125,25 @@ def start_recheck(
 
     job = jobs.submit("recheck", run, work_id=work_id, key=f"recheck:{beat_id}:{version}")
     return job.id
+
+
+def give_feedback(
+    conn: sqlite3.Connection, beat_id: str, version: int, rating: str | None, note: str | None
+) -> BeatVersion:
+    """The user's 좋음/별로 with a note on one of the beat's versions (§9: training feedback,
+    §18), the one they read; a null rating takes it back with its note. Only while writing is
+    the current stage."""
+    chapter_id = chapters_db.chapter_of_beat(conn, beat_id)
+    chapter = chapters_db.get_chapter(conn, chapter_id) if chapter_id else None
+    if chapter is None:
+        raise BeatNotFoundError(beat_id)
+    kept = (note or "").strip() or None
+    with transaction(conn):
+        works.require_current(conn, chapter.work_id, writing.WRITING_STAGE)
+        if not chapters_db.set_feedback(
+            conn, beat_id, version, rating, kept if rating is not None else None
+        ):
+            raise VersionNotFoundError(f"{beat_id} has no version {version}")
+    stored = chapters_db.get_version(conn, beat_id, version)
+    assert stored is not None
+    return stored

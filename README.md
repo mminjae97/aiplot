@@ -754,9 +754,9 @@ erDiagram
 | `technique_pick` | id, plan_id, scene, rank, reason, chosen | 장면별 추천 기법 조합 1~3개와 사용자가 고른 조합 |
 | `technique_pick_item` | pick_id, technique_id | 조합에 든 카드 1~3장 |
 | `chapter` | id, plan_id, work_id, number, target_chars, read, progress_summary, summary_long, summary_short | 화 |
-| `beat` | id, chapter_id, order, source_stage, pov, mode, focus, density, tension, feedback | 비트 연출 지시와 사용자 피드백 |
+| `beat` | id, chapter_id, order, source_stage, pov, mode, focus, density, tension | 비트 연출 지시 |
 | `beat_technique` | beat_id, technique_id | 비트가 실현하는 기법 |
-| `beat_version` | id, beat_id, version, text, chars, origin(생성·직접 수정), prompt_version, style_id, style_version, created_at | 원고 버전, 가장 최근 것이 현재 원고 |
+| `beat_version` | id, beat_id, version, text, chars, origin(생성·직접 수정), prompt_version, style_id, style_version, created_at, checked, feedback(좋음·별로), feedback_note | 원고 버전, 가장 최근 것이 현재 원고. 좋음/별로와 메모는 그 버전의 글에 남긴다 |
 | `state_record` | id, beat_id, card_id, key, value | 비트 시점의 상태. key는 고정 목록(상태 기록 항목 참고) |
 | `warning` | id, version_id, card_id, kind, status, reason | 개연성 경고와 무시 사유 |
 | `snapshot` | id, work_id, stage, path, created_at | 단계 되돌리기 전 자동 백업 |
@@ -893,7 +893,7 @@ erDiagram
 | `GET /episodes/{episodeId}/plans` | 계획서, 장면별 추천 조합과 근거 |
 | `PATCH /plans/{planId}` | 비트 순서·화 경계 수정, 바뀐 부분 재검사 결과 반환 |
 | `POST /plans/{planId}/choose` | 계획서 확정 |
-| `POST /beats/{beatId}/feedback` | 좋음/별로와 메모 |
+| `POST /beats/{beatId}/feedback` | 비트 버전 하나에 좋음/별로와 메모(`{version, rating, note}`, rating null이면 지움) |
 | `GET /techniques?q=` | 기법 카드 요약 목록(id 순). 이름, 영어 이름, 다른 이름으로 검색(대소문자·띄어쓰기 무시) |
 | `GET /techniques/{techniqueId}` | 기법 카드 하나 (없으면 404 `TECHNIQUE_NOT_FOUND`) |
 | `POST /plans/{planId}/scenes/{scene}/pick` | 장면의 기법 카드 조합 선택(`{techniques[]}`), 그 장면의 비트를 다시 짬. 부딪히는 짝이 있으면 422 `TECHNIQUES_CONFLICT` |

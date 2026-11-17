@@ -8,8 +8,10 @@ from fastapi import APIRouter, Path, Request
 from aiplot.api.deps import Db
 from aiplot.api.errors import AppError
 from aiplot.generated.jobs.job_accepted import JobAccepted
+from aiplot.generated.writing.beat_feedback import BeatFeedback
 from aiplot.generated.writing.beat_saved import BeatSaved
 from aiplot.generated.writing.beat_text_update import BeatTextUpdate
+from aiplot.generated.writing.beat_version import BeatVersion
 from aiplot.generated.writing.beat_version_list import BeatVersionList
 from aiplot.generated.writing.chapter_list import ChapterList
 from aiplot.generated.writing.chapter_text import ChapterText
@@ -164,3 +166,12 @@ async def restore_version(
     except REFUSED as exc:
         raise refusal(exc) from exc
     return saved(request, beatId, found)
+
+
+@router.post("/beats/{beatId}/feedback")
+def give_feedback(db: Db, beatId: str, body: BeatFeedback) -> BeatVersion:
+    """좋음/별로 with a note on one of the beat's versions (training feedback, §9)."""
+    try:
+        return revisions.give_feedback(db, beatId, body.version, body.rating, body.note)
+    except REFUSED as exc:
+        raise refusal(exc) from exc

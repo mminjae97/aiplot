@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FeedbackRating",
+  "description": "The user's 좋음 (good) or 별로 (bad) on a beat version, kept as training feedback (§9, §18).",
+  "type": "string",
+  "enum": [
+    "good",
+    "bad"
+  ]
+}

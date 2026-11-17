@@ -10,7 +10,9 @@
     "chars",
     "origin",
     "checked",
-    "created_at"
+    "created_at",
+    "feedback",
+    "feedback_note"
   ],
   "properties": {
     "version": {
@@ -36,6 +38,24 @@
     "created_at": {
       "description": "ISO 8601 UTC.",
       "type": "string"
+    },
+    "feedback": {
+      "description": "The user's 좋음/별로 on this version (§9), null when not rated.",
+      "oneOf": [
+        {
+          "$ref": "./feedback-rating.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "feedback_note": {
+      "description": "The note given with the rating, null when none.",
+      "type": [
+        "string",
+        "null"
+      ]
     }
   }
 }

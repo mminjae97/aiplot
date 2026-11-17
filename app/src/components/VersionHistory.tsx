@@ -4,6 +4,7 @@ import { ApiRequestError, api } from '../api/client'
 import { strings } from '../strings'
 import type { BeatSaved, ChapterBeat } from '../types'
 import { elide, textDiff } from './textDiff'
+import { VersionFeedback } from './VersionFeedback'
 
 type Props = {
   /** The picked beat, null while none is. */
@@ -94,7 +95,20 @@ export function VersionHistory({ beat, busy, onRestored }: Props) {
                 <small>
                   {strings.writing.versionMeta(item.chars, when(item.created_at))}
                   {!item.checked && ` · ${strings.writing.notChecked}`}
+                  {!isCurrent &&
+                    item.feedback !== null &&
+                    ` · ${strings.writing.ratings[item.feedback] ?? item.feedback}`}
                 </small>
+                {!isCurrent && item.feedback_note !== null && (
+                  <small className="version-note">{item.feedback_note}</small>
+                )}
+                {isCurrent && beatId !== null && (
+                  <VersionFeedback
+                    key={`${beatId}:${String(item.version)}`}
+                    beatId={beatId}
+                    version={item}
+                  />
+                )}
                 {!isCurrent && (
                   <div className="version-actions">
                     <button

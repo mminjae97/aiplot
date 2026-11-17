@@ -133,6 +133,8 @@ def test_a_saved_text_is_a_new_version_checked_again(
         "origin": "edited",
         "checked": False,
         "created_at": body["version"]["created_at"],
+        "feedback": None,
+        "feedback_note": None,
     }
     job = wait(client, body["jobId"])
     assert (job["status"], job["kind"], job["key"]) == ("done", "recheck", f"recheck:{beat}:2")
@@ -336,3 +338,56 @@ def test_a_summary_overtaken_by_a_newer_text_is_not_stored(
     assert wait(client, body["jobId"])["status"] == "done"
     stored = conn.execute("SELECT progress_summary FROM chapter WHERE id = ?", (written[0]["id"],))
     assert stored.fetchone()[0] is None
+
+
+def feedback(client: TestClient, beat_id: str, **body: Any) -> Any:
+    return client.post(f"/api/v1/beats/{beat_id}/feedback", headers=AUTH, json=body)
+
+
+def test_feedback_is_kept_on_the_version_it_was_given_on(
+    client: TestClient, conn: sqlite3.Connection, written: list[dict[str, Any]], llm: Scripted
+) -> None:
+    beat = written[0]["beats"][0]["id"]
+    write(conn, beat, 1, "옛 글.")
+    write(conn, beat, 2, CLEAN)
+    given = feedback(client, beat, version=2, rating="good", note="  대사가 자연스럽다.\n")
+    assert given.status_code == 200, given.json()
+    assert (given.json()["version"], given.json()["feedback"], given.json()["feedback_note"]) == (
+        2,
+        "good",
+        "대사가 자연스럽다.",
+    )
+    # An earlier version keeps its own; a blank note is none.
+    assert feedback(client, beat, version=1, rating="bad", note=" ").json()["feedback_note"] is None
+    assert [(v["feedback"], v["feedback_note"]) for v in listed(client, beat)] == [
+        ("bad", None),
+        ("good", "대사가 자연스럽다."),
+    ]
+    # A new version starts unrated; the rated text keeps its rating.
+    saved = put(client, beat, EDITED).json()
+    assert (saved["version"]["feedback"], saved["version"]["feedback_note"]) == (None, None)
+    assert wait(client, saved["jobId"])["status"] == "done"
+    assert listed(client, beat)[1]["feedback"] == "good"
+    # Taken back: the note goes with it.
+    back = feedback(client, beat, version=2, rating=None, note="남은 메모").json()
+    assert (back["feedback"], back["feedback_note"]) == (None, None)
+    assert error(feedback(client, beat, version=9, rating="good")) == (404, "VERSION_NOT_FOUND")
+    assert error(feedback(client, "b_none", version=1, rating="good")) == (404, "BEAT_NOT_FOUND")
+    assert error(feedback(client, beat, version=1, rating="great")) == (422, "VALIDATION_ERROR")
+    assert error(feedback(client, beat, version=1, rating="good", note="가" * 501)) == (
+        422,
+        "VALIDATION_ERROR",
+    )
+    # The database refuses a note without a rating.
+    try:
+        conn.execute(
+            "UPDATE beat_version SET feedback = NULL, feedback_note = '메모' WHERE beat_id = ?",
+            (beat,),
+        )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("a note without a rating was stored")
+    # Once direction is open again the manuscript is gone.
+    assert reopen(client, 2, title="책").status_code == 200
+    assert error(feedback(client, beat, version=1, rating="good")) == (404, "BEAT_NOT_FOUND")

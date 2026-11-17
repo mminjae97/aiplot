@@ -6,7 +6,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 
-from . import version_origin
+from . import feedback_rating, version_origin
 
 
 class BeatVersion(BaseModel):
@@ -33,3 +33,11 @@ class BeatVersion(BaseModel):
         ),
     ]
     created_at: Annotated[StrictStr, Field(description="ISO 8601 UTC.")]
+    feedback: Annotated[
+        feedback_rating.FeedbackRating | None,
+        Field(description="The user's 좋음/별로 on this version (§9), null when not rated."),
+    ]
+    feedback_note: Annotated[
+        StrictStr | None,
+        Field(description="The note given with the rating, null when none."),
+    ]

@@ -4,5 +4,7 @@
   "chars": 12,
   "origin": "edited",
   "checked": true,
-  "created_at": "2026-11-12T03:00:00Z"
+  "created_at": "2026-11-12T03:00:00Z",
+  "feedback": "good",
+  "feedback_note": "대사가 자연스럽다."
 }
