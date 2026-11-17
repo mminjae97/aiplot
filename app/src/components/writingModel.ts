@@ -50,15 +50,20 @@ export function recheckVersionOf(job: Job): number | null {
 
 /** The newest failed recheck job (not closed) that is still owed: the version it failed on is
  * its beat's current one, unchecked. A later save, rewrite or a check stored before the
- * summaries failed settles it. `beats` = the chapter's text, so other chapters' jobs drop out. */
+ * summaries failed settles it. Only the newest job of each key counts: a retry (the same text
+ * saved again) running or failed in its turn stands for the attempts before it. `jobs` newest
+ * first; `beats` = the chapter's text, so other chapters' jobs drop out. */
 export function owedRecheck(
   jobs: readonly Job[],
   beats: readonly BeatText[] | undefined,
   closed: ReadonlySet<string>,
 ): Job | null {
   const current = new Map((beats ?? []).map((beat) => [beat.id, beat]))
+  const seen = new Set<string>()
   return (
     jobs.find((job) => {
+      if (job.key === null || recheckBeatOf(job) === null || seen.has(job.key)) return false
+      seen.add(job.key)
       if (job.status !== 'failed' || closed.has(job.jobId)) return false
       const beat = current.get(recheckBeatOf(job) ?? '')
       return beat !== undefined && beat.version === recheckVersionOf(job) && beat.checked === false

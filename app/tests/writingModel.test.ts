@@ -6,6 +6,7 @@ import {
   countChars,
   liveText,
   NOTHING_STREAMED,
+  owedRecheck,
   recheckedBeats,
   segments,
   sentenceText,
@@ -178,4 +179,29 @@ test('a writing job ends with its chars, warnings and time; anything else is no 
   })
   expect(writingResult({ result: { chars: 10 } })).toBeNull()
   expect(writingResult(null)).toBeNull()
+})
+
+test('a failed recheck is owed while its version is current and unchecked, newest per key', () => {
+  const beat = {
+    id: 'b_2',
+    order: 2,
+    version: 1,
+    chars: 6,
+    origin: 'edited' as const,
+    checked: false,
+    text: '안개.',
+    sentences: [],
+  }
+  const beats = [beat]
+  const failed = (jobId: string) => job('recheck:b_2:1', 'failed', jobId)
+  expect(owedRecheck([failed('job_3')], beats, new Set())?.jobId).toBe('job_3')
+  // A retry of the same key running: nothing to tell yet.
+  expect(
+    owedRecheck([job('recheck:b_2:1', 'running', 'job_5'), failed('job_3')], beats, new Set()),
+  ).toBeNull()
+  // The retry failed and was closed: the attempt before it does not come back.
+  expect(owedRecheck([failed('job_5'), failed('job_3')], beats, new Set(['job_5']))).toBeNull()
+  // Checked since, or another version now.
+  expect(owedRecheck([failed('job_3')], [{ ...beat, checked: true }], new Set())).toBeNull()
+  expect(owedRecheck([failed('job_3')], [{ ...beat, version: 2 }], new Set())).toBeNull()
 })
